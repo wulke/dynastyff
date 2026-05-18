@@ -17,6 +17,12 @@ When a draft is created, the system shall set `drafts.status` to `in_progress`.
 **DFF-ENGINE-003** `[ ]`
 If a POST /drafts request is received with missing or invalid configuration fields, the system shall return a 400 error with a descriptive message and shall not create any database records.
 
+**DFF-ENGINE-004** `[ ]`
+When a draft is created, the system shall insert exactly `team_count` `teams` rows, exactly `team_count × rounds` `draft_order` rows in snake order, and one `team_pick_assets` row per team per configured future `(year, round)` combination inside a single transaction.
+
+**DFF-ENGINE-005** `[ ]`
+If any derived draft-creation write fails after the draft row is inserted, the system shall roll back the entire draft creation transaction so no partial draft state remains.
+
 ---
 
 ## SSE Stream
@@ -38,6 +44,9 @@ When a trade is resolved, the system shall emit a `trade_resolved` event contain
 
 **DFF-ENGINE-015** `[ ]`
 When all picks are exhausted, the system shall emit a `draft_complete` event and set `drafts.status` to `completed`.
+
+**DFF-ENGINE-016** `[ ]`
+When a draft transitions to `completed`, the system shall set `drafts.completed_at` to the current timestamp as part of that status update.
 
 ---
 

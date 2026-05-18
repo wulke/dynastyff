@@ -65,6 +65,24 @@ At draft creation, the full pick order (e.g. 240 rows for 12×20) is computed an
 - Even rounds: teams pick in reverse (12 → 1)
 - User's `pick_position` places them in the correct slot; remaining positions filled randomly for bots
 
+## Draft Creation Bootstrap
+
+Draft creation is a single transactional bootstrap that writes the base `drafts` row and all derived state together:
+
+1. Insert the `drafts` row with status `in_progress`
+2. Insert exactly `team_count` `teams` rows
+3. Mark the team at `user_pick_position` as `is_user = 1`
+4. Assign every bot team a predefined generic name and one valid archetype
+5. Generate `draft_order` rows for every round in snake order
+6. Generate `team_pick_assets` rows for every team across the configured future `(year, round)` matrix
+7. Commit only if all derived rows were written successfully
+
+If any team, draft-order, or pick-asset write fails, the transaction is rolled back so no partial draft remains in SQLite.
+
+## Draft Completion
+
+When the draft engine transitions a draft from `in_progress` to `completed`, it updates `drafts.status` and sets `drafts.completed_at` to the current timestamp in the same write. Non-terminal updates must not populate `completed_at`.
+
 ## Trade Resolution
 
 All trade modals — including bot-to-bot trades — are blocking and require explicit user acknowledgment before the draft continues. This is intentional: the draft is untimed and solo, so the user should have full visibility into every trade that reshapes the board. For bot-to-bot trades the buttons are "OK" (acknowledge, trade stands) and "Force Decline" (user vetoes the trade). For user-targeted trades the buttons are "Accept" and "Decline."

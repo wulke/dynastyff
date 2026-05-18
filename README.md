@@ -14,6 +14,9 @@ A local web app for practicing dynasty startup drafts. Run a full 12-team snake 
 # Install dependencies
 npm install
 
+# Initialize the local SQLite schema
+npm run db:init
+
 # Install Playwright browsers
 npx playwright install
 
@@ -65,6 +68,10 @@ docs/
     data-model.md
     etl-pipeline.md
   specs/                 # EARS specs per component
+src/
+  db/
+    init.ts              # SQLite schema init entry point
+    schema.ts            # Shared Drizzle table definitions
 ```
 
 ## Architecture

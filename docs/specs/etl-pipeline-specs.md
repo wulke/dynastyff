@@ -2,70 +2,118 @@
 
 Drives: `docs/llds/etl-pipeline.md`
 
-Status markers: `[x]` implemented · `[ ]` active gap · `[D]` deferred
+Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ---
 
 ## Invocation
 
-**DFF-ETL-001** `[x]`
-WHEN the user runs `npm run etl`, THE SYSTEM SHALL execute the ETL pipeline as a standalone script without requiring the Express server to be running.
+**DFF-ETL-001** `[ ]`
+The system shall expose an `npm run etl` command that executes the ETL pipeline as a standalone script without requiring the Express server to be running.
 
 ---
 
-## KTC Scraper
+## Scrapers
 
-**DFF-ETL-010** `[x]`
-THE SYSTEM SHALL scrape player values from KeepTradeCut using Playwright headless Chromium.
+**DFF-ETL-010** `[ ]`
+The system shall scrape player values and pick values from KTC, FantasyCalc, DynastyDaddy, and RosterAudit using Playwright headless Chromium.
 
-**DFF-ETL-011** `[x]`
-THE SYSTEM SHALL return KTC players typed as `{ name, position, nflTeam, age, isRookie, rawValue, adp }`.
+**DFF-ETL-011** `[ ]`
+The system shall run scrapers with a maximum concurrency of 2 simultaneous scrapers.
 
-**DFF-ETL-012** `[x]`
-WHEN the KTC scraper returns player rows, THE SYSTEM SHALL restrict `position` values to `QB`, `RB`, `WR`, and `TE`.
+**DFF-ETL-012** `[ ]`
+Each scraper shall return players typed as `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values typed as `{ year, round, rawValue }`.
+
+**DFF-ETL-013** `[ ]`
+The system shall restrict `position` values returned by scrapers to: QB, RB, WR, TE.
+
+---
+
+## Player Matching
+
+**DFF-ETL-020** `[ ]`
+The system shall match players across sources by first attempting an exact match on normalized name and position.
+
+**DFF-ETL-021** `[ ]`
+When an exact name match fails, the system shall attempt a fuzzy match using Dice coefficient on player name, restricted to players at the same position, and accept the match only if the score is ≥ 0.85.
+
+**DFF-ETL-022** `[ ]`
+When a fuzzy match fails, the system shall consult `player-aliases.json` for a hard-coded canonical-to-variant override before declaring a match failure.
+
+**DFF-ETL-023** `[ ]`
+When a player from a non-primary source cannot be matched to any canonical player after fuzzy match and alias lookup, the system shall log a warning and exclude that source's value for that player; the ETL run shall continue.
+
+**DFF-ETL-024** `[ ]`
+The system shall use the following source priority order for canonical player name and metadata: KTC → FantasyCalc → DynastyDaddy → RosterAudit.
 
 ---
 
 ## Normalization
 
-**DFF-ETL-020** `[x]`
-WHEN the KTC scraper returns at least two supported players, THE SYSTEM SHALL normalize raw player values to the range `0–9999` using `round((raw - min) / (max - min) * 9999)`.
+**DFF-ETL-030** `[ ]`
+The system shall normalize each source's raw player values independently to the range 0–9999 using min-max scaling: `round((raw - min) / (max - min) * 9999)`.
 
-**DFF-ETL-021** `[x]`
-WHEN the KTC scraper returns exactly one supported player, THE SYSTEM SHALL assign that player a normalized value of `9999`.
+**DFF-ETL-031** `[ ]`
+The system shall normalize each source's raw pick values independently using the same min-max formula.
 
----
-
-## Upsert
-
-**DFF-ETL-030** `[x]`
-WHEN a scraped player does not exist in `players` matched by `name` and `position`, THE SYSTEM SHALL insert a new row with a generated UUID and all available KTC attributes.
-
-**DFF-ETL-031** `[x]`
-WHEN a scraped player already exists in `players` matched by `name` and `position`, THE SYSTEM SHALL update `dynasty_value`, `value_ktc`, `adp`, and `updated_at`.
-
-**DFF-ETL-032** `[x]`
-WHEN the ETL writes KTC data in this slice, THE SYSTEM SHALL set `dynasty_value` equal to the normalized KTC value.
+**DFF-ETL-032** `[ ]`
+When a source returns only one player or pick value (degenerate case), the system shall assign that entry a normalized value of 9999 and log a warning.
 
 ---
 
-## Exit Behavior
+## Aggregation
 
-**DFF-ETL-040** `[x]`
-WHEN the ETL run completes successfully, THE SYSTEM SHALL exit with status code `0`.
+**DFF-ETL-040** `[ ]`
+The system shall compute `dynasty_value` for each player as the rounded mean of all non-NULL normalized per-source values for that player.
 
-**DFF-ETL-041** `[x]`
-WHEN the KTC scraper yields no supported players, THE SYSTEM SHALL exit with a non-zero status code and perform no player upserts.
+**DFF-ETL-041** `[ ]`
+The system shall compute `dynasty_value` for each pick value `(year, round)` as the rounded mean of all non-NULL normalized per-source values for that entry.
 
 ---
 
-## Deferred Follow-on Work
+## Partial Failure
 
-**DFF-ETL-050** `[D]`
-THE SYSTEM SHALL scrape player and pick values from FantasyCalc, DynastyDaddy, and RosterAudit in addition to KTC.
+**DFF-ETL-050** `[ ]`
+When a scraper throws an unrecoverable error, the system shall log a warning in the format: `[ETL] WARN: {source} scraper failed — {message}. Excluding from this run.` and continue with remaining scrapers.
 
-**DFF-ETL-051** `[D]`
-THE SYSTEM SHALL run scrapers with a maximum concurrency of `2` simultaneous scrapers.
+**DFF-ETL-051** `[ ]`
+When at least one scraper succeeds, the system shall proceed with normalization, aggregation, and upsert using the available data.
 
-**DFF-ETL-052** `[D]`
-THE SYSTEM SHALL match players across sources, aggregate non-NULL normalized source values, and upsert pick values.
+**DFF-ETL-052** `[ ]`
+When all scrapers fail, the system shall exit with a non-zero exit code and perform no database writes.
+
+**DFF-ETL-053** `[ ]`
+When upserting a player whose per-source column would come from a failed scraper, the system shall leave that column's existing value unchanged (not overwrite with NULL).
+
+---
+
+## Upsert — Players
+
+**DFF-ETL-060** `[ ]`
+When a player already exists in `players` (matched by name and position), the system shall update `dynasty_value`, all non-NULL per-source value columns (`value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, `value_rosteraudit`), `adp` (if provided by any source), and `updated_at`.
+
+**DFF-ETL-061** `[ ]`
+When a player does not exist in `players`, the system shall insert a new row with a generated UUID and all available attributes.
+
+**DFF-ETL-062** `[ ]`
+The system shall set `value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, and `value_rosteraudit` to NULL for any source that did not provide a value for a given player (either due to scraper failure or failed player matching).
+
+---
+
+## Upsert — Pick Values
+
+**DFF-ETL-070** `[ ]`
+When a `(year, round)` entry already exists in `pick_values`, the system shall update `dynasty_value` and `updated_at`.
+
+**DFF-ETL-071** `[ ]`
+When a `(year, round)` entry does not exist in `pick_values`, the system shall insert a new row with a generated UUID.
+
+---
+
+## Aliases
+
+**DFF-ETL-080** `[ ]`
+The system shall load `player-aliases.json` from the project root at ETL startup and apply it during player matching.
+
+**DFF-ETL-081** `[ ]`
+The `player-aliases.json` file shall support entries of the form `{ canonical: string, variants: string[] }` where any variant name is treated as equivalent to the canonical name during matching.

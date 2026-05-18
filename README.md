@@ -24,7 +24,7 @@ npx playwright install
 cp .env.example .env
 # Add your ANTHROPIC_API_KEY to .env
 
-# Populate the database (scrapes KTC, FantasyCalc, DynastyDaddy, RosterAudit)
+# Populate the database with KTC player values
 npm run etl
 
 # Start the dev server
@@ -55,6 +55,17 @@ Open `http://localhost:3000` to begin.
 All settings are configurable on the league config screen before starting a draft.
 
 The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs fully offline.
+
+## ETL
+
+`npm run etl` is a standalone script. It does not require the Express server to be running.
+
+Current ETL scope:
+
+- Scrapes KTC player values with Playwright
+- Filters players to `QB`, `RB`, `WR`, and `TE`
+- Normalizes KTC values to `0-9999`
+- Upserts the local SQLite `players` table
 
 ## Project Structure
 

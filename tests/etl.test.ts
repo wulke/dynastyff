@@ -293,7 +293,7 @@ test('runEtl exits non-zero and writes nothing when KTC yields no supported play
     const exitCode = await runEtl({
       databasePath: dbPath,
       scrapeKtc: async () =>
-        [
+        ([
           {
             name: 'Kicker Only',
             position: 'K',
@@ -303,7 +303,7 @@ test('runEtl exits non-zero and writes nothing when KTC yields no supported play
             rawValue: 100,
             adp: null,
           },
-        ] as KtcRawPlayer[],
+        ] as unknown as KtcRawPlayer[]),
       now: () => '2026-05-18T22:00:00.000Z',
     });
 

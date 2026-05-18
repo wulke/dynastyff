@@ -85,6 +85,14 @@ src/
     schema.ts            # Shared Drizzle table definitions
 ```
 
+## Development Workflow
+
+| Command | Purpose |
+|---|---|
+| `/grill-me` | Stress-test a feature idea or design — Claude interviews you until the plan is solid |
+| `/to-issues @<spec-or-lld>` | Break a spec or LLD into independently-grabbable GitHub issues |
+| `./scripts/do-work.sh` | Spin up an agent to implement an open issue |
+
 ## Architecture
 
 See [`docs/high-level-design.md`](docs/high-level-design.md) for the full system design.

@@ -228,7 +228,7 @@ test('createDraft rolls back the draft row and all derived rows when bootstrap f
           now: () => '2026-05-18T21:00:00.000Z',
           random: () => 0,
           idGenerator: (() => {
-            const ids = ['draft-1', 'team-1', 'team-2', 'team-1'];
+            const ids = ['draft-1', 'team-1', 'team-2', 'order-1', 'order-1'];
             let index = 0;
 
             return () => ids[index++] ?? `extra-${index}`;

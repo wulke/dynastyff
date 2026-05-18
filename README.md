@@ -83,6 +83,8 @@ src/
   db/
     init.ts              # SQLite schema init entry point
     schema.ts            # Shared Drizzle table definitions
+  draft/
+    service.ts           # Transactional draft bootstrap and status updates
 ```
 
 ## Development Workflow

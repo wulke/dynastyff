@@ -24,7 +24,7 @@ npx playwright install
 cp .env.example .env
 # Add your ANTHROPIC_API_KEY to .env
 
-# Populate the database with KTC player values
+# Populate the database (scrapes KTC, FantasyCalc, DynastyDaddy, RosterAudit)
 npm run etl
 
 # Start the dev server

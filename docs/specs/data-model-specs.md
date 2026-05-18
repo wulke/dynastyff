@@ -8,16 +8,16 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ## Players
 
-**DFF-DATA-001** `[ ]`
+**DFF-DATA-001** `[x]`
 The system shall store each player with the following attributes: id, name, position, nfl_team, age, is_rookie, dynasty_value, value_ktc, value_fantasycalc, value_dynastydaddy, value_rosteraudit, adp, updated_at.
 
-**DFF-DATA-002** `[ ]`
+**DFF-DATA-002** `[x]`
 The system shall restrict `players.position` to the values: QB, RB, WR, TE.
 
 **DFF-DATA-003** `[ ]`
 When the ETL pipeline refreshes player data, the system shall update `players.dynasty_value`, all non-NULL per-source value columns (`value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, `value_rosteraudit`), `players.adp`, and `players.updated_at` for all rows where the player already exists.
 
-**DFF-DATA-005** `[ ]`
+**DFF-DATA-005** `[x]`
 The system shall store per-source normalized dynasty values for each player in `value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, and `value_rosteraudit`; each column shall be NULL when that source did not provide a value for the player.
 
 **DFF-DATA-004** `[ ]`
@@ -27,7 +27,7 @@ When the ETL pipeline encounters a player not currently in `players`, the system
 
 ## Pick Values
 
-**DFF-DATA-010** `[ ]`
+**DFF-DATA-010** `[x]`
 The system shall store a dynasty value for each future pick asset keyed by `(year, round)` in the `pick_values` table with the following columns: id, year, round, dynasty_value, updated_at.
 
 **DFF-DATA-011** `[ ]`
@@ -40,13 +40,13 @@ When the ETL pipeline encounters a `(year, round)` combination not currently in 
 
 ## Drafts
 
-**DFF-DATA-020** `[ ]`
+**DFF-DATA-020** `[x]`
 When a draft is created, the system shall persist: team_count, rounds, scoring_format, user_pick_position, future_pick_years, future_pick_rounds, and roster_config as a JSON blob.
 
-**DFF-DATA-021** `[ ]`
+**DFF-DATA-021** `[x]`
 The system shall restrict `drafts.scoring_format` to the values: `ppr`, `half_ppr`, `standard`.
 
-**DFF-DATA-022** `[ ]`
+**DFF-DATA-022** `[x]`
 The system shall restrict `drafts.status` to the values: `in_progress`, `completed`.
 
 **DFF-DATA-023** `[ ]`
@@ -65,7 +65,7 @@ When a draft is created, the system shall assign exactly one team with `is_user 
 **DFF-DATA-032** `[ ]`
 When a draft is created, the system shall assign each bot team a name from the predefined generic name list (e.g. Bob, Carl) and a randomly selected archetype.
 
-**DFF-DATA-033** `[ ]`
+**DFF-DATA-033** `[x]`
 The system shall restrict `teams.archetype` to the values: `win_now`, `punt`, `rb_heavy`, `qb_early`, `bpa`, `balanced`, and NULL (for the user's team).
 
 ---
@@ -98,7 +98,7 @@ When a player is drafted, the system shall write a corresponding row to `roster_
 
 ## Roster Players
 
-**DFF-DATA-060** `[ ]`
+**DFF-DATA-060** `[x]`
 The system shall store current player ownership in `roster_players` with the following columns: id, draft_id, team_id, player_id.
 
 **DFF-DATA-061** `[ ]`
@@ -127,10 +127,10 @@ When querying the dynasty value of a future pick asset, the system shall join `t
 
 ## User Queue
 
-**DFF-DATA-090** `[ ]`
+**DFF-DATA-090** `[x]`
 The system shall store the user's player watchlist in a `user_queue` table with the following columns: id, draft_id, player_id, rank.
 
-**DFF-DATA-091** `[ ]`
+**DFF-DATA-091** `[x]`
 The system shall maintain exactly one row per player per draft in `user_queue`; adding a player already in the queue shall update its rank rather than insert a duplicate.
 
 **DFF-DATA-092** `[ ]`
@@ -143,10 +143,10 @@ The system shall expose queue management via: POST /drafts/:id/queue (add or upd
 
 ## Trades
 
-**DFF-DATA-080** `[ ]`
+**DFF-DATA-080** `[x]`
 When a trade is resolved, the system shall write a row to `trades` with: draft_id, pick_number, round, initiating_team_id, receiving_team_id, assets_sent (JSON), assets_received (JSON), status, and created_at.
 
-**DFF-DATA-081** `[ ]`
+**DFF-DATA-081** `[x]`
 The system shall restrict `trades.status` to the values: `accepted`, `declined`, `force_declined`.
 
 **DFF-DATA-082** `[ ]`

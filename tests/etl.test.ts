@@ -19,7 +19,7 @@ import Database from 'better-sqlite3';
 import { initializeDatabase } from '../src/db/init.js';
 import { normalizePlayers } from '../src/etl/normalize.js';
 import { runEtl } from '../src/etl/index.js';
-import { scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
+import { extractKtcRowsFromPage, scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
 import type { KtcRawPlayer } from '../src/etl/types.js';
 
 function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup: () => void } {
@@ -158,6 +158,19 @@ test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper
     delete process.env.DYNASTYFF_KTC_FIXTURE_PATH;
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+});
+
+test('extractKtcRowsFromPage serializes without tsx helper references', async () => {
+  let callbackSource = '';
+
+  await extractKtcRowsFromPage({
+    evaluate: async <T>(pageFunction: () => T | Promise<T>) => {
+      callbackSource = pageFunction.toString();
+      return [] as T;
+    },
+  });
+
+  assert.equal(callbackSource.includes('__name'), false);
 });
 
 test('runEtl inserts KTC players with normalized dynasty values', async () => {

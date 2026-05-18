@@ -1,0 +1,74 @@
+# dynastyff
+
+A local web app for practicing dynasty startup drafts. Run a full 12-team snake mock against simulated bots, with an optional Claude-backed advisor for pick guidance and strategy stress-testing.
+
+## Prerequisites
+
+- Node.js 20+
+- Playwright (for ETL scraping)
+- `ANTHROPIC_API_KEY` (required for advisor features only; core draft runs offline)
+
+## Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Install Playwright browsers
+npx playwright install
+
+# Configure environment
+cp .env.example .env
+# Add your ANTHROPIC_API_KEY to .env
+
+# Populate the database (scrapes KTC, FantasyCalc, DynastyDaddy, RosterAudit)
+npm run etl
+
+# Start the dev server
+npm run dev
+```
+
+Open `http://localhost:3000` to begin.
+
+## Usage
+
+1. **Configure your league** — set team count, roster slots, scoring, and your draft position on the config screen.
+2. **Start a mock draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically.
+3. **Use the advisor (optional)** — on any pick, choose:
+   - **Advise me** — Claude recommends a pick with dynasty value reasoning.
+   - **Grill me** — share your thinking; Claude pushes back.
+4. **Review history** — completed mock drafts are saved locally and queryable from the draft history view.
+
+## Configuration
+
+| Setting | Default | Notes |
+|---|---|---|
+| Teams | 12 | |
+| Draft rounds | 20 | |
+| Scoring | PPR | |
+| User pick position | Random | |
+| Future pick years | 3 | |
+
+All settings are configurable on the league config screen before starting a draft.
+
+The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs fully offline.
+
+## Project Structure
+
+```
+docs/
+  high-level-design.md   # System overview and design decisions
+  llds/                  # Low-level designs per component
+    draft-engine.md
+    bot-simulator.md
+    advisor-agent.md
+    data-model.md
+    etl-pipeline.md
+  specs/                 # EARS specs per component
+```
+
+## Architecture
+
+See [`docs/high-level-design.md`](docs/high-level-design.md) for the full system design.
+
+Component deep-dives: [`docs/llds/`](docs/llds/)

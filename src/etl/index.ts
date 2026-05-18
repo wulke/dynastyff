@@ -6,10 +6,11 @@
 // @spec DFF-ETL-041
 import { randomUUID } from 'node:crypto';
 
-import { createDatabase } from '../db/client.js';
+import { createDrizzleDb } from '../db/client.js';
+import { players } from '../db/schema.js';
 import { normalizePlayers } from './normalize.js';
 import { scrapeKtcPlayers } from './scraper/ktc.js';
-import { supportedEtlPositions, type KtcRawPlayer, type SupportedEtlPosition } from './types.js';
+import type { KtcRawPlayer } from './types.js';
 
 type RunEtlOptions = {
   databasePath?: string;
@@ -17,93 +18,48 @@ type RunEtlOptions = {
   now?: () => string;
 };
 
-const supportedPositions = new Set<SupportedEtlPosition>(supportedEtlPositions);
-
-function filterSupportedPlayers(players: readonly KtcRawPlayer[]): KtcRawPlayer[] {
-  return players.filter((player) => supportedPositions.has(player.position));
-}
-
 function upsertPlayers(
   databasePath: string | undefined,
-  players: ReturnType<typeof normalizePlayers>,
+  normalizedPlayers: ReturnType<typeof normalizePlayers>,
   timestamp: string,
 ): void {
-  const sqlite = createDatabase(databasePath);
+  const { db, sqlite } = createDrizzleDb(databasePath);
 
   try {
-    const findExistingPlayer = sqlite.prepare(
-      'SELECT id FROM players WHERE name = ? AND position = ?',
-    );
-
-    const insertPlayer = sqlite.prepare(
-      `INSERT INTO players (
-        id,
-        name,
-        position,
-        nfl_team,
-        age,
-        is_rookie,
-        dynasty_value,
-        value_ktc,
-        value_fantasycalc,
-        value_dynastydaddy,
-        value_rosteraudit,
-        adp,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-
-    const updatePlayer = sqlite.prepare(
-      `UPDATE players
-      SET
-        nfl_team = ?,
-        age = ?,
-        is_rookie = ?,
-        dynasty_value = ?,
-        value_ktc = ?,
-        adp = ?,
-        updated_at = ?
-      WHERE name = ? AND position = ?`,
-    );
-
-    const transaction = sqlite.transaction((normalizedPlayers: ReturnType<typeof normalizePlayers>) => {
+    db.transaction((tx) => {
       for (const player of normalizedPlayers) {
-        const existing = findExistingPlayer.get(player.name, player.position) as { id: string } | undefined;
-
-        if (existing) {
-          updatePlayer.run(
-            player.nflTeam,
-            player.age,
-            player.isRookie ? 1 : 0,
-            player.normalizedValue,
-            player.normalizedValue,
-            player.adp,
-            timestamp,
-            player.name,
-            player.position,
-          );
-          continue;
-        }
-
-        insertPlayer.run(
-          randomUUID(),
-          player.name,
-          player.position,
-          player.nflTeam,
-          player.age,
-          player.isRookie ? 1 : 0,
-          player.normalizedValue,
-          player.normalizedValue,
-          null,
-          null,
-          null,
-          player.adp,
-          timestamp,
-        );
+        tx
+          .insert(players)
+          .values({
+            id: randomUUID(),
+            name: player.name,
+            position: player.position,
+            nflTeam: player.nflTeam,
+            age: player.age,
+            isRookie: player.isRookie,
+            dynastyValue: player.normalizedValue,
+            valueKtc: player.normalizedValue,
+            valueFantasycalc: null,
+            valueDynastydaddy: null,
+            valueRosteraudit: null,
+            adp: player.adp,
+            updatedAt: timestamp,
+          })
+          .onConflictDoUpdate({
+            target: [players.name, players.position],
+            set: {
+              nflTeam: player.nflTeam,
+              age: player.age,
+              isRookie: player.isRookie,
+              dynastyValue: player.normalizedValue,
+              valueKtc: player.normalizedValue,
+              adp: player.adp,
+              updatedAt: timestamp,
+            },
+          })
+          .run();
       }
     });
-
-    transaction(players);
   } finally {
     sqlite.close();
   }
@@ -115,15 +71,14 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const timestamp = options.now?.() ?? new Date().toISOString();
 
   const scrapedPlayers = await scrapeKtc();
-  const supportedPlayers = filterSupportedPlayers(scrapedPlayers);
 
-  if (supportedPlayers.length === 0) {
+  if (scrapedPlayers.length === 0) {
     console.error('[ETL] ERROR: KTC returned no supported players.');
     return 1;
   }
 
-  const normalizedPlayers = normalizePlayers(supportedPlayers);
-  upsertPlayers(databasePath ?? process.env.DYNASTYFF_DB_PATH, normalizedPlayers, timestamp);
+  const normalizedPlayers = normalizePlayers(scrapedPlayers);
+  upsertPlayers(databasePath, normalizedPlayers, timestamp);
 
   return 0;
 }

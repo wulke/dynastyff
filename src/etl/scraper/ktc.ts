@@ -18,21 +18,6 @@ type ScrapedRow = {
   adp: number | null;
 };
 
-function parseNumber(input: string | null | undefined): number | null {
-  if (!input) {
-    return null;
-  }
-
-  const normalized = input.replace(/[^0-9.]/g, '');
-
-  if (normalized.length === 0) {
-    return null;
-  }
-
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : null;
-}
-
 function normalizeScrapedRows(rows: readonly ScrapedRow[]): KtcRawPlayer[] {
   return rows.flatMap((row) => {
     const position = row.position.toUpperCase();
@@ -163,8 +148,3 @@ export async function scrapeKtcPlayers(): Promise<KtcRawPlayer[]> {
     await browser.close();
   }
 }
-
-export const __testables = {
-  normalizeScrapedRows,
-  parseNumber,
-};

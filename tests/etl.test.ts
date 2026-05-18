@@ -19,6 +19,7 @@ import Database from 'better-sqlite3';
 import { initializeDatabase } from '../src/db/init.js';
 import { normalizePlayers } from '../src/etl/normalize.js';
 import { runEtl } from '../src/etl/index.js';
+import { scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
 import type { KtcRawPlayer } from '../src/etl/types.js';
 
 function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup: () => void } {
@@ -109,11 +110,61 @@ test('normalizePlayers assigns 9999 when KTC returns exactly one supported playe
   assert.equal(player.normalizedValue, 9999);
 });
 
-test('runEtl inserts filtered KTC players with normalized dynasty values', async () => {
+test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper boundary', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fixturePath = path.join(tempDir, 'ktc.json');
+
+  fs.writeFileSync(
+    fixturePath,
+    JSON.stringify([
+      {
+        name: 'Alpha QB',
+        position: 'QB',
+        nflTeam: 'BUF',
+        age: 24,
+        isRookie: false,
+        rawValue: 100,
+        adp: 12.5,
+      },
+      {
+        name: 'Ignore Kicker',
+        position: 'K',
+        nflTeam: 'KC',
+        age: 28,
+        isRookie: false,
+        rawValue: 999,
+        adp: null,
+      },
+    ]),
+  );
+
+  process.env.DYNASTYFF_KTC_FIXTURE_PATH = fixturePath;
+
+  try {
+    const players = await scrapeKtcPlayers();
+
+    assert.deepEqual(players, [
+      {
+        name: 'Alpha QB',
+        position: 'QB',
+        nflTeam: 'BUF',
+        age: 24,
+        isRookie: false,
+        rawValue: 100,
+        adp: 12.5,
+      },
+    ]);
+  } finally {
+    delete process.env.DYNASTYFF_KTC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('runEtl inserts KTC players with normalized dynasty values', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
 
   try {
-    const players: Array<KtcRawPlayer | (Omit<KtcRawPlayer, 'position'> & { position: 'K' })> = [
+    const players: KtcRawPlayer[] = [
       {
         name: 'Alpha QB',
         position: 'QB',
@@ -131,15 +182,6 @@ test('runEtl inserts filtered KTC players with normalized dynasty values', async
         isRookie: true,
         rawValue: 300,
         adp: 22.1,
-      },
-      {
-        name: 'Ignore Kicker',
-        position: 'K',
-        nflTeam: 'KC',
-        age: 28,
-        isRookie: false,
-        rawValue: 999,
-        adp: null,
       },
     ];
 
@@ -292,18 +334,7 @@ test('runEtl exits non-zero and writes nothing when KTC yields no supported play
   try {
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () =>
-        ([
-          {
-            name: 'Kicker Only',
-            position: 'K',
-            nflTeam: 'KC',
-            age: 28,
-            isRookie: false,
-            rawValue: 100,
-            adp: null,
-          },
-        ] as unknown as KtcRawPlayer[]),
+      scrapeKtc: async () => [],
       now: () => '2026-05-18T22:00:00.000Z',
     });
 

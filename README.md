@@ -14,7 +14,7 @@ A local web app for practicing dynasty startup drafts. Run a full 12-team snake 
 # Install dependencies
 npm install
 
-# Initialize the local SQLite schema
+# Initialize the local SQLite schema (recreates the local DB file)
 npm run db:init
 
 # Install Playwright browsers

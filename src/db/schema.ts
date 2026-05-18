@@ -18,7 +18,6 @@ import {
   check,
   index,
   integer,
-  primaryKey,
   real,
   sqliteTable,
   text,
@@ -291,7 +290,3 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   rosterPlayers: many(rosterPlayers),
   teamPickAssets: many(teamPickAssets),
 }));
-
-export const compositeKeys = {
-  draftOrder: primaryKey({ columns: [draftOrder.draftId, draftOrder.pickNumber] }),
-};

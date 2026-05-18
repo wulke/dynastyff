@@ -7,13 +7,14 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema.js';
 import { resolveDatabasePath } from './init.js';
 
-export function createDatabase(databasePath = resolveDatabasePath()): Database.Database {
-  const sqlite = new Database(databasePath);
+export function createDatabase(databasePath?: string): Database.Database {
+  const resolvedDatabasePath = databasePath ?? resolveDatabasePath();
+  const sqlite = new Database(resolvedDatabasePath);
   sqlite.pragma('foreign_keys = ON');
   return sqlite;
 }
 
-export function createDrizzleDb(databasePath = resolveDatabasePath()) {
+export function createDrizzleDb(databasePath?: string) {
   const sqlite = createDatabase(databasePath);
 
   return {

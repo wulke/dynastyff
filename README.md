@@ -56,6 +56,17 @@ All settings are configurable on the league config screen before starting a draf
 
 The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs fully offline.
 
+## ETL
+
+`npm run etl` is a standalone script. It does not require the Express server to be running.
+
+Current ETL scope:
+
+- Scrapes KTC player values with Playwright
+- Filters players to `QB`, `RB`, `WR`, and `TE`
+- Normalizes KTC values to `0-9999`
+- Upserts the local SQLite `players` table
+
 ## Project Structure
 
 ```
@@ -73,6 +84,14 @@ src/
     init.ts              # SQLite schema init entry point
     schema.ts            # Shared Drizzle table definitions
 ```
+
+## Development Workflow
+
+| Command | Purpose |
+|---|---|
+| `/grill-me` | Stress-test a feature idea or design — Claude interviews you until the plan is solid |
+| `/to-issues @<spec-or-lld>` | Break a spec or LLD into independently-grabbable GitHub issues |
+| `./scripts/do-work.sh` | Spin up an agent to implement an open issue |
 
 ## Architecture
 

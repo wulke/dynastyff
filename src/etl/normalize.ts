@@ -1,8 +1,8 @@
 // @spec DFF-ETL-020
 // @spec DFF-ETL-021
-import type { KtcRawPlayer, NormalizedPlayer } from './types.js';
+import type { NormalizedPlayer, RawPlayer } from './types.js';
 
-export function normalizePlayers(players: readonly KtcRawPlayer[]): NormalizedPlayer[] {
+export function normalizePlayers(players: readonly RawPlayer[]): NormalizedPlayer[] {
   if (players.length === 0) {
     return [];
   }

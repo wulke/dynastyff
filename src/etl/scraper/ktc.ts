@@ -4,7 +4,7 @@
 import fs from 'node:fs/promises';
 
 import type { Page } from 'playwright';
-import type { KtcRawPlayer, SupportedEtlPosition } from '../types.js';
+import type { RawPlayer, SupportedEtlPosition } from '../types.js';
 
 const KTC_URL = 'https://keeptradecut.com/dynasty-rankings';
 const supportedPositions = new Set<SupportedEtlPosition>(['QB', 'RB', 'WR', 'TE']);
@@ -19,7 +19,7 @@ type ScrapedRow = {
   adp: number | null;
 };
 
-function normalizeScrapedRows(rows: readonly ScrapedRow[]): KtcRawPlayer[] {
+function normalizeScrapedRows(rows: readonly ScrapedRow[]): RawPlayer[] {
   return rows.flatMap((row) => {
     const position = row.position.toUpperCase();
 
@@ -41,7 +41,7 @@ function normalizeScrapedRows(rows: readonly ScrapedRow[]): KtcRawPlayer[] {
   });
 }
 
-async function loadFixturePlayers(fixturePath: string): Promise<KtcRawPlayer[]> {
+async function loadFixturePlayers(fixturePath: string): Promise<RawPlayer[]> {
   const rawFixture = await fs.readFile(fixturePath, 'utf8');
   const parsed = JSON.parse(rawFixture) as ScrapedRow[];
   return normalizeScrapedRows(parsed);
@@ -164,7 +164,7 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
   });
 }
 
-export async function scrapeKtcPlayers(): Promise<KtcRawPlayer[]> {
+export async function scrapeKtcPlayers(): Promise<RawPlayer[]> {
   const fixturePath = process.env.DYNASTYFF_KTC_FIXTURE_PATH;
 
   if (fixturePath) {

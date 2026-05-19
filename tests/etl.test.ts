@@ -258,17 +258,21 @@ test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
   let activeCount = 0;
   let maxActiveCount = 0;
 
-  const createScraper = (
+  const enterScraper = async (delayMs: number): Promise<void> => {
+    activeCount += 1;
+    maxActiveCount = Math.max(maxActiveCount, activeCount);
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+    activeCount -= 1;
+  };
+
+  const createSourceScraper = (
     source: ScraperResult['source'],
     delayMs: number,
   ): (() => Promise<ScraperResult>) => {
     return async () => {
-      activeCount += 1;
-      maxActiveCount = Math.max(maxActiveCount, activeCount);
-
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-
-      activeCount -= 1;
+      await enterScraper(delayMs);
 
       return {
         source,
@@ -279,10 +283,13 @@ test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
   };
 
   const results = await runScrapers({
-    scrapeKtc: createScraper('ktc', 40),
-    scrapeFantasycalc: createScraper('fantasycalc', 40),
-    scrapeDynastydaddy: createScraper('dynastydaddy', 40),
-    scrapeRosteraudit: createScraper('rosteraudit', 40),
+    scrapeKtc: async () => {
+      await enterScraper(40);
+      return [];
+    },
+    scrapeFantasycalc: createSourceScraper('fantasycalc', 40),
+    scrapeDynastydaddy: createSourceScraper('dynastydaddy', 40),
+    scrapeRosteraudit: createSourceScraper('rosteraudit', 40),
   });
 
   assert.equal(results.length, 4);

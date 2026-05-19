@@ -11,6 +11,9 @@
 // @spec DFF-DATA-040
 // @spec DFF-DATA-041
 // @spec DFF-DATA-070
+// @spec DFF-HIST-060
+// @spec DFF-HIST-061
+// @spec DFF-HIST-062
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -243,6 +246,128 @@ test('createDraft clamps the injected random archetype picker to the valid range
         { archetype: teamArchetypes[teamArchetypes.length - 1] },
       ],
     );
+  });
+});
+
+test('createDraft pins drafts.etl_run_id to the latest completed ETL run', async () => {
+  await withDatabase(async (db, databasePath) => {
+    db.prepare(
+      `INSERT INTO etl_runs (
+        id, started_at, completed_at, sources_attempted, sources_succeeded
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      'run-completed-earlier',
+      '2026-05-18T20:00:00.000Z',
+      '2026-05-18T20:30:00.000Z',
+      '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+      '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+    );
+    db.prepare(
+      `INSERT INTO etl_runs (
+        id, started_at, completed_at, sources_attempted, sources_succeeded
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      'run-completed-latest',
+      '2026-05-18T21:00:00.000Z',
+      '2026-05-18T21:20:00.000Z',
+      '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+      '["ktc","fantasycalc"]',
+    );
+    db.prepare(
+      `INSERT INTO etl_runs (
+        id, started_at, completed_at, sources_attempted, sources_succeeded
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      'run-incomplete-newer',
+      '2026-05-18T22:00:00.000Z',
+      null,
+      '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+      '["ktc"]',
+    );
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T22:30:00.000Z',
+      random: () => 0,
+    });
+
+    const draft = db
+      .prepare('SELECT etl_run_id FROM drafts WHERE id = ?')
+      .get(draftId) as { etl_run_id: string | null };
+
+    assert.equal(draft.etl_run_id, 'run-completed-latest');
+  });
+});
+
+test('createDraft leaves drafts.etl_run_id null when no completed ETL run exists', async () => {
+  await withDatabase(async (db, databasePath) => {
+    db.prepare(
+      `INSERT INTO etl_runs (
+        id, started_at, completed_at, sources_attempted, sources_succeeded
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      'run-incomplete-only',
+      '2026-05-18T23:00:00.000Z',
+      null,
+      '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+      '[]',
+    );
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T23:30:00.000Z',
+      random: () => 0,
+    });
+
+    const draft = db
+      .prepare('SELECT etl_run_id FROM drafts WHERE id = ?')
+      .get(draftId) as { etl_run_id: string | null };
+    const teamCount = (db.prepare('SELECT COUNT(*) AS count FROM teams WHERE draft_id = ?').get(draftId) as {
+      count: number;
+    }).count;
+    const draftOrderCount = (
+      db.prepare('SELECT COUNT(*) AS count FROM draft_order WHERE draft_id = ?').get(draftId) as {
+        count: number;
+      }
+    ).count;
+
+    assert.equal(draft.etl_run_id, null);
+    assert.equal(teamCount, 2);
+    assert.equal(draftOrderCount, 2);
   });
 });
 

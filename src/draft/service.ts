@@ -2,9 +2,9 @@
 // @spec DFF-ENGINE-002
 // @spec DFF-ENGINE-004
 // @spec DFF-ENGINE-005
+// @spec DFF-ENGINE-016
 // @spec DFF-ENGINE-022
 // @spec DFF-ENGINE-023
-// @spec DFF-ENGINE-016
 // @spec DFF-DATA-020
 // @spec DFF-DATA-023
 // @spec DFF-DATA-030
@@ -229,6 +229,7 @@ export function recordPick({
 
   try {
     db.transaction((tx) => {
+      // Callers must validate that the draft slot is active and the player is still available.
       const currentSlot = tx
         .select({
           draftId: draftOrder.draftId,

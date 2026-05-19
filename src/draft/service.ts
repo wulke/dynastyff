@@ -5,6 +5,7 @@
 // @spec DFF-ENGINE-016
 // @spec DFF-ENGINE-022
 // @spec DFF-ENGINE-023
+// @spec DFF-ENGINE-024
 // @spec DFF-DATA-020
 // @spec DFF-DATA-023
 // @spec DFF-DATA-030
@@ -19,7 +20,7 @@
 // @spec DFF-DATA-092
 import { randomUUID } from 'node:crypto';
 
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
 import {
   draftOrder,
@@ -229,20 +230,56 @@ export function recordPick({
 
   try {
     db.transaction((tx) => {
-      // Callers must validate that the draft slot is active and the player is still available.
       const currentSlot = tx
         .select({
           draftId: draftOrder.draftId,
           teamId: draftOrder.teamId,
           pickNumber: draftOrder.pickNumber,
           round: draftOrder.round,
+          status: drafts.status,
         })
         .from(draftOrder)
+        .innerJoin(drafts, eq(draftOrder.draftId, drafts.id))
         .where(eq(draftOrder.id, draftOrderId))
         .get();
 
       if (!currentSlot) {
         throw new Error(`Draft order slot not found: ${draftOrderId}`);
+      }
+
+      if (currentSlot.status !== 'in_progress') {
+        throw new Error(`Draft is not in progress for slot: ${draftOrderId}`);
+      }
+
+      const nextOpenSlot = tx
+        .select({
+          draftOrderId: draftOrder.id,
+          pickNumber: draftOrder.pickNumber,
+        })
+        .from(draftOrder)
+        .leftJoin(picks, eq(draftOrder.id, picks.draftOrderId))
+        .where(and(eq(draftOrder.draftId, currentSlot.draftId), isNull(picks.id)))
+        .orderBy(asc(draftOrder.pickNumber))
+        .get();
+
+      if (!nextOpenSlot) {
+        throw new Error(`Draft has no remaining pick slots: ${currentSlot.draftId}`);
+      }
+
+      if (nextOpenSlot.draftOrderId !== draftOrderId) {
+        throw new Error(`Draft order slot is not the current pick: ${draftOrderId}`);
+      }
+
+      const existingPick = tx
+        .select({
+          id: picks.id,
+        })
+        .from(picks)
+        .where(and(eq(picks.draftId, currentSlot.draftId), eq(picks.playerId, playerId)))
+        .get();
+
+      if (existingPick) {
+        throw new Error(`Player has already been drafted in this draft: ${playerId}`);
       }
 
       tx.insert(picks)

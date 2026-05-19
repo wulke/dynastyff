@@ -1,5 +1,6 @@
 // @spec DFF-ENGINE-022
 // @spec DFF-ENGINE-023
+// @spec DFF-ENGINE-024
 // @spec DFF-DATA-050
 // @spec DFF-DATA-051
 // @spec DFF-DATA-052
@@ -218,6 +219,194 @@ test('recordPick rolls back the pick row and queue cleanup when roster ownership
       1,
     );
     assert.equal((db.prepare('SELECT COUNT(*) AS count FROM user_queue').get() as { count: number }).count, 1);
+  });
+});
+
+test('recordPick rejects draft slots that are not the current unfilled pick', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-1', 'Player One');
+    seedPlayer(db, 'player-2', 'Player Two');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const slots = db
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number`,
+      )
+      .all(draftId) as Array<{ id: string }>;
+
+    recordPick({
+      databasePath,
+      draftOrderId: slots[0].id,
+      playerId: 'player-1',
+      now: () => '2026-05-18T20:05:00.000Z',
+      idGenerator: () => 'pick-row-1',
+    });
+
+    assert.throws(
+      () =>
+        recordPick({
+          databasePath,
+          draftOrderId: slots[2].id,
+          playerId: 'player-2',
+          now: () => '2026-05-18T20:06:00.000Z',
+          idGenerator: () => 'pick-row-2',
+        }),
+      /Draft order slot is not the current pick/,
+    );
+
+    assert.equal((db.prepare('SELECT COUNT(*) AS count FROM picks').get() as { count: number }).count, 1);
+  });
+});
+
+test('recordPick rejects picks for completed drafts', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-picked', 'Picked Player');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    db.prepare(`UPDATE drafts SET status = 'completed', completed_at = ? WHERE id = ?`).run(
+      '2026-05-18T20:01:00.000Z',
+      draftId,
+    );
+
+    const draftOrderEntry = db
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as { id: string };
+
+    assert.throws(
+      () =>
+        recordPick({
+          databasePath,
+          draftOrderId: draftOrderEntry.id,
+          playerId: 'player-picked',
+          now: () => '2026-05-18T20:05:00.000Z',
+          idGenerator: () => 'pick-row-id',
+        }),
+      /Draft is not in progress/,
+    );
+
+    assert.equal((db.prepare('SELECT COUNT(*) AS count FROM picks').get() as { count: number }).count, 0);
+  });
+});
+
+test('recordPick rejects players who were already drafted in the same draft', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-picked', 'Picked Player');
+    seedPlayer(db, 'player-other', 'Other Player');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const slots = db
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number`,
+      )
+      .all(draftId) as Array<{ id: string }>;
+
+    recordPick({
+      databasePath,
+      draftOrderId: slots[0].id,
+      playerId: 'player-picked',
+      now: () => '2026-05-18T20:05:00.000Z',
+      idGenerator: () => 'pick-row-1',
+    });
+
+    recordPick({
+      databasePath,
+      draftOrderId: slots[1].id,
+      playerId: 'player-other',
+      now: () => '2026-05-18T20:06:00.000Z',
+      idGenerator: () => 'pick-row-2',
+    });
+
+    assert.throws(
+      () =>
+        recordPick({
+          databasePath,
+          draftOrderId: slots[2].id,
+          playerId: 'player-picked',
+          now: () => '2026-05-18T20:07:00.000Z',
+          idGenerator: () => 'pick-row-3',
+        }),
+      /Player has already been drafted in this draft/,
+    );
+
+    assert.equal((db.prepare('SELECT COUNT(*) AS count FROM picks').get() as { count: number }).count, 2);
   });
 });
 

@@ -2,8 +2,9 @@
 // @spec DFF-ENGINE-003
 import { resolveDatabasePath } from '../db/init.js';
 import { createDraftServer } from './app.js';
+import { resolveApiPort } from './runtime.js';
 
-const port = Number.parseInt(process.env.DYNASTYFF_API_PORT ?? process.env.PORT ?? '3001', 10);
+const port = resolveApiPort();
 const databasePath = resolveDatabasePath();
 const server = createDraftServer({ databasePath });
 

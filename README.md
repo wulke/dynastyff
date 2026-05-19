@@ -54,7 +54,7 @@ Open the Vite URL shown in the terminal to begin.
 | Teams | 12 | |
 | Draft rounds | 20 | |
 | Scoring | PPR | |
-| User pick position | 6 | |
+| User pick position | Configurable | Selected on the config screen |
 | Future pick years | 3 | |
 
 All settings are configurable on the league config screen before starting a draft.

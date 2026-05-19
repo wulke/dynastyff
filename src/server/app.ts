@@ -56,6 +56,7 @@ export async function handleDraftRequest(
       return;
     }
 
+    console.error(error);
     sendJson(response, 500, { error: 'Internal server error.' });
   }
 }

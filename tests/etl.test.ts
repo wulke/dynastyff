@@ -18,9 +18,12 @@ import Database from 'better-sqlite3';
 
 import { initializeDatabase } from '../src/db/init.js';
 import { normalizePlayers } from '../src/etl/normalize.js';
-import { runEtl } from '../src/etl/index.js';
+import { runEtl, runScrapers } from '../src/etl/index.js';
+import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
+import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
 import { extractKtcRowsFromPage, scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
-import type { KtcRawPlayer } from '../src/etl/types.js';
+import { scrapeRosterAudit } from '../src/etl/scraper/rosteraudit.js';
+import type { RawPlayer, ScraperResult } from '../src/etl/types.js';
 
 function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup: () => void } {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-'));
@@ -51,7 +54,7 @@ test('package.json exposes npm run etl as a standalone entry point', () => {
 });
 
 test('normalizePlayers min-max scales KTC values to 0..9999', () => {
-  const players: KtcRawPlayer[] = [
+  const players: RawPlayer[] = [
     {
       name: 'Low Player',
       position: 'QB',
@@ -160,6 +163,84 @@ test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper
   }
 });
 
+test('FantasyCalc, DynastyDaddy, and RosterAudit fixture scrapers return typed players and pick values', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fantasycalcFixturePath = path.join(tempDir, 'fantasycalc.json');
+  const dynastydaddyFixturePath = path.join(tempDir, 'dynastydaddy.json');
+  const rosterauditFixturePath = path.join(tempDir, 'rosteraudit.json');
+  const fixturePayload = {
+    players: [
+      {
+        name: 'Bravo WR',
+        position: 'WR',
+        nflTeam: 'CIN',
+        age: 23,
+        isRookie: false,
+        rawValue: 456,
+        adp: 18.2,
+      },
+      {
+        name: 'Ignore DST',
+        position: 'DST',
+        nflTeam: 'PIT',
+        age: null,
+        isRookie: false,
+        rawValue: 999,
+        adp: null,
+      },
+    ],
+    pickValues: [
+      {
+        year: 2027,
+        round: 1,
+        rawValue: 789,
+      },
+    ],
+  };
+
+  fs.writeFileSync(fantasycalcFixturePath, JSON.stringify(fixturePayload));
+  fs.writeFileSync(dynastydaddyFixturePath, JSON.stringify(fixturePayload));
+  fs.writeFileSync(rosterauditFixturePath, JSON.stringify(fixturePayload));
+
+  process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH = fantasycalcFixturePath;
+  process.env.DYNASTYFF_DYNASTYDADDY_FIXTURE_PATH = dynastydaddyFixturePath;
+  process.env.DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH = rosterauditFixturePath;
+
+  try {
+    const [fantasycalc, dynastydaddy, rosteraudit] = await Promise.all([
+      scrapeFantasyCalc(),
+      scrapeDynastyDaddy(),
+      scrapeRosterAudit(),
+    ]);
+
+    for (const result of [fantasycalc, dynastydaddy, rosteraudit]) {
+      assert.deepEqual(result.players, [
+        {
+          name: 'Bravo WR',
+          position: 'WR',
+          nflTeam: 'CIN',
+          age: 23,
+          isRookie: false,
+          rawValue: 456,
+          adp: 18.2,
+        },
+      ]);
+      assert.deepEqual(result.pickValues, [
+        {
+          year: 2027,
+          round: 1,
+          rawValue: 789,
+        },
+      ]);
+    }
+  } finally {
+    delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
+    delete process.env.DYNASTYFF_DYNASTYDADDY_FIXTURE_PATH;
+    delete process.env.DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('extractKtcRowsFromPage serializes without tsx helper references', async () => {
   let callbackSource = '';
 
@@ -173,11 +254,50 @@ test('extractKtcRowsFromPage serializes without tsx helper references', async ()
   assert.equal(callbackSource.includes('__name'), false);
 });
 
+test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
+  let activeCount = 0;
+  let maxActiveCount = 0;
+
+  const createScraper = (
+    source: ScraperResult['source'],
+    delayMs: number,
+  ): (() => Promise<ScraperResult>) => {
+    return async () => {
+      activeCount += 1;
+      maxActiveCount = Math.max(maxActiveCount, activeCount);
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+      activeCount -= 1;
+
+      return {
+        source,
+        players: [],
+        pickValues: [],
+      };
+    };
+  };
+
+  const results = await runScrapers({
+    scrapeKtc: createScraper('ktc', 40),
+    scrapeFantasycalc: createScraper('fantasycalc', 40),
+    scrapeDynastydaddy: createScraper('dynastydaddy', 40),
+    scrapeRosteraudit: createScraper('rosteraudit', 40),
+  });
+
+  assert.equal(results.length, 4);
+  assert.equal(maxActiveCount, 2);
+  assert.deepEqual(
+    results.map((result) => result.source).sort(),
+    ['dynastydaddy', 'fantasycalc', 'ktc', 'rosteraudit'],
+  );
+});
+
 test('runEtl inserts KTC players with normalized dynasty values', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
 
   try {
-    const players: KtcRawPlayer[] = [
+    const players: RawPlayer[] = [
       {
         name: 'Alpha QB',
         position: 'QB',
@@ -200,7 +320,10 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
 
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () => players as KtcRawPlayer[],
+      scrapeKtc: async () => players as RawPlayer[],
+      scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
+      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T20:00:00.000Z',
     });
 
@@ -310,6 +433,9 @@ test('runEtl updates an existing player matched by name and position', async () 
           adp: 11.2,
         },
       ],
+      scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
+      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T21:00:00.000Z',
     });
 
@@ -348,6 +474,9 @@ test('runEtl exits non-zero and writes nothing when KTC yields no supported play
     const exitCode = await runEtl({
       databasePath: dbPath,
       scrapeKtc: async () => [],
+      scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
+      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T22:00:00.000Z',
     });
 

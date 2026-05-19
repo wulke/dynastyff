@@ -42,6 +42,24 @@ Transitions:
 - `drafting → history`: `draft_complete` SSE event received
 - `history → config`: user clicks "New Draft"
 
+## App Scaffold
+
+Issue `#13` establishes the initial frontend shell under `/src/ui`:
+
+- `index.html` mounts the React app through Vite
+- `main.tsx` hydrates a single `<App />` entry point
+- `App.tsx` owns the top-level `ViewState` reducer for `config | drafting | history`
+- Tailwind CSS provides the shell styling and layout primitives
+- A Radix UI primitive is wired into the shared shell so the initial scaffold proves the dependency path works before later feature slices add dialogs, tabs, and other interactive primitives
+
+At this stage, each view is intentionally an empty shell with a single transition control:
+
+- Config shell: `Start Draft` drives `config → drafting`
+- Draft shell: `Complete Draft` drives `drafting → history`
+- History shell: `New Draft` drives `history → config`
+
+These controls are placeholders for the real draft creation request, SSE completion event, and reset flow that arrive in subsequent issues.
+
 ## Component Hierarchy
 
 ```

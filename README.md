@@ -27,11 +27,11 @@ cp .env.example .env
 # Populate the database (scrapes KTC, FantasyCalc, DynastyDaddy, RosterAudit)
 npm run etl
 
-# Start the dev server
+# Start the UI dev server
 npm run dev
 ```
 
-Open `http://localhost:3000` to begin.
+Open the Vite URL shown in the terminal to begin.
 
 ## Usage
 
@@ -55,6 +55,24 @@ Open `http://localhost:3000` to begin.
 All settings are configurable on the league config screen before starting a draft.
 
 The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs fully offline.
+
+## UI Scaffold
+
+Issue `#13` adds the initial frontend shell under `/src/ui`:
+
+- `Config Screen` renders on first load
+- `Start Draft` transitions the shell into the drafting view
+- `Complete Draft` transitions the shell into the history view
+- `New Draft` resets the shell back to config
+
+Current UI commands:
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start the Vite React frontend from `/src/ui` |
+| `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
+| `npm run preview` | Preview the built Vite UI bundle locally |
+| `npm run test:ui` | Run the UI scaffold tests for view-state transitions |
 
 ## ETL
 
@@ -85,6 +103,11 @@ src/
     schema.ts            # Shared Drizzle table definitions
   draft/
     service.ts           # Transactional draft bootstrap, pick recording, and status updates
+  ui/
+    App.tsx              # Top-level React view-state shell
+    main.tsx             # Vite React entry point
+    index.html           # Vite HTML entry
+    styles.css           # Tailwind entry stylesheet
 ```
 
 ## Development Workflow

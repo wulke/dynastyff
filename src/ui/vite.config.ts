@@ -5,16 +5,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const uiRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
-  root: path.resolve(__dirname),
+  root: uiRoot,
   plugins: [react()],
   build: {
-    outDir: path.resolve(__dirname, '../../dist/ui'),
+    outDir: path.resolve(uiRoot, '../../dist/ui'),
     emptyOutDir: true,
   },
   test: {
     environment: 'jsdom',
-    setupFiles: path.resolve(__dirname, 'vitest.setup.ts'),
+    include: [path.resolve(uiRoot, '../../tests/ui-app-scaffold.test.tsx')],
+    setupFiles: path.resolve(uiRoot, 'vitest.setup.ts'),
   },
 });

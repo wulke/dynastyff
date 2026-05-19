@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "target": "ES2022",
     "jsx": "react-jsx",
     "module": "NodeNext",
@@ -11,7 +12,7 @@
     "resolveJsonModule": true,
     "outDir": "dist",
     "rootDir": ".",
-    "types": ["node"]
+    "types": ["node", "vite/client", "@testing-library/jest-dom"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"]
 }

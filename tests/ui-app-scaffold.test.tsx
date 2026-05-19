@@ -2,11 +2,15 @@
 // @spec DFF-UI-002
 // @spec DFF-UI-003
 // @spec DFF-UI-004
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, expect, test } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
+import { afterEach, describe, expect, test } from 'vitest';
 
 import { App } from '../src/ui/App.js';
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('UI app scaffold', () => {
   test('renders the config screen on initial load', () => {

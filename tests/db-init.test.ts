@@ -45,6 +45,18 @@ function withDatabase(run: (db: Database.Database, dbPath: string) => void): voi
   }
 }
 
+// @spec DFF-DATA-001
+// @spec DFF-DATA-020
+// @spec DFF-DATA-030
+// @spec DFF-DATA-040
+// @spec DFF-DATA-050
+// @spec DFF-DATA-060
+// @spec DFF-DATA-070
+// @spec DFF-DATA-080
+// @spec DFF-DATA-090
+// @spec DFF-HIST-001
+// @spec DFF-HIST-010
+// @spec DFF-HIST-020
 test('db:init creates all tables defined by the data-model LLD', () => {
   withDatabase((db) => {
     const tableNames = db
@@ -70,6 +82,8 @@ test('db:init creates all tables defined by the data-model LLD', () => {
   });
 });
 
+// @spec DFF-DATA-001
+// @spec DFF-DATA-002
 test('players includes the documented ETL columns and constraints', () => {
   withDatabase((db) => {
     const columns = db.prepare("PRAGMA table_info('players')").all() as Array<{
@@ -110,6 +124,7 @@ test('players includes the documented ETL columns and constraints', () => {
   });
 });
 
+// @spec DFF-DATA-010
 test('pick_values enforces uniqueness on (year, round)', () => {
   withDatabase((db) => {
     db.prepare(
@@ -126,6 +141,12 @@ test('pick_values enforces uniqueness on (year, round)', () => {
   });
 });
 
+// @spec DFF-DATA-001
+// @spec DFF-DATA-010
+// @spec DFF-DATA-020
+// @spec DFF-HIST-001
+// @spec DFF-HIST-010
+// @spec DFF-HIST-020
 test('db:init can build a fresh database file in one command path', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-db-file-'));
   const dbPath = path.join(tempDir, 'nested', 'dynastyff.sqlite');
@@ -139,7 +160,11 @@ test('db:init can build a fresh database file in one command path', () => {
   }
 });
 
-test('history tables enforce documented source enums, unique keys, and foreign keys', () => {
+// @spec DFF-HIST-011
+// @spec DFF-HIST-012
+// @spec DFF-HIST-021
+// @spec DFF-HIST-022
+test('history tables enforce documented source enums and unique keys', () => {
   withDatabase((db) => {
     db.prepare(
       `INSERT INTO etl_runs (
@@ -210,6 +235,40 @@ test('history tables enforce documented source enums, unique keys, and foreign k
         ).run('pick-snapshot-3', 'run-1', 2027, 1, 'bad-source', 4200),
       /CHECK constraint failed/,
     );
+  });
+});
+
+// @spec DFF-HIST-010
+// @spec DFF-HIST-020
+test('history snapshot tables enforce foreign keys and cascade deletes from etl_runs', () => {
+  withDatabase((db) => {
+    db.prepare(
+      `INSERT INTO etl_runs (
+        id, started_at, completed_at, sources_attempted, sources_succeeded
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      'run-1',
+      '2026-05-19T00:00:00.000Z',
+      '2026-05-19T00:30:00.000Z',
+      '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+      '["ktc"]',
+    );
+
+    db.prepare(
+      `INSERT INTO players (
+        id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run('player-1', 'Valid Player', 'QB', 'BUF', 25.5, 0, 5000, '2026-05-18T00:00:00.000Z');
+
+    assert.throws(
+      () =>
+        db.prepare(
+          `INSERT INTO player_value_snapshots (
+            id, run_id, player_id, source, raw_value
+          ) VALUES (?, ?, ?, ?, ?)`,
+        ).run('player-snapshot-missing-player', 'run-1', 'missing-player', 'fantasycalc', 5100),
+      /FOREIGN KEY constraint failed/,
+    );
 
     assert.throws(
       () =>
@@ -220,9 +279,56 @@ test('history tables enforce documented source enums, unique keys, and foreign k
         ).run('player-snapshot-4', 'missing-run', 'player-1', 'fantasycalc', 5000),
       /FOREIGN KEY constraint failed/,
     );
+
+    assert.throws(
+      () =>
+        db.prepare(
+          `INSERT INTO pick_value_snapshots (
+            id, run_id, year, round, source, raw_value
+          ) VALUES (?, ?, ?, ?, ?, ?)`,
+        ).run('pick-snapshot-missing-run', 'missing-run', 2027, 2, 'fantasycalc', 4100),
+      /FOREIGN KEY constraint failed/,
+    );
+
+    db.prepare(
+      `INSERT INTO etl_runs (
+        id, started_at, completed_at, sources_attempted, sources_succeeded
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      'run-cascade',
+      '2026-05-19T01:00:00.000Z',
+      '2026-05-19T01:30:00.000Z',
+      '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+      '["ktc","fantasycalc"]',
+    );
+
+    db.prepare(
+      `INSERT INTO player_value_snapshots (
+        id, run_id, player_id, source, raw_value
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run('player-snapshot-cascade', 'run-cascade', 'player-1', 'fantasycalc', 5050);
+
+    db.prepare(
+      `INSERT INTO pick_value_snapshots (
+        id, run_id, year, round, source, raw_value
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('pick-snapshot-cascade', 'run-cascade', 2028, 1, 'fantasycalc', 4400);
+
+    db.prepare('DELETE FROM etl_runs WHERE id = ?').run('run-cascade');
+
+    const remainingPlayerSnapshots = db
+      .prepare('SELECT COUNT(*) AS count FROM player_value_snapshots WHERE run_id = ?')
+      .get('run-cascade') as { count: number };
+    const remainingPickSnapshots = db
+      .prepare('SELECT COUNT(*) AS count FROM pick_value_snapshots WHERE run_id = ?')
+      .get('run-cascade') as { count: number };
+
+    assert.equal(remainingPlayerSnapshots.count, 0);
+    assert.equal(remainingPickSnapshots.count, 0);
   });
 });
 
+// @spec DFF-HIST-030
 test('drafts includes nullable etl_run_id foreign key to etl_runs', () => {
   withDatabase((db) => {
     const columns = db.prepare("PRAGMA table_info('drafts')").all() as Array<{
@@ -317,6 +423,14 @@ test('drafts includes nullable etl_run_id foreign key to etl_runs', () => {
       '{"QB":1,"RB":2,"WR":3,"TE":1,"FLEX":2,"SF":1,"BN":10}',
       'run-1',
     );
+
+    db.prepare('DELETE FROM etl_runs WHERE id = ?').run('run-1');
+
+    const deletedRunDraft = db
+      .prepare('SELECT etl_run_id FROM drafts WHERE id = ?')
+      .get('draft-with-run') as { etl_run_id: string | null };
+
+    assert.equal(deletedRunDraft.etl_run_id, null);
 
     assert.throws(
       () =>

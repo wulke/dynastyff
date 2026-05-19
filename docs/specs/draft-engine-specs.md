@@ -122,11 +122,11 @@ The system shall only allow swapping pick slots that have not yet been used (i.e
 
 ## State & History
 
-**DFF-ENGINE-060** `[ ]` → #29
+**DFF-ENGINE-060** `[x]` → #29
 When a GET /drafts/:id/state request is received, the system shall return the same payload shape as the `state_sync` SSE event (see DFF-ENGINE-010), plus trades (id, round, initiating_team_id, receiving_team_id, assets_sent, assets_received, status)[].
 
-**DFF-ENGINE-061** `[ ]` → #29
+**DFF-ENGINE-061** `[x]` → #29
 The system shall persist all state changes to SQLite immediately as they occur; no state shall exist only in memory at the conclusion of a pick or trade.
 
-**DFF-ENGINE-062** `[ ]` → #29
+**DFF-ENGINE-062** `[x]` → #29
 When a GET /drafts request is received, the system shall return a list of all drafts with: id, created_at, completed_at, status, team_count, and rounds.

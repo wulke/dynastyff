@@ -34,7 +34,7 @@ npm run serve
 npm run dev
 ```
 
-The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so both commands should be running for local draft creation.
+The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so both commands should be running for local draft creation and draft state/history reads.
 
 Open the Vite URL shown in the terminal to begin.
 
@@ -79,6 +79,14 @@ Current UI commands:
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
 | `npm run test:ui` | Run the UI scaffold tests for view-state transitions |
+
+Current draft API surface:
+
+| Route | Purpose |
+|---|---|
+| `POST /drafts` | Create a new draft |
+| `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration |
+| `GET /drafts` | List persisted drafts for history / resume flows |
 
 ## ETL
 

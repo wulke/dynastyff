@@ -90,6 +90,7 @@ Current ETL scope:
 - Filters players to `QB`, `RB`, `WR`, and `TE`
 - Normalizes KTC values to `0-9999`
 - Upserts the local SQLite `players` table
+- Initializes schema support for ETL run history and raw value snapshots (`etl_runs`, `player_value_snapshots`, `pick_value_snapshots`)
 
 ## Project Structure
 

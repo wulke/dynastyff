@@ -13,6 +13,14 @@
 // @spec DFF-DATA-080
 // @spec DFF-DATA-081
 // @spec DFF-DATA-090
+// @spec DFF-HIST-001
+// @spec DFF-HIST-010
+// @spec DFF-HIST-011
+// @spec DFF-HIST-012
+// @spec DFF-HIST-020
+// @spec DFF-HIST-021
+// @spec DFF-HIST-022
+// @spec DFF-HIST-030
 import { relations, sql } from 'drizzle-orm';
 import {
   check,
@@ -36,6 +44,7 @@ export const teamArchetypes = [
   'balanced',
 ] as const;
 export const tradeStatuses = ['accepted', 'declined', 'force_declined'] as const;
+export const etlSources = ['ktc', 'fantasycalc', 'dynastydaddy', 'rosteraudit'] as const;
 
 const quotedList = (values: readonly string[]) => values.map((value) => `'${value}'`).join(', ');
 
@@ -80,8 +89,10 @@ export const drafts = sqliteTable(
     futurePickYears: integer('future_pick_years').notNull().default(3),
     futurePickRounds: integer('future_pick_rounds').notNull(),
     rosterConfig: text('roster_config').notNull(),
+    etlRunId: text('etl_run_id').references(() => etlRuns.id, { onDelete: 'set null' }),
   },
   (table) => [
+    index('drafts_etl_run_id_idx').on(table.etlRunId),
     check(
       'drafts_status_check',
       sql`${table.status} in (${sql.raw(quotedList(draftStatuses))})`,
@@ -89,6 +100,69 @@ export const drafts = sqliteTable(
     check(
       'drafts_scoring_format_check',
       sql`${table.scoringFormat} in (${sql.raw(quotedList(scoringFormats))})`,
+    ),
+  ],
+);
+
+export const etlRuns = sqliteTable('etl_runs', {
+  id: text('id').primaryKey(),
+  startedAt: text('started_at').notNull(),
+  completedAt: text('completed_at'),
+  sourcesAttempted: text('sources_attempted').notNull(),
+  sourcesSucceeded: text('sources_succeeded').notNull(),
+});
+
+export const playerValueSnapshots = sqliteTable(
+  'player_value_snapshots',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => etlRuns.id, { onDelete: 'cascade' }),
+    playerId: text('player_id')
+      .notNull()
+      .references(() => players.id, { onDelete: 'restrict' }),
+    source: text('source').notNull(),
+    rawValue: integer('raw_value').notNull(),
+  },
+  (table) => [
+    uniqueIndex('player_value_snapshots_run_player_source_unique').on(
+      table.runId,
+      table.playerId,
+      table.source,
+    ),
+    index('player_value_snapshots_run_id_idx').on(table.runId),
+    index('player_value_snapshots_player_id_idx').on(table.playerId),
+    check(
+      'player_value_snapshots_source_check',
+      sql`${table.source} in (${sql.raw(quotedList(etlSources))})`,
+    ),
+  ],
+);
+
+export const pickValueSnapshots = sqliteTable(
+  'pick_value_snapshots',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id')
+      .notNull()
+      .references(() => etlRuns.id, { onDelete: 'cascade' }),
+    year: integer('year').notNull(),
+    round: integer('round').notNull(),
+    source: text('source').notNull(),
+    rawValue: integer('raw_value').notNull(),
+  },
+  (table) => [
+    uniqueIndex('pick_value_snapshots_run_year_round_source_unique').on(
+      table.runId,
+      table.year,
+      table.round,
+      table.source,
+    ),
+    index('pick_value_snapshots_run_id_idx').on(table.runId),
+    check(
+      'pick_value_snapshots_source_check',
+      sql`${table.source} in (${sql.raw(quotedList(etlSources))})`,
     ),
   ],
 );
@@ -270,7 +344,7 @@ export const userQueue = sqliteTable(
   ],
 );
 
-export const draftsRelations = relations(drafts, ({ many }) => ({
+export const draftsRelations = relations(drafts, ({ one, many }) => ({
   teams: many(teams),
   draftOrder: many(draftOrder),
   picks: many(picks),
@@ -278,6 +352,16 @@ export const draftsRelations = relations(drafts, ({ many }) => ({
   teamPickAssets: many(teamPickAssets),
   trades: many(trades),
   userQueue: many(userQueue),
+  etlRun: one(etlRuns, {
+    fields: [drafts.etlRunId],
+    references: [etlRuns.id],
+  }),
+}));
+
+export const etlRunsRelations = relations(etlRuns, ({ many }) => ({
+  drafts: many(drafts),
+  playerValueSnapshots: many(playerValueSnapshots),
+  pickValueSnapshots: many(pickValueSnapshots),
 }));
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
@@ -289,4 +373,22 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   picks: many(picks),
   rosterPlayers: many(rosterPlayers),
   teamPickAssets: many(teamPickAssets),
+}));
+
+export const playerValueSnapshotsRelations = relations(playerValueSnapshots, ({ one }) => ({
+  run: one(etlRuns, {
+    fields: [playerValueSnapshots.runId],
+    references: [etlRuns.id],
+  }),
+  player: one(players, {
+    fields: [playerValueSnapshots.playerId],
+    references: [players.id],
+  }),
+}));
+
+export const pickValueSnapshotsRelations = relations(pickValueSnapshots, ({ one }) => ({
+  run: one(etlRuns, {
+    fields: [pickValueSnapshots.runId],
+    references: [etlRuns.id],
+  }),
 }));

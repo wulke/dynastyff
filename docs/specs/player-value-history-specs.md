@@ -8,7 +8,7 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ## Schema — `etl_runs`
 
-**DFF-HIST-001** `[ ]` → #31
+**DFF-HIST-001** `[x]` → #31
 The system shall store each ETL execution in an `etl_runs` table with the following columns: id, started_at, completed_at, sources_attempted (JSON array), sources_succeeded (JSON array).
 
 **DFF-HIST-002** `[ ]` → #32
@@ -18,33 +18,33 @@ The system shall set `etl_runs.completed_at` to NULL when the run is created and
 
 ## Schema — `player_value_snapshots`
 
-**DFF-HIST-010** `[ ]` → #31
+**DFF-HIST-010** `[x]` → #31
 The system shall store raw player values from each source in a `player_value_snapshots` table with the following columns: id, run_id (FK → etl_runs.id), player_id (FK → players.id), source, raw_value.
 
-**DFF-HIST-011** `[ ]` → #31
+**DFF-HIST-011** `[x]` → #31
 The system shall restrict `player_value_snapshots.source` to the values: `ktc`, `fantasycalc`, `dynastydaddy`, `rosteraudit`.
 
-**DFF-HIST-012** `[ ]` → #31
+**DFF-HIST-012** `[x]` → #31
 The system shall enforce a unique constraint on `(run_id, player_id, source)` in `player_value_snapshots`.
 
 ---
 
 ## Schema — `pick_value_snapshots`
 
-**DFF-HIST-020** `[ ]` → #31
+**DFF-HIST-020** `[x]` → #31
 The system shall store raw pick values from each source in a `pick_value_snapshots` table with the following columns: id, run_id (FK → etl_runs.id), year, round, source, raw_value.
 
-**DFF-HIST-021** `[ ]` → #31
+**DFF-HIST-021** `[x]` → #31
 The system shall restrict `pick_value_snapshots.source` to the same values as `player_value_snapshots.source`.
 
-**DFF-HIST-022** `[ ]` → #31
+**DFF-HIST-022** `[x]` → #31
 The system shall enforce a unique constraint on `(run_id, year, round, source)` in `pick_value_snapshots`.
 
 ---
 
 ## Schema — `drafts`
 
-**DFF-HIST-030** `[ ]` → #31
+**DFF-HIST-030** `[x]` → #31
 The system shall add a nullable `etl_run_id` column to `drafts` as a foreign key referencing `etl_runs.id`.
 
 ---

@@ -34,7 +34,7 @@ npm run serve
 npm run dev
 ```
 
-The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so both commands should be running for local draft creation.
+The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so both commands should be running for draft creation and the live draft SSE stream.
 
 Open the Vite URL shown in the terminal to begin.
 
@@ -74,7 +74,7 @@ Current UI commands:
 
 | Command | Purpose |
 |---|---|
-| `npm run serve` | Start the local HTTP API server for draft creation and future draft routes |
+| `npm run serve` | Start the local HTTP API server for draft creation and live `/drafts/:id/stream` SSE updates |
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
@@ -109,6 +109,7 @@ src/
     schema.ts            # Shared Drizzle table definitions
   draft/
     service.ts           # Transactional draft bootstrap, pick recording, and status updates
+    stream.ts            # Draft SSE snapshot queries and in-process event fanout
   ui/
     App.tsx              # Top-level React view-state shell
     main.tsx             # Vite React entry point

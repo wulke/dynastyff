@@ -75,6 +75,12 @@ Format: `ID | Description | Status`
 | [ID]-001 | [WHEN] [IF] THE <SYSTEM> SHALL <RESULT> | [ ] |
 ```
 *Status: `[ ]` Active, `[x]` Implemented, `[D]` Deferred.*
+
+When a GitHub issue is created for a spec, annotate it with `→ #N` after the status marker:
+```
+**DFF-UI-001** `[ ]` → #12
+```
+Specs without `→ #N` still need an issue. Grep for `→ #` to see all covered specs.
 ## Bug Fixing (Intent Gap Protocol)
 1. **Locate**: Find where behavior diverges from existing EARS/LLD.
 2. **Fix Intent**: Update the HLD/LLD/EARS to reflect the corrected behavior.

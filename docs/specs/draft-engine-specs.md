@@ -58,15 +58,14 @@ When a POST /drafts/:id/pick request is received, the system shall validate that
 **DFF-ENGINE-021** `[ ]`
 If a pick submission fails validation, the system shall return a 400 error and shall not modify draft state.
 
-**DFF-ENGINE-022** `[x]`
+**DFF-ENGINE-022** `[x]` → #9
 When a valid user pick is submitted, the system shall write the pick to `picks`, write ownership to `roster_players`, remove the player from `user_queue`, emit a `pick_made` SSE event, and trigger the bot chain.
 
-**DFF-ENGINE-023** `[x]`
+**DFF-ENGINE-023** `[x]` → #9
 When a pick is recorded for any team, the system shall write `picks`, write `roster_players`, and remove any matching `user_queue` row inside a single transaction.
 
 **DFF-ENGINE-024** `[x]`
 When a pick is recorded directly by the draft engine service, the system shall reject requests for completed drafts, non-current pick slots, or already-drafted players and shall not modify draft state.
-
 ---
 
 ## Bot Chain
@@ -97,26 +96,26 @@ For bot-to-bot trade modals, the system shall present two options: "OK" (user ac
 
 ## Trade Resolution
 
-**DFF-ENGINE-040** `[ ]`
+**DFF-ENGINE-040** `[ ]` → #10
 When a POST /drafts/:id/trade-response is received with status `accepted`, the system shall transfer all assets as specified, write the trade to `trades`, emit a `trade_resolved` event, and resume the bot chain.
 
-**DFF-ENGINE-041** `[ ]`
+**DFF-ENGINE-041** `[ ]` → #10
 When a POST /drafts/:id/trade-response is received with status `declined`, the system shall write the trade to `trades` with status `declined`, emit a `trade_resolved` event, and resume the bot chain without transferring any assets.
 
-**DFF-ENGINE-042** `[ ]`
+**DFF-ENGINE-042** `[ ]` → #10
 When a POST /drafts/:id/trade-response is received with status `force_declined`, the system shall write the trade to `trades` with status `force_declined`, emit a `trade_resolved` event, and resume the bot chain without transferring any assets.
 
-**DFF-ENGINE-043** `[ ]`
+**DFF-ENGINE-043** `[ ]` → #10
 If a POST /drafts/:id/trade-response is received when no trade is pending, the system shall return a 409 error and shall not modify draft state.
 
 ---
 
 ## Pick Slot Swap
 
-**DFF-ENGINE-050** `[ ]`
+**DFF-ENGINE-050** `[ ]` → #10
 When a trade containing pick slot assets is accepted, the system shall update `draft_order.team_id` for each swapped pick slot to reflect the new owner.
 
-**DFF-ENGINE-051** `[ ]`
+**DFF-ENGINE-051** `[ ]` → #10
 The system shall only allow swapping pick slots that have not yet been used (i.e. picks whose pick_number is greater than the current pick_number).
 
 ---

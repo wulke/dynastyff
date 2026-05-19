@@ -85,13 +85,13 @@ When a pick slot trade is accepted, the system shall update `draft_order.team_id
 
 ## Picks
 
-**DFF-DATA-050** `[ ]`
+**DFF-DATA-050** `[x]`
 When a player is drafted, the system shall immediately write a row to `picks` with: draft_id, draft_order_id, team_id, player_id, pick_number, round, and picked_at.
 
-**DFF-DATA-051** `[ ]`
+**DFF-DATA-051** `[x]`
 The system shall never update or delete a row in `picks` after it is written; picks are an immutable historical record.
 
-**DFF-DATA-052** `[ ]`
+**DFF-DATA-052** `[x]`
 When a player is drafted, the system shall write a corresponding row to `roster_players` with the drafting team as the current owner.
 
 ---
@@ -101,7 +101,7 @@ When a player is drafted, the system shall write a corresponding row to `roster_
 **DFF-DATA-060** `[x]`
 The system shall store current player ownership in `roster_players` with the following columns: id, draft_id, team_id, player_id.
 
-**DFF-DATA-061** `[ ]`
+**DFF-DATA-061** `[x]`
 The system shall maintain exactly one row in `roster_players` per player per draft at all times after that player is drafted.
 
 **DFF-DATA-062** `[ ]`
@@ -133,7 +133,7 @@ The system shall store the user's player watchlist in a `user_queue` table with 
 **DFF-DATA-091** `[x]`
 The system shall maintain exactly one row per player per draft in `user_queue`; adding a player already in the queue shall update its rank rather than insert a duplicate.
 
-**DFF-DATA-092** `[ ]`
+**DFF-DATA-092** `[x]`
 When a queued player is drafted (by any team), the system shall remove that player's row from `user_queue`.
 
 **DFF-DATA-093** `[ ]`

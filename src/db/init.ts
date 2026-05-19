@@ -8,6 +8,7 @@
 // @spec DFF-DATA-033
 // @spec DFF-DATA-040
 // @spec DFF-DATA-050
+// @spec DFF-DATA-051
 // @spec DFF-DATA-060
 // @spec DFF-DATA-070
 // @spec DFF-DATA-080
@@ -16,6 +17,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import Database from 'better-sqlite3';
 
 export const defaultDatabasePath = path.resolve(process.cwd(), 'data', 'dynastyff.sqlite');
 
@@ -41,6 +43,26 @@ export function initializeDatabase(databasePath = resolveDatabasePath()): string
       stdio: 'pipe',
     },
   );
+
+  const sqlite = new Database(databasePath);
+
+  try {
+    sqlite.exec(`
+      CREATE TRIGGER IF NOT EXISTS picks_immutable_update
+      BEFORE UPDATE ON picks
+      BEGIN
+        SELECT RAISE(ABORT, 'picks are immutable');
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS picks_immutable_delete
+      BEFORE DELETE ON picks
+      BEGIN
+        SELECT RAISE(ABORT, 'picks are immutable');
+      END;
+    `);
+  } finally {
+    sqlite.close();
+  }
 
   return databasePath;
 }

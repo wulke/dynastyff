@@ -83,6 +83,19 @@ If any team, draft-order, or pick-asset write fails, the transaction is rolled b
 
 When the draft engine transitions a draft from `in_progress` to `completed`, it updates `drafts.status` and sets `drafts.completed_at` to the current timestamp in the same write. Non-terminal updates must not populate `completed_at`.
 
+## Pick Recording
+
+When any team makes a pick, the draft engine records the selection as one SQLite transaction keyed off the current `draft_order` slot:
+
+1. Read the `draft_order` row to obtain `draft_id`, `team_id`, `pick_number`, and `round`
+2. Confirm the draft is still `in_progress`, the slot is the current unfilled pick, and the player is not already drafted in that draft
+3. Insert one immutable `picks` row capturing that slot and the selected `player_id`
+4. Insert one `roster_players` row assigning current ownership to the drafting team
+5. Delete any `user_queue` row for that `(draft_id, player_id)` so queued players disappear once drafted by anyone
+6. Commit only if all writes succeed; otherwise roll back the entire pick
+
+`picks` is historical fact and is never updated or deleted after insertion. `roster_players` remains the authoritative source for current ownership.
+
 ## Trade Resolution
 
 All trade modals — including bot-to-bot trades — are blocking and require explicit user acknowledgment before the draft continues. This is intentional: the draft is untimed and solo, so the user should have full visibility into every trade that reshapes the board. For bot-to-bot trades the buttons are "OK" (acknowledge, trade stands) and "Force Decline" (user vetoes the trade). For user-targeted trades the buttons are "Accept" and "Decline."

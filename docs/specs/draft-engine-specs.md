@@ -8,14 +8,20 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ## Draft Creation
 
-**DFF-ENGINE-001** `[ ]`
+**DFF-ENGINE-001** `[x]`
 When a POST /drafts request is received with valid configuration, the system shall create a draft, generate teams, generate the full snake pick order, initialize team pick assets, and return the draft id.
 
-**DFF-ENGINE-002** `[ ]`
+**DFF-ENGINE-002** `[x]`
 When a draft is created, the system shall set `drafts.status` to `in_progress`.
 
 **DFF-ENGINE-003** `[ ]`
 If a POST /drafts request is received with missing or invalid configuration fields, the system shall return a 400 error with a descriptive message and shall not create any database records.
+
+**DFF-ENGINE-004** `[x]`
+When a draft is created, the system shall insert exactly `team_count` `teams` rows, exactly `team_count × rounds` `draft_order` rows in snake order, and one `team_pick_assets` row per team per configured future `(year, round)` combination inside a single transaction.
+
+**DFF-ENGINE-005** `[x]`
+If any derived draft-creation write fails after the draft row is inserted, the system shall roll back the entire draft creation transaction so no partial draft state remains.
 
 ---
 
@@ -38,6 +44,9 @@ When a trade is resolved, the system shall emit a `trade_resolved` event contain
 
 **DFF-ENGINE-015** `[ ]`
 When all picks are exhausted, the system shall emit a `draft_complete` event and set `drafts.status` to `completed`.
+
+**DFF-ENGINE-016** `[x]`
+When a draft transitions to `completed`, the system shall set `drafts.completed_at` to the current timestamp as part of that status update.
 
 ---
 

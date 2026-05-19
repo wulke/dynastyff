@@ -49,20 +49,20 @@ The system shall restrict `drafts.scoring_format` to the values: `ppr`, `half_pp
 **DFF-DATA-022** `[x]`
 The system shall restrict `drafts.status` to the values: `in_progress`, `completed`.
 
-**DFF-DATA-023** `[ ]`
+**DFF-DATA-023** `[x]`
 When a draft is completed, the system shall set `drafts.completed_at` to the current timestamp.
 
 ---
 
 ## Teams
 
-**DFF-DATA-030** `[ ]`
+**DFF-DATA-030** `[x]`
 When a draft is created, the system shall create exactly `drafts.team_count` team rows associated with that draft.
 
-**DFF-DATA-031** `[ ]`
+**DFF-DATA-031** `[x]`
 When a draft is created, the system shall assign exactly one team with `is_user = 1`; all other teams shall have `is_user = 0`.
 
-**DFF-DATA-032** `[ ]`
+**DFF-DATA-032** `[x]`
 When a draft is created, the system shall assign each bot team a name from the predefined generic name list (e.g. Bob, Carl) and a randomly selected archetype.
 
 **DFF-DATA-033** `[x]`
@@ -72,10 +72,10 @@ The system shall restrict `teams.archetype` to the values: `win_now`, `punt`, `r
 
 ## Draft Order
 
-**DFF-DATA-040** `[ ]`
+**DFF-DATA-040** `[x]`
 When a draft is created, the system shall generate `drafts.team_count × drafts.rounds` rows in `draft_order`, covering every pick slot in snake order.
 
-**DFF-DATA-041** `[ ]`
+**DFF-DATA-041** `[x]`
 The system shall assign pick slots in odd rounds in ascending team position order and in even rounds in descending team position order.
 
 **DFF-DATA-042** `[ ]`
@@ -114,7 +114,7 @@ The system shall use `roster_players` as the authoritative source of current pla
 
 ## Team Pick Assets
 
-**DFF-DATA-070** `[ ]`
+**DFF-DATA-070** `[x]`
 When a draft is created, the system shall initialize `team_pick_assets` with one row per team per future pick (future_pick_years × future_pick_rounds), giving all teams identical starting inventories.
 
 **DFF-DATA-071** `[ ]`

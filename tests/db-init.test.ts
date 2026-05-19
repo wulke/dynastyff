@@ -56,8 +56,8 @@ test('db:init creates all tables defined by the data-model LLD', () => {
       'draft_order',
       'drafts',
       'etl_runs',
-      'pick_values',
       'pick_value_snapshots',
+      'pick_values',
       'picks',
       'player_value_snapshots',
       'players',
@@ -241,14 +241,10 @@ test('drafts includes nullable etl_run_id foreign key to etl_runs', () => {
       to: string;
     }>;
 
-    assert.deepEqual(
-      foreignKeys.find((foreignKey) => foreignKey.from === 'etl_run_id'),
-      {
-        from: 'etl_run_id',
-        table: 'etl_runs',
-        to: 'id',
-      },
-    );
+    const etlRunForeignKey = foreignKeys.find((foreignKey) => foreignKey.from === 'etl_run_id');
+
+    assert.equal(etlRunForeignKey?.table, 'etl_runs');
+    assert.equal(etlRunForeignKey?.to, 'id');
 
     db.prepare(
       `INSERT INTO drafts (

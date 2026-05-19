@@ -14,6 +14,14 @@
 // @spec DFF-DATA-080
 // @spec DFF-DATA-081
 // @spec DFF-DATA-090
+// @spec DFF-HIST-001
+// @spec DFF-HIST-010
+// @spec DFF-HIST-011
+// @spec DFF-HIST-012
+// @spec DFF-HIST-020
+// @spec DFF-HIST-021
+// @spec DFF-HIST-022
+// @spec DFF-HIST-030
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

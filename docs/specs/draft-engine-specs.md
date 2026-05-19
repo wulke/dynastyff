@@ -58,10 +58,10 @@ When a POST /drafts/:id/pick request is received, the system shall validate that
 **DFF-ENGINE-021** `[ ]`
 If a pick submission fails validation, the system shall return a 400 error and shall not modify draft state.
 
-**DFF-ENGINE-022** `[ ]`
+**DFF-ENGINE-022** `[x]`
 When a valid user pick is submitted, the system shall write the pick to `picks`, write ownership to `roster_players`, remove the player from `user_queue`, emit a `pick_made` SSE event, and trigger the bot chain.
 
-**DFF-ENGINE-023** `[ ]`
+**DFF-ENGINE-023** `[x]`
 When a pick is recorded for any team, the system shall write `picks`, write `roster_players`, and remove any matching `user_queue` row inside a single transaction.
 
 ---

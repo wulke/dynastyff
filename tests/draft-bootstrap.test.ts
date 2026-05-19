@@ -121,7 +121,7 @@ test('createDraft seeds teams, snake order, and future pick assets in one transa
     for (const team of teams.filter((entry) => entry.is_user === 0)) {
       assert.match(team.name, /^[A-Z][a-z]+$/);
       assert.ok(team.archetype);
-      assert.equal(teamArchetypes.includes(team.archetype), true);
+      assert.equal(teamArchetypes.includes(team.archetype as (typeof teamArchetypes)[number]), true);
     }
 
     const draftOrder = db

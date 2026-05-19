@@ -2,6 +2,8 @@
 // @spec DFF-ENGINE-002
 // @spec DFF-ENGINE-004
 // @spec DFF-ENGINE-005
+// @spec DFF-ENGINE-022
+// @spec DFF-ENGINE-023
 // @spec DFF-ENGINE-016
 // @spec DFF-DATA-020
 // @spec DFF-DATA-023
@@ -10,19 +12,26 @@
 // @spec DFF-DATA-032
 // @spec DFF-DATA-040
 // @spec DFF-DATA-041
+// @spec DFF-DATA-050
+// @spec DFF-DATA-052
+// @spec DFF-DATA-061
 // @spec DFF-DATA-070
+// @spec DFF-DATA-092
 import { randomUUID } from 'node:crypto';
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
 import {
   draftOrder,
   drafts,
   draftStatuses,
+  picks,
+  rosterPlayers,
   scoringFormats,
   teamArchetypes,
   teamPickAssets,
   teams,
+  userQueue,
 } from '../db/schema.js';
 
 type DraftStatus = (typeof draftStatuses)[number];
@@ -62,6 +71,14 @@ type UpdateDraftStatusOptions = {
   draftId: string;
   status: DraftStatus;
   now?: () => string;
+};
+
+type RecordPickOptions = {
+  databasePath: string;
+  draftOrderId: string;
+  playerId: string;
+  now?: () => string;
+  idGenerator?: () => string;
 };
 
 const botTeamNames = [
@@ -195,6 +212,65 @@ export function updateDraftStatus({
           : { status };
 
       tx.update(drafts).set(nextValues).where(eq(drafts.id, draftId)).run();
+    });
+  } finally {
+    sqlite.close();
+  }
+}
+
+export function recordPick({
+  databasePath,
+  draftOrderId,
+  playerId,
+  now = defaultNow,
+  idGenerator = defaultIdGenerator,
+}: RecordPickOptions): void {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    db.transaction((tx) => {
+      const currentSlot = tx
+        .select({
+          draftId: draftOrder.draftId,
+          teamId: draftOrder.teamId,
+          pickNumber: draftOrder.pickNumber,
+          round: draftOrder.round,
+        })
+        .from(draftOrder)
+        .where(eq(draftOrder.id, draftOrderId))
+        .get();
+
+      if (!currentSlot) {
+        throw new Error(`Draft order slot not found: ${draftOrderId}`);
+      }
+
+      tx.insert(picks)
+        .values({
+          id: idGenerator(),
+          draftId: currentSlot.draftId,
+          draftOrderId,
+          teamId: currentSlot.teamId,
+          playerId,
+          pickNumber: currentSlot.pickNumber,
+          round: currentSlot.round,
+          pickedAt: now(),
+        })
+        .run();
+
+      tx.insert(rosterPlayers)
+        .values({
+          id: idGenerator(),
+          draftId: currentSlot.draftId,
+          teamId: currentSlot.teamId,
+          playerId,
+        })
+        .run();
+
+      tx.delete(userQueue)
+        .where(
+          and(eq(userQueue.draftId, currentSlot.draftId), eq(userQueue.playerId, playerId)),
+        )
+        .run();
     });
   } finally {
     sqlite.close();

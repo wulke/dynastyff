@@ -1,15 +1,24 @@
 // @spec DFF-ENGINE-001
 // @spec DFF-ENGINE-003
+// @spec DFF-ENGINE-060
+// @spec DFF-ENGINE-061
+// @spec DFF-ENGINE-062
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import type { Request, Response } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 
 import { initializeDatabase } from '../src/db/init.js';
-import { createDraftErrorHandler, createDraftRoute } from '../src/server/app.js';
+import { createDraft, recordPick } from '../src/draft/service.js';
+import {
+  createDraftErrorHandler,
+  createDraftRoute,
+  createDraftStateRoute,
+  createDraftHistoryRoute,
+} from '../src/server/app.js';
 import { parseCreateDraftConfig } from '../src/server/config.js';
 import { resolveApiBaseUrl } from '../src/server/runtime.js';
 import viteConfig from '../src/ui/vite.config.js';
@@ -67,17 +76,29 @@ function readDraft(databasePath: string, draftId: string) {
   }
 }
 
-async function invokeDraftRoute(
-  databasePath: string,
-  body: Record<string, unknown>,
-): Promise<{
+function seedPlayer(db: Database.Database, playerId: string, name: string, position = 'QB'): void {
+  db.prepare(
+    `INSERT INTO players (
+      id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+    ) VALUES (?, ?, ?, 'BUF', 25, 0, 5000, ?)`,
+  ).run(playerId, name, position, '2026-05-18T00:00:00.000Z');
+}
+
+async function invokeRoute({
+  route,
+  body,
+  params,
+}: {
+  route: RequestHandler;
+  body?: Record<string, unknown>;
+  params?: Record<string, string>;
+}): Promise<{
   statusCode: number;
   headers: Record<string, number | string | string[] | undefined>;
   json: unknown;
 }> {
-  const request = { body } as Request;
+  const request = { body, params } as Request;
   const errorHandler = createDraftErrorHandler();
-  const route = createDraftRoute({ databasePath });
   const headers: Record<string, number | string | string[] | undefined> = {};
   let statusCode = 200;
   let responseBody: unknown;
@@ -114,6 +135,13 @@ async function invokeDraftRoute(
     headers,
     json: responseBody,
   };
+}
+
+async function invokeDraftRoute(databasePath: string, body: Record<string, unknown>) {
+  return invokeRoute({
+    route: createDraftRoute({ databasePath }),
+    body,
+  });
 }
 
 test('POST /drafts returns 201 and the created draft id for a valid camelCase config payload', async () => {
@@ -215,6 +243,279 @@ test('POST /drafts returns 400 with a descriptive error and does not create a dr
   try {
     const draftCount = db.prepare('SELECT COUNT(*) AS count FROM drafts').get() as { count: number };
     assert.equal(draftCount.count, 0);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for mid-draft hydration', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-state-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-picked', 'Picked Player', 'QB');
+    seedPlayer(db, 'player-queued', 'Queued Player', 'WR');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 4,
+        rounds: 3,
+        scoringFormat: 'ppr',
+        userPickPosition: 2,
+        futurePickYears: 1,
+        futurePickRounds: 2,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const firstSlot = db
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as { id: string };
+
+    recordPick({
+      databasePath,
+      draftOrderId: firstSlot.id,
+      playerId: 'player-picked',
+      now: () => '2026-05-18T20:05:00.000Z',
+      idGenerator: () => 'pick-row-id',
+    });
+
+    db.prepare('INSERT INTO user_queue (id, draft_id, player_id, rank) VALUES (?, ?, ?, ?)').run(
+      'queue-row-id',
+      draftId,
+      'player-queued',
+      1,
+    );
+
+    const secondSlot = db
+      .prepare(
+        `SELECT do.pick_number, do.round, do.team_id
+         FROM draft_order do
+         WHERE do.draft_id = ?
+         ORDER BY do.pick_number
+         LIMIT 1 OFFSET 1`,
+      )
+      .get(draftId) as { pick_number: number; round: number; team_id: string };
+
+    const userTeamId = (
+      db.prepare('SELECT id FROM teams WHERE draft_id = ? AND is_user = 1').get(draftId) as { id: string }
+    ).id;
+
+    db.prepare(
+      `INSERT INTO trades (
+        id,
+        draft_id,
+        pick_number,
+        round,
+        initiating_team_id,
+        receiving_team_id,
+        assets_sent,
+        assets_received,
+        status,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'trade-row-id',
+      draftId,
+      secondSlot.pick_number,
+      secondSlot.round,
+      secondSlot.team_id,
+      userTeamId,
+      JSON.stringify([{ type: 'pick', year: 2027, round: 1 }]),
+      JSON.stringify([{ type: 'player', player_id: 'player-picked' }]),
+      'declined',
+      '2026-05-18T20:06:00.000Z',
+    );
+
+    const response = await invokeRoute({
+      route: createDraftStateRoute({ databasePath }),
+      params: { id: draftId },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['content-type'], 'application/json');
+
+    const body = response.json as {
+      draft_id: string;
+      status: string;
+      current_pick_number: number | null;
+      teams: Array<{ id: string; name: string; is_user: boolean; archetype: string | null }>;
+      draft_order: Array<{ pick_number: number; round: number; pick_in_round: number; team_id: string }>;
+      picks: Array<{ pick_number: number; team_id: string; player_id: string; picked_at: string }>;
+      roster_players: Array<{ team_id: string; player_id: string }>;
+      team_pick_assets: Array<{ team_id: string; year: number; round: number }>;
+      user_queue: Array<{ player_id: string; rank: number }>;
+      trades: Array<{
+        id: string;
+        round: number;
+        initiating_team_id: string;
+        receiving_team_id: string;
+        assets_sent: Array<{ type: string; year?: number; round?: number }>;
+        assets_received: Array<{ type: string; player_id?: string }>;
+        status: string;
+      }>;
+    };
+
+    assert.equal(body.draft_id, draftId);
+    assert.equal(body.status, 'in_progress');
+    assert.equal(body.current_pick_number, 2);
+    assert.equal(body.teams.length, 4);
+    assert.deepEqual(body.teams.map((team) => team.name), ['Bob', 'You', 'Carl', 'Dana']);
+    assert.deepEqual(
+      body.draft_order.slice(0, 4),
+      [
+        { pick_number: 1, round: 1, pick_in_round: 1, team_id: body.teams[0]?.id },
+        { pick_number: 2, round: 1, pick_in_round: 2, team_id: body.teams[1]?.id },
+        { pick_number: 3, round: 1, pick_in_round: 3, team_id: body.teams[2]?.id },
+        { pick_number: 4, round: 1, pick_in_round: 4, team_id: body.teams[3]?.id },
+      ],
+    );
+    assert.deepEqual(body.picks, [
+      {
+        pick_number: 1,
+        team_id: body.teams[0]?.id,
+        player_id: 'player-picked',
+        picked_at: '2026-05-18T20:05:00.000Z',
+      },
+    ]);
+    assert.deepEqual(body.roster_players, [
+      {
+        team_id: body.teams[0]?.id,
+        player_id: 'player-picked',
+      },
+    ]);
+    assert.equal(body.team_pick_assets.length, 8);
+    assert.deepEqual(body.user_queue, [{ player_id: 'player-queued', rank: 1 }]);
+    assert.deepEqual(body.trades, [
+      {
+        id: 'trade-row-id',
+        round: 1,
+        initiating_team_id: body.teams[1]?.id,
+        receiving_team_id: userTeamId,
+        assets_sent: [{ type: 'pick', year: 2027, round: 1 }],
+        assets_received: [{ type: 'player', player_id: 'player-picked' }],
+        status: 'declined',
+      },
+    ]);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+test('GET /drafts returns all persisted drafts with history metadata', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-history-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    const completedDraftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 2,
+        scoringFormat: 'standard',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 2,
+          TE: 1,
+          FLEX: 1,
+          SF: 0,
+          bench: 5,
+        },
+      },
+      now: () => '2026-05-18T18:00:00.000Z',
+      random: () => 0,
+    });
+    const inProgressDraftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 4,
+        rounds: 3,
+        scoringFormat: 'half_ppr',
+        userPickPosition: 3,
+        futurePickYears: 2,
+        futurePickRounds: 2,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T19:00:00.000Z',
+      random: () => 0,
+    });
+
+    const completedAt = '2026-05-18T20:00:00.000Z';
+    db.prepare('UPDATE drafts SET status = ?, completed_at = ? WHERE id = ?').run(
+      'completed',
+      completedAt,
+      completedDraftId,
+    );
+
+    const response = await invokeRoute({
+      route: createDraftHistoryRoute({ databasePath }),
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['content-type'], 'application/json');
+
+    const body = response.json as Array<{
+      id: string;
+      created_at: string;
+      completed_at: string | null;
+      status: string;
+      team_count: number;
+      rounds: number;
+    }>;
+
+    assert.deepEqual(body, [
+      {
+        id: inProgressDraftId,
+        created_at: '2026-05-18T19:00:00.000Z',
+        completed_at: null,
+        status: 'in_progress',
+        team_count: 4,
+        rounds: 3,
+      },
+      {
+        id: completedDraftId,
+        created_at: '2026-05-18T18:00:00.000Z',
+        completed_at: completedAt,
+        status: 'completed',
+        team_count: 2,
+        rounds: 2,
+      },
+    ]);
   } finally {
     db.close();
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });

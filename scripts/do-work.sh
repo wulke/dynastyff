@@ -9,6 +9,11 @@ ISSUE_NUMBER=""
 args=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --issue=*)
+      ISSUE_NUMBER="${1#--issue=}"
+      [[ -z "$ISSUE_NUMBER" ]] && { echo "Error: --issue= requires a number." >&2; exit 1; }
+      shift
+      ;;
     --issue)
       [[ -z "${2:-}" ]] && { echo "Error: --issue requires a number." >&2; exit 1; }
       ISSUE_NUMBER="$2"
@@ -46,10 +51,14 @@ validate_issue() {
     dep_state=$(gh issue view "$dep" --json state | jq -r '.state')
     [[ "$dep_state" == "OPEN" ]] && { echo "Error: Issue #$number is blocked by open issue #$dep." >&2; exit 1; }
   done
+  return 0
 }
 
 if [[ -n "$ISSUE_NUMBER" ]]; then
-  selected=$(gh issue view "$ISSUE_NUMBER" --json number,title,labels,body,state)
+  if ! selected=$(gh issue view "$ISSUE_NUMBER" --json number,title,labels,body,state); then
+    echo "Error: Could not fetch issue #$ISSUE_NUMBER." >&2
+    exit 1
+  fi
   validate_issue "$selected"
 else
   issues_json=$(gh issue list --state open --json number,title,labels,body --limit 100)

@@ -23,6 +23,8 @@
 // @spec DFF-DATA-061
 // @spec DFF-DATA-070
 // @spec DFF-DATA-092
+// @spec DFF-HIST-060
+// @spec DFF-HIST-061
 import { randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
@@ -150,6 +152,8 @@ export function createDraft({
 
   try {
     db.transaction((tx) => {
+      // @spec DFF-HIST-060
+      // @spec DFF-HIST-061
       const latestCompletedRun = tx
         .select({
           id: etlRuns.id,

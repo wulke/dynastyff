@@ -6,6 +6,7 @@
 // @spec DFF-DATA-052
 // @spec DFF-DATA-061
 // @spec DFF-DATA-092
+// @spec DFF-HIST-062
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -148,6 +149,101 @@ test('recordPick writes one pick row, writes current ownership, and removes the 
       .all(draftId) as Array<{ player_id: string; rank: number }>;
 
     assert.deepEqual(queue, [{ player_id: 'player-other', rank: 2 }]);
+  });
+});
+
+test('recordPick succeeds for drafts created with a null etl_run_id', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-picked', 'Picked Player');
+
+    db.prepare(
+      `INSERT INTO etl_runs (
+        id, started_at, completed_at, sources_attempted, sources_succeeded
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      'run-incomplete-only',
+      '2026-05-18T19:00:00.000Z',
+      null,
+      '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+      '[]',
+    );
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const draft = db
+      .prepare('SELECT etl_run_id FROM drafts WHERE id = ?')
+      .get(draftId) as { etl_run_id: string | null };
+    const draftOrderEntry = db
+      .prepare(
+        `SELECT id, draft_id, team_id, pick_number, round
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as {
+      id: string;
+      draft_id: string;
+      team_id: string;
+      pick_number: number;
+      round: number;
+    };
+
+    assert.equal(draft.etl_run_id, null);
+
+    recordPick({
+      databasePath,
+      draftOrderId: draftOrderEntry.id,
+      playerId: 'player-picked',
+      now: () => '2026-05-18T20:05:00.000Z',
+      idGenerator: () => 'pick-row-id',
+    });
+
+    const picks = db
+      .prepare(
+        `SELECT draft_id, draft_order_id, team_id, player_id, pick_number, round
+         FROM picks`,
+      )
+      .all() as Array<{
+      draft_id: string;
+      draft_order_id: string;
+      team_id: string;
+      player_id: string;
+      pick_number: number;
+      round: number;
+    }>;
+
+    assert.deepEqual(picks, [
+      {
+        draft_id: draftOrderEntry.draft_id,
+        draft_order_id: draftOrderEntry.id,
+        team_id: draftOrderEntry.team_id,
+        player_id: 'player-picked',
+        pick_number: draftOrderEntry.pick_number,
+        round: draftOrderEntry.round,
+      },
+    ]);
   });
 });
 

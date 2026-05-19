@@ -91,6 +91,7 @@ Current ETL scope:
 - Normalizes KTC values to `0-9999`
 - Upserts the local SQLite `players` table
 - Initializes schema support for ETL run history and raw value snapshots (`etl_runs`, `player_value_snapshots`, `pick_value_snapshots`)
+- Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time
 
 ## Project Structure
 

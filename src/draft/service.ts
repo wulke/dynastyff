@@ -25,12 +25,13 @@
 // @spec DFF-DATA-092
 import { randomUUID } from 'node:crypto';
 
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
 import {
   draftOrder,
   drafts,
   draftStatuses,
+  etlRuns,
   picks,
   rosterPlayers,
   scoringFormats,
@@ -149,6 +150,15 @@ export function createDraft({
 
   try {
     db.transaction((tx) => {
+      const latestCompletedRun = tx
+        .select({
+          id: etlRuns.id,
+        })
+        .from(etlRuns)
+        .where(isNotNull(etlRuns.completedAt))
+        .orderBy(desc(etlRuns.startedAt))
+        .get();
+
       tx.insert(drafts)
         .values({
           id: draftId,
@@ -162,6 +172,7 @@ export function createDraft({
           futurePickYears: config.futurePickYears,
           futurePickRounds: config.futurePickRounds,
           rosterConfig: JSON.stringify(config.rosterConfig),
+          etlRunId: latestCompletedRun?.id ?? null,
         })
         .run();
 

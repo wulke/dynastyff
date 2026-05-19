@@ -28,9 +28,12 @@ type StreamEvent = {
 };
 
 type StreamConnection = {
+  statusCode: number;
+  headers: Record<string, string>;
   events: StreamEvent[];
   ended: boolean;
   notify?: () => void;
+  jsonBody?: unknown;
   close: () => void;
 };
 
@@ -77,6 +80,7 @@ async function connectToDraftStream(databasePath: string, draftId: string) {
   let statusCode = 200;
   let ended = false;
   let notify: (() => void) | undefined;
+  let jsonBody: unknown;
 
   const response = {
     status(code: number) {
@@ -126,21 +130,18 @@ async function connectToDraftStream(databasePath: string, draftId: string) {
       return this;
     },
     json(body: unknown) {
-      events.push({
-        event: 'json',
-        data: body,
-      });
+      jsonBody = body;
       notify?.();
       return this;
     },
   } as Response;
 
   route(request, response, () => undefined);
-
-  assert.equal(statusCode, 200);
-  assert.equal(headers['content-type'], 'text/event-stream; charset=utf-8');
   return {
+    statusCode,
+    headers,
     events,
+    jsonBody,
     get ended() {
       return ended;
     },
@@ -154,6 +155,11 @@ async function connectToDraftStream(databasePath: string, draftId: string) {
       request.emit('close');
     },
   } as StreamConnection;
+}
+
+function assertSseConnection(connection: StreamConnection): void {
+  assert.equal(connection.statusCode, 200);
+  assert.equal(connection.headers['content-type'], 'text/event-stream; charset=utf-8');
 }
 
 async function readStreamEvent(
@@ -184,6 +190,9 @@ async function readStreamEvent(
   throw new Error('Timed out waiting for SSE event.');
 }
 
+// @spec DFF-ENGINE-010
+// @spec DFF-ENGINE-011
+// @spec DFF-ENGINE-012
 test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made plus your_turn as picks are recorded', async () => {
   await withDraftServer(async ({ databasePath, database }) => {
     seedPlayer(database, 'player-1', 'Player One');
@@ -222,6 +231,7 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
       .all(draftId) as Array<{ id: string; pick_number: number; round: number; pick_in_round: number }>;
 
     const stream = await connectToDraftStream(databasePath, draftId);
+    assertSseConnection(stream);
 
     try {
       const initialEvent = await readStreamEvent(stream);
@@ -319,6 +329,79 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
   });
 });
 
+// @spec DFF-ENGINE-010
+test('GET /drafts/:id/stream returns 404 when the draft does not exist', async () => {
+  await withDraftServer(async ({ databasePath }) => {
+    const stream = await connectToDraftStream(databasePath, 'missing-draft');
+
+    assert.equal(stream.statusCode, 404);
+    assert.deepEqual(stream.jsonBody, { error: 'Draft not found.' });
+  });
+});
+
+// @spec DFF-ENGINE-011
+// @spec DFF-ENGINE-012
+test('GET /drafts/:id/stream does not emit your_turn when the next open slot belongs to a bot', async () => {
+  await withDraftServer(async ({ databasePath, database }) => {
+    seedPlayer(database, 'player-1', 'Player One');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 2,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const firstSlot = database
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as { id: string };
+
+    const stream = await connectToDraftStream(databasePath, draftId);
+    assertSseConnection(stream);
+
+    try {
+      await readStreamEvent(stream);
+
+      recordPick({
+        databasePath,
+        draftOrderId: firstSlot.id,
+        playerId: 'player-1',
+        now: () => '2026-05-18T20:05:00.000Z',
+      });
+
+      const pickMade = await readStreamEvent(stream);
+      assert.equal(pickMade.event, 'pick_made');
+      assert.equal(stream.events.length, 0);
+    } finally {
+      stream.close();
+    }
+  });
+});
+
+// @spec DFF-ENGINE-013
+// @spec DFF-ENGINE-014
 test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', async () => {
   await withDraftServer(async ({ databasePath }) => {
     const draftId = createDraft({
@@ -345,6 +428,7 @@ test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', asy
     });
 
     const stream = await connectToDraftStream(databasePath, draftId);
+    assertSseConnection(stream);
 
     try {
       await readStreamEvent(stream);
@@ -392,6 +476,61 @@ test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', asy
   });
 });
 
+// @spec DFF-ENGINE-011
+test('GET /drafts/:id/stream unregisters the listener when the client disconnects', async () => {
+  await withDraftServer(async ({ databasePath, database }) => {
+    seedPlayer(database, 'player-1', 'Player One');
+    seedPlayer(database, 'player-2', 'Player Two');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 2,
+        futurePickYears: 1,
+        futurePickRounds: 2,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const slots = database
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number`,
+      )
+      .all(draftId) as Array<{ id: string }>;
+
+    const stream = await connectToDraftStream(databasePath, draftId);
+    assertSseConnection(stream);
+    await readStreamEvent(stream);
+    stream.close();
+
+    recordPick({
+      databasePath,
+      draftOrderId: slots[0].id,
+      playerId: 'player-1',
+      now: () => '2026-05-18T20:05:00.000Z',
+    });
+
+    assert.equal(stream.events.length, 0);
+  });
+});
+
+// @spec DFF-ENGINE-015
 test('GET /drafts/:id/stream emits draft_complete and persists completed status when the final pick is recorded', async () => {
   await withDraftServer(async ({ databasePath, database }) => {
     seedPlayer(database, 'player-1', 'Player One');
@@ -430,6 +569,7 @@ test('GET /drafts/:id/stream emits draft_complete and persists completed status 
       .all(draftId) as Array<{ id: string }>;
 
     const stream = await connectToDraftStream(databasePath, draftId);
+    assertSseConnection(stream);
 
     try {
       await readStreamEvent(stream);

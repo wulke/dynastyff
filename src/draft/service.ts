@@ -414,7 +414,9 @@ export function recordPick({
   }
 }
 
+// @spec DFF-ENGINE-013
 export const emitTradeOffered = emitTradeOfferedEvent;
+// @spec DFF-ENGINE-014
 export const emitTradeResolved = emitTradeResolvedEvent;
 
 function buildTeams({

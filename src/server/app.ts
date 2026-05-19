@@ -40,6 +40,7 @@ export function createDraftRoute({ databasePath }: CreateDraftServerOptions): Re
   };
 }
 
+// @spec DFF-ENGINE-010
 export function createDraftStreamRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
   return (request, response) => {
     const draftId = request.params.id;

@@ -97,6 +97,7 @@ type DraftEventListener = (event: DraftStreamEvent) => void;
 
 const draftListeners = new Map<string, Set<DraftEventListener>>();
 
+// @spec DFF-ENGINE-010
 export function subscribeToDraftStream(
   draftId: string,
   listener: DraftEventListener,
@@ -120,6 +121,7 @@ export function subscribeToDraftStream(
   };
 }
 
+// @spec DFF-ENGINE-011
 export function emitPickMadeEvent(event: {
   draftId: string;
   pickNumber: number;
@@ -138,6 +140,7 @@ export function emitPickMadeEvent(event: {
   });
 }
 
+// @spec DFF-ENGINE-012
 export function emitYourTurnEvent(event: {
   draftId: string;
   pickNumber: number;
@@ -154,6 +157,7 @@ export function emitYourTurnEvent(event: {
   });
 }
 
+// @spec DFF-ENGINE-013
 export function emitTradeOfferedEvent(event: {
   draftId: string;
   tradeId: string;
@@ -176,6 +180,7 @@ export function emitTradeOfferedEvent(event: {
   });
 }
 
+// @spec DFF-ENGINE-014
 export function emitTradeResolvedEvent(event: {
   draftId: string;
   tradeId: string;
@@ -194,6 +199,7 @@ export function emitTradeResolvedEvent(event: {
   });
 }
 
+// @spec DFF-ENGINE-015
 export function emitDraftCompleteEvent(event: {
   draftId: string;
   completedAt: string;
@@ -207,6 +213,7 @@ export function emitDraftCompleteEvent(event: {
   });
 }
 
+// @spec DFF-ENGINE-010
 export function getDraftStateSyncPayload({
   databasePath,
   draftId,

@@ -36,10 +36,10 @@ While a draft is in_progress, the system shall emit a `pick_made` event on every
 **DFF-ENGINE-012** `[x]` → #26
 When it becomes the user's turn to pick, the system shall emit a `your_turn` event containing: pick_number, round, and pick_in_round.
 
-**DFF-ENGINE-013** `[x]` → #26
+**DFF-ENGINE-013** `[D]` → #26
 When a trade is initiated, the system shall emit a `trade_offered` event containing: trade_id, initiating_team_id, receiving_team_id, assets_sent, assets_received, and is_bot_to_bot.
 
-**DFF-ENGINE-014** `[x]` → #26
+**DFF-ENGINE-014** `[D]` → #26
 When a trade is resolved, the system shall emit a `trade_resolved` event containing: trade_id, status, assets_sent, and assets_received.
 
 **DFF-ENGINE-015** `[x]` → #26

@@ -4,22 +4,43 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build:server && npm run build:ui",
+    "build:server": "tsc -p tsconfig.json",
+    "build:ui": "vite build --config src/ui/vite.config.ts",
     "db:init": "node --import tsx src/db/init.ts",
+    "dev": "vite --config src/ui/vite.config.ts",
     "etl": "node --import tsx src/etl/index.ts",
-    "test": "node --import tsx --test tests/**/*.test.ts",
+    "preview": "vite preview --config src/ui/vite.config.ts",
+    "test": "npm run test:server && npm run test:ui",
+    "test:server": "node --import tsx --test tests/**/*.test.ts",
+    "test:ui": "vitest run tests/ui-app-scaffold.test.tsx",
     "test:coverage": "node --import tsx --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test tests/**/*.test.ts"
   },
   "dependencies": {
+    "@radix-ui/react-separator": "^1.1.7",
     "better-sqlite3": "^11.10.0",
     "drizzle-orm": "^0.45.2",
-    "playwright": "^1.60.0"
+    "playwright": "^1.60.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^24.7.2",
+    "@vitejs/plugin-react": "^5.1.0",
+    "autoprefixer": "^10.4.21",
     "drizzle-kit": "^0.31.10",
+    "jsdom": "^27.0.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "vitest": "^3.2.4"
   }
 }

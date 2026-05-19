@@ -12,6 +12,13 @@ const uiRoot = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   root: uiRoot,
   plugins: [react()],
+  server: {
+    proxy: {
+      '/drafts': {
+        target: 'http://localhost:3001',
+      },
+    },
+  },
   build: {
     outDir: path.resolve(uiRoot, '../../dist/ui'),
     emptyOutDir: true,

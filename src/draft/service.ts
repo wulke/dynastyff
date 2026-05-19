@@ -2,7 +2,12 @@
 // @spec DFF-ENGINE-002
 // @spec DFF-ENGINE-004
 // @spec DFF-ENGINE-005
+// @spec DFF-ENGINE-011
+// @spec DFF-ENGINE-012
+// @spec DFF-ENGINE-013
+// @spec DFF-ENGINE-014
 // @spec DFF-ENGINE-016
+// @spec DFF-ENGINE-015
 // @spec DFF-ENGINE-022
 // @spec DFF-ENGINE-023
 // @spec DFF-ENGINE-024
@@ -34,6 +39,13 @@ import {
   teams,
   userQueue,
 } from '../db/schema.js';
+import {
+  emitDraftCompleteEvent,
+  emitPickMadeEvent,
+  emitTradeOfferedEvent,
+  emitTradeResolvedEvent,
+  emitYourTurnEvent,
+} from './stream.js';
 
 type DraftStatus = (typeof draftStatuses)[number];
 type ScoringFormat = (typeof scoringFormats)[number];
@@ -227,6 +239,29 @@ export function recordPick({
   idGenerator = defaultIdGenerator,
 }: RecordPickOptions): void {
   const { sqlite, db } = createDrizzleDb(databasePath);
+  let pickMadeEvent:
+    | {
+        draftId: string;
+        pickNumber: number;
+        teamId: string;
+        playerId: string;
+        isBot: boolean;
+      }
+    | undefined;
+  let yourTurnEvent:
+    | {
+        draftId: string;
+        pickNumber: number;
+        round: number;
+        pickInRound: number;
+      }
+    | undefined;
+  let draftCompleteEvent:
+    | {
+        draftId: string;
+        completedAt: string;
+      }
+    | undefined;
 
   try {
     db.transaction((tx) => {
@@ -237,8 +272,10 @@ export function recordPick({
           pickNumber: draftOrder.pickNumber,
           round: draftOrder.round,
           status: drafts.status,
+          isUser: teams.isUser,
         })
         .from(draftOrder)
+        .innerJoin(teams, eq(draftOrder.teamId, teams.id))
         .innerJoin(drafts, eq(draftOrder.draftId, drafts.id))
         .where(eq(draftOrder.id, draftOrderId))
         .get();
@@ -282,6 +319,8 @@ export function recordPick({
         throw new Error(`Player has already been drafted in this draft: ${playerId}`);
       }
 
+      const pickedAt = now();
+
       tx.insert(picks)
         .values({
           id: idGenerator(),
@@ -291,7 +330,7 @@ export function recordPick({
           playerId,
           pickNumber: currentSlot.pickNumber,
           round: currentSlot.round,
-          pickedAt: now(),
+          pickedAt,
         })
         .run();
 
@@ -309,11 +348,74 @@ export function recordPick({
           and(eq(userQueue.draftId, currentSlot.draftId), eq(userQueue.playerId, playerId)),
         )
         .run();
+
+      const followingOpenSlot = tx
+        .select({
+          draftId: draftOrder.draftId,
+          pickNumber: draftOrder.pickNumber,
+          round: draftOrder.round,
+          pickInRound: draftOrder.pickInRound,
+          isUser: teams.isUser,
+        })
+        .from(draftOrder)
+        .innerJoin(teams, eq(draftOrder.teamId, teams.id))
+        .leftJoin(picks, eq(draftOrder.id, picks.draftOrderId))
+        .where(and(eq(draftOrder.draftId, currentSlot.draftId), isNull(picks.id)))
+        .orderBy(asc(draftOrder.pickNumber))
+        .get();
+
+      pickMadeEvent = {
+        draftId: currentSlot.draftId,
+        pickNumber: currentSlot.pickNumber,
+        teamId: currentSlot.teamId,
+        playerId,
+        isBot: !currentSlot.isUser,
+      };
+
+      if (!followingOpenSlot) {
+        tx.update(drafts)
+          .set({
+            status: 'completed',
+            completedAt: pickedAt,
+          })
+          .where(eq(drafts.id, currentSlot.draftId))
+          .run();
+
+        draftCompleteEvent = {
+          draftId: currentSlot.draftId,
+          completedAt: pickedAt,
+        };
+        return;
+      }
+
+      if (followingOpenSlot.isUser) {
+        yourTurnEvent = {
+          draftId: followingOpenSlot.draftId,
+          pickNumber: followingOpenSlot.pickNumber,
+          round: followingOpenSlot.round,
+          pickInRound: followingOpenSlot.pickInRound,
+        };
+      }
     });
   } finally {
     sqlite.close();
   }
+
+  if (pickMadeEvent) {
+    emitPickMadeEvent(pickMadeEvent);
+  }
+
+  if (yourTurnEvent) {
+    emitYourTurnEvent(yourTurnEvent);
+  }
+
+  if (draftCompleteEvent) {
+    emitDraftCompleteEvent(draftCompleteEvent);
+  }
 }
+
+export const emitTradeOffered = emitTradeOfferedEvent;
+export const emitTradeResolved = emitTradeResolvedEvent;
 
 function buildTeams({
   draftId,

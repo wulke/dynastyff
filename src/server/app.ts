@@ -1,5 +1,6 @@
 // @spec DFF-ENGINE-001
 // @spec DFF-ENGINE-003
+// @spec DFF-ENGINE-010
 import express, {
   type ErrorRequestHandler,
   type Express,
@@ -7,6 +8,7 @@ import express, {
 } from 'express';
 
 import { createDraft } from '../draft/service.js';
+import { getDraftStateSyncPayload, subscribeToDraftStream, type DraftStreamEvent } from '../draft/stream.js';
 import { DraftConfigValidationError, parseCreateDraftConfig } from './config.js';
 
 type CreateDraftServerOptions = {
@@ -18,6 +20,7 @@ export function createDraftApp({ databasePath }: CreateDraftServerOptions): Expr
 
   app.use(express.json());
   app.post('/drafts', createDraftRoute({ databasePath }));
+  app.get('/drafts/:id/stream', createDraftStreamRoute({ databasePath }));
   app.use(notFoundHandler);
   app.use(createDraftErrorHandler());
 
@@ -34,6 +37,39 @@ export function createDraftRoute({ databasePath }: CreateDraftServerOptions): Re
     } catch (error) {
       next(error);
     }
+  };
+}
+
+export function createDraftStreamRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+  return (request, response) => {
+    const draftId = request.params.id;
+    const state = getDraftStateSyncPayload({ databasePath, draftId });
+
+    if (!state) {
+      response.status(404).json({ error: 'Draft not found.' });
+      return;
+    }
+
+    response.status(200);
+    response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    response.setHeader('Cache-Control', 'no-cache');
+    response.setHeader('Connection', 'keep-alive');
+    response.setHeader('X-Accel-Buffering', 'no');
+    response.flushHeaders();
+
+    const unsubscribe = subscribeToDraftStream(draftId, (event) => {
+      writeSseEvent(response, event);
+    });
+
+    writeSseEvent(response, {
+      event: 'state_sync',
+      data: state,
+    });
+
+    request.on('close', () => {
+      unsubscribe();
+      response.end();
+    });
   };
 }
 
@@ -56,4 +92,12 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
     console.error(error);
     response.status(500).json({ error: 'Internal server error.' });
   };
+}
+
+function writeSseEvent(
+  response: Parameters<RequestHandler>[1],
+  event: DraftStreamEvent,
+): void {
+  response.write(`event: ${event.event}\n`);
+  response.write(`data: ${JSON.stringify(event.data)}\n\n`);
 }

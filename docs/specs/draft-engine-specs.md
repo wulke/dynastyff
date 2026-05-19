@@ -27,22 +27,22 @@ If any derived draft-creation write fails after the draft row is inserted, the s
 
 ## SSE Stream
 
-**DFF-ENGINE-010** `[ ]` → #26
+**DFF-ENGINE-010** `[x]` → #26
 When a client connects to GET /drafts/:id/stream, the system shall establish an SSE connection and immediately emit the current draft state as a `state_sync` event with the following payload: draft_id, status, current_pick_number, teams (id, name, is_user, archetype), draft_order (pick_number, round, pick_in_round, team_id), picks (pick_number, team_id, player_id, picked_at), roster_players (team_id, player_id)[], team_pick_assets (team_id, year, round)[], and user_queue (player_id, rank)[].
 
-**DFF-ENGINE-011** `[ ]` → #26
+**DFF-ENGINE-011** `[x]` → #26
 While a draft is in_progress, the system shall emit a `pick_made` event on every pick containing: pick_number, team_id, player_id, and is_bot.
 
-**DFF-ENGINE-012** `[ ]` → #26
+**DFF-ENGINE-012** `[x]` → #26
 When it becomes the user's turn to pick, the system shall emit a `your_turn` event containing: pick_number, round, and pick_in_round.
 
-**DFF-ENGINE-013** `[ ]` → #26
+**DFF-ENGINE-013** `[x]` → #26
 When a trade is initiated, the system shall emit a `trade_offered` event containing: trade_id, initiating_team_id, receiving_team_id, assets_sent, assets_received, and is_bot_to_bot.
 
-**DFF-ENGINE-014** `[ ]` → #26
+**DFF-ENGINE-014** `[x]` → #26
 When a trade is resolved, the system shall emit a `trade_resolved` event containing: trade_id, status, assets_sent, and assets_received.
 
-**DFF-ENGINE-015** `[ ]` → #26
+**DFF-ENGINE-015** `[x]` → #26
 When all picks are exhausted, the system shall emit a `draft_complete` event and set `drafts.status` to `completed`.
 
 **DFF-ENGINE-016** `[x]`

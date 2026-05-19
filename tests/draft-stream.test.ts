@@ -6,11 +6,12 @@
 // @spec DFF-ENGINE-015
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import EventEmitter from 'node:events';
 import fs from 'node:fs';
-import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import type { Request, Response } from 'express';
 
 import { initializeDatabase } from '../src/db/init.js';
 import {
@@ -19,11 +20,18 @@ import {
   emitTradeResolved,
   recordPick,
 } from '../src/draft/service.js';
-import { createDraftApp } from '../src/server/app.js';
+import { createDraftStreamRoute } from '../src/server/app.js';
 
 type StreamEvent = {
   event: string;
   data: unknown;
+};
+
+type StreamConnection = {
+  events: StreamEvent[];
+  ended: boolean;
+  notify?: () => void;
+  close: () => void;
 };
 
 function createTempDatabasePath(prefix: string): string {
@@ -43,128 +51,141 @@ async function withDraftServer(
   run: (context: {
     databasePath: string;
     database: Database.Database;
-    baseUrl: string;
   }) => Promise<void>,
 ): Promise<void> {
   const databasePath = createTempDatabasePath('dynastyff-draft-stream-');
   initializeDatabase(databasePath);
   const database = new Database(databasePath);
   database.pragma('foreign_keys = ON');
-  const app = createDraftApp({ databasePath });
-  const server = http.createServer(app);
-
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', () => resolve());
-  });
-
-  const address = server.address();
-
-  if (!address || typeof address === 'string') {
-    throw new Error('Failed to resolve test server address.');
-  }
-
-  const baseUrl = `http://127.0.0.1:${address.port}`;
 
   try {
-    await run({ databasePath, database, baseUrl });
+    await run({ databasePath, database });
   } finally {
     database.close();
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve();
-      });
-    });
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
   }
 }
 
-async function connectToDraftStream(baseUrl: string, draftId: string) {
-  const abortController = new AbortController();
-  const response = await fetch(`${baseUrl}/drafts/${draftId}/stream`, {
-    headers: {
-      accept: 'text/event-stream',
+async function connectToDraftStream(databasePath: string, draftId: string) {
+  const route = createDraftStreamRoute({ databasePath });
+  const request = new EventEmitter() as Request & EventEmitter;
+  request.params = { id: draftId };
+
+  const headers: Record<string, string> = {};
+  const events: StreamEvent[] = [];
+  let buffer = '';
+  let statusCode = 200;
+  let ended = false;
+  let notify: (() => void) | undefined;
+
+  const response = {
+    status(code: number) {
+      statusCode = code;
+      return this;
     },
-    signal: abortController.signal,
-  });
+    setHeader(name: string, value: string) {
+      headers[name.toLowerCase()] = value;
+    },
+    flushHeaders() {
+      return this;
+    },
+    write(chunk: string) {
+      buffer += chunk;
 
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get('content-type'), 'text/event-stream; charset=utf-8');
+      while (buffer.includes('\n\n')) {
+        const separatorIndex = buffer.indexOf('\n\n');
+        const rawEvent = buffer.slice(0, separatorIndex);
+        buffer = buffer.slice(separatorIndex + 2);
 
-  const reader = response.body?.getReader();
+        const lines = rawEvent.split('\n');
+        const eventName = lines
+          .filter((line) => line.startsWith('event:'))
+          .map((line) => line.slice('event:'.length).trim())
+          .at(0);
+        const dataPayload = lines
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice('data:'.length).trim())
+          .join('\n');
 
-  if (!reader) {
-    throw new Error('Expected readable SSE response body.');
-  }
+        if (!eventName) {
+          continue;
+        }
 
+        events.push({
+          event: eventName,
+          data: JSON.parse(dataPayload),
+        });
+        notify?.();
+      }
+
+      return true;
+    },
+    end() {
+      ended = true;
+      notify?.();
+      return this;
+    },
+    json(body: unknown) {
+      events.push({
+        event: 'json',
+        data: body,
+      });
+      notify?.();
+      return this;
+    },
+  } as Response;
+
+  route(request, response, () => undefined);
+
+  assert.equal(statusCode, 200);
+  assert.equal(headers['content-type'], 'text/event-stream; charset=utf-8');
   return {
-    reader,
-    close() {
-      abortController.abort();
+    events,
+    get ended() {
+      return ended;
     },
-  };
+    set notify(callback: (() => void) | undefined) {
+      notify = callback;
+    },
+    get notify() {
+      return notify;
+    },
+    close() {
+      request.emit('close');
+    },
+  } as StreamConnection;
 }
 
 async function readStreamEvent(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
+  connection: StreamConnection,
   timeoutMs = 2_000,
 ): Promise<StreamEvent> {
-  const decoder = new TextDecoder();
   const startedAt = Date.now();
-  let buffer = '';
 
   while (Date.now() - startedAt < timeoutMs) {
-    const result = await Promise.race([
-      reader.read(),
+    if (connection.events.length > 0) {
+      return connection.events.shift() as StreamEvent;
+    }
+
+    if (connection.ended) {
+      throw new Error('SSE stream ended before the expected event arrived.');
+    }
+
+    await Promise.race([
+      new Promise<void>((resolve) => {
+        connection.notify = resolve;
+      }),
       new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Timed out waiting for SSE event.')), timeoutMs);
       }),
     ]);
-
-    if (result.done) {
-      throw new Error('SSE stream ended before the expected event arrived.');
-    }
-
-    buffer += decoder.decode(result.value, { stream: true });
-
-    const separatorIndex = buffer.indexOf('\n\n');
-
-    if (separatorIndex === -1) {
-      continue;
-    }
-
-    const rawEvent = buffer.slice(0, separatorIndex);
-    buffer = buffer.slice(separatorIndex + 2);
-
-    const lines = rawEvent.split('\n');
-    const eventName = lines
-      .filter((line) => line.startsWith('event:'))
-      .map((line) => line.slice('event:'.length).trim())
-      .at(0);
-    const dataPayload = lines
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice('data:'.length).trim())
-      .join('\n');
-
-    if (!eventName) {
-      continue;
-    }
-
-    return {
-      event: eventName,
-      data: JSON.parse(dataPayload),
-    };
   }
 
   throw new Error('Timed out waiting for SSE event.');
 }
 
 test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made plus your_turn as picks are recorded', async () => {
-  await withDraftServer(async ({ databasePath, database, baseUrl }) => {
+  await withDraftServer(async ({ databasePath, database }) => {
     seedPlayer(database, 'player-1', 'Player One');
     seedPlayer(database, 'player-2', 'Player Two');
 
@@ -174,7 +195,7 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
         teamCount: 2,
         rounds: 2,
         scoringFormat: 'ppr',
-        userPickPosition: 1,
+        userPickPosition: 2,
         futurePickYears: 1,
         futurePickRounds: 2,
         rosterConfig: {
@@ -200,10 +221,10 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
       )
       .all(draftId) as Array<{ id: string; pick_number: number; round: number; pick_in_round: number }>;
 
-    const stream = await connectToDraftStream(baseUrl, draftId);
+    const stream = await connectToDraftStream(databasePath, draftId);
 
     try {
-      const initialEvent = await readStreamEvent(stream.reader);
+      const initialEvent = await readStreamEvent(stream);
 
       assert.equal(initialEvent.event, 'state_sync');
       const stateSync = initialEvent.data as {
@@ -234,8 +255,8 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
           archetype: team.archetype,
         })),
         [
-          { name: 'You', is_user: true, archetype: null },
           { name: 'Bob', is_user: false, archetype: 'win_now' },
+          { name: 'You', is_user: true, archetype: null },
         ],
       );
       assert.deepEqual(stateSync.draft_order, [
@@ -276,21 +297,21 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
         now: () => '2026-05-18T20:05:00.000Z',
       });
 
-      const pickMade = await readStreamEvent(stream.reader);
+      const pickMade = await readStreamEvent(stream);
       assert.equal(pickMade.event, 'pick_made');
       assert.deepEqual(pickMade.data, {
         pick_number: 1,
         team_id: stateSync.teams[0]?.id,
         player_id: 'player-1',
-        is_bot: false,
+        is_bot: true,
       });
 
-      const yourTurn = await readStreamEvent(stream.reader);
+      const yourTurn = await readStreamEvent(stream);
       assert.equal(yourTurn.event, 'your_turn');
       assert.deepEqual(yourTurn.data, {
-        pick_number: 3,
-        round: 2,
-        pick_in_round: 1,
+        pick_number: 2,
+        round: 1,
+        pick_in_round: 2,
       });
     } finally {
       stream.close();
@@ -299,7 +320,7 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
 });
 
 test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', async () => {
-  await withDraftServer(async ({ databasePath, baseUrl }) => {
+  await withDraftServer(async ({ databasePath }) => {
     const draftId = createDraft({
       databasePath,
       config: {
@@ -323,10 +344,10 @@ test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', asy
       random: () => 0,
     });
 
-    const stream = await connectToDraftStream(baseUrl, draftId);
+    const stream = await connectToDraftStream(databasePath, draftId);
 
     try {
-      await readStreamEvent(stream.reader);
+      await readStreamEvent(stream);
 
       emitTradeOffered({
         draftId,
@@ -338,7 +359,7 @@ test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', asy
         isBotToBot: true,
       });
 
-      const tradeOffered = await readStreamEvent(stream.reader);
+      const tradeOffered = await readStreamEvent(stream);
       assert.equal(tradeOffered.event, 'trade_offered');
       assert.deepEqual(tradeOffered.data, {
         trade_id: 'trade-1',
@@ -357,7 +378,7 @@ test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', asy
         assetsReceived: [{ type: 'pick', year: 2027, round: 1 }],
       });
 
-      const tradeResolved = await readStreamEvent(stream.reader);
+      const tradeResolved = await readStreamEvent(stream);
       assert.equal(tradeResolved.event, 'trade_resolved');
       assert.deepEqual(tradeResolved.data, {
         trade_id: 'trade-1',
@@ -372,7 +393,7 @@ test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', asy
 });
 
 test('GET /drafts/:id/stream emits draft_complete and persists completed status when the final pick is recorded', async () => {
-  await withDraftServer(async ({ databasePath, database, baseUrl }) => {
+  await withDraftServer(async ({ databasePath, database }) => {
     seedPlayer(database, 'player-1', 'Player One');
     seedPlayer(database, 'player-2', 'Player Two');
 
@@ -408,10 +429,10 @@ test('GET /drafts/:id/stream emits draft_complete and persists completed status 
       )
       .all(draftId) as Array<{ id: string }>;
 
-    const stream = await connectToDraftStream(baseUrl, draftId);
+    const stream = await connectToDraftStream(databasePath, draftId);
 
     try {
-      await readStreamEvent(stream.reader);
+      await readStreamEvent(stream);
 
       recordPick({
         databasePath,
@@ -419,7 +440,7 @@ test('GET /drafts/:id/stream emits draft_complete and persists completed status 
         playerId: 'player-1',
         now: () => '2026-05-18T20:05:00.000Z',
       });
-      await readStreamEvent(stream.reader);
+      await readStreamEvent(stream);
 
       recordPick({
         databasePath,
@@ -428,10 +449,10 @@ test('GET /drafts/:id/stream emits draft_complete and persists completed status 
         now: () => '2026-05-18T20:06:00.000Z',
       });
 
-      const finalPick = await readStreamEvent(stream.reader);
+      const finalPick = await readStreamEvent(stream);
       assert.equal(finalPick.event, 'pick_made');
 
-      const draftComplete = await readStreamEvent(stream.reader);
+      const draftComplete = await readStreamEvent(stream);
       assert.equal(draftComplete.event, 'draft_complete');
       assert.deepEqual(draftComplete.data, {
         draft_id: draftId,

@@ -14,7 +14,7 @@ When a POST /drafts request is received with valid configuration, the system sha
 **DFF-ENGINE-002** `[x]`
 When a draft is created, the system shall set `drafts.status` to `in_progress`.
 
-**DFF-ENGINE-003** `[ ]`
+**DFF-ENGINE-003** `[ ]` → #25
 If a POST /drafts request is received with missing or invalid configuration fields, the system shall return a 400 error with a descriptive message and shall not create any database records.
 
 **DFF-ENGINE-004** `[x]`
@@ -27,22 +27,22 @@ If any derived draft-creation write fails after the draft row is inserted, the s
 
 ## SSE Stream
 
-**DFF-ENGINE-010** `[ ]`
+**DFF-ENGINE-010** `[ ]` → #26
 When a client connects to GET /drafts/:id/stream, the system shall establish an SSE connection and immediately emit the current draft state as a `state_sync` event with the following payload: draft_id, status, current_pick_number, teams (id, name, is_user, archetype), draft_order (pick_number, round, pick_in_round, team_id), picks (pick_number, team_id, player_id, picked_at), roster_players (team_id, player_id)[], team_pick_assets (team_id, year, round)[], and user_queue (player_id, rank)[].
 
-**DFF-ENGINE-011** `[ ]`
+**DFF-ENGINE-011** `[ ]` → #26
 While a draft is in_progress, the system shall emit a `pick_made` event on every pick containing: pick_number, team_id, player_id, and is_bot.
 
-**DFF-ENGINE-012** `[ ]`
+**DFF-ENGINE-012** `[ ]` → #26
 When it becomes the user's turn to pick, the system shall emit a `your_turn` event containing: pick_number, round, and pick_in_round.
 
-**DFF-ENGINE-013** `[ ]`
+**DFF-ENGINE-013** `[ ]` → #26
 When a trade is initiated, the system shall emit a `trade_offered` event containing: trade_id, initiating_team_id, receiving_team_id, assets_sent, assets_received, and is_bot_to_bot.
 
-**DFF-ENGINE-014** `[ ]`
+**DFF-ENGINE-014** `[ ]` → #26
 When a trade is resolved, the system shall emit a `trade_resolved` event containing: trade_id, status, assets_sent, and assets_received.
 
-**DFF-ENGINE-015** `[ ]`
+**DFF-ENGINE-015** `[ ]` → #26
 When all picks are exhausted, the system shall emit a `draft_complete` event and set `drafts.status` to `completed`.
 
 **DFF-ENGINE-016** `[x]`
@@ -52,10 +52,10 @@ When a draft transitions to `completed`, the system shall set `drafts.completed_
 
 ## Pick Submission
 
-**DFF-ENGINE-020** `[ ]`
+**DFF-ENGINE-020** `[ ]` → #27
 When a POST /drafts/:id/pick request is received, the system shall validate that it is currently the user's turn, that the player exists, and that the player has not already been picked.
 
-**DFF-ENGINE-021** `[ ]`
+**DFF-ENGINE-021** `[ ]` → #27
 If a pick submission fails validation, the system shall return a 400 error and shall not modify draft state.
 
 **DFF-ENGINE-022** `[x]` → #9
@@ -70,26 +70,26 @@ When a pick is recorded directly by the draft engine service, the system shall r
 
 ## Bot Chain
 
-**DFF-ENGINE-030** `[ ]`
+**DFF-ENGINE-030** `[ ]` → #28
 When the bot chain is triggered, the system shall automatically process all consecutive bot turns until the user's turn is reached or the draft is complete.
 
-**DFF-ENGINE-031** `[ ]`
+**DFF-ENGINE-031** `[ ]` → #28
 The system shall wait 3–5 seconds (random within that range) before processing each bot pick.
 
-**DFF-ENGINE-032** `[ ]`
+**DFF-ENGINE-032** `[ ]` → #28
 When a bot pick is made, the system shall write the pick to `picks`, write ownership to `roster_players`, and emit a `pick_made` SSE event before processing the next bot turn.
 
-**DFF-ENGINE-033** `[ ]`
+**DFF-ENGINE-033** `[ ]` → #28
 When the bot simulator initiates a trade during the bot chain, the system shall pause the chain, emit a `trade_offered` SSE event, and wait for POST /drafts/:id/trade-response before resuming.
 
 ---
 
 ## Bot-to-Bot Trade Visibility
 
-**DFF-ENGINE-039** `[ ]`
+**DFF-ENGINE-039** `[ ]` → #28
 When a bot-to-bot trade is initiated, the system shall pause the bot chain, emit a `trade_offered` SSE event with `is_bot_to_bot: true`, and require explicit user acknowledgment before resuming. This is intentional: the draft is untimed and solo, and the user must maintain full visibility of all board changes including bot-to-bot deals.
 
-**DFF-ENGINE-039b** `[ ]`
+**DFF-ENGINE-039b** `[ ]` → #28
 For bot-to-bot trade modals, the system shall present two options: "OK" (user acknowledges; trade stands as resolved by the bots) and "Force Decline" (user vetoes the trade; it is written to `trades` with status `force_declined` and no assets transfer).
 
 ---
@@ -122,11 +122,11 @@ The system shall only allow swapping pick slots that have not yet been used (i.e
 
 ## State & History
 
-**DFF-ENGINE-060** `[ ]`
+**DFF-ENGINE-060** `[ ]` → #29
 When a GET /drafts/:id/state request is received, the system shall return the same payload shape as the `state_sync` SSE event (see DFF-ENGINE-010), plus trades (id, round, initiating_team_id, receiving_team_id, assets_sent, assets_received, status)[].
 
-**DFF-ENGINE-061** `[ ]`
+**DFF-ENGINE-061** `[ ]` → #29
 The system shall persist all state changes to SQLite immediately as they occur; no state shall exist only in memory at the conclusion of a pick or trade.
 
-**DFF-ENGINE-062** `[ ]`
+**DFF-ENGINE-062** `[ ]` → #29
 When a GET /drafts request is received, the system shall return a list of all drafts with: id, created_at, completed_at, status, team_count, and rounds.

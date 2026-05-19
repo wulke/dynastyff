@@ -1,13 +1,13 @@
 // @spec DFF-ENGINE-001
 // @spec DFF-ENGINE-003
 import { resolveDatabasePath } from '../db/init.js';
-import { createDraftServer } from './app.js';
+import { createDraftApp } from './app.js';
 import { resolveApiPort } from './runtime.js';
 
 const port = resolveApiPort();
 const databasePath = resolveDatabasePath();
-const server = createDraftServer({ databasePath });
+const app = createDraftApp({ databasePath });
 
-server.listen(port, () => {
+app.listen(port, () => {
   console.log(`[server] listening on http://localhost:${port}`);
 });

@@ -1,82 +1,59 @@
 // @spec DFF-ENGINE-001
 // @spec DFF-ENGINE-003
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import express, {
+  type ErrorRequestHandler,
+  type Express,
+  type RequestHandler,
+} from 'express';
 
 import { createDraft } from '../draft/service.js';
-import {
-  DraftConfigValidationError,
-  parseCreateDraftConfig,
-} from './config.js';
+import { DraftConfigValidationError, parseCreateDraftConfig } from './config.js';
 
 type CreateDraftServerOptions = {
   databasePath: string;
 };
 
-type DraftRequest = AsyncIterable<Buffer | string> & {
-  method?: string;
-  url?: string;
-};
+export function createDraftApp({ databasePath }: CreateDraftServerOptions): Express {
+  const app = express();
 
-type DraftResponse = {
-  statusCode: number;
-  setHeader(name: string, value: string): void;
-  end(body: string): void;
-};
+  app.use(express.json());
+  app.post('/drafts', createDraftRoute({ databasePath }));
+  app.use(notFoundHandler);
+  app.use(createDraftErrorHandler());
 
-export function createDraftServer({ databasePath }: CreateDraftServerOptions): Server {
-  return createServer((request, response) => {
-    void handleDraftRequest(request, response, { databasePath });
-  });
+  return app;
 }
 
-export async function handleDraftRequest(
-  request: DraftRequest,
-  response: DraftResponse,
-  { databasePath }: CreateDraftServerOptions,
-): Promise<void> {
-  try {
-    if (request.method === 'POST' && request.url === '/drafts') {
-      const body = await readJsonBody(request);
-      const config = parseCreateDraftConfig(body);
+export function createDraftRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+  return (request, response, next) => {
+    try {
+      const config = parseCreateDraftConfig(request.body);
       const draftId = createDraft({ databasePath, config });
 
-      sendJson(response, 201, { draftId });
-      return;
+      response.status(201).json({ draftId });
+    } catch (error) {
+      next(error);
     }
+  };
+}
 
-    sendJson(response, 404, { error: 'Not found.' });
-  } catch (error) {
+const notFoundHandler: RequestHandler = (_request, response) => {
+  response.status(404).json({ error: 'Not found.' });
+};
+
+export function createDraftErrorHandler(): ErrorRequestHandler {
+  return (error, _request, response, _next) => {
     if (error instanceof DraftConfigValidationError) {
-      sendJson(response, 400, { error: error.message });
+      response.status(400).json({ error: error.message });
       return;
     }
 
     if (error instanceof SyntaxError) {
-      sendJson(response, 400, { error: 'Invalid draft config: request body must be valid JSON.' });
+      response.status(400).json({ error: 'Invalid draft config: request body must be valid JSON.' });
       return;
     }
 
     console.error(error);
-    sendJson(response, 500, { error: 'Internal server error.' });
-  }
-}
-
-async function readJsonBody(request: DraftRequest): Promise<unknown> {
-  const chunks: Buffer[] = [];
-
-  for await (const chunk of request) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-  }
-
-  if (chunks.length === 0) {
-    throw new DraftConfigValidationError('Invalid draft config: request body must be a JSON object.');
-  }
-
-  return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
-}
-
-function sendJson(response: DraftResponse, statusCode: number, body: unknown): void {
-  response.statusCode = statusCode;
-  response.setHeader('content-type', 'application/json');
-  response.end(JSON.stringify(body));
+    response.status(500).json({ error: 'Internal server error.' });
+  };
 }

@@ -6,9 +6,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import type { Request, Response } from 'express';
 
 import { initializeDatabase } from '../src/db/init.js';
-import { handleDraftRequest } from '../src/server/app.js';
+import { createDraftErrorHandler, createDraftRoute } from '../src/server/app.js';
 import { parseCreateDraftConfig } from '../src/server/config.js';
 import { resolveApiBaseUrl } from '../src/server/runtime.js';
 import viteConfig from '../src/ui/vite.config.js';
@@ -74,32 +75,44 @@ async function invokeDraftRoute(
   headers: Record<string, number | string | string[] | undefined>;
   json: unknown;
 }> {
-  const request = {
-    method: 'POST',
-    url: '/drafts',
-    async *[Symbol.asyncIterator]() {
-      yield Buffer.from(JSON.stringify(body), 'utf8');
-    },
-  };
-
-  let responseBody = '';
+  const request = { body } as Request;
+  const errorHandler = createDraftErrorHandler();
+  const route = createDraftRoute({ databasePath });
   const headers: Record<string, number | string | string[] | undefined> = {};
+  let statusCode = 200;
+  let responseBody: unknown;
   const response = {
     statusCode: 200,
+    status(code: number) {
+      statusCode = code;
+      this.statusCode = code;
+      return this;
+    },
     setHeader(name: string, value: string) {
       headers[name] = value;
     },
-    end(bodyText: string) {
-      responseBody = bodyText;
+    json(bodyJson: unknown) {
+      headers['content-type'] = 'application/json';
+      responseBody = bodyJson;
+      return this;
     },
-  };
+  } as Response;
 
-  await handleDraftRequest(request, response, { databasePath });
+  let forwardedError: unknown;
+  await Promise.resolve(
+    route(request, response, (error?: unknown) => {
+      forwardedError = error;
+    }),
+  );
+
+  if (forwardedError !== undefined) {
+    errorHandler(forwardedError, request, response, () => undefined);
+  }
 
   return {
-    statusCode: response.statusCode,
+    statusCode,
     headers,
-    json: JSON.parse(responseBody) as unknown,
+    json: responseBody,
   };
 }
 

@@ -1,5 +1,5 @@
-// @spec DFF-ETL-020
-// @spec DFF-ETL-021
+// @spec DFF-ETL-030
+// @spec DFF-ETL-032
 import type { NormalizedPlayer, RawPlayer } from './types.js';
 
 export function normalizePlayers(players: readonly RawPlayer[]): NormalizedPlayer[] {

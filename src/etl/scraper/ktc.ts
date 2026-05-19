@@ -1,5 +1,4 @@
 // @spec DFF-ETL-010
-// @spec DFF-ETL-011
 // @spec DFF-ETL-012
 import fs from 'node:fs/promises';
 

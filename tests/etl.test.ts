@@ -2,13 +2,8 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-011
 // @spec DFF-ETL-012
-// @spec DFF-ETL-020
-// @spec DFF-ETL-021
 // @spec DFF-ETL-030
-// @spec DFF-ETL-031
 // @spec DFF-ETL-032
-// @spec DFF-ETL-040
-// @spec DFF-ETL-041
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -113,6 +108,34 @@ test('normalizePlayers assigns 9999 when KTC returns exactly one supported playe
   assert.equal(player.normalizedValue, 9999);
 });
 
+test('normalizePlayers assigns 9999 when all supported players share the same raw value', () => {
+  const players: RawPlayer[] = [
+    {
+      name: 'Alpha QB',
+      position: 'QB',
+      nflTeam: 'BUF',
+      age: 24,
+      isRookie: false,
+      rawValue: 777,
+      adp: 10,
+    },
+    {
+      name: 'Bravo RB',
+      position: 'RB',
+      nflTeam: 'ATL',
+      age: 22,
+      isRookie: false,
+      rawValue: 777,
+      adp: 20,
+    },
+  ];
+
+  assert.deepEqual(
+    normalizePlayers(players).map((player) => player.normalizedValue),
+    [9999, 9999],
+  );
+});
+
 test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper boundary', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'ktc.json');
@@ -194,6 +217,11 @@ test('FantasyCalc, DynastyDaddy, and RosterAudit fixture scrapers return typed p
         year: 2027,
         round: 1,
         rawValue: 789,
+      },
+      {
+        year: 2028,
+        round: 2,
+        rawValue: 'bad',
       },
     ],
   };

@@ -4,10 +4,7 @@
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
 // @spec DFF-ETL-030
-// @spec DFF-ETL-031
 // @spec DFF-ETL-032
-// @spec DFF-ETL-040
-// @spec DFF-ETL-041
 import { randomUUID } from 'node:crypto';
 
 import { createDrizzleDb } from '../db/client.js';

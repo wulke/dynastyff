@@ -202,6 +202,50 @@ test('createDraft seeds teams, snake order, and future pick assets in one transa
   });
 });
 
+test('createDraft clamps the injected random archetype picker to the valid range', async () => {
+  await withDatabase(async (db, databasePath) => {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 1,
+    });
+
+    const archetypes = db
+      .prepare(
+        `SELECT archetype
+         FROM teams
+         WHERE draft_id = ? AND is_user = 0
+         ORDER BY pick_position`,
+      )
+      .all(draftId) as Array<{ archetype: string | null }>;
+
+    assert.deepEqual(
+      archetypes,
+      [
+        { archetype: teamArchetypes[teamArchetypes.length - 1] },
+        { archetype: teamArchetypes[teamArchetypes.length - 1] },
+      ],
+    );
+  });
+});
+
 test('createDraft rolls back the draft row and all derived rows when bootstrap fails mid-transaction', async () => {
   await withDatabase(async (db, databasePath) => {
     assert.throws(
@@ -294,6 +338,56 @@ test('updateDraftStatus sets completed_at when a draft transitions to completed'
 
     assert.deepEqual(draft, {
       status: 'completed',
+      completed_at: '2026-05-18T22:30:00.000Z',
+    });
+  });
+});
+
+test('updateDraftStatus preserves completed_at on non-completed updates', async () => {
+  await withDatabase(async (db, databasePath) => {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T22:00:00.000Z',
+      random: () => 0,
+    });
+
+    updateDraftStatus({
+      databasePath,
+      draftId,
+      status: 'completed',
+      now: () => '2026-05-18T22:30:00.000Z',
+    });
+
+    updateDraftStatus({
+      databasePath,
+      draftId,
+      status: 'in_progress',
+      now: () => '2026-05-18T22:45:00.000Z',
+    });
+
+    const draft = db
+      .prepare('SELECT status, completed_at FROM drafts WHERE id = ?')
+      .get(draftId) as { status: string; completed_at: string | null };
+
+    assert.deepEqual(draft, {
+      status: 'in_progress',
       completed_at: '2026-05-18T22:30:00.000Z',
     });
   });

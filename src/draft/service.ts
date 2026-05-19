@@ -114,6 +114,7 @@ export function createDraft({
 }: CreateDraftOptions): string {
   const { sqlite, db } = createDrizzleDb(databasePath);
   const createdAt = now();
+  const baseYear = new Date(createdAt).getUTCFullYear();
   const draftId = idGenerator();
 
   try {
@@ -143,9 +144,20 @@ export function createDraft({
       });
 
       tx.insert(teams).values(seededTeams).run();
-      tx.insert(draftOrder).values(buildDraftOrder(draftId, seededTeams, config.rounds, idGenerator)).run();
+      tx.insert(draftOrder)
+        .values(buildDraftOrder(draftId, seededTeams, config.rounds, idGenerator))
+        .run();
       tx.insert(teamPickAssets)
-        .values(buildTeamPickAssets(draftId, seededTeams, config.futurePickYears, config.futurePickRounds, createdAt, idGenerator))
+        .values(
+          buildTeamPickAssets(
+            draftId,
+            seededTeams,
+            config.futurePickYears,
+            config.futurePickRounds,
+            baseYear,
+            idGenerator,
+          ),
+        )
         .run();
     });
 
@@ -164,13 +176,26 @@ export function updateDraftStatus({
   const { sqlite, db } = createDrizzleDb(databasePath);
 
   try {
-    db.update(drafts)
-      .set({
-        status,
-        completedAt: status === 'completed' ? now() : null,
-      })
-      .where(eq(drafts.id, draftId))
-      .run();
+    db.transaction((tx) => {
+      const currentDraft = tx
+        .select({
+          status: drafts.status,
+        })
+        .from(drafts)
+        .where(eq(drafts.id, draftId))
+        .get();
+
+      if (!currentDraft) {
+        return;
+      }
+
+      const nextValues =
+        status === 'completed' && currentDraft.status !== 'completed'
+          ? { status, completedAt: now() }
+          : { status };
+
+      tx.update(drafts).set(nextValues).where(eq(drafts.id, draftId)).run();
+    });
   } finally {
     sqlite.close();
   }
@@ -212,7 +237,7 @@ function buildTeams({
       name: botTeamNames[botIndex % botTeamNames.length],
       isUser: false,
       pickPosition,
-      archetype: teamArchetypes[Math.floor(random() * teamArchetypes.length)],
+      archetype: selectArchetype(random),
     };
 
     botIndex += 1;
@@ -249,11 +274,9 @@ function buildTeamPickAssets(
   seededTeams: TeamSeed[],
   futurePickYears: number,
   futurePickRounds: number,
-  createdAt: string,
+  baseYear: number,
   idGenerator: () => string,
 ) {
-  const baseYear = new Date(createdAt).getUTCFullYear();
-
   return seededTeams.flatMap((team) =>
     Array.from({ length: futurePickYears }, (_, yearIndex) => yearIndex + 1).flatMap((yearOffset) =>
       Array.from({ length: futurePickRounds }, (_, roundIndex) => ({
@@ -265,4 +288,11 @@ function buildTeamPickAssets(
       })),
     ),
   );
+}
+
+function selectArchetype(random: () => number): TeamArchetype {
+  const lastIndex = teamArchetypes.length - 1;
+  const index = Math.min(Math.floor(random() * teamArchetypes.length), lastIndex);
+
+  return teamArchetypes[index];
 }

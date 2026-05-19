@@ -14,7 +14,7 @@ When a POST /drafts request is received with valid configuration, the system sha
 **DFF-ENGINE-002** `[x]`
 When a draft is created, the system shall set `drafts.status` to `in_progress`.
 
-**DFF-ENGINE-003** `[ ]` → #25
+**DFF-ENGINE-003** `[x]` → #25
 If a POST /drafts request is received with missing or invalid configuration fields, the system shall return a 400 error with a descriptive message and shall not create any database records.
 
 **DFF-ENGINE-004** `[x]`

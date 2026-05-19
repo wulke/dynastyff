@@ -27,9 +27,14 @@ cp .env.example .env
 # Populate the database (scrapes KTC, FantasyCalc, DynastyDaddy, RosterAudit)
 npm run etl
 
-# Start the UI dev server
+# Start the backend API server
+npm run serve
+
+# Start the UI dev server in a second terminal
 npm run dev
 ```
+
+The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so both commands should be running for local draft creation.
 
 Open the Vite URL shown in the terminal to begin.
 
@@ -49,7 +54,7 @@ Open the Vite URL shown in the terminal to begin.
 | Teams | 12 | |
 | Draft rounds | 20 | |
 | Scoring | PPR | |
-| User pick position | Random | |
+| User pick position | Configurable | Selected on the config screen |
 | Future pick years | 3 | |
 
 All settings are configurable on the league config screen before starting a draft.
@@ -69,6 +74,7 @@ Current UI commands:
 
 | Command | Purpose |
 |---|---|
+| `npm run serve` | Start the local HTTP API server for draft creation and future draft routes |
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |

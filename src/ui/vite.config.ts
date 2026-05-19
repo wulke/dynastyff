@@ -18,7 +18,17 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: [path.resolve(uiRoot, '../../tests/ui-app-scaffold.test.tsx')],
+    include: [path.resolve(uiRoot, '../../tests/**/*.test.tsx')],
     setupFiles: path.resolve(uiRoot, 'vitest.setup.ts'),
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
+    },
   },
 });

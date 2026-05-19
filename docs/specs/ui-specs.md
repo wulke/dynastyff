@@ -11,10 +11,10 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 **DFF-UI-001** `[x]` → #13
 When the application loads and no draft is active, the system shall render the Config screen.
 
-**DFF-UI-002** `[x]` → #13
+**DFF-UI-002** `[ ]` → #13
 When a draft is successfully created via POST /drafts, the system shall transition to the Drafting view.
 
-**DFF-UI-003** `[x]` → #13
+**DFF-UI-003** `[ ]` → #13
 When a `draft_complete` SSE event is received, the system shall transition to the History view.
 
 **DFF-UI-004** `[x]` → #13

@@ -123,6 +123,55 @@ describe('UI app scaffold', () => {
     ).toBeInTheDocument();
   });
 
+  test('clamps out-of-range numeric values before posting the draft request', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.clear(screen.getByLabelText(/team count/i));
+    await user.type(screen.getByLabelText(/team count/i), '18');
+    await user.clear(screen.getByLabelText(/^rounds$/i));
+    await user.type(screen.getByLabelText(/^rounds$/i), '9');
+    await user.clear(screen.getByLabelText(/pick position/i));
+    await user.type(screen.getByLabelText(/pick position/i), '99');
+    await user.clear(screen.getByLabelText(/future pick years/i));
+    await user.type(screen.getByLabelText(/future pick years/i), '7');
+    await user.clear(screen.getByLabelText(/^wr$/i));
+    await user.type(screen.getByLabelText(/^wr$/i), '12');
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/drafts',
+      expect.objectContaining({
+        body: JSON.stringify({
+          name: '',
+          teamCount: 16,
+          rounds: 10,
+          scoringFormat: 'ppr',
+          userPickPosition: 16,
+          futurePickYears: 5,
+          rosterConfig: {
+            QB: 1,
+            RB: 2,
+            WR: 8,
+            TE: 1,
+            FLEX: 1,
+            SF: 1,
+            bench: 6,
+          },
+        }),
+      }),
+    );
+  });
+
   test('transitions from drafting to history on draft completion', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(

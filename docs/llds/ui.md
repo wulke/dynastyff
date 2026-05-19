@@ -179,9 +179,33 @@ A single-page form rendered before any draft starts. Fields:
 
 Issue `#15` scope:
 - Render the full form with the defaults above
-- Submit `POST /drafts` with the current form values when the user clicks `Start Draft`
+- Submit `POST /drafts` with camelCase JSON matching the UI `ConfigFormState` when the user clicks `Start Draft`
 - Transition to the drafting view on success
 - Show a global error toast and remain on the config screen if draft creation fails
+
+`POST /drafts` request contract for the UI slice:
+
+```ts
+type ConfigFormState = {
+  name: string;
+  teamCount: number;
+  rounds: number;
+  scoringFormat: 'ppr' | 'half_ppr' | 'standard';
+  userPickPosition: number;
+  futurePickYears: number;
+  rosterConfig: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    bench: number;
+  };
+};
+```
+
+The browser form clamps numeric values before submit. Until the HTTP draft-creation route exists on the server, live browser verification for this flow is deferred; current coverage for issue `#15` is component-level UI testing with mocked `fetch`.
 
 Deferred to issue `#16`:
 - Saved-config dropdown loaded from `GET /configs`

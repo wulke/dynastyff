@@ -63,6 +63,16 @@ const configDefaults: ConfigFormState = {
   },
 };
 
+const ROSTER_FIELDS: Array<{ key: keyof RosterConfig; label: string; min: number; max: number }> = [
+  { key: 'QB', label: 'QB', min: 0, max: 4 },
+  { key: 'RB', label: 'RB', min: 0, max: 8 },
+  { key: 'WR', label: 'WR', min: 0, max: 8 },
+  { key: 'TE', label: 'TE', min: 0, max: 4 },
+  { key: 'FLEX', label: 'FLEX', min: 0, max: 5 },
+  { key: 'SF', label: 'SF', min: 0, max: 3 },
+  { key: 'bench', label: 'BN', min: 0, max: 20 },
+];
+
 export function viewStateReducer(state: ViewState, action: ViewAction): ViewState {
   switch (action.type) {
     case 'draft_created':
@@ -96,6 +106,27 @@ function parseNumberInput(input: string, fallback: number) {
 
 function getNumberValue(input: string, fallback: number, min: number, max: number) {
   return clamp(parseNumberInput(input, fallback), min, max);
+}
+
+function sanitizeDraftConfig(config: ConfigFormState): ConfigFormState {
+  const safeTeamCount = clamp(config.teamCount, 8, 16);
+
+  return {
+    ...config,
+    teamCount: safeTeamCount,
+    rounds: clamp(config.rounds, 10, 30),
+    userPickPosition: clamp(config.userPickPosition, 1, safeTeamCount),
+    futurePickYears: clamp(config.futurePickYears, 1, 5),
+    rosterConfig: {
+      QB: clamp(config.rosterConfig.QB, 0, 4),
+      RB: clamp(config.rosterConfig.RB, 0, 8),
+      WR: clamp(config.rosterConfig.WR, 0, 8),
+      TE: clamp(config.rosterConfig.TE, 0, 4),
+      FLEX: clamp(config.rosterConfig.FLEX, 0, 5),
+      SF: clamp(config.rosterConfig.SF, 0, 3),
+      bench: clamp(config.rosterConfig.bench, 0, 20),
+    },
+  };
 }
 
 function DraftToast({ message }: ToastProps) {
@@ -168,16 +199,6 @@ function DraftConfigScreen({
   onConfigChange,
   onStartDraft,
 }: DraftConfigScreenProps) {
-  const rosterFields: Array<{ key: keyof RosterConfig; label: string; min: number; max: number }> = [
-    { key: 'QB', label: 'QB', min: 0, max: 4 },
-    { key: 'RB', label: 'RB', min: 0, max: 8 },
-    { key: 'WR', label: 'WR', min: 0, max: 8 },
-    { key: 'TE', label: 'TE', min: 0, max: 4 },
-    { key: 'FLEX', label: 'FLEX', min: 0, max: 5 },
-    { key: 'SF', label: 'SF', min: 0, max: 3 },
-    { key: 'bench', label: 'BN', min: 0, max: 20 },
-  ];
-
   return (
     <section className="w-full max-w-5xl rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20">
       <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">League Setup</p>
@@ -282,7 +303,7 @@ function DraftConfigScreen({
             </span>
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {rosterFields.map((field) => (
+            {ROSTER_FIELDS.map((field) => (
               <NumberField
                 key={field.key}
                 id={`roster-${field.key}`}
@@ -382,6 +403,8 @@ export function App() {
       return;
     }
 
+    const safeConfig = sanitizeDraftConfig(draftConfig);
+    setDraftConfig(safeConfig);
     setIsSubmittingDraft(true);
     setToastMessage(null);
 
@@ -391,18 +414,27 @@ export function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(draftConfig),
+        body: JSON.stringify(safeConfig),
       });
 
       if (!response.ok) {
-        throw new Error(`Draft creation failed with status ${response.status}`);
+        const message = (await response.text().catch(() => '')).trim();
+        if (response.status >= 400 && response.status < 500 && message) {
+          throw new Error(message);
+        }
+
+        throw new Error('Draft creation failed. Check your config and try again.');
       }
 
       const responseData = (await response.json()) as DraftCreateResponse;
       setDraftId(responseData.draftId ?? null);
       dispatch({ type: 'draft_created' });
-    } catch {
-      setToastMessage('Draft creation failed. Check your config and try again.');
+    } catch (error) {
+      setToastMessage(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Draft creation failed. Check your config and try again.',
+      );
     } finally {
       setIsSubmittingDraft(false);
     }

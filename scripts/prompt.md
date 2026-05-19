@@ -33,4 +33,5 @@ When done: push your branch and open a PR that references the issue (e.g. `Close
 
 ## Rules
 - Follow all instructions in `CLAUDE.md` and `AGENTS.md`.
-- All code entry points and tests must carry `@spec [ID]` comments.
+- All code entry points and tests must carry `@spec [ID]` comments on a per-function, per-test, or per-module basis.
+  - Instead of `@spec [ID]` at the beginning of a file, it should exist for each function, test, interface, module, type, etc. that is related to that spec ID

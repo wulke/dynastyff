@@ -58,12 +58,13 @@ The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs
 
 ## UI Scaffold
 
-Issue `#13` adds the initial frontend shell under `/src/ui`:
+Issues `#13` and `#15` establish the initial frontend shell under `/src/ui`:
 
-- `Config Screen` renders on first load
-- `Start Draft` transitions the shell into the drafting view
-- `Complete Draft` transitions the shell into the history view
-- `New Draft` resets the shell back to config
+- `Config Screen` renders on first load as a real league configuration form
+- `Start Draft` submits `POST /drafts` with the current form values
+- Successful draft creation transitions the UI into the drafting view
+- Failed draft creation shows an error toast and keeps the user on the config screen
+- `Complete Draft` and `New Draft` remain scaffold controls for later UI slices
 
 Current UI commands:
 
@@ -72,7 +73,7 @@ Current UI commands:
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
-| `npm run test:ui` | Run the UI scaffold tests for view-state transitions |
+| `npm run test:ui` | Run the UI tests for config submission and view-state transitions |
 
 ## ETL
 

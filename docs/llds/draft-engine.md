@@ -48,6 +48,37 @@ create → in_progress → [pick loop] → completed
 | GET | `/drafts` | List completed draft sessions |
 | GET | `/drafts/:id/summary` | Post-draft summary for history view |
 
+## POST /drafts Request Contract
+
+The HTTP route accepts camelCase JSON matching the UI `ConfigFormState` shape so the browser can submit the form without key translation:
+
+```json
+{
+  "configName": "Startup 12",
+  "teamCount": 12,
+  "rounds": 20,
+  "scoringFormat": "ppr",
+  "rosterSlots": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1,
+    "SF": 1,
+    "BN": 6
+  },
+  "pickPosition": 6,
+  "futurePickYears": 3
+}
+```
+
+Route behavior:
+- `configName` is accepted for UI parity but is not persisted by the draft engine in this slice
+- `rosterSlots.BN` is mapped to the service-layer `rosterConfig.bench` field
+- `pickPosition` is mapped to `userPickPosition`
+- `futurePickRounds` is derived from `rounds` so each future year starts with one pick asset per round in the configured startup draft
+- Invalid JSON, missing required fields, wrong types, or out-of-range values return HTTP `400` and do not create a draft
+
 ## SSE Event Types
 
 | Event | Payload | When emitted |

@@ -52,7 +52,7 @@ The system shall add a nullable `etl_run_id` column to `drafts` as a foreign key
 ## ETL Run Lifecycle
 
 **DFF-HIST-040** `[x]` → #32
-When ETL begins, the system shall insert a row into `etl_runs` with `started_at` set to the current timestamp, `sources_attempted` set to the list of all four source names, `sources_succeeded` set to an empty array, and `completed_at` set to NULL.
+When ETL begins, the system shall insert a row into `etl_runs` with `started_at` set to the current timestamp, `sources_attempted` set to the list of active ETL source names for that run, `sources_succeeded` set to an empty array, and `completed_at` set to NULL.
 
 **DFF-HIST-041** `[x]` → #32
 When all source writes are complete, the system shall update the `etl_run` row with `completed_at` set to the current timestamp and `sources_succeeded` set to the list of sources that completed successfully.

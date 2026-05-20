@@ -2,6 +2,8 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-011
 // @spec DFF-ETL-012
+// @spec DFF-ETL-014
+// @spec DFF-ETL-015
 // @spec DFF-ETL-030
 // @spec DFF-ETL-032
 // @spec DFF-HIST-002
@@ -13,6 +15,7 @@
 // @spec DFF-HIST-052
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -25,6 +28,7 @@ import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
 import { extractKtcRowsFromPage, scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
 import { scrapeRosterAudit } from '../src/etl/scraper/rosteraudit.js';
+import { waitForScraperPageReady } from '../src/etl/scraper/shared.js';
 import type { RawPlayer, ScraperResult } from '../src/etl/types.js';
 
 function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup: () => void } {
@@ -53,6 +57,45 @@ test('package.json exposes npm run etl as a standalone entry point', () => {
   };
 
   assert.equal(packageJson.scripts?.etl, 'node --import tsx src/etl/index.ts');
+});
+
+// @spec DFF-ETL-002
+test('etl CLI prints a schema help message when the local database is missing etl_runs', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-missing-schema-'));
+  const dbPath = path.join(tempDir, 'missing-schema.sqlite');
+
+  try {
+    fs.writeFileSync(dbPath, '');
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--import', 'tsx', 'src/etl/index.ts'],
+          {
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              DYNASTYFF_DB_PATH: dbPath,
+              DYNASTYFF_KTC_FIXTURE_PATH: path.join(tempDir, 'ktc-empty.json'),
+              DYNASTYFF_FANTASYCALC_FIXTURE_PATH: path.join(tempDir, 'fantasycalc-empty.json'),
+              DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH: path.join(tempDir, 'rosteraudit-empty.json'),
+            },
+            stdio: 'pipe',
+          },
+        ),
+      (error: unknown) => {
+        if (!(error instanceof Error) || !('stderr' in error)) {
+          return false;
+        }
+
+        const stderr = String((error as Error & { stderr?: Buffer }).stderr ?? '');
+        return stderr.includes('Run `npm run db:init`');
+      },
+    );
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test('normalizePlayers min-max scales KTC values to 0..9999', () => {
@@ -289,6 +332,47 @@ test('extractKtcRowsFromPage serializes without tsx helper references', async ()
   assert.equal(callbackSource.includes('__name'), false);
 });
 
+// @spec DFF-ETL-014
+test('waitForScraperPageReady warns and continues when networkidle never resolves', async () => {
+  const warnings: string[] = [];
+
+  await waitForScraperPageReady(
+    {
+      waitForLoadState: async () => {
+        const error = new Error('Timeout 30000ms exceeded.');
+        error.name = 'TimeoutError';
+        throw error;
+      },
+    },
+    'dynastydaddy',
+    (message) => {
+      warnings.push(message);
+    },
+  );
+
+  assert.deepEqual(warnings, [
+    '[ETL] WARN: dynastydaddy page never reached networkidle within 30000ms. Continuing with the loaded DOM.',
+  ]);
+});
+
+// @spec DFF-ETL-014
+test('waitForScraperPageReady rethrows non-timeout page readiness errors', async () => {
+  await assert.rejects(
+    () =>
+      waitForScraperPageReady(
+        {
+          waitForLoadState: async () => {
+            throw new Error('boom');
+          },
+        },
+        'rosteraudit',
+      ),
+    /boom/,
+  );
+});
+
+// @spec DFF-ETL-011
+// @spec DFF-ETL-015
 test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
   let activeCount = 0;
   let maxActiveCount = 0;
@@ -323,15 +407,14 @@ test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
       return [];
     },
     scrapeFantasycalc: createSourceScraper('fantasycalc', 40),
-    scrapeDynastydaddy: createSourceScraper('dynastydaddy', 40),
     scrapeRosteraudit: createSourceScraper('rosteraudit', 40),
   });
 
-  assert.equal(results.length, 4);
+  assert.equal(results.length, 3);
   assert.equal(maxActiveCount, 2);
   assert.deepEqual(
     results.map((result) => result.source).sort(),
-    ['dynastydaddy', 'fantasycalc', 'ktc', 'rosteraudit'],
+    ['fantasycalc', 'ktc', 'rosteraudit'],
   );
 });
 
@@ -364,7 +447,6 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
       databasePath: dbPath,
       scrapeKtc: async () => players as RawPlayer[],
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
-      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T20:00:00.000Z',
     });
@@ -476,7 +558,6 @@ test('runEtl updates an existing player matched by name and position', async () 
         },
       ],
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
-      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T21:00:00.000Z',
     });
@@ -519,7 +600,6 @@ test('runEtl exits non-zero and leaves the etl run incomplete when KTC yields no
       databasePath: dbPath,
       scrapeKtc: async () => [],
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
-      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T22:00:00.000Z',
     });
@@ -538,7 +618,7 @@ test('runEtl exits non-zero and leaves the etl run incomplete when KTC yields no
       {
         started_at: '2026-05-18T22:00:00.000Z',
         completed_at: null,
-        sources_attempted: '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+        sources_attempted: '["ktc","fantasycalc","rosteraudit"]',
         sources_succeeded: '[]',
       },
     ]);
@@ -582,21 +662,6 @@ test('runEtl creates one etl_runs row and raw snapshots for each successful sour
           },
         ],
         pickValues: [{ year: 2027, round: 1, rawValue: 300 }],
-      }),
-      scrapeDynastydaddy: async () => ({
-        source: 'dynastydaddy',
-        players: [
-          {
-            name: 'Shared Player',
-            position: 'QB',
-            nflTeam: 'BUF',
-            age: 24,
-            isRookie: false,
-            rawValue: 400,
-            adp: 12,
-          },
-        ],
-        pickValues: [{ year: 2027, round: 1, rawValue: 500 }],
       }),
       scrapeRosteraudit: async () => ({
         source: 'rosteraudit',
@@ -643,18 +708,16 @@ test('runEtl creates one etl_runs row and raw snapshots for each successful sour
       {
         started_at: '2026-05-20T02:00:00.000Z',
         completed_at: '2026-05-20T02:00:00.000Z',
-        sources_attempted: '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
-        sources_succeeded: '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+        sources_attempted: '["ktc","fantasycalc","rosteraudit"]',
+        sources_succeeded: '["ktc","fantasycalc","rosteraudit"]',
       },
     ]);
     assert.deepEqual(playerSnapshots, [
-      { source: 'dynastydaddy', raw_value: 400 },
       { source: 'fantasycalc', raw_value: 200 },
       { source: 'ktc', raw_value: 100 },
       { source: 'rosteraudit', raw_value: 600 },
     ]);
     assert.deepEqual(pickSnapshots, [
-      { source: 'dynastydaddy', year: 2027, round: 1, raw_value: 500 },
       { source: 'fantasycalc', year: 2027, round: 1, raw_value: 300 },
       { source: 'rosteraudit', year: 2027, round: 1, raw_value: 700 },
     ]);
@@ -708,11 +771,6 @@ test('runEtl rolls back one source transaction when snapshot writes fail and con
         ],
         pickValues: [{ year: 2028, round: 2, rawValue: 300 }],
       }),
-      scrapeDynastydaddy: async () => ({
-        source: 'dynastydaddy',
-        players: [],
-        pickValues: [],
-      }),
       scrapeRosteraudit: async () => ({
         source: 'rosteraudit',
         players: [
@@ -763,7 +821,7 @@ test('runEtl rolls back one source transaction when snapshot writes fail and con
     assert.equal(exitCode, 0);
     assert.deepEqual(etlRun, {
       completed_at: '2026-05-20T03:00:00.000Z',
-      sources_succeeded: '["ktc","dynastydaddy","rosteraudit"]',
+      sources_succeeded: '["ktc","rosteraudit"]',
     });
     assert.deepEqual(player, {
       value_ktc: 9999,
@@ -810,7 +868,6 @@ test('runEtl leaves etl_runs.completed_at null when final completion update neve
             },
           ],
           scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
-          scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
           scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
           now: () => '2026-05-20T04:00:00.000Z',
         }),

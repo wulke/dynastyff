@@ -6,6 +6,8 @@
 // @spec DFF-ETL-040
 // @spec DFF-ETL-080
 // @spec DFF-ETL-081
+// @spec DFF-ETL-082
+// @spec DFF-ETL-083
 import fs from 'node:fs';
 
 import type { EtlSource, SupportedEtlPosition } from './types.js';
@@ -42,9 +44,32 @@ const fuzzyMatchThreshold = 0.85;
 
 // @spec DFF-ETL-080
 // @spec DFF-ETL-081
+// @spec DFF-ETL-082
+// @spec DFF-ETL-083
 export function loadAliasFamilies(aliasesPath: string): AliasFamily[] {
-  const rawFile = fs.readFileSync(aliasesPath, 'utf8');
-  const parsed = JSON.parse(rawFile) as AliasFile;
+  let rawFile: string;
+
+  try {
+    rawFile = fs.readFileSync(aliasesPath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      console.warn(
+        `[ETL] WARN: aliases file not found at ${aliasesPath}. Continuing with an empty alias list.`,
+      );
+      return [];
+    }
+
+    throw error;
+  }
+
+  let parsed: AliasFile;
+
+  try {
+    parsed = JSON.parse(rawFile) as AliasFile;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`[ETL] ERROR: aliases file at ${aliasesPath} is invalid JSON: ${message}`);
+  }
 
   return (parsed.aliases ?? []).map((entry) => ({
     canonical: entry.canonical,
@@ -115,6 +140,8 @@ function findAliasFamily(name: string, aliasFamilies: AliasFamily[]): AliasFamil
   return aliasFamilies.find((family) => family.normalizedNames.has(normalizedName));
 }
 
+// @spec DFF-ETL-020
+// @spec DFF-ETL-021
 // @spec DFF-ETL-022
 export function matchPlayerCandidate(
   playerName: string,
@@ -170,6 +197,10 @@ export function computeAggregatedDynastyValue(values: Array<number | null>): num
 }
 
 // @spec DFF-ETL-023
-export function createUnmatchedPlayerWarning(source: Exclude<EtlSource, 'ktc'>, playerName: string, position: SupportedEtlPosition): string {
+export function createUnmatchedPlayerWarning(
+  source: Exclude<EtlSource, 'ktc'>,
+  playerName: string,
+  position: SupportedEtlPosition,
+): string {
   return `[ETL] WARN: ${source} player '${playerName}' (${position}) could not be matched to a canonical player. Excluding from this run.`;
 }

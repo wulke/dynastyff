@@ -97,6 +97,7 @@ Current ETL scope:
 - Normalizes the current per-source write path to `0-9999`
 - Matches non-KTC players onto KTC-backed canonical rows with normalized-name exact match, Dice fuzzy match, and `player-aliases.json` overrides
 - Aggregates player `dynasty_value` as the rounded mean of the non-NULL per-source normalized values
+- Treats a missing `player-aliases.json` as an empty alias list and fails fast on malformed alias JSON
 - Upserts the local SQLite `players` and `pick_values` tables from the current ETL write path
 - Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time
 

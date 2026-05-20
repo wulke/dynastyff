@@ -99,7 +99,7 @@ When upserting a player whose per-source column would come from a failed scraper
 ## Upsert — Players
 
 **DFF-ETL-060** `[x]` → #4
-When a player already exists in `players` (matched by name and position), the system shall update `dynasty_value`, all non-NULL per-source value columns (`value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, `value_rosteraudit`), `adp` (if provided by any source), and `updated_at`.
+When a player already exists in `players` (matched by name and position), the system shall update `dynasty_value`, all non-NULL per-source value columns (`value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, `value_rosteraudit`), `adp` when provided by the matching source, and `updated_at`.
 
 **DFF-ETL-061** `[x]` → #4
 When a player does not exist in `players`, the system shall insert a new row with a generated UUID and all available attributes.
@@ -145,3 +145,9 @@ The system shall load `player-aliases.json` from the project root at ETL startup
 
 **DFF-ETL-081** `[x]` → #4
 The `player-aliases.json` file shall support entries of the form `{ canonical: string, variants: string[] }` where any variant name is treated as equivalent to the canonical name during matching.
+
+**DFF-ETL-082** `[x]`
+When `player-aliases.json` is absent at ETL startup, the system shall continue with an empty alias list and log a warning.
+
+**DFF-ETL-083** `[x]`
+When `player-aliases.json` exists but contains malformed JSON, the system shall fail before any database writes and surface a clear configuration error.

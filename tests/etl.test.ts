@@ -17,6 +17,8 @@
 // @spec DFF-ETL-062
 // @spec DFF-ETL-080
 // @spec DFF-ETL-081
+// @spec DFF-ETL-082
+// @spec DFF-ETL-083
 // @spec DFF-HIST-002
 // @spec DFF-HIST-040
 // @spec DFF-HIST-041
@@ -601,6 +603,100 @@ test('runEtl updates an existing player matched by name and position', async () 
   }
 });
 
+// @spec DFF-ETL-082
+test('runEtl continues with an empty alias list when player-aliases.json is missing from the project root', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const originalCwd = process.cwd();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-missing-alias-file-'));
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  process.chdir(tempDir);
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => [
+        {
+          name: 'Alpha QB',
+          position: 'QB',
+          nflTeam: 'BUF',
+          age: 24,
+          isRookie: false,
+          rawValue: 100,
+          adp: 12.5,
+        },
+      ],
+      scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+      now: () => '2026-05-20T05:00:00.000Z',
+    });
+
+    const rowCount = db.prepare('SELECT COUNT(*) AS count FROM players').get() as { count: number };
+
+    assert.equal(exitCode, 0);
+    assert.equal(rowCount.count, 1);
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      /aliases file not found at .*player-aliases\.json\. Continuing with an empty alias list\./,
+    );
+  } finally {
+    process.chdir(originalCwd);
+    console.warn = originalWarn;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanup();
+  }
+});
+
+// @spec DFF-ETL-083
+test('runEtl fails before database writes when player-aliases.json contains malformed JSON', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const originalCwd = process.cwd();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-bad-alias-file-'));
+
+  fs.writeFileSync(path.join(tempDir, 'player-aliases.json'), '{ bad json');
+  process.chdir(tempDir);
+
+  try {
+    await assert.rejects(
+      () =>
+        runEtl({
+          databasePath: dbPath,
+          scrapeKtc: async () => [
+            {
+              name: 'Alpha QB',
+              position: 'QB',
+              nflTeam: 'BUF',
+              age: 24,
+              isRookie: false,
+              rawValue: 100,
+              adp: 12.5,
+            },
+          ],
+          scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
+          scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+          now: () => '2026-05-20T06:00:00.000Z',
+        }),
+      /aliases file .* is invalid JSON/,
+    );
+
+    const playerCount = db.prepare('SELECT COUNT(*) AS count FROM players').get() as { count: number };
+    const etlRunCount = db.prepare('SELECT COUNT(*) AS count FROM etl_runs').get() as { count: number };
+
+    assert.equal(playerCount.count, 0);
+    assert.equal(etlRunCount.count, 0);
+  } finally {
+    process.chdir(originalCwd);
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanup();
+  }
+});
+
 // @spec DFF-ETL-020
 // @spec DFF-ETL-021
 // @spec DFF-ETL-022
@@ -612,6 +708,7 @@ test('runEtl updates an existing player matched by name and position', async () 
 // @spec DFF-ETL-062
 // @spec DFF-ETL-080
 // @spec DFF-ETL-081
+// @spec DFF-ETL-082
 test('runEtl matches non-KTC players by exact name, fuzzy name, and alias while excluding unmatched players', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-aliases-'));
@@ -766,7 +863,7 @@ test('runEtl matches non-KTC players by exact name, fuzzy name, and alias while 
         value_fantasycalc: 6666,
         value_dynastydaddy: null,
         value_rosteraudit: 9999,
-        adp: 30,
+        adp: 95,
       },
       {
         name: 'Jaxon Smith-Njigba',
@@ -778,7 +875,7 @@ test('runEtl matches non-KTC players by exact name, fuzzy name, and alias while 
         value_fantasycalc: 3333,
         value_dynastydaddy: null,
         value_rosteraudit: null,
-        adp: 20,
+        adp: 98,
       },
       {
         name: 'Odell Beckham Jr.',
@@ -790,7 +887,7 @@ test('runEtl matches non-KTC players by exact name, fuzzy name, and alias while 
         value_fantasycalc: 0,
         value_dynastydaddy: null,
         value_rosteraudit: null,
-        adp: 10,
+        adp: 99,
       },
     ]);
     assert.equal(fantasycalcSnapshots.length, 3);

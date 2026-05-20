@@ -139,6 +139,7 @@ function createStatements(sqlite: Database.Database): EtlStatements {
       `UPDATE players
        SET dynasty_value = ?,
            value_fantasycalc = ?,
+           adp = ?,
            updated_at = ?
        WHERE id = ?`,
     ),
@@ -146,6 +147,7 @@ function createStatements(sqlite: Database.Database): EtlStatements {
       `UPDATE players
        SET dynasty_value = ?,
            value_dynastydaddy = ?,
+           adp = ?,
            updated_at = ?
        WHERE id = ?`,
     ),
@@ -153,6 +155,7 @@ function createStatements(sqlite: Database.Database): EtlStatements {
       `UPDATE players
        SET dynasty_value = ?,
            value_rosteraudit = ?,
+           adp = ?,
            updated_at = ?
        WHERE id = ?`,
     ),
@@ -199,6 +202,9 @@ function matchExistingPlayer(
   return matchPlayerCandidate(player.name, getPlayerCandidates(statements, player.position), aliasFamilies);
 }
 
+// @spec DFF-ETL-040
+// @spec DFF-ETL-060
+// @spec DFF-ETL-061
 function writeKtcPlayer(
   statements: EtlStatements,
   runId: string,
@@ -224,7 +230,7 @@ function writeKtcPlayer(
       player.isRookie ? 1 : 0,
       dynastyValue,
       player.normalizedValue,
-      player.adp,
+      player.adp ?? existing.adp,
       timestamp,
       playerId,
     );
@@ -249,6 +255,9 @@ function writeKtcPlayer(
   statements.insertPlayerSnapshot.run(randomUUID(), runId, playerId, 'ktc', player.rawValue);
 }
 
+// @spec DFF-ETL-023
+// @spec DFF-ETL-040
+// @spec DFF-ETL-060
 function writeMatchedSourcePlayer(
   statements: EtlStatements,
   runId: string,
@@ -287,11 +296,29 @@ function writeMatchedSourcePlayer(
           ]);
 
   if (source === 'fantasycalc') {
-    statements.updateFantasycalcPlayer.run(dynastyValue, player.normalizedValue, timestamp, existing.id);
+    statements.updateFantasycalcPlayer.run(
+      dynastyValue,
+      player.normalizedValue,
+      player.adp ?? existing.adp,
+      timestamp,
+      existing.id,
+    );
   } else if (source === 'dynastydaddy') {
-    statements.updateDynastydaddyPlayer.run(dynastyValue, player.normalizedValue, timestamp, existing.id);
+    statements.updateDynastydaddyPlayer.run(
+      dynastyValue,
+      player.normalizedValue,
+      player.adp ?? existing.adp,
+      timestamp,
+      existing.id,
+    );
   } else {
-    statements.updateRosterauditPlayer.run(dynastyValue, player.normalizedValue, timestamp, existing.id);
+    statements.updateRosterauditPlayer.run(
+      dynastyValue,
+      player.normalizedValue,
+      player.adp ?? existing.adp,
+      timestamp,
+      existing.id,
+    );
   }
 
   statements.insertPlayerSnapshot.run(randomUUID(), runId, existing.id, source, player.rawValue);
@@ -470,6 +497,10 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   }
 }
 
+function isAliasConfigurationError(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith('[ETL] ERROR: aliases file');
+}
+
 // @spec DFF-ETL-002
 async function main(): Promise<void> {
   try {
@@ -481,6 +512,12 @@ async function main(): Promise<void> {
       console.error(
         '[ETL] ERROR: database schema is missing ETL history tables. Run `npm run db:init` to recreate the local SQLite database with the latest schema.',
       );
+      process.exitCode = 1;
+      return;
+    }
+
+    if (isAliasConfigurationError(error)) {
+      console.error((error as Error).message);
       process.exitCode = 1;
       return;
     }

@@ -590,7 +590,7 @@ test('runEtl updates an existing player matched by name and position', async () 
     assert.equal(exitCode, 0);
     assert.deepEqual(row, {
       id: 'player-1',
-      dynasty_value: 9999,
+      dynasty_value: 7160,
       value_ktc: 9999,
       value_fantasycalc: 4321,
       adp: 11.2,

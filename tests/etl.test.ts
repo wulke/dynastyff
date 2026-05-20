@@ -79,7 +79,6 @@ test('etl CLI prints a schema help message when the local database is missing et
               DYNASTYFF_DB_PATH: dbPath,
               DYNASTYFF_KTC_FIXTURE_PATH: path.join(tempDir, 'ktc-empty.json'),
               DYNASTYFF_FANTASYCALC_FIXTURE_PATH: path.join(tempDir, 'fantasycalc-empty.json'),
-              DYNASTYFF_DYNASTYDADDY_FIXTURE_PATH: path.join(tempDir, 'dynastydaddy-empty.json'),
               DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH: path.join(tempDir, 'rosteraudit-empty.json'),
             },
             stdio: 'pipe',

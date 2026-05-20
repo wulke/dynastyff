@@ -347,10 +347,11 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
 export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const timestamp = options.now?.() ?? new Date().toISOString();
   const sqlite = createDatabase(options.databasePath);
-  const statements = createStatements(sqlite);
   const runId = randomUUID();
 
   try {
+    const statements = createStatements(sqlite);
+
     console.log('[ETL] Starting ETL run...');
     statements.insertRun.run(runId, timestamp, JSON.stringify(activeEtlSources), JSON.stringify([]));
 

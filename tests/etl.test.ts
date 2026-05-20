@@ -240,6 +240,17 @@ test('normalizePickValues warns and assigns 9999 when a source returns exactly o
   ]);
 });
 
+// @spec DFF-ETL-032
+test('normalizePickValues assigns 9999 when all pick values share the same raw value', () => {
+  assert.deepEqual(
+    normalizePickValues([
+      { year: 2027, round: 1, rawValue: 777 },
+      { year: 2028, round: 2, rawValue: 777 },
+    ]).map((pickValue) => pickValue.normalizedValue),
+    [9999, 9999],
+  );
+});
+
 test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper boundary', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'ktc.json');
@@ -626,6 +637,19 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
          ORDER BY year, round`,
       )
       .all();
+    const runId = (db.prepare('SELECT id FROM etl_runs').get() as { id: string }).id;
+    const snapshots = db
+      .prepare(
+        `SELECT
+          source,
+          year,
+          round,
+          raw_value
+         FROM pick_value_snapshots
+         WHERE run_id = ?
+         ORDER BY source, year, round`,
+      )
+      .all(runId);
 
     assert.equal(exitCode, 0);
     assert.deepEqual(rows, [
@@ -652,6 +676,12 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
       },
     ]);
     assert.equal(new Set(rows.map((row) => row.id)).size, 3);
+    assert.deepEqual(snapshots, [
+      { source: 'fantasycalc', year: 2027, round: 1, raw_value: 100 },
+      { source: 'fantasycalc', year: 2028, round: 1, raw_value: 300 },
+      { source: 'rosteraudit', year: 2027, round: 1, raw_value: 600 },
+      { source: 'rosteraudit', year: 2029, round: 1, raw_value: 200 },
+    ]);
   } finally {
     cleanup();
   }

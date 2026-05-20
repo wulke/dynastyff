@@ -4,7 +4,11 @@
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
 // @spec DFF-ETL-030
+// @spec DFF-ETL-031
 // @spec DFF-ETL-032
+// @spec DFF-ETL-041
+// @spec DFF-ETL-070
+// @spec DFF-ETL-071
 // @spec DFF-HIST-002
 // @spec DFF-HIST-040
 // @spec DFF-HIST-041

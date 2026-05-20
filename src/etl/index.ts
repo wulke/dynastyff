@@ -10,7 +10,6 @@ import { randomUUID } from 'node:crypto';
 import { createDrizzleDb } from '../db/client.js';
 import { players } from '../db/schema.js';
 import { normalizePlayers } from './normalize.js';
-import { scrapeDynastyDaddy } from './scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from './scraper/fantasycalc.js';
 import { scrapeKtcPlayers } from './scraper/ktc.js';
 import { scrapeRosterAudit } from './scraper/rosteraudit.js';
@@ -20,26 +19,46 @@ type RunEtlOptions = {
   databasePath?: string;
   scrapeKtc?: () => Promise<RawPlayer[]>;
   scrapeFantasycalc?: () => Promise<ScraperResult>;
-  scrapeDynastydaddy?: () => Promise<ScraperResult>;
   scrapeRosteraudit?: () => Promise<ScraperResult>;
   now?: () => string;
 };
 
 type RunScrapersOptions = Pick<
   RunEtlOptions,
-  'scrapeKtc' | 'scrapeFantasycalc' | 'scrapeDynastydaddy' | 'scrapeRosteraudit'
+  'scrapeKtc' | 'scrapeFantasycalc' | 'scrapeRosteraudit'
 >;
+
+type SourceValueMap = Map<string, number>;
+
+function playerKey(name: string, position: string): string {
+  return `${name.toLowerCase().trim()}|${position.toUpperCase()}`;
+}
+
+function buildSourceValueMap(result: ScraperResult): SourceValueMap {
+  const normalized = normalizePlayers(result.players);
+  const map: SourceValueMap = new Map();
+  for (const p of normalized) {
+    map.set(playerKey(p.name, p.position), p.normalizedValue);
+  }
+  return map;
+}
 
 function upsertPlayers(
   databasePath: string | undefined,
-  normalizedPlayers: ReturnType<typeof normalizePlayers>,
+  normalizedKtcPlayers: ReturnType<typeof normalizePlayers>,
+  fantasycalcValues: SourceValueMap,
+  rosterauditValues: SourceValueMap,
   timestamp: string,
 ): void {
   const { db, sqlite } = createDrizzleDb(databasePath);
 
   try {
     db.transaction((tx) => {
-      for (const player of normalizedPlayers) {
+      for (const player of normalizedKtcPlayers) {
+        const key = playerKey(player.name, player.position);
+        const valueFantasycalc = fantasycalcValues.get(key) ?? null;
+        const valueRosteraudit = rosterauditValues.get(key) ?? null;
+
         tx
           .insert(players)
           .values({
@@ -51,9 +70,9 @@ function upsertPlayers(
             isRookie: player.isRookie,
             dynastyValue: player.normalizedValue,
             valueKtc: player.normalizedValue,
-            valueFantasycalc: null,
+            valueFantasycalc,
             valueDynastydaddy: null,
-            valueRosteraudit: null,
+            valueRosteraudit,
             adp: player.adp,
             updatedAt: timestamp,
           })
@@ -65,6 +84,8 @@ function upsertPlayers(
               isRookie: player.isRookie,
               dynastyValue: player.normalizedValue,
               valueKtc: player.normalizedValue,
+              valueFantasycalc,
+              valueRosteraudit,
               adp: player.adp,
               updatedAt: timestamp,
             },
@@ -98,22 +119,31 @@ async function runTasksWithConcurrencyLimit<T>(
   return results;
 }
 
+async function runScraper<T extends ScraperResult>(
+  source: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  console.log(`[ETL] [${source}] Scraping...`);
+  const result = await fn();
+  console.log(`[ETL] [${source}] Done — ${result.players.length} players, ${result.pickValues.length} pick values`);
+  return result;
+}
+
 export async function runScrapers(options: RunScrapersOptions = {}): Promise<ScraperResult[]> {
   const scrapeKtc = options.scrapeKtc ?? scrapeKtcPlayers;
   const scrapeFantasycalc = options.scrapeFantasycalc ?? scrapeFantasyCalc;
-  const scrapeDynastydaddy = options.scrapeDynastydaddy ?? scrapeDynastyDaddy;
   const scrapeRosteraudit = options.scrapeRosteraudit ?? scrapeRosterAudit;
 
   return runTasksWithConcurrencyLimit(
     [
-      async () => ({
-        source: 'ktc' as const,
-        players: await scrapeKtc(),
-        pickValues: [],
-      }),
-      scrapeFantasycalc,
-      scrapeDynastydaddy,
-      scrapeRosteraudit,
+      () =>
+        runScraper('ktc', async () => ({
+          source: 'ktc' as const,
+          players: await scrapeKtc(),
+          pickValues: [],
+        })),
+      () => runScraper('fantasycalc', scrapeFantasycalc),
+      () => runScraper('rosteraudit', scrapeRosteraudit),
     ],
     2,
   );
@@ -123,17 +153,28 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const databasePath = options.databasePath;
   const timestamp = options.now?.() ?? new Date().toISOString();
 
+  console.log('[ETL] Starting ETL run...');
   const scraperResults = await runScrapers(options);
-  const scrapedPlayers = scraperResults.find((result) => result.source === 'ktc')?.players ?? [];
 
-  if (scrapedPlayers.length === 0) {
+  const ktcResult = scraperResults.find((result) => result.source === 'ktc');
+  if (!ktcResult || ktcResult.players.length === 0) {
     console.error('[ETL] ERROR: KTC returned no supported players.');
     return 1;
   }
 
-  const normalizedPlayers = normalizePlayers(scrapedPlayers);
-  upsertPlayers(databasePath, normalizedPlayers, timestamp);
+  const fantasycalcResult = scraperResults.find((result) => result.source === 'fantasycalc');
+  const rosterauditResult = scraperResults.find((result) => result.source === 'rosteraudit');
 
+  const fantasycalcValues = fantasycalcResult ? buildSourceValueMap(fantasycalcResult) : new Map<string, number>();
+  const rosterauditValues = rosterauditResult ? buildSourceValueMap(rosterauditResult) : new Map<string, number>();
+
+  console.log(`[ETL] Normalizing ${ktcResult.players.length} players...`);
+  const normalizedPlayers = normalizePlayers(ktcResult.players);
+
+  console.log(`[ETL] Writing ${normalizedPlayers.length} players to database...`);
+  upsertPlayers(databasePath, normalizedPlayers, fantasycalcValues, rosterauditValues, timestamp);
+
+  console.log('[ETL] Done.');
   return 0;
 }
 

@@ -3,6 +3,7 @@
 // @spec DFF-ETL-013
 import fs from 'node:fs/promises';
 
+import { loadFixtureScraperResult } from './shared.js';
 import type { RawPickValue, RawPlayer, ScraperResult, SupportedEtlPosition } from '../types.js';
 
 const ROSTERAUDIT_API_URL = 'https://rosteraudit.com/wp-json/ra/v1/rankings';
@@ -120,6 +121,12 @@ export async function scrapeRosterAudit(): Promise<ScraperResult> {
   const fixturePath = process.env.DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH;
 
   if (fixturePath) {
+    const fixtureResult = await loadFixtureScraperResult(fixturePath, 'rosteraudit');
+
+    if (fixtureResult.players.length > 0 || fixtureResult.pickValues.length > 0) {
+      return fixtureResult;
+    }
+
     const rawFixture = await fs.readFile(fixturePath, 'utf8');
     const parsed = JSON.parse(rawFixture) as
       | RosterAuditApiEntry[]

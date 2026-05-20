@@ -3,6 +3,7 @@
 // @spec DFF-ETL-013
 import fs from 'node:fs/promises';
 
+import { loadFixtureScraperResult } from './shared.js';
 import type { RawPickValue, RawPlayer, ScraperResult, SupportedEtlPosition } from '../types.js';
 
 const FANTASYCALC_API_URL =
@@ -61,6 +62,12 @@ export async function scrapeFantasyCalc(): Promise<ScraperResult> {
   const fixturePath = process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
 
   if (fixturePath) {
+    const fixtureResult = await loadFixtureScraperResult(fixturePath, 'fantasycalc');
+
+    if (fixtureResult.players.length > 0 || fixtureResult.pickValues.length > 0) {
+      return fixtureResult;
+    }
+
     const rawFixture = await fs.readFile(fixturePath, 'utf8');
     const parsed = JSON.parse(rawFixture) as FantasyCalcApiEntry[] | { players?: FantasyCalcApiEntry[] };
     const entries = Array.isArray(parsed) ? parsed : (parsed.players ?? []);

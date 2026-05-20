@@ -31,3 +31,7 @@ export type ScraperResult = {
 export type NormalizedPlayer = RawPlayer & {
   normalizedValue: number;
 };
+
+export type NormalizedPickValue = RawPickValue & {
+  normalizedValue: number;
+};

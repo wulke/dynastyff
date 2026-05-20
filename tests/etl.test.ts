@@ -2,6 +2,8 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-011
 // @spec DFF-ETL-012
+// @spec DFF-ETL-014
+// @spec DFF-ETL-015
 // @spec DFF-ETL-030
 // @spec DFF-ETL-032
 // @spec DFF-HIST-002
@@ -57,6 +59,7 @@ test('package.json exposes npm run etl as a standalone entry point', () => {
   assert.equal(packageJson.scripts?.etl, 'node --import tsx src/etl/index.ts');
 });
 
+// @spec DFF-ETL-002
 test('etl CLI prints a schema help message when the local database is missing etl_runs', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-missing-schema-'));
   const dbPath = path.join(tempDir, 'missing-schema.sqlite');
@@ -330,6 +333,7 @@ test('extractKtcRowsFromPage serializes without tsx helper references', async ()
   assert.equal(callbackSource.includes('__name'), false);
 });
 
+// @spec DFF-ETL-014
 test('waitForScraperPageReady warns and continues when networkidle never resolves', async () => {
   const warnings: string[] = [];
 
@@ -352,6 +356,24 @@ test('waitForScraperPageReady warns and continues when networkidle never resolve
   ]);
 });
 
+// @spec DFF-ETL-014
+test('waitForScraperPageReady rethrows non-timeout page readiness errors', async () => {
+  await assert.rejects(
+    () =>
+      waitForScraperPageReady(
+        {
+          waitForLoadState: async () => {
+            throw new Error('boom');
+          },
+        },
+        'rosteraudit',
+      ),
+    /boom/,
+  );
+});
+
+// @spec DFF-ETL-011
+// @spec DFF-ETL-015
 test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
   let activeCount = 0;
   let maxActiveCount = 0;
@@ -426,7 +448,6 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
       databasePath: dbPath,
       scrapeKtc: async () => players as RawPlayer[],
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
-      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T20:00:00.000Z',
     });
@@ -538,7 +559,6 @@ test('runEtl updates an existing player matched by name and position', async () 
         },
       ],
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
-      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T21:00:00.000Z',
     });
@@ -581,7 +601,6 @@ test('runEtl exits non-zero and leaves the etl run incomplete when KTC yields no
       databasePath: dbPath,
       scrapeKtc: async () => [],
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
-      scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T22:00:00.000Z',
     });
@@ -850,7 +869,6 @@ test('runEtl leaves etl_runs.completed_at null when final completion update neve
             },
           ],
           scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
-          scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
           scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
           now: () => '2026-05-20T04:00:00.000Z',
         }),

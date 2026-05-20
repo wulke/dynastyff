@@ -238,6 +238,7 @@ function isPlaywrightTimeoutError(error: unknown): error is Error {
   return error instanceof Error && error.name === 'TimeoutError';
 }
 
+// @spec DFF-ETL-014
 export async function waitForScraperPageReady(
   page: Pick<Page, 'waitForLoadState'>,
   source: ScraperResult['source'],

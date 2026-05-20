@@ -26,7 +26,6 @@ type RunEtlOptions = {
   databasePath?: string;
   scrapeKtc?: () => Promise<RawPlayer[]>;
   scrapeFantasycalc?: () => Promise<ScraperResult>;
-  scrapeDynastydaddy?: () => Promise<ScraperResult>;
   scrapeRosteraudit?: () => Promise<ScraperResult>;
   now?: () => string;
 };
@@ -57,6 +56,7 @@ type EtlStatements = {
   insertPickSnapshot: Database.Statement;
 };
 
+// @spec DFF-ETL-002
 function isMissingEtlRunsTableError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -316,6 +316,7 @@ async function runScraper<T extends ScraperResult>(
 // @spec DFF-ETL-011
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
+// @spec DFF-ETL-015
 export async function runScrapers(options: RunScrapersOptions = {}): Promise<ScraperResult[]> {
   const scrapeKtc = options.scrapeKtc ?? scrapeKtcPlayers;
   const scrapeFantasycalc = options.scrapeFantasycalc ?? scrapeFantasyCalc;
@@ -389,12 +390,14 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   }
 }
 
+// @spec DFF-ETL-002
 async function main(): Promise<void> {
   try {
     const exitCode = await runEtl();
     process.exitCode = exitCode;
   } catch (error) {
     if (isMissingEtlRunsTableError(error)) {
+      // @spec DFF-ETL-002
       console.error(
         '[ETL] ERROR: database schema is missing ETL history tables. Run `npm run db:init` to recreate the local SQLite database with the latest schema.',
       );

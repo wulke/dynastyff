@@ -11,21 +11,30 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 **DFF-ETL-001** `[x]`
 The system shall expose an `npm run etl` command that executes the ETL pipeline as a standalone script without requiring the Express server to be running.
 
+**DFF-ETL-002** `[x]`
+When the ETL process detects that the local SQLite database is missing the `etl_runs` table, the system shall print an error message instructing the user to run `npm run db:init` and exit with code 1.
+
 ---
 
 ## Scrapers
 
 **DFF-ETL-010** `[x]` → #3
-The system shall scrape player values and pick values from KTC, FantasyCalc, DynastyDaddy, and RosterAudit using Playwright headless Chromium.
+The system shall implement Playwright headless Chromium scraper modules for KTC, FantasyCalc, DynastyDaddy, and RosterAudit.
 
 **DFF-ETL-011** `[x]` → #3
 The system shall run scrapers with a maximum concurrency of 2 simultaneous scrapers.
 
 **DFF-ETL-012** `[x]` → #3
-Each scraper shall return players typed as `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values typed as `{ year, round, rawValue, tier?: string }`, where `tier` is a free-text string (e.g. `"early"`, `"mid"`, `"late"`) present only when the source partitions a round into sub-picks.
+Each scraper shall return players typed as `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values typed as `{ year, round, rawValue }`.
 
 **DFF-ETL-013** `[x]` → #3
 The system shall restrict `position` values returned by scrapers to: QB, RB, WR, TE.
+
+**DFF-ETL-014** `[x]`
+When `waitForLoadState('networkidle')` times out for a Playwright scraper page, the system shall log a warning and continue scraping the currently loaded DOM instead of failing that scraper immediately.
+
+**DFF-ETL-015** `[x]`
+The live `npm run etl` job shall run the active KTC, FantasyCalc, and RosterAudit scrapers while DynastyDaddy remains disabled from the runtime source list.
 
 ---
 

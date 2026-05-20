@@ -52,6 +52,7 @@ type RawPickValue = {
 ```
 
 Scrapers throw on unrecoverable failure (site unreachable, structure changed). Partial-failure handling is added in issue #6.
+DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` source list due to scraper instability.
 
 ## Concurrency
 
@@ -69,7 +70,7 @@ The current ETL write path is source-aware and history-aware.
 DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` job due to scraper instability.
 
 1. `runScrapers()` launches KTC, FantasyCalc, and RosterAudit with a maximum concurrency of 2.
-2. `runEtl()` inserts an `etl_runs` row at the start of execution with all four attempted sources and `completed_at = NULL`.
+2. `runEtl()` inserts an `etl_runs` row at the start of execution with the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and `completed_at = NULL`.
 3. Each successful source is processed in its own database transaction:
    - normalize that source's player and pick values
    - write raw `player_value_snapshots` and `pick_value_snapshots`
@@ -113,6 +114,13 @@ Multi-source aggregation is specified for issue #4 and has not been implemented 
 ## Partial Failure Behavior
 
 Partial-failure handling is specified for issue #6 and has not been implemented in this slice.
+
+## Edge Case Probe
+
+- Missing `etl_runs` table -> print a `npm run db:init` guidance error and exit with code 1 before attempting any ETL writes
+- Playwright page never reaches `networkidle` -> warn and continue scraping the currently loaded DOM
+- KTC returns no supported players -> exit before any source writes; leave the `etl_runs` row incomplete so draft pinning ignores it
+- DynastyDaddy runtime instability -> keep the scraper module in the codebase, but exclude it from the live `npm run etl` source list until re-enabled
 
 ## Upsert
 

@@ -130,3 +130,6 @@ The system shall persist all state changes to SQLite immediately as they occur; 
 
 **DFF-ENGINE-062** `[x]` → #29
 When a GET /drafts request is received, the system shall return a list of all drafts with: id, created_at, completed_at, status, team_count, and rounds.
+
+**DFF-ENGINE-063** `[x]`
+If an unexpected error occurs while processing a GET /drafts/:id/state or GET /drafts request, the system shall return a 500 error and shall not leave the HTTP response hanging.

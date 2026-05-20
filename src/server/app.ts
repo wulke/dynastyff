@@ -3,6 +3,7 @@
 // @spec DFF-ENGINE-010
 // @spec DFF-ENGINE-060
 // @spec DFF-ENGINE-062
+// @spec DFF-ENGINE-063
 import express, {
   type ErrorRequestHandler,
   type Express,
@@ -47,30 +48,40 @@ export function createDraftRoute({ databasePath }: CreateDraftServerOptions): Re
 }
 
 // @spec DFF-ENGINE-060
+// @spec DFF-ENGINE-063
 export function createDraftStateRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
-  return (request, response) => {
-    const draftId = readDraftIdParam(request);
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
 
-    if (!draftId) {
-      response.status(404).json({ error: 'Draft not found.' });
-      return;
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const state = getDraftState({ databasePath, draftId });
+
+      if (!state) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      response.status(200).json(state);
+    } catch (error) {
+      next(error);
     }
-
-    const state = getDraftState({ databasePath, draftId });
-
-    if (!state) {
-      response.status(404).json({ error: 'Draft not found.' });
-      return;
-    }
-
-    response.status(200).json(state);
   };
 }
 
 // @spec DFF-ENGINE-062
+// @spec DFF-ENGINE-063
 export function createDraftHistoryRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
-  return (_request, response) => {
-    response.status(200).json(getDraftHistory({ databasePath }));
+  return (_request, response, next) => {
+    try {
+      response.status(200).json(getDraftHistory({ databasePath }));
+    } catch (error) {
+      next(error);
+    }
   };
 }
 
@@ -125,7 +136,7 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
       return;
     }
 
-    if (error instanceof SyntaxError) {
+    if (isJsonBodyParseError(error)) {
       response.status(400).json({ error: 'Invalid draft config: request body must be valid JSON.' });
       return;
     }
@@ -146,4 +157,16 @@ function writeSseEvent(
 function readDraftIdParam(request: Request): string | null {
   const draftId = request.params.id;
   return typeof draftId === 'string' ? draftId : null;
+}
+
+function isJsonBodyParseError(error: unknown): error is SyntaxError & {
+  status: number;
+  body: unknown;
+} {
+  return (
+    error instanceof SyntaxError &&
+    'status' in error &&
+    (error as { status?: unknown }).status === 400 &&
+    'body' in error
+  );
 }

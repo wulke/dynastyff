@@ -3,6 +3,7 @@
 // @spec DFF-ENGINE-060
 // @spec DFF-ENGINE-061
 // @spec DFF-ENGINE-062
+// @spec DFF-ENGINE-063
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -249,6 +250,34 @@ test('POST /drafts returns 400 with a descriptive error and does not create a dr
   }
 });
 
+test('createDraftErrorHandler returns 400 for Express JSON body parse failures', () => {
+  const errorHandler = createDraftErrorHandler();
+  const request = {} as Request;
+  let statusCode = 200;
+  let responseBody: unknown;
+  const response = {
+    status(code: number) {
+      statusCode = code;
+      return this;
+    },
+    json(body: unknown) {
+      responseBody = body;
+      return this;
+    },
+  } as Response;
+  const parseError = Object.assign(new SyntaxError('Unexpected token'), {
+    status: 400,
+    body: '{"broken":',
+  });
+
+  errorHandler(parseError, request, response, () => undefined);
+
+  assert.equal(statusCode, 400);
+  assert.deepEqual(responseBody, {
+    error: 'Invalid draft config: request body must be valid JSON.',
+  });
+});
+
 test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for mid-draft hydration', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-state-');
   initializeDatabase(databasePath);
@@ -423,6 +452,123 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
   }
 });
 
+test('GET /drafts/:id/state returns 404 for an unknown draft id', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-state-missing-');
+  initializeDatabase(databasePath);
+
+  try {
+    const response = await invokeRoute({
+      route: createDraftStateRoute({ databasePath }),
+      params: { id: 'nonexistent-id' },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(response.json, { error: 'Draft not found.' });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+test('GET /drafts/:id/state returns 500 when persisted trade JSON cannot be parsed', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-state-error-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-picked', 'Picked Player', 'QB');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const firstSlot = db
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as { id: string };
+
+    recordPick({
+      databasePath,
+      draftOrderId: firstSlot.id,
+      playerId: 'player-picked',
+      now: () => '2026-05-18T20:05:00.000Z',
+      idGenerator: () => 'pick-row-id',
+    });
+
+    const firstTeamId = (
+      db.prepare('SELECT id FROM teams WHERE draft_id = ? ORDER BY pick_position LIMIT 1').get(draftId) as {
+        id: string;
+      }
+    ).id;
+    const secondTeamId = (
+      db.prepare('SELECT id FROM teams WHERE draft_id = ? ORDER BY pick_position LIMIT 1 OFFSET 1').get(draftId) as {
+        id: string;
+      }
+    ).id;
+
+    db.prepare(
+      `INSERT INTO trades (
+        id,
+        draft_id,
+        pick_number,
+        round,
+        initiating_team_id,
+        receiving_team_id,
+        assets_sent,
+        assets_received,
+        status,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'trade-row-id',
+      draftId,
+      1,
+      1,
+      firstTeamId,
+      secondTeamId,
+      'not-json',
+      JSON.stringify([{ type: 'player', player_id: 'player-picked' }]),
+      'declined',
+      '2026-05-18T20:06:00.000Z',
+    );
+
+    const response = await invokeRoute({
+      route: createDraftStateRoute({ databasePath }),
+      params: { id: draftId },
+    });
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.json, { error: 'Internal server error.' });
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
 test('GET /drafts returns all persisted drafts with history metadata', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-history-');
   initializeDatabase(databasePath);
@@ -518,6 +664,37 @@ test('GET /drafts returns all persisted drafts with history metadata', async () 
     ]);
   } finally {
     db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+test('GET /drafts returns an empty array when no drafts exist', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-history-empty-');
+  initializeDatabase(databasePath);
+
+  try {
+    const response = await invokeRoute({
+      route: createDraftHistoryRoute({ databasePath }),
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json, []);
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+test('GET /drafts returns 500 when the drafts table is unavailable', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-history-error-');
+
+  try {
+    const response = await invokeRoute({
+      route: createDraftHistoryRoute({ databasePath }),
+    });
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.json, { error: 'Internal server error.' });
+  } finally {
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
   }
 });

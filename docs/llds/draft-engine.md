@@ -150,6 +150,7 @@ Behavior:
 - `current_pick_number` is derived from the earliest `draft_order` row with no matching `picks` row
 - `assets_sent` and `assets_received` are returned as parsed JSON arrays/objects, not raw SQLite text
 - A missing `draft_id` returns HTTP `404`
+- If any unexpected read or JSON-parse error occurs, the route forwards the exception to the shared Express error handler and returns HTTP `500`
 
 ### GET /drafts
 
@@ -160,6 +161,10 @@ Returns every persisted draft, ordered by `created_at` descending, with:
 - `status`
 - `team_count`
 - `rounds`
+
+Behavior:
+- When no drafts exist, the route returns an empty array
+- If any unexpected database error occurs, the route forwards the exception to the shared Express error handler and returns HTTP `500`
 
 ## Trade Resolution
 

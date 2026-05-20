@@ -70,17 +70,35 @@ function parsePickValue(entry: RosterAuditApiEntry): RawPickValue | null {
 
 function parseEntries(entries: RosterAuditApiEntry[]): { players: RawPlayer[]; pickValues: RawPickValue[] } {
   const players: RawPlayer[] = [];
-  const pickValues: RawPickValue[] = [];
+  // Deduplicate by (year, round): the API can return multiple non-exact entries
+  // for the same round (e.g. early/mid/late generics), which would violate the
+  // UNIQUE(run_id, year, round, source) snapshot constraint.
+  const pickValueAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();
 
   for (const entry of entries) {
     if (entry.type === 'pick' || entry.position === 'PICK') {
       const pick = parsePickValue(entry);
-      if (pick) pickValues.push(pick);
+      if (pick) {
+        const key = `${pick.year}-${pick.round}`;
+        const acc = pickValueAccumulator.get(key);
+        if (acc) {
+          acc.sum += pick.rawValue;
+          acc.count += 1;
+        } else {
+          pickValueAccumulator.set(key, { sum: pick.rawValue, count: 1, year: pick.year, round: pick.round });
+        }
+      }
     } else {
       const player = parsePlayer(entry);
       if (player) players.push(player);
     }
   }
+
+  const pickValues: RawPickValue[] = Array.from(pickValueAccumulator.values()).map(({ sum, count, year, round }) => ({
+    year,
+    round,
+    rawValue: sum / count,
+  }));
 
   return { players, pickValues };
 }

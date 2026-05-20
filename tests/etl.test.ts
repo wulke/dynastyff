@@ -35,7 +35,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 import { initializeDatabase } from '../src/db/init.js';
-import { normalizePlayers } from '../src/etl/normalize.js';
+import { normalizePickValues, normalizePlayers } from '../src/etl/normalize.js';
 import { runEtl, runScrapers } from '../src/etl/index.js';
 import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
@@ -196,6 +196,26 @@ test('normalizePlayers assigns 9999 when all supported players share the same ra
   assert.deepEqual(
     normalizePlayers(players).map((player) => player.normalizedValue),
     [9999, 9999],
+  );
+});
+
+// @spec DFF-ETL-031
+test('normalizePickValues min-max scales pick values to 0..9999', () => {
+  assert.deepEqual(
+    normalizePickValues([
+      { year: 2027, round: 1, rawValue: 100 },
+      { year: 2027, round: 2, rawValue: 200 },
+      { year: 2028, round: 1, rawValue: 300 },
+    ]).map((pickValue) => ({
+      year: pickValue.year,
+      round: pickValue.round,
+      normalizedValue: pickValue.normalizedValue,
+    })),
+    [
+      { year: 2027, round: 1, normalizedValue: 0 },
+      { year: 2027, round: 2, normalizedValue: 5000 },
+      { year: 2028, round: 1, normalizedValue: 9999 },
+    ],
   );
 });
 
@@ -516,6 +536,101 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
         updated_at: '2026-05-18T20:00:00.000Z',
       },
     ]);
+  } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-ETL-031
+// @spec DFF-ETL-041
+// @spec DFF-ETL-070
+// @spec DFF-ETL-071
+// @spec DFF-DATA-011
+// @spec DFF-DATA-012
+test('runEtl aggregates pick values across sources and updates existing year-round rows in place', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+
+  try {
+    db.prepare(
+      `INSERT INTO pick_values (
+        id,
+        year,
+        round,
+        dynasty_value,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run('pick-2027-1', 2027, 1, 1234, '2026-05-18T09:00:00.000Z');
+
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => [
+        {
+          name: 'Alpha QB',
+          position: 'QB',
+          nflTeam: 'BUF',
+          age: 24,
+          isRookie: false,
+          rawValue: 100,
+          adp: 10,
+        },
+      ],
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [],
+        pickValues: [
+          { year: 2027, round: 1, rawValue: 100 },
+          { year: 2028, round: 1, rawValue: 300 },
+        ],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [],
+        pickValues: [
+          { year: 2027, round: 1, rawValue: 600 },
+          { year: 2029, round: 1, rawValue: 200 },
+        ],
+      }),
+      now: () => '2026-05-20T07:00:00.000Z',
+    });
+
+    const rows = db
+      .prepare(
+        `SELECT
+          id,
+          year,
+          round,
+          dynasty_value,
+          updated_at
+         FROM pick_values
+         ORDER BY year, round`,
+      )
+      .all();
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(rows, [
+      {
+        id: 'pick-2027-1',
+        year: 2027,
+        round: 1,
+        dynasty_value: 5000,
+        updated_at: '2026-05-20T07:00:00.000Z',
+      },
+      {
+        id: rows[1]?.id,
+        year: 2028,
+        round: 1,
+        dynasty_value: 9999,
+        updated_at: '2026-05-20T07:00:00.000Z',
+      },
+      {
+        id: rows[2]?.id,
+        year: 2029,
+        round: 1,
+        dynasty_value: 0,
+        updated_at: '2026-05-20T07:00:00.000Z',
+      },
+    ]);
+    assert.equal(new Set(rows.map((row) => row.id)).size, 3);
   } finally {
     cleanup();
   }

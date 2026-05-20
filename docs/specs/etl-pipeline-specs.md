@@ -40,19 +40,19 @@ The live `npm run etl` job shall run the active KTC, FantasyCalc, and RosterAudi
 
 ## Player Matching
 
-**DFF-ETL-020** `[ ]` → #4
+**DFF-ETL-020** `[x]` → #4
 The system shall match players across sources by first attempting an exact match on normalized name and position.
 
-**DFF-ETL-021** `[ ]` → #4
+**DFF-ETL-021** `[x]` → #4
 When an exact name match fails, the system shall attempt a fuzzy match using Dice coefficient on player name, restricted to players at the same position, and accept the match only if the score is ≥ 0.85.
 
-**DFF-ETL-022** `[ ]` → #4
+**DFF-ETL-022** `[x]` → #4
 When a fuzzy match fails, the system shall consult `player-aliases.json` for a hard-coded canonical-to-variant override before declaring a match failure.
 
-**DFF-ETL-023** `[ ]` → #4
+**DFF-ETL-023** `[x]` → #4
 When a player from a non-primary source cannot be matched to any canonical player after fuzzy match and alias lookup, the system shall log a warning and exclude that source's value for that player; the ETL run shall continue.
 
-**DFF-ETL-024** `[ ]` → #4
+**DFF-ETL-024** `[x]` → #4
 The system shall use the following source priority order for canonical player name and metadata: KTC → FantasyCalc → DynastyDaddy → RosterAudit.
 
 ---
@@ -72,7 +72,7 @@ When a source returns only one player or pick value (degenerate case), the syste
 
 ## Aggregation
 
-**DFF-ETL-040** `[ ]` → #4
+**DFF-ETL-040** `[x]` → #4
 The system shall compute `dynasty_value` for each player as the rounded mean of all non-NULL normalized per-source values for that player.
 
 **DFF-ETL-041** `[ ]` → #5
@@ -98,13 +98,13 @@ When upserting a player whose per-source column would come from a failed scraper
 
 ## Upsert — Players
 
-**DFF-ETL-060** `[ ]` → #4
+**DFF-ETL-060** `[x]` → #4
 When a player already exists in `players` (matched by name and position), the system shall update `dynasty_value`, all non-NULL per-source value columns (`value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, `value_rosteraudit`), `adp` (if provided by any source), and `updated_at`.
 
-**DFF-ETL-061** `[ ]` → #4
+**DFF-ETL-061** `[x]` → #4
 When a player does not exist in `players`, the system shall insert a new row with a generated UUID and all available attributes.
 
-**DFF-ETL-062** `[ ]` → #4
+**DFF-ETL-062** `[x]` → #4
 The system shall set `value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, and `value_rosteraudit` to NULL for any source that did not provide a value for a given player (either due to scraper failure or failed player matching).
 
 ---
@@ -140,8 +140,8 @@ Sub-pick normalization shall be applied source-agnostically: any scraper that re
 
 ## Aliases
 
-**DFF-ETL-080** `[ ]` → #4
+**DFF-ETL-080** `[x]` → #4
 The system shall load `player-aliases.json` from the project root at ETL startup and apply it during player matching.
 
-**DFF-ETL-081** `[ ]` → #4
+**DFF-ETL-081** `[x]` → #4
 The `player-aliases.json` file shall support entries of the form `{ canonical: string, variants: string[] }` where any variant name is treated as equivalent to the canonical name during matching.

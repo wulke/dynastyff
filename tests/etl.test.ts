@@ -4,8 +4,19 @@
 // @spec DFF-ETL-012
 // @spec DFF-ETL-014
 // @spec DFF-ETL-015
+// @spec DFF-ETL-020
+// @spec DFF-ETL-021
+// @spec DFF-ETL-022
+// @spec DFF-ETL-023
+// @spec DFF-ETL-024
 // @spec DFF-ETL-030
 // @spec DFF-ETL-032
+// @spec DFF-ETL-040
+// @spec DFF-ETL-060
+// @spec DFF-ETL-061
+// @spec DFF-ETL-062
+// @spec DFF-ETL-080
+// @spec DFF-ETL-081
 // @spec DFF-HIST-002
 // @spec DFF-HIST-040
 // @spec DFF-HIST-041
@@ -586,6 +597,209 @@ test('runEtl updates an existing player matched by name and position', async () 
       updated_at: '2026-05-18T21:00:00.000Z',
     });
   } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-ETL-020
+// @spec DFF-ETL-021
+// @spec DFF-ETL-022
+// @spec DFF-ETL-023
+// @spec DFF-ETL-024
+// @spec DFF-ETL-040
+// @spec DFF-ETL-060
+// @spec DFF-ETL-061
+// @spec DFF-ETL-062
+// @spec DFF-ETL-080
+// @spec DFF-ETL-081
+test('runEtl matches non-KTC players by exact name, fuzzy name, and alias while excluding unmatched players', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-aliases-'));
+  const aliasesPath = path.join(tempDir, 'player-aliases.json');
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  fs.writeFileSync(
+    aliasesPath,
+    JSON.stringify({
+      aliases: [
+        {
+          canonical: 'Odell Beckham Jr.',
+          variants: ['Odell Beckham'],
+        },
+      ],
+    }),
+  );
+
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      aliasesPath,
+      scrapeKtc: async () => [
+        {
+          name: 'Odell Beckham Jr.',
+          position: 'WR',
+          nflTeam: 'MIA',
+          age: 31,
+          isRookie: false,
+          rawValue: 100,
+          adp: 10,
+        },
+        {
+          name: 'Jaxon Smith-Njigba',
+          position: 'WR',
+          nflTeam: 'SEA',
+          age: 23,
+          isRookie: false,
+          rawValue: 200,
+          adp: 20,
+        },
+        {
+          name: 'Brian Thomas Jr.',
+          position: 'WR',
+          nflTeam: 'JAX',
+          age: 22,
+          isRookie: true,
+          rawValue: 300,
+          adp: 30,
+        },
+      ],
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [
+          {
+            name: 'Odell Beckham',
+            position: 'WR',
+            nflTeam: 'LAR',
+            age: 29,
+            isRookie: false,
+            rawValue: 500,
+            adp: 99,
+          },
+          {
+            name: 'Jaxon Smith Njigba',
+            position: 'WR',
+            nflTeam: 'NYJ',
+            age: 28,
+            isRookie: false,
+            rawValue: 600,
+            adp: 98,
+          },
+          {
+            name: 'Brian Thomas Jr.',
+            position: 'WR',
+            nflTeam: 'BUF',
+            age: 27,
+            isRookie: false,
+            rawValue: 700,
+            adp: 97,
+          },
+          {
+            name: 'Unmatched Receiver',
+            position: 'WR',
+            nflTeam: 'CHI',
+            age: 24,
+            isRookie: false,
+            rawValue: 800,
+            adp: 96,
+          },
+        ],
+        pickValues: [],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [
+          {
+            name: 'Brian Thomas Jr.',
+            position: 'WR',
+            nflTeam: 'DAL',
+            age: 25,
+            isRookie: false,
+            rawValue: 900,
+            adp: 95,
+          },
+        ],
+        pickValues: [],
+      }),
+      now: () => '2026-05-20T01:00:00.000Z',
+    });
+
+    const players = db
+      .prepare(
+        `SELECT
+          name,
+          nfl_team,
+          age,
+          is_rookie,
+          dynasty_value,
+          value_ktc,
+          value_fantasycalc,
+          value_dynastydaddy,
+          value_rosteraudit,
+          adp
+        FROM players
+        ORDER BY name`,
+      )
+      .all();
+    const fantasycalcSnapshots = db
+      .prepare(
+        `SELECT player_id, source, raw_value
+         FROM player_value_snapshots
+         WHERE source = 'fantasycalc'
+         ORDER BY raw_value`,
+      )
+      .all();
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(players, [
+      {
+        name: 'Brian Thomas Jr.',
+        nfl_team: 'JAX',
+        age: 22,
+        is_rookie: 1,
+        dynasty_value: 8888,
+        value_ktc: 9999,
+        value_fantasycalc: 6666,
+        value_dynastydaddy: null,
+        value_rosteraudit: 9999,
+        adp: 30,
+      },
+      {
+        name: 'Jaxon Smith-Njigba',
+        nfl_team: 'SEA',
+        age: 23,
+        is_rookie: 0,
+        dynasty_value: 4167,
+        value_ktc: 5000,
+        value_fantasycalc: 3333,
+        value_dynastydaddy: null,
+        value_rosteraudit: null,
+        adp: 20,
+      },
+      {
+        name: 'Odell Beckham Jr.',
+        nfl_team: 'MIA',
+        age: 31,
+        is_rookie: 0,
+        dynasty_value: 0,
+        value_ktc: 0,
+        value_fantasycalc: 0,
+        value_dynastydaddy: null,
+        value_rosteraudit: null,
+        adp: 10,
+      },
+    ]);
+    assert.equal(fantasycalcSnapshots.length, 3);
+    assert.deepEqual(warnings, [
+      "[ETL] WARN: fantasycalc player 'Unmatched Receiver' (WR) could not be matched to a canonical player. Excluding from this run.",
+    ]);
+  } finally {
+    console.warn = originalWarn;
+    fs.rmSync(tempDir, { recursive: true, force: true });
     cleanup();
   }
 });

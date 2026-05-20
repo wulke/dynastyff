@@ -22,7 +22,7 @@ The system shall scrape player values and pick values from KTC, FantasyCalc, Dyn
 The system shall run scrapers with a maximum concurrency of 2 simultaneous scrapers.
 
 **DFF-ETL-012** `[x]` → #3
-Each scraper shall return players typed as `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values typed as `{ year, round, rawValue }`.
+Each scraper shall return players typed as `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values typed as `{ year, round, rawValue, tier?: string }`, where `tier` is a free-text string (e.g. `"early"`, `"mid"`, `"late"`) present only when the source partitions a round into sub-picks.
 
 **DFF-ETL-013** `[x]` → #3
 The system shall restrict `position` values returned by scrapers to: QB, RB, WR, TE.
@@ -107,6 +107,25 @@ When a `(year, round)` entry already exists in `pick_values`, the system shall u
 
 **DFF-ETL-071** `[ ]` → #5
 When a `(year, round)` entry does not exist in `pick_values`, the system shall insert a new row with a generated UUID.
+
+---
+
+## Sub-Pick Normalization
+
+**DFF-ETL-090** `[ ]`
+When parsing pick asset names from a scraper source, the system shall use a regex to extract `year` (4-digit integer), `round` (ordinal: 1st→1, 2nd→2, 3rd→3, 4th→4), and optional `tier` (case-insensitive keyword: early, mid, late). Asset names that match year + round but contain no tier keyword shall be treated as plain picks with `tier: undefined`. Asset names that do not match year + round shall be treated as player assets.
+
+**DFF-ETL-091** `[ ]`
+After scraping, for each source the system shall group sub-pick rows by `(year, round)` and compute an averaged row with `rawValue` equal to the arithmetic mean of all available tier raw values for that group. The averaged row shall have `tier: undefined`. Averaging shall proceed with whatever tiers are present; a complete set is not required.
+
+**DFF-ETL-092** `[ ]`
+The system shall write both the raw sub-pick rows (with tier) and the averaged rows (without tier) to `pickValueSnapshots`, storing the tier value in a nullable `tier` varchar column. A null `tier` indicates an averaged or plain pick row; a non-null `tier` indicates a raw sub-pick row.
+
+**DFF-ETL-093** `[ ]`
+The system shall apply min-max normalization to all pick value rows — both raw sub-pick rows and averaged rows — producing a `normalizedValue` for each. Normalization shall be applied per-source across all pick rows for that source (sub-picks and averaged rows combined).
+
+**DFF-ETL-094** `[ ]`
+Sub-pick normalization shall be applied source-agnostically: any scraper that returns pick values with a `tier` field shall have its sub-picks averaged and stored without changes to scraper-specific logic.
 
 ---
 

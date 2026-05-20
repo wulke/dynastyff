@@ -27,22 +27,26 @@ while [[ $# -gt 0 ]]; do
 done
 AGENT="${args[0]:-claude}"
 
+# Returns "in-progress" if the issue has that label, exits on other blocking conditions.
 validate_issue() {
   local issue="$1"
   local number
   number=$(echo "$issue" | jq -r '.number')
 
-  # Check closed state
   local state
   state=$(echo "$issue" | jq -r '.state')
   [[ "$state" == "CLOSED" ]] && { echo "Error: Issue #$number is already closed." >&2; exit 1; }
 
-  # Check blocking labels
   local blocking_label
   blocking_label=$(echo "$issue" | jq -r '.labels | map(.name) | .[] | select(. == "blocked" or . == "needs-info" or . == "needs-triage" or . == "in-progress")' | head -1)
+
+  if [[ "$blocking_label" == "in-progress" ]]; then
+    echo "in-progress"
+    return 0
+  fi
+
   [[ -n "$blocking_label" ]] && { echo "Error: Issue #$number has label \"$blocking_label\"." >&2; exit 1; }
 
-  # Check open dependencies
   local body deps
   body=$(echo "$issue" | jq -r '.body')
   deps=$(echo "$body" | awk 'tolower($0) ~ /^## *(blocked by|depends on)/{f=1;next} /^##/{f=0} f{print}' | grep -oE '#[0-9]+' | tr -d '#' || true)
@@ -54,24 +58,74 @@ validate_issue() {
   return 0
 }
 
+# Checks out the PR branch for an in-progress issue and returns PR metadata.
+# Prints: "<pr_number> <branch>" on success, exits on error.
+pickup_pr() {
+  local issue_number="$1"
+
+  # Find open PRs referencing this issue
+  local prs
+  prs=$(gh pr list --state open --json number,title,headRefName,body \
+    --search "Closes #${issue_number}" --limit 10)
+
+  local pr_count
+  pr_count=$(echo "$prs" | jq 'length')
+
+  if [[ "$pr_count" -eq 0 ]]; then
+    echo "Error: Issue #${issue_number} is marked in-progress but no open PR was found. Resolve manually." >&2
+    exit 1
+  fi
+
+  if [[ "$pr_count" -gt 1 ]]; then
+    echo "Error: Multiple open PRs found for issue #${issue_number}. Resolve manually." >&2
+    exit 1
+  fi
+
+  local pr_number pr_branch pr_description pr_diff
+  pr_number=$(echo "$prs" | jq -r '.[0].number')
+  pr_branch=$(echo "$prs" | jq -r '.[0].headRefName')
+  pr_description=$(echo "$prs" | jq -r '.[0].body')
+
+  # Abort if working tree is dirty
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Error: Uncommitted local changes detected. Stash or commit them before picking up PR #${pr_number}." >&2
+    exit 1
+  fi
+
+  echo "Checking out branch: $pr_branch" >&2
+  git checkout "$pr_branch"
+  git pull
+
+  # Bring in merged work from main
+  git fetch origin main
+  if ! git merge origin/main --no-edit 2>&1; then
+    echo "Error: Merge conflicts when integrating origin/main into ${pr_branch}. Resolve conflicts manually, then re-run." >&2
+    exit 1
+  fi
+
+  pr_diff=$(gh pr diff "$pr_number" 2>/dev/null || echo "(diff unavailable)")
+
+  # Output structured pickup context for the caller
+  printf '%s\n---PR_DESCRIPTION---\n%s\n---PR_DIFF---\n%s' \
+    "$pr_number" "$pr_description" "$pr_diff"
+}
+
 if [[ -n "$ISSUE_NUMBER" ]]; then
   if ! selected=$(gh issue view "$ISSUE_NUMBER" --json number,title,labels,body,state); then
     echo "Error: Could not fetch issue #$ISSUE_NUMBER." >&2
     exit 1
   fi
-  validate_issue "$selected"
+  validation_result=$(validate_issue "$selected")
 else
   issues_json=$(gh issue list --state open --json number,title,labels,body --limit 100)
   [[ -z "$issues_json" || "$issues_json" == "[]" ]] && { echo "Error: No open issues found." >&2; exit 1; }
 
   open_numbers=$(echo "$issues_json" | jq '[.[].number]')
 
-  # Filter label-blocked issues, sort by priority
   candidates=$(echo "$issues_json" | jq -c '
     map(select(.labels | map(.name) | any(. == "blocked" or . == "needs-info" or . == "needs-triage" or . == "in-progress") | not)) |
     sort_by(if (.labels | map(.name) | any(. == "bug")) then 0 elif (.labels | map(.name) | any(. == "ready-for-agent")) then 1 else 2 end) | .[]')
 
-  # Walk sorted candidates; pick first with no open dependencies
   selected=""
   while IFS= read -r issue; do
     body=$(echo "$issue" | jq -r '.body')
@@ -84,6 +138,7 @@ else
   done <<< "$candidates"
 
   [[ -z "$selected" ]] && { echo "Error: No actionable issues found." >&2; exit 1; }
+  validation_result=""
 fi
 
 echo "Working on #$(echo "$selected" | jq -r '.number'): $(echo "$selected" | jq -r '.title')"
@@ -105,6 +160,29 @@ $all_issues
 Work on and close issue #$(echo "$selected" | jq -r '.number'): $(echo "$selected" | jq -r '.title')
 
 $(echo "$selected" | jq -r '.body')"
+
+# If picking up an in-progress PR, append resume context
+if [[ "${validation_result:-}" == "in-progress" ]]; then
+  pickup_output=$(pickup_pr "$(echo "$selected" | jq -r '.number')")
+  pr_number=$(echo "$pickup_output" | awk '/---PR_DESCRIPTION---/{exit} {print}')
+  pr_description=$(echo "$pickup_output" | awk '/---PR_DESCRIPTION---/{f=1;next} /---PR_DIFF---/{f=0} f{print}')
+  pr_diff=$(echo "$pickup_output" | awk '/---PR_DIFF---/{f=1;next} f{print}')
+
+  context="$context
+
+## Resuming In-Progress Work
+You are picking up an existing PR (#${pr_number}) for this issue. The branch has already been checked out and merged with the latest main.
+
+### PR Description
+${pr_description}
+
+### PR Diff (current state of the branch)
+\`\`\`diff
+${pr_diff}
+\`\`\`
+
+Do not re-do work already reflected in the diff above. Focus on what remains unfinished, any review feedback, or new requirements described in the issue or its comments."
+fi
 
 if [[ "$AGENT" == "codex" ]]; then
   codex "$context"

@@ -83,6 +83,6 @@ When a draft is created, the system shall set `drafts.etl_run_id` to the id of t
 **DFF-HIST-061** `[x]` → #33
 When no completed ETL run exists at draft creation time, the system shall set `drafts.etl_run_id` to NULL.
 
-**DFF-HIST-062** `[ ]` → #33
+**DFF-HIST-062** `[ ]` → #47
 When `drafts.etl_run_id` is NULL, the system shall fall back to reading current player values directly from `players` for all draft operations.
 Status note: current draft operations still use `players` because snapshot-based draft value reads have not been implemented yet; explicit fallback branching remains future work.

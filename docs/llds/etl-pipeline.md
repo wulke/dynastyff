@@ -80,7 +80,17 @@ DynastyDaddy remains implemented as a scraper module, but it is temporarily excl
 
 ## Player Matching
 
-Cross-source player matching is specified for issue #4 and has not been implemented in this slice.
+Cross-source player matching is implemented during ETL startup before non-KTC source values are written into the hot `players` table.
+
+1. Load `player-aliases.json` from the project root once at ETL startup.
+2. Normalize each source's player values independently with the existing min-max path.
+3. Write KTC players first so KTC establishes the canonical player rows and metadata for the run.
+4. For each non-KTC player, attempt to match an existing canonical row at the same position in this order:
+   - exact match on normalized name
+   - highest Dice-coefficient fuzzy match on normalized name, accepted only if score is `>= 0.85`
+   - alias lookup using `player-aliases.json`
+5. When a non-KTC player matches, update that source's value column, update `adp` when the source provides a non-NULL `adp`, recompute `dynasty_value` as the rounded mean of all non-NULL per-source values, and keep the canonical name / metadata from the highest-priority matched source.
+6. When a non-KTC player does not match, log a warning and exclude that player from the hot `players` table for the run.
 
 **`player-aliases.json` format:**
 
@@ -94,6 +104,9 @@ Cross-source player matching is specified for issue #4 and has not been implemen
   ]
 }
 ```
+
+If `player-aliases.json` is absent at ETL startup, ETL continues with an empty alias list and logs a warning.
+If `player-aliases.json` exists but contains malformed JSON, ETL fails before any database writes with a clear configuration error.
 
 ## Normalization
 
@@ -109,7 +122,11 @@ normalized = round((raw - min) / (max - min) * 9999)
 
 ## Aggregation
 
-Multi-source aggregation is specified for issue #4 and has not been implemented in this slice.
+Player aggregation is implemented as the rounded mean of the non-NULL normalized source columns:
+
+`round(mean(value_ktc, value_fantasycalc, value_dynastydaddy, value_rosteraudit))`
+
+Only source columns that successfully matched the canonical player row participate in the mean.
 
 ## Partial Failure Behavior
 
@@ -127,9 +144,12 @@ Partial-failure handling is specified for issue #6 and has not been implemented 
 All writes use Drizzle ORM against the shared SQLite database.
 
 **Players:**
-- Match on `players.name + players.position` (not ID, since IDs are not shared across sources).
-- On match: update `dynasty_value`, all `value_*` columns (non-NULL only), `adp` (if source provided), and `updated_at`.
-- On no match: insert a new row with a generated UUID.
+- Canonical rows are established by the highest-priority matched source: `KTC -> FantasyCalc -> DynastyDaddy -> RosterAudit`.
+- Existing row matching uses normalized-name exact match first, then same-position Dice fuzzy match, then alias override.
+- On KTC match: update canonical name, metadata, `value_ktc`, `dynasty_value`, `adp` when provided, and `updated_at`.
+- On non-KTC match: update the corresponding `value_*` column, update `adp` when provided, recompute `dynasty_value`, and update `updated_at`.
+- On unmatched KTC row: insert a new row with a generated UUID and `NULL` for all missing source columns.
+- On unmatched non-KTC row: log a warning and exclude that player's value from the hot `players` table for the run.
 
 **Pick values:**
 - Pick value persistence is specified for issue #5 and has not been implemented in this slice.

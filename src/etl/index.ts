@@ -12,11 +12,20 @@
 // @spec DFF-HIST-051
 // @spec DFF-HIST-052
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
 import type Database from 'better-sqlite3';
 
 import { createDatabase } from '../db/client.js';
 import { normalizePickValues, normalizePlayers } from './normalize.js';
+import {
+  computeAggregatedDynastyValue,
+  createUnmatchedPlayerWarning,
+  loadAliasFamilies,
+  matchPlayerCandidate,
+  type AliasFamily,
+  type PlayerMatchCandidate,
+} from './player-matching.js';
 import { scrapeFantasyCalc } from './scraper/fantasycalc.js';
 import { scrapeKtcPlayers } from './scraper/ktc.js';
 import { scrapeRosterAudit } from './scraper/rosteraudit.js';
@@ -24,6 +33,7 @@ import { type EtlSource, type NormalizedPickValue, type NormalizedPlayer, type R
 
 type RunEtlOptions = {
   databasePath?: string;
+  aliasesPath?: string;
   scrapeKtc?: () => Promise<RawPlayer[]>;
   scrapeFantasycalc?: () => Promise<ScraperResult>;
   scrapeRosteraudit?: () => Promise<ScraperResult>;
@@ -40,10 +50,12 @@ const activeEtlSources = ['ktc', 'fantasycalc', 'rosteraudit'] as const satisfie
 type PlayerIdRow = { id: string };
 type PickValueIdRow = { id: string };
 
+type PlayerRow = PlayerMatchCandidate;
+
 type EtlStatements = {
   insertRun: Database.Statement;
   updateRunCompletion: Database.Statement;
-  selectPlayerId: Database.Statement<[string, string], PlayerIdRow | undefined>;
+  selectPlayersByPosition: Database.Statement<[string], PlayerRow>;
   insertPlayer: Database.Statement;
   updateKtcPlayer: Database.Statement;
   updateFantasycalcPlayer: Database.Statement;
@@ -78,10 +90,21 @@ function createStatements(sqlite: Database.Database): EtlStatements {
        SET completed_at = ?, sources_succeeded = ?
        WHERE id = ?`,
     ),
-    selectPlayerId: sqlite.prepare(
-      `SELECT id
+    selectPlayersByPosition: sqlite.prepare(
+      `SELECT
+         id,
+         name,
+         position,
+         nfl_team AS nflTeam,
+         age,
+         is_rookie AS isRookie,
+         adp,
+         value_ktc AS valueKtc,
+         value_fantasycalc AS valueFantasycalc,
+         value_dynastydaddy AS valueDynastydaddy,
+         value_rosteraudit AS valueRosteraudit
        FROM players
-       WHERE name = ? AND position = ?`,
+       WHERE position = ?`,
     ),
     insertPlayer: sqlite.prepare(
       `INSERT INTO players (
@@ -102,7 +125,8 @@ function createStatements(sqlite: Database.Database): EtlStatements {
     ),
     updateKtcPlayer: sqlite.prepare(
       `UPDATE players
-       SET nfl_team = ?,
+       SET name = ?,
+           nfl_team = ?,
            age = ?,
            is_rookie = ?,
            dynasty_value = ?,
@@ -113,19 +137,25 @@ function createStatements(sqlite: Database.Database): EtlStatements {
     ),
     updateFantasycalcPlayer: sqlite.prepare(
       `UPDATE players
-       SET value_fantasycalc = ?,
+       SET dynasty_value = ?,
+           value_fantasycalc = ?,
+           adp = ?,
            updated_at = ?
        WHERE id = ?`,
     ),
     updateDynastydaddyPlayer: sqlite.prepare(
       `UPDATE players
-       SET value_dynastydaddy = ?,
+       SET dynasty_value = ?,
+           value_dynastydaddy = ?,
+           adp = ?,
            updated_at = ?
        WHERE id = ?`,
     ),
     updateRosterauditPlayer: sqlite.prepare(
       `UPDATE players
-       SET value_rosteraudit = ?,
+       SET dynasty_value = ?,
+           value_rosteraudit = ?,
+           adp = ?,
            updated_at = ?
        WHERE id = ?`,
     ),
@@ -157,23 +187,50 @@ function createStatements(sqlite: Database.Database): EtlStatements {
   };
 }
 
+function getPlayerCandidates(
+  statements: EtlStatements,
+  position: string,
+): PlayerRow[] {
+  return statements.selectPlayersByPosition.all(position);
+}
+
+function matchExistingPlayer(
+  statements: EtlStatements,
+  player: NormalizedPlayer,
+  aliasFamilies: AliasFamily[],
+): PlayerRow | undefined {
+  return matchPlayerCandidate(player.name, getPlayerCandidates(statements, player.position), aliasFamilies);
+}
+
+// @spec DFF-ETL-040
+// @spec DFF-ETL-060
+// @spec DFF-ETL-061
 function writeKtcPlayer(
   statements: EtlStatements,
   runId: string,
   player: NormalizedPlayer,
   timestamp: string,
+  aliasFamilies: AliasFamily[],
 ): void {
-  const existing = statements.selectPlayerId.get(player.name, player.position);
+  const existing = matchExistingPlayer(statements, player, aliasFamilies);
   const playerId = existing?.id ?? randomUUID();
 
   if (existing) {
+    const dynastyValue = computeAggregatedDynastyValue([
+      player.normalizedValue,
+      existing.valueFantasycalc,
+      existing.valueDynastydaddy,
+      existing.valueRosteraudit,
+    ]);
+
     statements.updateKtcPlayer.run(
+      player.name,
       player.nflTeam,
       player.age,
       player.isRookie ? 1 : 0,
+      dynastyValue,
       player.normalizedValue,
-      player.normalizedValue,
-      player.adp,
+      player.adp ?? existing.adp,
       timestamp,
       playerId,
     );
@@ -198,25 +255,70 @@ function writeKtcPlayer(
   statements.insertPlayerSnapshot.run(randomUUID(), runId, playerId, 'ktc', player.rawValue);
 }
 
+// @spec DFF-ETL-023
+// @spec DFF-ETL-040
+// @spec DFF-ETL-060
 function writeMatchedSourcePlayer(
   statements: EtlStatements,
   runId: string,
   source: Exclude<EtlSource, 'ktc'>,
   player: NormalizedPlayer,
   timestamp: string,
+  aliasFamilies: AliasFamily[],
 ): void {
-  const existing = statements.selectPlayerId.get(player.name, player.position);
+  const existing = matchExistingPlayer(statements, player, aliasFamilies);
 
   if (!existing) {
+    console.warn(createUnmatchedPlayerWarning(source, player.name, player.position));
     return;
   }
 
+  const dynastyValue =
+    source === 'fantasycalc'
+      ? computeAggregatedDynastyValue([
+          existing.valueKtc,
+          player.normalizedValue,
+          existing.valueDynastydaddy,
+          existing.valueRosteraudit,
+        ])
+      : source === 'dynastydaddy'
+        ? computeAggregatedDynastyValue([
+            existing.valueKtc,
+            existing.valueFantasycalc,
+            player.normalizedValue,
+            existing.valueRosteraudit,
+          ])
+        : computeAggregatedDynastyValue([
+            existing.valueKtc,
+            existing.valueFantasycalc,
+            existing.valueDynastydaddy,
+            player.normalizedValue,
+          ]);
+
   if (source === 'fantasycalc') {
-    statements.updateFantasycalcPlayer.run(player.normalizedValue, timestamp, existing.id);
+    statements.updateFantasycalcPlayer.run(
+      dynastyValue,
+      player.normalizedValue,
+      player.adp ?? existing.adp,
+      timestamp,
+      existing.id,
+    );
   } else if (source === 'dynastydaddy') {
-    statements.updateDynastydaddyPlayer.run(player.normalizedValue, timestamp, existing.id);
+    statements.updateDynastydaddyPlayer.run(
+      dynastyValue,
+      player.normalizedValue,
+      player.adp ?? existing.adp,
+      timestamp,
+      existing.id,
+    );
   } else {
-    statements.updateRosterauditPlayer.run(player.normalizedValue, timestamp, existing.id);
+    statements.updateRosterauditPlayer.run(
+      dynastyValue,
+      player.normalizedValue,
+      player.adp ?? existing.adp,
+      timestamp,
+      existing.id,
+    );
   }
 
   statements.insertPlayerSnapshot.run(randomUUID(), runId, existing.id, source, player.rawValue);
@@ -259,6 +361,7 @@ function writeSourceData(
   runId: string,
   result: ScraperResult,
   timestamp: string,
+  aliasFamilies: AliasFamily[],
 ): void {
   const normalizedPlayers = normalizePlayers(result.players);
   const normalizedPickValues = normalizePickValues(result.pickValues);
@@ -266,9 +369,9 @@ function writeSourceData(
   const transaction = sqlite.transaction(() => {
     for (const player of normalizedPlayers) {
       if (result.source === 'ktc') {
-        writeKtcPlayer(statements, runId, player, timestamp);
+        writeKtcPlayer(statements, runId, player, timestamp, aliasFamilies);
       } else {
-        writeMatchedSourcePlayer(statements, runId, result.source, player, timestamp);
+        writeMatchedSourcePlayer(statements, runId, result.source, player, timestamp, aliasFamilies);
       }
     }
 
@@ -350,6 +453,9 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const runId = randomUUID();
 
   try {
+    const aliasFamilies = loadAliasFamilies(
+      options.aliasesPath ?? path.resolve(process.cwd(), 'player-aliases.json'),
+    );
     const statements = createStatements(sqlite);
 
     console.log('[ETL] Starting ETL run...');
@@ -374,7 +480,7 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
       }
 
       try {
-        writeSourceData(sqlite, statements, runId, result, timestamp);
+        writeSourceData(sqlite, statements, runId, result, timestamp, aliasFamilies);
         sourcesSucceeded.push(source);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -391,6 +497,11 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   }
 }
 
+// @spec DFF-ETL-083
+function isAliasConfigurationError(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith('[ETL] ERROR: aliases file');
+}
+
 // @spec DFF-ETL-002
 async function main(): Promise<void> {
   try {
@@ -402,6 +513,12 @@ async function main(): Promise<void> {
       console.error(
         '[ETL] ERROR: database schema is missing ETL history tables. Run `npm run db:init` to recreate the local SQLite database with the latest schema.',
       );
+      process.exitCode = 1;
+      return;
+    }
+
+    if (isAliasConfigurationError(error)) {
+      console.error((error as Error).message);
       process.exitCode = 1;
       return;
     }

@@ -450,12 +450,12 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
 export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const timestamp = options.now?.() ?? new Date().toISOString();
   const sqlite = createDatabase(options.databasePath);
-  const aliasFamilies = loadAliasFamilies(
-    options.aliasesPath ?? path.resolve(process.cwd(), 'player-aliases.json'),
-  );
   const runId = randomUUID();
 
   try {
+    const aliasFamilies = loadAliasFamilies(
+      options.aliasesPath ?? path.resolve(process.cwd(), 'player-aliases.json'),
+    );
     const statements = createStatements(sqlite);
 
     console.log('[ETL] Starting ETL run...');
@@ -497,6 +497,7 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   }
 }
 
+// @spec DFF-ETL-083
 function isAliasConfigurationError(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith('[ETL] ERROR: aliases file');
 }

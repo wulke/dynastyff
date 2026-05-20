@@ -146,8 +146,8 @@ The system shall load `player-aliases.json` from the project root at ETL startup
 **DFF-ETL-081** `[x]` → #4
 The `player-aliases.json` file shall support entries of the form `{ canonical: string, variants: string[] }` where any variant name is treated as equivalent to the canonical name during matching.
 
-**DFF-ETL-082** `[x]`
+**DFF-ETL-082** `[x]` → #4
 When `player-aliases.json` is absent at ETL startup, the system shall continue with an empty alias list and log a warning.
 
-**DFF-ETL-083** `[x]`
+**DFF-ETL-083** `[x]` → #4
 When `player-aliases.json` exists but contains malformed JSON, the system shall fail before any database writes and surface a clear configuration error.

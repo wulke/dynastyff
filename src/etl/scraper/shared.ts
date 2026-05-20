@@ -234,6 +234,29 @@ export async function extractScraperPayloadFromPage(
   });
 }
 
+function isPlaywrightTimeoutError(error: unknown): error is Error {
+  return error instanceof Error && error.name === 'TimeoutError';
+}
+
+// @spec DFF-ETL-014
+export async function waitForScraperPageReady(
+  page: Pick<Page, 'waitForLoadState'>,
+  source: ScraperResult['source'],
+  warn: (message: string) => void = console.warn,
+): Promise<void> {
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 30_000 });
+  } catch (error) {
+    if (!isPlaywrightTimeoutError(error)) {
+      throw error;
+    }
+
+    warn(
+      `[ETL] WARN: ${source} page never reached networkidle within 30000ms. Continuing with the loaded DOM.`,
+    );
+  }
+}
+
 export async function scrapeSourceWithPlaywright(options: {
   fixturePath?: string;
   source: ScraperResult['source'];
@@ -249,7 +272,7 @@ export async function scrapeSourceWithPlaywright(options: {
   try {
     const page = await browser.newPage();
     await page.goto(options.url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 });
+    await waitForScraperPageReady(page, options.source);
     const payload = await extractScraperPayloadFromPage(page);
     const result: ScraperResult = {
       source: options.source,

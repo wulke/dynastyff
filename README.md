@@ -24,7 +24,7 @@ npx playwright install
 cp .env.example .env
 # Add your ANTHROPIC_API_KEY to .env
 
-# Populate the database (scrapes KTC, FantasyCalc, DynastyDaddy, RosterAudit)
+# Populate the database (scrapes KTC, FantasyCalc, and RosterAudit)
 npm run etl
 
 # Start the backend API server
@@ -86,7 +86,8 @@ Current UI commands:
 
 Current ETL scope:
 
-- Runs KTC, FantasyCalc, DynastyDaddy, and RosterAudit scrapers with Playwright headless Chromium
+- Runs KTC, FantasyCalc, and RosterAudit scrapers with Playwright headless Chromium
+- Leaves DynastyDaddy disabled in the live ETL job for now due to scraper instability
 - Caps scraper concurrency at 2 in-flight scrapers
 - Filters players to `QB`, `RB`, `WR`, and `TE`
 - Returns a shared scraper contract: players `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values `{ year, round, rawValue }`

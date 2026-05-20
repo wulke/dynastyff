@@ -17,25 +17,25 @@ import type Database from 'better-sqlite3';
 
 import { createDatabase } from '../db/client.js';
 import { normalizePickValues, normalizePlayers } from './normalize.js';
-import { scrapeDynastyDaddy } from './scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from './scraper/fantasycalc.js';
 import { scrapeKtcPlayers } from './scraper/ktc.js';
 import { scrapeRosterAudit } from './scraper/rosteraudit.js';
-import { etlSources, type EtlSource, type NormalizedPickValue, type NormalizedPlayer, type RawPlayer, type ScraperResult } from './types.js';
+import { type EtlSource, type NormalizedPickValue, type NormalizedPlayer, type RawPlayer, type ScraperResult } from './types.js';
 
 type RunEtlOptions = {
   databasePath?: string;
   scrapeKtc?: () => Promise<RawPlayer[]>;
   scrapeFantasycalc?: () => Promise<ScraperResult>;
-  scrapeDynastydaddy?: () => Promise<ScraperResult>;
   scrapeRosteraudit?: () => Promise<ScraperResult>;
   now?: () => string;
 };
 
 type RunScrapersOptions = Pick<
   RunEtlOptions,
-  'scrapeKtc' | 'scrapeFantasycalc' | 'scrapeDynastydaddy' | 'scrapeRosteraudit'
+  'scrapeKtc' | 'scrapeFantasycalc' | 'scrapeRosteraudit'
 >;
+
+const activeEtlSources = ['ktc', 'fantasycalc', 'rosteraudit'] as const satisfies readonly EtlSource[];
 
 type PlayerIdRow = { id: string };
 type PickValueIdRow = { id: string };
@@ -55,6 +55,16 @@ type EtlStatements = {
   updatePickValue: Database.Statement;
   insertPickSnapshot: Database.Statement;
 };
+
+// @spec DFF-ETL-002
+function isMissingEtlRunsTableError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    error.code === 'SQLITE_ERROR' &&
+    error.message.includes('no such table: etl_runs')
+  );
+}
 
 function createStatements(sqlite: Database.Database): EtlStatements {
   return {
@@ -306,10 +316,10 @@ async function runScraper<T extends ScraperResult>(
 // @spec DFF-ETL-011
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
+// @spec DFF-ETL-015
 export async function runScrapers(options: RunScrapersOptions = {}): Promise<ScraperResult[]> {
   const scrapeKtc = options.scrapeKtc ?? scrapeKtcPlayers;
   const scrapeFantasycalc = options.scrapeFantasycalc ?? scrapeFantasyCalc;
-  const scrapeDynastydaddy = options.scrapeDynastydaddy ?? scrapeDynastyDaddy;
   const scrapeRosteraudit = options.scrapeRosteraudit ?? scrapeRosterAudit;
 
   return runTasksWithConcurrencyLimit(
@@ -321,7 +331,6 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
           pickValues: [],
         })),
       () => runScraper('fantasycalc', scrapeFantasycalc),
-      () => runScraper('dynastydaddy', scrapeDynastydaddy),
       () => runScraper('rosteraudit', scrapeRosteraudit),
     ],
     2,
@@ -338,12 +347,13 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
 export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const timestamp = options.now?.() ?? new Date().toISOString();
   const sqlite = createDatabase(options.databasePath);
-  const statements = createStatements(sqlite);
   const runId = randomUUID();
 
   try {
+    const statements = createStatements(sqlite);
+
     console.log('[ETL] Starting ETL run...');
-    statements.insertRun.run(runId, timestamp, JSON.stringify(etlSources), JSON.stringify([]));
+    statements.insertRun.run(runId, timestamp, JSON.stringify(activeEtlSources), JSON.stringify([]));
 
     const scraperResults = await runScrapers(options);
     const resultBySource = new Map(scraperResults.map((result) => [result.source, result]));
@@ -356,7 +366,7 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
 
     const sourcesSucceeded: EtlSource[] = [];
 
-    for (const source of etlSources) {
+    for (const source of activeEtlSources) {
       const result = resultBySource.get(source);
 
       if (!result) {
@@ -381,9 +391,23 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   }
 }
 
+// @spec DFF-ETL-002
 async function main(): Promise<void> {
-  const exitCode = await runEtl();
-  process.exitCode = exitCode;
+  try {
+    const exitCode = await runEtl();
+    process.exitCode = exitCode;
+  } catch (error) {
+    if (isMissingEtlRunsTableError(error)) {
+      // @spec DFF-ETL-002
+      console.error(
+        '[ETL] ERROR: database schema is missing ETL history tables. Run `npm run db:init` to recreate the local SQLite database with the latest schema.',
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    throw error;
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

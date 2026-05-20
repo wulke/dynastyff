@@ -71,6 +71,7 @@ To reconstruct player values at a point in time: join `player_value_snapshots` o
 ## Edge Case Probe
 
 - **No ETL run has ever completed** → `drafts.etl_run_id` is NULL; draft reads current `players` values unchanged.
+- **KTC returns no supported players** → ETL exits before any source writes; the `etl_runs` row remains with `completed_at = NULL` and `sources_succeeded = []`, so draft pinning ignores the aborted run.
 - **ETL process is killed mid-run** → `etl_run.completed_at` remains NULL; sources_succeeded is incomplete. Draft creation query filters `completed_at IS NOT NULL`, so this partial run is never pinned to a draft.
 - **Snapshot write fails for a source** → that source's transaction is rolled back in full (no partial snapshot rows, no partial upsert). Source is excluded from this run. Other sources proceed normally.
 - **Player exists in snapshot but not in `players`** → impossible by construction: snapshot and upsert are in the same transaction. If the snapshot row exists, the upsert succeeded.

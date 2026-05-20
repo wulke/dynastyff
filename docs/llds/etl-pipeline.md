@@ -66,11 +66,16 @@ Scrapers run two at a time using a simple promise pool. Order of execution is no
 
 ## Current Write Path
 
-Issue #3 preserves the existing KTC-based write path while expanding the scraper layer:
+The current ETL write path is source-aware and history-aware:
 
 1. `runScrapers()` launches KTC, FantasyCalc, DynastyDaddy, and RosterAudit with a maximum concurrency of 2.
-2. `runEtl()` currently consumes the KTC player payload for normalization and `players` upsert.
-3. The additional scraper payloads are returned through the shared `ScraperResult` contract for follow-on matching and aggregation work.
+2. `runEtl()` inserts an `etl_runs` row at the start of execution with all four attempted sources and `completed_at = NULL`.
+3. Each successful source is processed in its own database transaction:
+   - normalize that source's player and pick values
+   - write raw `player_value_snapshots` and `pick_value_snapshots`
+   - update the current-state `players` and `pick_values` tables
+4. If any write fails inside a source transaction, the full source transaction is rolled back and excluded from `sources_succeeded`.
+5. After all source transactions finish, `runEtl()` updates the `etl_runs` row with `completed_at` and the final `sources_succeeded` list.
 
 ## Player Matching
 

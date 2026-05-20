@@ -4,6 +4,13 @@
 // @spec DFF-ETL-012
 // @spec DFF-ETL-030
 // @spec DFF-ETL-032
+// @spec DFF-HIST-002
+// @spec DFF-HIST-040
+// @spec DFF-HIST-041
+// @spec DFF-HIST-042
+// @spec DFF-HIST-050
+// @spec DFF-HIST-051
+// @spec DFF-HIST-052
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -502,7 +509,9 @@ test('runEtl updates an existing player matched by name and position', async () 
   }
 });
 
-test('runEtl exits non-zero and writes nothing when KTC yields no supported players', async () => {
+// @spec DFF-HIST-040
+// @spec DFF-HIST-042
+test('runEtl exits non-zero and leaves the etl run incomplete when KTC yields no supported players', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
 
   try {
@@ -516,9 +525,310 @@ test('runEtl exits non-zero and writes nothing when KTC yields no supported play
     });
 
     const rowCount = db.prepare('SELECT COUNT(*) as count FROM players').get() as { count: number };
+    const etlRuns = db
+      .prepare(
+        `SELECT started_at, completed_at, sources_attempted, sources_succeeded
+         FROM etl_runs`,
+      )
+      .all();
 
     assert.equal(exitCode, 1);
     assert.equal(rowCount.count, 0);
+    assert.deepEqual(etlRuns, [
+      {
+        started_at: '2026-05-18T22:00:00.000Z',
+        completed_at: null,
+        sources_attempted: '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+        sources_succeeded: '[]',
+      },
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-HIST-040
+// @spec DFF-HIST-041
+// @spec DFF-HIST-050
+// @spec DFF-HIST-052
+test('runEtl creates one etl_runs row and raw snapshots for each successful source', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => [
+        {
+          name: 'Shared Player',
+          position: 'QB',
+          nflTeam: 'BUF',
+          age: 24,
+          isRookie: false,
+          rawValue: 100,
+          adp: 10,
+        },
+      ],
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [
+          {
+            name: 'Shared Player',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 200,
+            adp: 11,
+          },
+        ],
+        pickValues: [{ year: 2027, round: 1, rawValue: 300 }],
+      }),
+      scrapeDynastydaddy: async () => ({
+        source: 'dynastydaddy',
+        players: [
+          {
+            name: 'Shared Player',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 400,
+            adp: 12,
+          },
+        ],
+        pickValues: [{ year: 2027, round: 1, rawValue: 500 }],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [
+          {
+            name: 'Shared Player',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 600,
+            adp: 13,
+          },
+        ],
+        pickValues: [{ year: 2027, round: 1, rawValue: 700 }],
+      }),
+      now: () => '2026-05-20T02:00:00.000Z',
+    });
+
+    const runRows = db
+      .prepare(
+        `SELECT started_at, completed_at, sources_attempted, sources_succeeded
+         FROM etl_runs`,
+      )
+      .all();
+    const playerSnapshots = db
+      .prepare(
+        `SELECT source, raw_value
+         FROM player_value_snapshots
+         ORDER BY source`,
+      )
+      .all();
+    const pickSnapshots = db
+      .prepare(
+        `SELECT source, year, round, raw_value
+         FROM pick_value_snapshots
+         ORDER BY source`,
+      )
+      .all();
+
+    assert.equal(exitCode, 0);
+    assert.equal(runRows.length, 1);
+    assert.deepEqual(runRows, [
+      {
+        started_at: '2026-05-20T02:00:00.000Z',
+        completed_at: '2026-05-20T02:00:00.000Z',
+        sources_attempted: '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+        sources_succeeded: '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+      },
+    ]);
+    assert.deepEqual(playerSnapshots, [
+      { source: 'dynastydaddy', raw_value: 400 },
+      { source: 'fantasycalc', raw_value: 200 },
+      { source: 'ktc', raw_value: 100 },
+      { source: 'rosteraudit', raw_value: 600 },
+    ]);
+    assert.deepEqual(pickSnapshots, [
+      { source: 'dynastydaddy', year: 2027, round: 1, raw_value: 500 },
+      { source: 'fantasycalc', year: 2027, round: 1, raw_value: 300 },
+      { source: 'rosteraudit', year: 2027, round: 1, raw_value: 700 },
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-HIST-041
+// @spec DFF-HIST-050
+// @spec DFF-HIST-051
+// @spec DFF-HIST-052
+test('runEtl rolls back one source transaction when snapshot writes fail and continues other sources', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+
+  try {
+    db.exec(`
+      CREATE TRIGGER fail_fantasycalc_player_snapshot
+      BEFORE INSERT ON player_value_snapshots
+      WHEN NEW.source = 'fantasycalc'
+      BEGIN
+        SELECT RAISE(ABORT, 'fantasycalc snapshot failed');
+      END;
+    `);
+
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => [
+        {
+          name: 'Shared Player',
+          position: 'QB',
+          nflTeam: 'BUF',
+          age: 24,
+          isRookie: false,
+          rawValue: 100,
+          adp: 10,
+        },
+      ],
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [
+          {
+            name: 'Shared Player',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 200,
+            adp: 11,
+          },
+        ],
+        pickValues: [{ year: 2028, round: 2, rawValue: 300 }],
+      }),
+      scrapeDynastydaddy: async () => ({
+        source: 'dynastydaddy',
+        players: [],
+        pickValues: [],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [
+          {
+            name: 'Shared Player',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 400,
+            adp: 12,
+          },
+        ],
+        pickValues: [{ year: 2029, round: 1, rawValue: 500 }],
+      }),
+      now: () => '2026-05-20T03:00:00.000Z',
+    });
+
+    const etlRun = db
+      .prepare(
+        `SELECT completed_at, sources_succeeded
+         FROM etl_runs`,
+      )
+      .get() as { completed_at: string | null; sources_succeeded: string };
+    const player = db
+      .prepare(
+        `SELECT value_ktc, value_fantasycalc, value_dynastydaddy, value_rosteraudit
+         FROM players
+         WHERE name = ? AND position = ?`,
+      )
+      .get('Shared Player', 'QB');
+    const snapshotCounts = db
+      .prepare(
+        `SELECT source, COUNT(*) AS count
+         FROM player_value_snapshots
+         GROUP BY source
+         ORDER BY source`,
+      )
+      .all();
+    const pickRows = db
+      .prepare(
+        `SELECT year, round
+         FROM pick_values
+         ORDER BY year, round`,
+      )
+      .all();
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(etlRun, {
+      completed_at: '2026-05-20T03:00:00.000Z',
+      sources_succeeded: '["ktc","dynastydaddy","rosteraudit"]',
+    });
+    assert.deepEqual(player, {
+      value_ktc: 9999,
+      value_fantasycalc: null,
+      value_dynastydaddy: null,
+      value_rosteraudit: 9999,
+    });
+    assert.deepEqual(snapshotCounts, [
+      { source: 'ktc', count: 1 },
+      { source: 'rosteraudit', count: 1 },
+    ]);
+    assert.deepEqual(pickRows, [{ year: 2029, round: 1 }]);
+  } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-HIST-002
+test('runEtl leaves etl_runs.completed_at null when final completion update never commits', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+
+  try {
+    db.exec(`
+      CREATE TRIGGER fail_etl_run_completion
+      BEFORE UPDATE OF completed_at ON etl_runs
+      BEGIN
+        SELECT RAISE(ABORT, 'etl run completion failed');
+      END;
+    `);
+
+    await assert.rejects(
+      () =>
+        runEtl({
+          databasePath: dbPath,
+          scrapeKtc: async () => [
+            {
+              name: 'Solo Player',
+              position: 'QB',
+              nflTeam: 'BUF',
+              age: 24,
+              isRookie: false,
+              rawValue: 100,
+              adp: 10,
+            },
+          ],
+          scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
+          scrapeDynastydaddy: async () => ({ source: 'dynastydaddy', players: [], pickValues: [] }),
+          scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+          now: () => '2026-05-20T04:00:00.000Z',
+        }),
+      /etl run completion failed/,
+    );
+
+    const etlRun = db
+      .prepare(
+        `SELECT started_at, completed_at, sources_succeeded
+         FROM etl_runs`,
+      )
+      .get() as { started_at: string; completed_at: string | null; sources_succeeded: string };
+
+    assert.deepEqual(etlRun, {
+      started_at: '2026-05-20T04:00:00.000Z',
+      completed_at: null,
+      sources_succeeded: '[]',
+    });
   } finally {
     cleanup();
   }

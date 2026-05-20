@@ -86,10 +86,12 @@ Current UI commands:
 
 Current ETL scope:
 
-- Scrapes KTC player values with Playwright
+- Runs KTC, FantasyCalc, DynastyDaddy, and RosterAudit scrapers with Playwright headless Chromium
+- Caps scraper concurrency at 2 in-flight scrapers
 - Filters players to `QB`, `RB`, `WR`, and `TE`
-- Normalizes KTC values to `0-9999`
-- Upserts the local SQLite `players` table
+- Returns a shared scraper contract: players `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values `{ year, round, rawValue }`
+- Normalizes the current KTC write path to `0-9999`
+- Upserts the local SQLite `players` table from the current KTC write path
 - Initializes schema support for ETL run history and raw value snapshots (`etl_runs`, `player_value_snapshots`, `pick_value_snapshots`)
 - Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time
 

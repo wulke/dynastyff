@@ -8,23 +8,23 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ## Invocation
 
-**DFF-ETL-001** `[ ]`
+**DFF-ETL-001** `[x]`
 The system shall expose an `npm run etl` command that executes the ETL pipeline as a standalone script without requiring the Express server to be running.
 
 ---
 
 ## Scrapers
 
-**DFF-ETL-010** `[ ]` → #3
+**DFF-ETL-010** `[x]` → #3
 The system shall scrape player values and pick values from KTC, FantasyCalc, DynastyDaddy, and RosterAudit using Playwright headless Chromium.
 
-**DFF-ETL-011** `[ ]` → #3
+**DFF-ETL-011** `[x]` → #3
 The system shall run scrapers with a maximum concurrency of 2 simultaneous scrapers.
 
-**DFF-ETL-012** `[ ]` → #3
+**DFF-ETL-012** `[x]` → #3
 Each scraper shall return players typed as `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values typed as `{ year, round, rawValue }`.
 
-**DFF-ETL-013** `[ ]` → #3
+**DFF-ETL-013** `[x]` → #3
 The system shall restrict `position` values returned by scrapers to: QB, RB, WR, TE.
 
 ---

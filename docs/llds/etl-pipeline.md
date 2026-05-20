@@ -2,7 +2,7 @@
 
 ## Context
 
-The ETL pipeline is a standalone script (`src/etl/index.ts`) that populates the `players` and `pick_values` tables in the local SQLite database. It is invoked manually via `npm run etl` — no scheduling, no server dependency. It shares the Drizzle ORM schema and database module with the Express server.
+The ETL pipeline is a standalone script (`src/etl/index.ts`) that populates the local SQLite database. It is invoked manually via `npm run etl` — no scheduling, no server dependency. It shares the Drizzle ORM schema and database module with the Express server.
 
 Drives specs: `docs/specs/etl-pipeline-specs.md`
 
@@ -16,15 +16,15 @@ npm run etl
             │       ├── scraper/fantasycalc.ts
             │       ├── scraper/dynastydaddy.ts
             │       └── scraper/rosteraudit.ts
-            ├── matchPlayers()         — fuzzy name+position matching across sources
-            ├── normalize()            — min-max scale each source to 0–9999
-            ├── aggregate()            — average normalized values → dynasty_value
-            └── upsert()               — write players + pick_values to SQLite
+            ├── normalize()            — current slice normalizes KTC player values to 0–9999
+            └── upsert()               — current slice writes players to SQLite
 ```
+
+Cross-source player matching, multi-source aggregation, and pick value persistence are introduced in follow-on issues (#4, #5, #6). Issue #3 establishes the shared scraper contract and orchestration boundary those later slices build on.
 
 ## Scrapers
 
-Each scraper is a self-contained module that returns a typed result array. All four use Playwright (headless Chromium) to handle JS-rendered pages.
+Each scraper is a self-contained module that returns the shared typed result object. All four use Playwright (headless Chromium) to handle JS-rendered pages.
 
 ### Scraper contract
 
@@ -52,7 +52,7 @@ type RawPickValue = {
 };
 ```
 
-Scrapers throw on unrecoverable failure (site unreachable, structure changed). The orchestrator catches per-scraper errors and continues.
+Scrapers throw on unrecoverable failure (site unreachable, structure changed). Partial-failure handling is added in issue #6.
 
 ## Concurrency
 
@@ -64,18 +64,17 @@ Scrapers run two at a time using a simple promise pool. Order of execution is no
   → run dynastydaddy + rosteraudit in parallel
 ```
 
+## Current Write Path
+
+Issue #3 preserves the existing KTC-based write path while expanding the scraper layer:
+
+1. `runScrapers()` launches KTC, FantasyCalc, DynastyDaddy, and RosterAudit with a maximum concurrency of 2.
+2. `runEtl()` currently consumes the KTC player payload for normalization and `players` upsert.
+3. The additional scraper payloads are returned through the shared `ScraperResult` contract for follow-on matching and aggregation work.
+
 ## Player Matching
 
-Players must be matched across sources before normalization, since each source uses its own naming conventions.
-
-**Algorithm:**
-
-1. Collect all players from all successful scrapers.
-2. Build a canonical player list from the union of all names. Primary source priority: KTC → FantasyCalc → DynastyDaddy → RosterAudit (used only for canonical name/metadata; all sources contribute values).
-3. For each non-primary source player, attempt exact match on `(normalized_name, position)` first.
-4. On exact miss, run fuzzy match using `string-similarity` (Dice coefficient) on name, filtered to same position. Accept match if score ≥ 0.85.
-5. On fuzzy miss, check `player-aliases.json` for a hard-coded override.
-6. On alias miss, log a loud warning and skip the source's value for that player (does not abort the run).
+Cross-source player matching is specified for issue #4 and has not been implemented in this slice.
 
 **`player-aliases.json` format:**
 
@@ -98,27 +97,17 @@ Each source is normalized independently using min-max scaling:
 normalized = round((raw - min) / (max - min) * 9999)
 ```
 
-- `min` and `max` are computed from all players returned by that source in the current run.
-- Normalization is applied to both player values and pick values.
+- In the current implementation, normalization is applied only to the KTC player payload before upsert.
+- Follow-on issue #5 extends normalization to pick values and additional sources.
 - If a source returns only one player (degenerate case), that player is assigned value 9999 and a warning is logged.
 
 ## Aggregation
 
-After normalization, each player's `dynasty_value` is the simple mean of all non-NULL normalized values across sources that successfully matched that player.
-
-```
-dynasty_value = round(mean([value_ktc, value_fantasycalc, ...].filter(v => v !== null)))
-```
-
-Pick values follow the same pattern.
+Multi-source aggregation is specified for issue #4 and has not been implemented in this slice.
 
 ## Partial Failure Behavior
 
-- A scraper failure (throw) logs a warning: `[ETL] WARN: {source} scraper failed — {error.message}. Excluding from this run.`
-- The run continues with remaining successful scrapers.
-- If ≥ 1 scraper succeeds, the upsert proceeds with available data.
-- If all scrapers fail, the run exits with a non-zero code and no database writes occur.
-- Per-source columns (`value_ktc`, etc.) for failed sources are left as NULL in the upserted rows; existing non-NULL values from a prior run are not overwritten.
+Partial-failure handling is specified for issue #6 and has not been implemented in this slice.
 
 ## Upsert
 
@@ -130,23 +119,20 @@ All writes use Drizzle ORM against the shared SQLite database.
 - On no match: insert a new row with a generated UUID.
 
 **Pick values:**
-- Match on `(year, round)`.
-- On match: update `dynasty_value` and `updated_at`.
-- On no match: insert a new row.
+- Pick value persistence is specified for issue #5 and has not been implemented in this slice.
 
 ## File Layout
 
 ```
 src/etl/
-  index.ts                  — orchestrator: concurrency, matching, normalize, aggregate, upsert
+  index.ts                  — orchestrator: concurrency, current KTC normalization, players upsert
   normalize.ts              — min-max scaling utilities
-  match.ts                  — fuzzy player matching logic
   scraper/
+    shared.ts
     ktc.ts
     fantasycalc.ts
     dynastydaddy.ts
     rosteraudit.ts
-player-aliases.json         — manual name override file (project root)
 ```
 
 ## Decisions

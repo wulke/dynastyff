@@ -111,7 +111,7 @@ Dynasty values for future pick assets, populated by the ETL pipeline alongside p
 | id | TEXT (UUID) | Primary key |
 | year | INTEGER | e.g. 2026, 2027, 2028 |
 | round | INTEGER | 1-based round |
-| dynasty_value | INTEGER | KTC-style value (0–9999) |
+| dynasty_value | INTEGER | Rounded mean of all non-NULL current-run per-source normalized pick values (0–9999) |
 | updated_at | TEXT (ISO8601) | Last ETL refresh timestamp |
 
 ### `trades`

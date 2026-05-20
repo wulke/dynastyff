@@ -2,7 +2,12 @@
 // @spec DFF-ENGINE-002
 // @spec DFF-ENGINE-004
 // @spec DFF-ENGINE-005
+// @spec DFF-ENGINE-011
+// @spec DFF-ENGINE-012
+// @spec DFF-ENGINE-013
+// @spec DFF-ENGINE-014
 // @spec DFF-ENGINE-016
+// @spec DFF-ENGINE-015
 // @spec DFF-ENGINE-022
 // @spec DFF-ENGINE-023
 // @spec DFF-ENGINE-024
@@ -21,14 +26,17 @@
 // @spec DFF-DATA-061
 // @spec DFF-DATA-070
 // @spec DFF-DATA-092
+// @spec DFF-HIST-060
+// @spec DFF-HIST-061
 import { randomUUID } from 'node:crypto';
 
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
 import {
   draftOrder,
   drafts,
   draftStatuses,
+  etlRuns,
   picks,
   rosterPlayers,
   scoringFormats,
@@ -39,10 +47,18 @@ import {
   trades,
   userQueue,
 } from '../db/schema.js';
+import {
+  emitDraftCompleteEvent,
+  emitPickMadeEvent,
+  emitTradeOfferedEvent,
+  emitTradeResolvedEvent,
+  emitYourTurnEvent,
+} from './stream.js';
 
 type DraftStatus = (typeof draftStatuses)[number];
 type ScoringFormat = (typeof scoringFormats)[number];
 type TeamArchetype = (typeof teamArchetypes)[number];
+type TradeStatus = (typeof tradeStatuses)[number];
 
 type RosterConfig = {
   QB: number;
@@ -179,7 +195,7 @@ export type DraftStateSnapshot = {
     receiving_team_id: string;
     assets_sent: unknown;
     assets_received: unknown;
-    status: (typeof tradeStatuses)[number];
+    status: TradeStatus;
   }>;
 };
 
@@ -206,6 +222,17 @@ export function createDraft({
 
   try {
     db.transaction((tx) => {
+      // @spec DFF-HIST-060
+      // @spec DFF-HIST-061
+      const latestCompletedRun = tx
+        .select({
+          id: etlRuns.id,
+        })
+        .from(etlRuns)
+        .where(isNotNull(etlRuns.completedAt))
+        .orderBy(desc(etlRuns.startedAt))
+        .get();
+
       tx.insert(drafts)
         .values({
           id: draftId,
@@ -219,6 +246,7 @@ export function createDraft({
           futurePickYears: config.futurePickYears,
           futurePickRounds: config.futurePickRounds,
           rosterConfig: JSON.stringify(config.rosterConfig),
+          etlRunId: latestCompletedRun?.id ?? null,
         })
         .run();
 
@@ -296,6 +324,29 @@ export function recordPick({
   idGenerator = defaultIdGenerator,
 }: RecordPickOptions): void {
   const { sqlite, db } = createDrizzleDb(databasePath);
+  let pickMadeEvent:
+    | {
+        draftId: string;
+        pickNumber: number;
+        teamId: string;
+        playerId: string;
+        isBot: boolean;
+      }
+    | undefined;
+  let yourTurnEvent:
+    | {
+        draftId: string;
+        pickNumber: number;
+        round: number;
+        pickInRound: number;
+      }
+    | undefined;
+  let draftCompleteEvent:
+    | {
+        draftId: string;
+        completedAt: string;
+      }
+    | undefined;
 
   try {
     db.transaction((tx) => {
@@ -306,8 +357,10 @@ export function recordPick({
           pickNumber: draftOrder.pickNumber,
           round: draftOrder.round,
           status: drafts.status,
+          isUser: teams.isUser,
         })
         .from(draftOrder)
+        .innerJoin(teams, eq(draftOrder.teamId, teams.id))
         .innerJoin(drafts, eq(draftOrder.draftId, drafts.id))
         .where(eq(draftOrder.id, draftOrderId))
         .get();
@@ -351,6 +404,8 @@ export function recordPick({
         throw new Error(`Player has already been drafted in this draft: ${playerId}`);
       }
 
+      const pickedAt = now();
+
       tx.insert(picks)
         .values({
           id: idGenerator(),
@@ -360,7 +415,7 @@ export function recordPick({
           playerId,
           pickNumber: currentSlot.pickNumber,
           round: currentSlot.round,
-          pickedAt: now(),
+          pickedAt,
         })
         .run();
 
@@ -378,9 +433,69 @@ export function recordPick({
           and(eq(userQueue.draftId, currentSlot.draftId), eq(userQueue.playerId, playerId)),
         )
         .run();
+
+      const followingOpenSlot = tx
+        .select({
+          draftId: draftOrder.draftId,
+          pickNumber: draftOrder.pickNumber,
+          round: draftOrder.round,
+          pickInRound: draftOrder.pickInRound,
+          isUser: teams.isUser,
+        })
+        .from(draftOrder)
+        .innerJoin(teams, eq(draftOrder.teamId, teams.id))
+        .leftJoin(picks, eq(draftOrder.id, picks.draftOrderId))
+        .where(and(eq(draftOrder.draftId, currentSlot.draftId), isNull(picks.id)))
+        .orderBy(asc(draftOrder.pickNumber))
+        .get();
+
+      pickMadeEvent = {
+        draftId: currentSlot.draftId,
+        pickNumber: currentSlot.pickNumber,
+        teamId: currentSlot.teamId,
+        playerId,
+        isBot: !currentSlot.isUser,
+      };
+
+      if (!followingOpenSlot) {
+        tx.update(drafts)
+          .set({
+            status: 'completed',
+            completedAt: pickedAt,
+          })
+          .where(eq(drafts.id, currentSlot.draftId))
+          .run();
+
+        draftCompleteEvent = {
+          draftId: currentSlot.draftId,
+          completedAt: pickedAt,
+        };
+        return;
+      }
+
+      if (followingOpenSlot.isUser) {
+        yourTurnEvent = {
+          draftId: followingOpenSlot.draftId,
+          pickNumber: followingOpenSlot.pickNumber,
+          round: followingOpenSlot.round,
+          pickInRound: followingOpenSlot.pickInRound,
+        };
+      }
     });
   } finally {
     sqlite.close();
+  }
+
+  if (pickMadeEvent) {
+    emitPickMadeEvent(pickMadeEvent);
+  }
+
+  if (yourTurnEvent) {
+    emitYourTurnEvent(yourTurnEvent);
+  }
+
+  if (draftCompleteEvent) {
+    emitDraftCompleteEvent(draftCompleteEvent);
   }
 }
 
@@ -398,7 +513,7 @@ export function getDraftState({
       })
       .from(drafts)
       .where(eq(drafts.id, draftId))
-      .get();
+      .get() as { id: string; status: DraftStatus } | undefined;
 
     if (!draft) {
       return null;
@@ -428,7 +543,7 @@ export function getDraftState({
         .from(teams)
         .where(eq(teams.draftId, draftId))
         .orderBy(asc(teams.pickPosition))
-        .all(),
+        .all() as DraftStateSnapshot['teams'],
       draft_order: db
         .select({
           pick_number: draftOrder.pickNumber,
@@ -499,7 +614,7 @@ export function getDraftState({
           ...trade,
           assets_sent: parseJsonColumn(trade.assets_sent),
           assets_received: parseJsonColumn(trade.assets_received),
-        })),
+        })) as DraftStateSnapshot['trades'],
     };
   } finally {
     sqlite.close();
@@ -521,11 +636,15 @@ export function getDraftHistory({ databasePath }: GetDraftHistoryOptions): Draft
       })
       .from(drafts)
       .orderBy(desc(drafts.createdAt), desc(drafts.id))
-      .all();
+      .all() as DraftHistoryEntry[];
   } finally {
     sqlite.close();
   }
 }
+// @spec DFF-ENGINE-013
+export const emitTradeOffered = emitTradeOfferedEvent;
+// @spec DFF-ENGINE-014
+export const emitTradeResolved = emitTradeResolvedEvent;
 
 function buildTeams({
   draftId,

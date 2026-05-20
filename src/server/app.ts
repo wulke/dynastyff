@@ -1,14 +1,18 @@
 // @spec DFF-ENGINE-001
 // @spec DFF-ENGINE-003
+// @spec DFF-ENGINE-010
 // @spec DFF-ENGINE-060
 // @spec DFF-ENGINE-062
 import express, {
   type ErrorRequestHandler,
   type Express,
+  type Request,
   type RequestHandler,
+  type Response,
 } from 'express';
 
 import { createDraft, getDraftHistory, getDraftState } from '../draft/service.js';
+import { getDraftStateSyncPayload, subscribeToDraftStream, type DraftStreamEvent } from '../draft/stream.js';
 import { DraftConfigValidationError, parseCreateDraftConfig } from './config.js';
 
 type CreateDraftServerOptions = {
@@ -22,6 +26,7 @@ export function createDraftApp({ databasePath }: CreateDraftServerOptions): Expr
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath }));
   app.get('/drafts/:id/state', createDraftStateRoute({ databasePath }));
+  app.get('/drafts/:id/stream', createDraftStreamRoute({ databasePath }));
   app.use(notFoundHandler);
   app.use(createDraftErrorHandler());
 
@@ -41,33 +46,71 @@ export function createDraftRoute({ databasePath }: CreateDraftServerOptions): Re
   };
 }
 
+// @spec DFF-ENGINE-060
 export function createDraftStateRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
-  return (request, response, next) => {
-    try {
-      const draftState = getDraftState({
-        databasePath,
-        draftId: request.params.id,
-      });
+  return (request, response) => {
+    const draftId = readDraftIdParam(request);
 
-      if (!draftState) {
-        response.status(404).json({ error: 'Draft not found.' });
-        return;
-      }
-
-      response.status(200).json(draftState);
-    } catch (error) {
-      next(error);
+    if (!draftId) {
+      response.status(404).json({ error: 'Draft not found.' });
+      return;
     }
+
+    const state = getDraftState({ databasePath, draftId });
+
+    if (!state) {
+      response.status(404).json({ error: 'Draft not found.' });
+      return;
+    }
+
+    response.status(200).json(state);
   };
 }
 
+// @spec DFF-ENGINE-062
 export function createDraftHistoryRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
-  return (_request, response, next) => {
-    try {
-      response.status(200).json(getDraftHistory({ databasePath }));
-    } catch (error) {
-      next(error);
+  return (_request, response) => {
+    response.status(200).json(getDraftHistory({ databasePath }));
+  };
+}
+
+// @spec DFF-ENGINE-010
+export function createDraftStreamRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+  return (request, response) => {
+    const draftId = readDraftIdParam(request);
+
+    if (!draftId) {
+      response.status(404).json({ error: 'Draft not found.' });
+      return;
     }
+
+    const state = getDraftStateSyncPayload({ databasePath, draftId });
+
+    if (!state) {
+      response.status(404).json({ error: 'Draft not found.' });
+      return;
+    }
+
+    response.status(200);
+    response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    response.setHeader('Cache-Control', 'no-cache');
+    response.setHeader('Connection', 'keep-alive');
+    response.setHeader('X-Accel-Buffering', 'no');
+    response.flushHeaders();
+
+    const unsubscribe = subscribeToDraftStream(draftId, (event) => {
+      writeSseEvent(response, event);
+    });
+
+    writeSseEvent(response, {
+      event: 'state_sync',
+      data: state,
+    });
+
+    request.on('close', () => {
+      unsubscribe();
+      response.end();
+    });
   };
 }
 
@@ -90,4 +133,17 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
     console.error(error);
     response.status(500).json({ error: 'Internal server error.' });
   };
+}
+
+function writeSseEvent(
+  response: Response,
+  event: DraftStreamEvent,
+): void {
+  response.write(`event: ${event.event}\n`);
+  response.write(`data: ${JSON.stringify(event.data)}\n\n`);
+}
+
+function readDraftIdParam(request: Request): string | null {
+  const draftId = request.params.id;
+  return typeof draftId === 'string' ? draftId : null;
 }

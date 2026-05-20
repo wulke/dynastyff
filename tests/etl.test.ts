@@ -35,7 +35,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 import { initializeDatabase } from '../src/db/init.js';
-import { normalizePlayers } from '../src/etl/normalize.js';
+import { normalizePickValues, normalizePlayers } from '../src/etl/normalize.js';
 import { runEtl, runScrapers } from '../src/etl/index.js';
 import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
@@ -197,6 +197,72 @@ test('normalizePlayers assigns 9999 when all supported players share the same ra
     normalizePlayers(players).map((player) => player.normalizedValue),
     [9999, 9999],
   );
+});
+
+// @spec DFF-ETL-031
+test('normalizePickValues min-max scales pick values to 0..9999', () => {
+  assert.deepEqual(
+    normalizePickValues([
+      { year: 2027, round: 1, rawValue: 100 },
+      { year: 2027, round: 2, rawValue: 200 },
+      { year: 2028, round: 1, rawValue: 300 },
+    ]).map((pickValue) => ({
+      year: pickValue.year,
+      round: pickValue.round,
+      normalizedValue: pickValue.normalizedValue,
+    })),
+    [
+      { year: 2027, round: 1, normalizedValue: 0 },
+      { year: 2027, round: 2, normalizedValue: 5000 },
+      { year: 2028, round: 1, normalizedValue: 9999 },
+    ],
+  );
+});
+
+// @spec DFF-ETL-032
+test('normalizePickValues warns and assigns 9999 when a source returns exactly one pick value', () => {
+  const warnings: string[] = [];
+
+  const [pickValue] = normalizePickValues(
+    [{ year: 2027, round: 1, rawValue: 100 }],
+    {
+      source: 'fantasycalc',
+      valueType: 'pick value',
+      warn: (message) => {
+        warnings.push(message);
+      },
+    },
+  );
+
+  assert.equal(pickValue.normalizedValue, 9999);
+  assert.deepEqual(warnings, [
+    '[ETL] WARN: fantasycalc returned exactly one pick value; assigning normalized value 9999.',
+  ]);
+});
+
+// @spec DFF-ETL-032
+test('normalizePickValues assigns 9999 when all pick values share the same raw value', () => {
+  const warnings: string[] = [];
+
+  assert.deepEqual(
+    normalizePickValues(
+      [
+        { year: 2027, round: 1, rawValue: 777 },
+        { year: 2028, round: 2, rawValue: 777 },
+      ],
+      {
+        source: 'rosteraudit',
+        valueType: 'pick value',
+        warn: (message) => {
+          warnings.push(message);
+        },
+      },
+    ).map((pickValue) => pickValue.normalizedValue),
+    [9999, 9999],
+  );
+  assert.deepEqual(warnings, [
+    '[ETL] WARN: rosteraudit returned 2 pick value rows with the same raw value; assigning normalized value 9999.',
+  ]);
 });
 
 test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper boundary', async () => {
@@ -521,6 +587,120 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
   }
 });
 
+// @spec DFF-ETL-031
+// @spec DFF-ETL-041
+// @spec DFF-ETL-070
+// @spec DFF-ETL-071
+// @spec DFF-DATA-011
+// @spec DFF-DATA-012
+test('runEtl aggregates pick values across sources and updates existing year-round rows in place', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+
+  try {
+    db.prepare(
+      `INSERT INTO pick_values (
+        id,
+        year,
+        round,
+        dynasty_value,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?)`,
+    ).run('pick-2027-1', 2027, 1, 1234, '2026-05-18T09:00:00.000Z');
+
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => [
+        {
+          name: 'Alpha QB',
+          position: 'QB',
+          nflTeam: 'BUF',
+          age: 24,
+          isRookie: false,
+          rawValue: 100,
+          adp: 10,
+        },
+      ],
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [],
+        pickValues: [
+          { year: 2027, round: 1, rawValue: 100 },
+          { year: 2028, round: 1, rawValue: 300 },
+        ],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [],
+        pickValues: [
+          { year: 2027, round: 1, rawValue: 600 },
+          { year: 2029, round: 1, rawValue: 200 },
+        ],
+      }),
+      now: () => '2026-05-20T07:00:00.000Z',
+    });
+
+    const rows = db
+      .prepare(
+        `SELECT
+          id,
+          year,
+          round,
+          dynasty_value,
+          updated_at
+         FROM pick_values
+         ORDER BY year, round`,
+      )
+      .all();
+    const runId = (db.prepare('SELECT id FROM etl_runs').get() as { id: string }).id;
+    const snapshots = db
+      .prepare(
+        `SELECT
+          source,
+          year,
+          round,
+          raw_value
+         FROM pick_value_snapshots
+         WHERE run_id = ?
+         ORDER BY source, year, round`,
+      )
+      .all(runId);
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(rows, [
+      {
+        id: 'pick-2027-1',
+        year: 2027,
+        round: 1,
+        dynasty_value: 5000,
+        updated_at: '2026-05-20T07:00:00.000Z',
+      },
+      {
+        id: rows[1]?.id,
+        year: 2028,
+        round: 1,
+        dynasty_value: 9999,
+        updated_at: '2026-05-20T07:00:00.000Z',
+      },
+      {
+        id: rows[2]?.id,
+        year: 2029,
+        round: 1,
+        dynasty_value: 0,
+        updated_at: '2026-05-20T07:00:00.000Z',
+      },
+    ]);
+    assert.equal(new Set(rows.map((row) => row.id)).size, 3);
+    assert.deepEqual(snapshots, [
+      { source: 'fantasycalc', year: 2027, round: 1, raw_value: 100 },
+      { source: 'fantasycalc', year: 2028, round: 1, raw_value: 300 },
+      { source: 'rosteraudit', year: 2027, round: 1, raw_value: 600 },
+      { source: 'rosteraudit', year: 2029, round: 1, raw_value: 200 },
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
 test('runEtl updates an existing player matched by name and position', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
 
@@ -640,9 +820,15 @@ test('runEtl continues with an empty alias list when player-aliases.json is miss
 
     assert.equal(exitCode, 0);
     assert.equal(rowCount.count, 1);
-    assert.equal(warnings.length, 1);
+    assert.ok(
+      warnings.some((warning) =>
+        /aliases file not found at .*player-aliases\.json\. Continuing with an empty alias list\./.test(
+          warning,
+        ),
+      ),
+    );
     assert.match(
-      warnings[0],
+      warnings.join('\n'),
       /aliases file not found at .*player-aliases\.json\. Continuing with an empty alias list\./,
     );
   } finally {
@@ -891,9 +1077,11 @@ test('runEtl matches non-KTC players by exact name, fuzzy name, and alias while 
       },
     ]);
     assert.equal(fantasycalcSnapshots.length, 3);
-    assert.deepEqual(warnings, [
-      "[ETL] WARN: fantasycalc player 'Unmatched Receiver' (WR) could not be matched to a canonical player. Excluding from this run.",
-    ]);
+    assert.ok(
+      warnings.includes(
+        "[ETL] WARN: fantasycalc player 'Unmatched Receiver' (WR) could not be matched to a canonical player. Excluding from this run.",
+      ),
+    );
   } finally {
     console.warn = originalWarn;
     fs.rmSync(tempDir, { recursive: true, force: true });

@@ -59,13 +59,13 @@ The system shall use the following source priority order for canonical player na
 
 ## Normalization
 
-**DFF-ETL-030** `[ ]` → #5
+**DFF-ETL-030** `[x]` → #5
 The system shall normalize each source's raw player values independently to the range 0–9999 using min-max scaling: `round((raw - min) / (max - min) * 9999)`.
 
-**DFF-ETL-031** `[ ]` → #5
+**DFF-ETL-031** `[x]` → #5
 The system shall normalize each source's raw pick values independently using the same min-max formula.
 
-**DFF-ETL-032** `[ ]` → #5
+**DFF-ETL-032** `[x]` → #5
 When a source returns only one player or pick value (degenerate case), the system shall assign that entry a normalized value of 9999 and log a warning.
 
 ---
@@ -75,7 +75,7 @@ When a source returns only one player or pick value (degenerate case), the syste
 **DFF-ETL-040** `[x]` → #4
 The system shall compute `dynasty_value` for each player as the rounded mean of all non-NULL normalized per-source values for that player.
 
-**DFF-ETL-041** `[ ]` → #5
+**DFF-ETL-041** `[x]` → #5
 The system shall compute `dynasty_value` for each pick value `(year, round)` as the rounded mean of all non-NULL normalized per-source values for that entry.
 
 ---
@@ -111,10 +111,10 @@ The system shall set `value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, and
 
 ## Upsert — Pick Values
 
-**DFF-ETL-070** `[ ]` → #5
+**DFF-ETL-070** `[x]` → #5
 When a `(year, round)` entry already exists in `pick_values`, the system shall update `dynasty_value` and `updated_at`.
 
-**DFF-ETL-071** `[ ]` → #5
+**DFF-ETL-071** `[x]` → #5
 When a `(year, round)` entry does not exist in `pick_values`, the system shall insert a new row with a generated UUID.
 
 ---

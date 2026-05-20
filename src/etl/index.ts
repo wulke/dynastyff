@@ -331,6 +331,7 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
 // @spec DFF-HIST-002
 // @spec DFF-HIST-040
 // @spec DFF-HIST-041
+// @spec DFF-HIST-042
 // @spec DFF-HIST-050
 // @spec DFF-HIST-051
 // @spec DFF-HIST-052
@@ -350,7 +351,6 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
 
     if (!ktcResult || ktcResult.players.length === 0) {
       console.error('[ETL] ERROR: KTC returned no supported players.');
-      statements.updateRunCompletion.run(timestamp, JSON.stringify([]), runId);
       return 1;
     }
 

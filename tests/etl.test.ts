@@ -7,6 +7,7 @@
 // @spec DFF-HIST-002
 // @spec DFF-HIST-040
 // @spec DFF-HIST-041
+// @spec DFF-HIST-042
 // @spec DFF-HIST-050
 // @spec DFF-HIST-051
 // @spec DFF-HIST-052
@@ -508,7 +509,9 @@ test('runEtl updates an existing player matched by name and position', async () 
   }
 });
 
-test('runEtl exits non-zero and writes nothing when KTC yields no supported players', async () => {
+// @spec DFF-HIST-040
+// @spec DFF-HIST-042
+test('runEtl exits non-zero and leaves the etl run incomplete when KTC yields no supported players', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
 
   try {
@@ -522,9 +525,23 @@ test('runEtl exits non-zero and writes nothing when KTC yields no supported play
     });
 
     const rowCount = db.prepare('SELECT COUNT(*) as count FROM players').get() as { count: number };
+    const etlRuns = db
+      .prepare(
+        `SELECT started_at, completed_at, sources_attempted, sources_succeeded
+         FROM etl_runs`,
+      )
+      .all();
 
     assert.equal(exitCode, 1);
     assert.equal(rowCount.count, 0);
+    assert.deepEqual(etlRuns, [
+      {
+        started_at: '2026-05-18T22:00:00.000Z',
+        completed_at: null,
+        sources_attempted: '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+        sources_succeeded: '[]',
+      },
+    ]);
   } finally {
     cleanup();
   }

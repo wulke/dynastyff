@@ -57,6 +57,9 @@ When ETL begins, the system shall insert a row into `etl_runs` with `started_at`
 **DFF-HIST-041** `[x]` → #32
 When all source writes are complete, the system shall update the `etl_run` row with `completed_at` set to the current timestamp and `sources_succeeded` set to the list of sources that completed successfully.
 
+**DFF-HIST-042** `[x]` → #32
+When ETL exits early because KTC yields no supported players, the system shall leave `etl_runs.completed_at` as NULL and `etl_runs.sources_succeeded` as an empty array.
+
 ---
 
 ## Per-Source Atomicity

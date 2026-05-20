@@ -17,7 +17,13 @@ import path from 'node:path';
 import type Database from 'better-sqlite3';
 
 import { createDatabase } from '../db/client.js';
-import { normalizePickValues, normalizePlayers } from './normalize.js';
+import {
+  createNormalizationContext,
+  normalizePickValues,
+  normalizePlayers,
+  normalizeRawValue,
+  type NormalizationContext,
+} from './normalize.js';
 import {
   computeAggregatedDynastyValue,
   createUnmatchedPlayerWarning,
@@ -49,6 +55,7 @@ const activeEtlSources = ['ktc', 'fantasycalc', 'rosteraudit'] as const satisfie
 
 type PlayerIdRow = { id: string };
 type PickValueIdRow = { id: string };
+type PickValueSnapshotRow = { source: EtlSource; rawValue: number };
 
 type PlayerRow = PlayerMatchCandidate;
 
@@ -63,6 +70,7 @@ type EtlStatements = {
   updateRosterauditPlayer: Database.Statement;
   insertPlayerSnapshot: Database.Statement;
   selectPickValueId: Database.Statement<[number, number], PickValueIdRow | undefined>;
+  selectRunPickSnapshots: Database.Statement<[string, number, number], PickValueSnapshotRow>;
   insertPickValue: Database.Statement;
   updatePickValue: Database.Statement;
   insertPickSnapshot: Database.Statement;
@@ -168,6 +176,13 @@ function createStatements(sqlite: Database.Database): EtlStatements {
       `SELECT id
        FROM pick_values
        WHERE year = ? AND round = ?`,
+    ),
+    selectRunPickSnapshots: sqlite.prepare(
+      `SELECT
+         source,
+         raw_value AS rawValue
+       FROM pick_value_snapshots
+       WHERE run_id = ? AND year = ? AND round = ?`,
     ),
     insertPickValue: sqlite.prepare(
       `INSERT INTO pick_values (
@@ -324,27 +339,57 @@ function writeMatchedSourcePlayer(
   statements.insertPlayerSnapshot.run(randomUUID(), runId, existing.id, source, player.rawValue);
 }
 
+// @spec DFF-ETL-031
+function buildPickValueNormalizationContexts(
+  result: ScraperResult,
+  contexts: Map<EtlSource, NormalizationContext>,
+): void {
+  const context = createNormalizationContext(result.pickValues);
+
+  if (context) {
+    contexts.set(result.source, context);
+  }
+}
+
+// @spec DFF-ETL-041
+function computePickValueDynastyValue(
+  statements: EtlStatements,
+  runId: string,
+  year: number,
+  round: number,
+  normalizationContexts: Map<EtlSource, NormalizationContext>,
+): number {
+  const snapshots = statements.selectRunPickSnapshots.all(
+    runId,
+    year,
+    round,
+  ) as PickValueSnapshotRow[];
+  const normalizedValues = snapshots.flatMap((snapshot) => {
+    const context = normalizationContexts.get(snapshot.source);
+
+    if (!context) {
+      return [];
+    }
+
+    return [normalizeRawValue(snapshot.rawValue, context)];
+  });
+
+  return Math.round(
+    normalizedValues.reduce((sum, value) => sum + value, 0) / normalizedValues.length,
+  );
+}
+
+// @spec DFF-ETL-041
+// @spec DFF-ETL-070
+// @spec DFF-ETL-071
 function writePickValue(
   statements: EtlStatements,
   runId: string,
   source: EtlSource,
   pickValue: NormalizedPickValue,
   timestamp: string,
+  normalizationContexts: Map<EtlSource, NormalizationContext>,
 ): void {
-  const existing = statements.selectPickValueId.get(pickValue.year, pickValue.round);
-
-  if (existing) {
-    statements.updatePickValue.run(pickValue.normalizedValue, timestamp, existing.id);
-  } else {
-    statements.insertPickValue.run(
-      randomUUID(),
-      pickValue.year,
-      pickValue.round,
-      pickValue.normalizedValue,
-      timestamp,
-    );
-  }
-
   statements.insertPickSnapshot.run(
     randomUUID(),
     runId,
@@ -353,6 +398,27 @@ function writePickValue(
     source,
     pickValue.rawValue,
   );
+
+  const dynastyValue = computePickValueDynastyValue(
+    statements,
+    runId,
+    pickValue.year,
+    pickValue.round,
+    normalizationContexts,
+  );
+  const existing = statements.selectPickValueId.get(pickValue.year, pickValue.round);
+
+  if (existing) {
+    statements.updatePickValue.run(dynastyValue, timestamp, existing.id);
+  } else {
+    statements.insertPickValue.run(
+      randomUUID(),
+      pickValue.year,
+      pickValue.round,
+      dynastyValue,
+      timestamp,
+    );
+  }
 }
 
 function writeSourceData(
@@ -362,9 +428,18 @@ function writeSourceData(
   result: ScraperResult,
   timestamp: string,
   aliasFamilies: AliasFamily[],
+  normalizationContexts: Map<EtlSource, NormalizationContext>,
 ): void {
-  const normalizedPlayers = normalizePlayers(result.players);
-  const normalizedPickValues = normalizePickValues(result.pickValues);
+  const normalizedPlayers = normalizePlayers(result.players, {
+    source: result.source,
+    valueType: 'player',
+    warn: (message) => console.warn(message),
+  });
+  const normalizedPickValues = normalizePickValues(result.pickValues, {
+    source: result.source,
+    valueType: 'pick value',
+    warn: (message) => console.warn(message),
+  });
 
   const transaction = sqlite.transaction(() => {
     for (const player of normalizedPlayers) {
@@ -376,7 +451,14 @@ function writeSourceData(
     }
 
     for (const pickValue of normalizedPickValues) {
-      writePickValue(statements, runId, result.source, pickValue, timestamp);
+      writePickValue(
+        statements,
+        runId,
+        result.source,
+        pickValue,
+        timestamp,
+        normalizationContexts,
+      );
     }
   });
 
@@ -463,6 +545,7 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
 
     const scraperResults = await runScrapers(options);
     const resultBySource = new Map(scraperResults.map((result) => [result.source, result]));
+    const pickValueNormalizationContexts = new Map<EtlSource, NormalizationContext>();
     const ktcResult = resultBySource.get('ktc');
 
     if (!ktcResult || ktcResult.players.length === 0) {
@@ -479,8 +562,18 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
         continue;
       }
 
+      buildPickValueNormalizationContexts(result, pickValueNormalizationContexts);
+
       try {
-        writeSourceData(sqlite, statements, runId, result, timestamp, aliasFamilies);
+        writeSourceData(
+          sqlite,
+          statements,
+          runId,
+          result,
+          timestamp,
+          aliasFamilies,
+          pickValueNormalizationContexts,
+        );
         sourcesSucceeded.push(source);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

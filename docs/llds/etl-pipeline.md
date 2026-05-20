@@ -15,11 +15,11 @@ npm run etl
             │       ├── scraper/ktc.ts
             │       ├── scraper/fantasycalc.ts
             │       └── scraper/rosteraudit.ts
-            ├── normalize()            — current slice normalizes KTC player values to 0–9999
-            └── upsert()               — current slice writes players to SQLite
+            ├── normalize()            — normalizes player and pick values to 0–9999
+            └── upsert()               — writes players and pick values to SQLite
 ```
 
-Cross-source player matching, multi-source aggregation, and pick value persistence are introduced in follow-on issues (#4, #5, #6). Issue #3 establishes the shared scraper contract and orchestration boundary those later slices build on.
+Cross-source player matching, multi-source aggregation, pick value persistence, and partial-failure hardening are introduced across issues #4, #5, and #6. Issue #3 establishes the shared scraper contract and orchestration boundary those later slices build on.
 
 ## Scrapers
 
@@ -74,7 +74,8 @@ DynastyDaddy remains implemented as a scraper module, but it is temporarily excl
 3. Each successful source is processed in its own database transaction:
    - normalize that source's player and pick values
    - write raw `player_value_snapshots` and `pick_value_snapshots`
-   - update the current-state `players` and `pick_values` tables
+   - update the current-state `players` table
+   - recompute the current-state `pick_values` row for each touched `(year, round)` from the current run's raw pick snapshots using that run's per-source normalization contexts
 4. If any write fails inside a source transaction, the full source transaction is rolled back and excluded from `sources_succeeded`.
 5. After all source transactions finish, `runEtl()` updates the `etl_runs` row with `completed_at` and the final `sources_succeeded` list.
 
@@ -116,9 +117,8 @@ Each source is normalized independently using min-max scaling:
 normalized = round((raw - min) / (max - min) * 9999)
 ```
 
-- In the current implementation, normalization is applied only to the KTC player payload before upsert.
-- Follow-on issue #5 extends normalization to pick values and additional sources.
-- If a source returns only one player (degenerate case), that player is assigned value 9999 and a warning is logged.
+- Player and pick value normalization both use the same per-source min-max path.
+- If a source returns only one player or pick value (degenerate case), that entry is assigned value 9999 and a warning is logged.
 
 ## Aggregation
 
@@ -152,7 +152,9 @@ All writes use Drizzle ORM against the shared SQLite database.
 - On unmatched non-KTC row: log a warning and exclude that player's value from the hot `players` table for the run.
 
 **Pick values:**
-- Pick value persistence is specified for issue #5 and has not been implemented in this slice.
+- Existing row matching uses `(year, round)`.
+- On match: recompute `dynasty_value` as the rounded mean of all normalized current-run source values for that `(year, round)`, then update `updated_at`.
+- On miss: insert a new row with a generated UUID, the aggregated `dynasty_value`, and `updated_at`.
 
 ## File Layout
 

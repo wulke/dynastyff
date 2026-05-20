@@ -219,6 +219,27 @@ test('normalizePickValues min-max scales pick values to 0..9999', () => {
   );
 });
 
+// @spec DFF-ETL-032
+test('normalizePickValues warns and assigns 9999 when a source returns exactly one pick value', () => {
+  const warnings: string[] = [];
+
+  const [pickValue] = normalizePickValues(
+    [{ year: 2027, round: 1, rawValue: 100 }],
+    {
+      source: 'fantasycalc',
+      valueType: 'pick value',
+      warn: (message) => {
+        warnings.push(message);
+      },
+    },
+  );
+
+  assert.equal(pickValue.normalizedValue, 9999);
+  assert.deepEqual(warnings, [
+    '[ETL] WARN: fantasycalc returned exactly one pick value; assigning normalized value 9999.',
+  ]);
+});
+
 test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper boundary', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'ktc.json');
@@ -755,9 +776,15 @@ test('runEtl continues with an empty alias list when player-aliases.json is miss
 
     assert.equal(exitCode, 0);
     assert.equal(rowCount.count, 1);
-    assert.equal(warnings.length, 1);
+    assert.ok(
+      warnings.some((warning) =>
+        /aliases file not found at .*player-aliases\.json\. Continuing with an empty alias list\./.test(
+          warning,
+        ),
+      ),
+    );
     assert.match(
-      warnings[0],
+      warnings.join('\n'),
       /aliases file not found at .*player-aliases\.json\. Continuing with an empty alias list\./,
     );
   } finally {
@@ -1006,9 +1033,11 @@ test('runEtl matches non-KTC players by exact name, fuzzy name, and alias while 
       },
     ]);
     assert.equal(fantasycalcSnapshots.length, 3);
-    assert.deepEqual(warnings, [
-      "[ETL] WARN: fantasycalc player 'Unmatched Receiver' (WR) could not be matched to a canonical player. Excluding from this run.",
-    ]);
+    assert.ok(
+      warnings.includes(
+        "[ETL] WARN: fantasycalc player 'Unmatched Receiver' (WR) could not be matched to a canonical player. Excluding from this run.",
+      ),
+    );
   } finally {
     console.warn = originalWarn;
     fs.rmSync(tempDir, { recursive: true, force: true });

@@ -94,9 +94,10 @@ Current ETL scope:
 - Creates an `etl_runs` record at ETL start and finalizes it with per-source success status on completion
 - Persists raw per-source player and pick snapshots into `player_value_snapshots` and `pick_value_snapshots`
 - Wraps each source's snapshot writes plus `players` / `pick_values` hot-path updates in a single transaction
-- Normalizes the current per-source write path to `0-9999`
+- Normalizes player values and pick values per source to `0-9999`
 - Matches non-KTC players onto KTC-backed canonical rows with normalized-name exact match, Dice fuzzy match, and `player-aliases.json` overrides
 - Aggregates player `dynasty_value` as the rounded mean of the non-NULL per-source normalized values
+- Aggregates each `pick_values` `(year, round)` row as the rounded mean of the current run's non-NULL per-source normalized pick values
 - Treats a missing `player-aliases.json` as an empty alias list and fails fast on malformed alias JSON
 - Upserts the local SQLite `players` and `pick_values` tables from the current ETL write path
 - Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time

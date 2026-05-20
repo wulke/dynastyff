@@ -242,13 +242,27 @@ test('normalizePickValues warns and assigns 9999 when a source returns exactly o
 
 // @spec DFF-ETL-032
 test('normalizePickValues assigns 9999 when all pick values share the same raw value', () => {
+  const warnings: string[] = [];
+
   assert.deepEqual(
-    normalizePickValues([
-      { year: 2027, round: 1, rawValue: 777 },
-      { year: 2028, round: 2, rawValue: 777 },
-    ]).map((pickValue) => pickValue.normalizedValue),
+    normalizePickValues(
+      [
+        { year: 2027, round: 1, rawValue: 777 },
+        { year: 2028, round: 2, rawValue: 777 },
+      ],
+      {
+        source: 'rosteraudit',
+        valueType: 'pick value',
+        warn: (message) => {
+          warnings.push(message);
+        },
+      },
+    ).map((pickValue) => pickValue.normalizedValue),
     [9999, 9999],
   );
+  assert.deepEqual(warnings, [
+    '[ETL] WARN: rosteraudit returned 2 pick value rows with the same raw value; assigning normalized value 9999.',
+  ]);
 });
 
 test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper boundary', async () => {

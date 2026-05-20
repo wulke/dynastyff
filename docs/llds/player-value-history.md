@@ -15,7 +15,7 @@ Drives specs: `docs/specs/player-value-history-specs.md`
 | id | TEXT (UUID) | Primary key |
 | started_at | TEXT (ISO8601) | Timestamp when ETL began |
 | completed_at | TEXT (ISO8601) | Timestamp when ETL finished; NULL if in progress or killed |
-| sources_attempted | TEXT (JSON) | Array of source names attempted, e.g. `["ktc","fantasycalc","dynastydaddy","rosteraudit"]` |
+| sources_attempted | TEXT (JSON) | Array of source names attempted for that run, e.g. `["ktc","fantasycalc","rosteraudit"]` |
 | sources_succeeded | TEXT (JSON) | Array of source names that completed all writes successfully |
 
 ### `player_value_snapshots` (new)
@@ -51,7 +51,7 @@ Add nullable column `etl_run_id TEXT` — FK → `etl_runs.id`. Points to the ET
 
 ### ETL Execution
 
-1. Insert an `etl_run` row: `started_at = now()`, `sources_attempted = all four source names`, `sources_succeeded = []`, `completed_at = NULL`.
+1. Insert an `etl_run` row: `started_at = now()`, `sources_attempted = all active source names for this run`, `sources_succeeded = []`, `completed_at = NULL`.
 2. Run scrapers with existing concurrency and partial failure logic (unchanged).
 3. For each source that succeeds, execute within a single database transaction:
    a. Write one `player_value_snapshots` row per matched player (raw value, run_id, player_id, source).

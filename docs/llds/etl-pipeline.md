@@ -14,7 +14,6 @@ npm run etl
             ├── runScrapers()          — launches scrapers with concurrency limit 2
             │       ├── scraper/ktc.ts
             │       ├── scraper/fantasycalc.ts
-            │       ├── scraper/dynastydaddy.ts
             │       └── scraper/rosteraudit.ts
             ├── normalize()            — current slice normalizes KTC player values to 0–9999
             └── upsert()               — current slice writes players to SQLite
@@ -59,16 +58,17 @@ Scrapers throw on unrecoverable failure (site unreachable, structure changed). P
 Scrapers run two at a time using a simple promise pool. Order of execution is not guaranteed.
 
 ```
-[ktc, fantasycalc, dynastydaddy, rosteraudit]
+[ktc, fantasycalc, rosteraudit]
   → run ktc + fantasycalc in parallel
-  → run dynastydaddy + rosteraudit in parallel
+  → run rosteraudit
 ```
 
 ## Current Write Path
 
-The current ETL write path is source-aware and history-aware:
+The current ETL write path is source-aware and history-aware.
+DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` job due to scraper instability.
 
-1. `runScrapers()` launches KTC, FantasyCalc, DynastyDaddy, and RosterAudit with a maximum concurrency of 2.
+1. `runScrapers()` launches KTC, FantasyCalc, and RosterAudit with a maximum concurrency of 2.
 2. `runEtl()` inserts an `etl_runs` row at the start of execution with all four attempted sources and `completed_at = NULL`.
 3. Each successful source is processed in its own database transaction:
    - normalize that source's player and pick values

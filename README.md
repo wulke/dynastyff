@@ -88,7 +88,7 @@ Current draft API surface:
 |---|---|
 | `POST /drafts` | Create a new draft |
 | `GET /drafts/:id/stream` | Subscribe to live draft SSE updates |
-| `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration |
+| `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration, including available players |
 | `GET /drafts` | List persisted drafts for history / resume flows |
 
 ## ETL

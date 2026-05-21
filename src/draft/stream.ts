@@ -5,6 +5,7 @@
 // @spec DFF-ENGINE-014
 // @spec DFF-ENGINE-015
 import { and, asc, eq, isNull } from 'drizzle-orm';
+import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
 
 import { createDrizzleDb } from '../db/client.js';
 import { draftOrder, drafts, picks, rosterPlayers, teamPickAssets, teams, userQueue } from '../db/schema.js';
@@ -44,6 +45,7 @@ export type DraftStateSyncPayload = {
     player_id: string;
     rank: number;
   }>;
+  available_players: DraftAvailablePlayer[];
 };
 
 export type DraftStreamEvent =
@@ -312,6 +314,7 @@ export function getDraftStateSyncPayload({
         .where(eq(userQueue.draftId, draftId))
         .orderBy(asc(userQueue.rank))
         .all(),
+      available_players: getAvailablePlayersForDraft({ databasePath, draftId }),
     };
   } finally {
     sqlite.close();

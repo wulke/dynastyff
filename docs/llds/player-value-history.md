@@ -72,6 +72,8 @@ When a draft operation needs player values during a live draft:
 2. If it is non-NULL, read `player_value_snapshots` for that `run_id`, rebuild each source's normalization context across the full run, and recompute each player's draft-scoped `dynasty_value` from those snapshots.
 3. If it is NULL, read `players.dynasty_value` directly with no snapshot join.
 
+The concrete integration point in this slice is the available-player query returned by `GET /drafts/:id/state` / `state_sync`. That query is what hydrates the browser's available-player list for a live draft.
+
 ### Value History Query
 
 To reconstruct player values at a point in time: join `player_value_snapshots` on `run_id`. Apply min-max normalization at query time over that run's values. `players` is not involved in historical queries — it is the current-state table only.

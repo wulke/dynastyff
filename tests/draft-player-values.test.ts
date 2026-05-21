@@ -7,7 +7,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 import { initializeDatabase } from '../src/db/init.js';
-import { createDraft, getAvailablePlayersForDraft } from '../src/draft/service.js';
+import { createDraft, getAvailablePlayersForDraft, recordPick } from '../src/draft/service.js';
 
 function withDatabase(
   run: (db: Database.Database, databasePath: string) => void | Promise<void>,
@@ -167,6 +167,29 @@ test('getAvailablePlayersForDraft reconstructs dynasty values from the draft pin
         { id: 'player-c', dynasty_value: 0 },
       ],
     );
+
+    const firstSlot = db
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as { id: string };
+
+    recordPick({
+      databasePath,
+      draftOrderId: firstSlot.id,
+      playerId: 'player-a',
+      now: () => '2026-05-18T20:05:00.000Z',
+      idGenerator: () => 'pick-row-id',
+    });
+
+    assert.deepEqual(
+      getAvailablePlayersForDraft({ databasePath, draftId }).map((player) => player.id),
+      ['player-b', 'player-c'],
+    );
   });
 });
 
@@ -224,5 +247,71 @@ test('getAvailablePlayersForDraft falls back to current players values when draf
         { id: 'player-b', dynasty_value: 4200 },
       ],
     );
+
+    const firstSlot = db
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as { id: string };
+
+    recordPick({
+      databasePath,
+      draftOrderId: firstSlot.id,
+      playerId: 'player-a',
+      now: () => '2026-05-18T20:05:00.000Z',
+      idGenerator: () => 'pick-row-id',
+    });
+
+    assert.deepEqual(
+      getAvailablePlayersForDraft({ databasePath, draftId }).map((player) => player.id),
+      ['player-b'],
+    );
+  });
+});
+
+// @spec DFF-HIST-062
+test('getAvailablePlayersForDraft returns 9999 instead of NaN for single-player snapshot sources', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, { id: 'player-a', name: 'Player A', dynastyValue: 1111 });
+    insertCompletedRun(db, 'run-pinned');
+    insertPlayerSnapshot(db, {
+      id: 'snap-a-ktc',
+      runId: 'run-pinned',
+      playerId: 'player-a',
+      source: 'ktc',
+      rawValue: 100,
+    });
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const players = getAvailablePlayersForDraft({ databasePath, draftId });
+
+    assert.equal(players.length, 1);
+    assert.equal(players[0]?.dynasty_value, 9999);
   });
 });

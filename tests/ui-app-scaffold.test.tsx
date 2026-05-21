@@ -5,13 +5,24 @@
 // @spec DFF-UI-010
 // @spec DFF-UI-014
 // @spec DFF-UI-015
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { App } from '../src/ui/App.js';
 
 const fetchMock = vi.fn<typeof fetch>();
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((innerResolve, innerReject) => {
+    resolve = innerResolve;
+    reject = innerReject;
+  });
+
+  return { promise, resolve, reject };
+}
 
 // @spec DFF-UI-014
 // @spec DFF-UI-015
@@ -25,6 +36,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('UI app scaffold', () => {
@@ -168,6 +180,27 @@ describe('UI app scaffold', () => {
     ).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-015
+  // @spec DFF-UI-087
+  test('auto-dismisses the error toast after 6 seconds', async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/draft creation failed\. check your config and try again\./i);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6001);
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   // @spec DFF-UI-014
   // @spec DFF-UI-015
   test('remains on config when the success response is missing a draft id', async () => {
@@ -191,6 +224,42 @@ describe('UI app scaffold', () => {
     expect(
       screen.getByRole('heading', {
         name: /config screen/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-014
+  // @spec DFF-UI-015
+  test('ignores a second submit while draft creation is already in flight', async () => {
+    const deferredResponse = createDeferred<Response>();
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(() => deferredResponse.promise);
+
+    render(<App />);
+
+    const startDraftButton = screen.getByRole('button', { name: /start draft/i });
+    await user.click(startDraftButton);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /starting draft…/i })).toBeDisabled();
+
+    const pendingButton = screen.getByRole('button', { name: /starting draft…/i });
+    await user.click(pendingButton);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    deferredResponse.resolve(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    expect(
+      await screen.findByRole('heading', {
+        name: /draft shell/i,
       }),
     ).toBeInTheDocument();
   });

@@ -44,6 +44,7 @@ Data (player values, ADP, dynasty rankings) is pre-loaded from a local SQLite da
 │                                                      │
 │  Draft Board  │  Available Players  │  Advisor Chat  │
 │  (Sleeper UI) │  (ranked + search)  │  (Claude Q&A)  │
+│  llds/ui.md                                          │
 └──────────────────────────┬──────────────────────────┘
                            │ HTTP + SSE
 ┌──────────────────────────▼──────────────────────────┐
@@ -59,26 +60,46 @@ Data (player values, ADP, dynasty rankings) is pre-loaded from a local SQLite da
 │                                                      │
 │  players  │  pick_values  │  drafts  │  draft_order  │
 │  picks    │  roster_players  │  trades  │  teams      │
-│  team_pick_assets        llds/data-model.md          │
+│  team_pick_assets  │  etl_runs                       │
+│  player_value_snapshots  │  pick_value_snapshots      │
+│                        llds/data-model.md            │
 └─────────────────────────────────────────────────────┘
                            ▲
 ┌──────────────────────────┴──────────────────────────┐
 │              ETL Pipeline (npm run etl)              │
 │                                                      │
-│  Scrapers: KTC │ FantasyCalc │ DynastyDaddy          │
-│            RosterAudit       (Playwright)            │
-│  Normalize → Aggregate → Upsert                      │
+│  Scrapers: KTC │ FantasyCalc │ RosterAudit           │
+│            (Playwright) — DynastyDaddy excluded      │
+│  Match → Normalize → Aggregate → Upsert + Snapshot   │
 │                   llds/etl-pipeline.md               │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│          Static Build (GitHub Pages)                 │
+│                                                      │
+│  Browser-only React app — no Express, no SQLite      │
+│  data/snapshot.json (committed, ETL-generated)       │
+│  In-memory draft engine  │  Bot loop in React ctx    │
+│  Advisor excluded        llds/static-build.md        │
+└──────────────────────────┬──────────────────────────┘
+                           │ GitHub Actions
+┌──────────────────────────▼──────────────────────────┐
+│  etl-snapshot.yml: workflow_dispatch → ETL →         │
+│    export-snapshot → commit data/snapshot.json       │
+│  pages.yml: push to main → vite build → Pages deploy │
+│  https://wulke.github.io/dynastyff/                  │
 └─────────────────────────────────────────────────────┘
 ```
 
-**Five intent components:**
+**Seven intent components:**
 
 - **Draft Engine** (`llds/draft-engine.md`) — manages draft state: pick order, snake rotation, round progression, SSE event emission, pick submission, and draft history persistence.
-- **Bot Simulator** (`llds/bot-simulator.md`) — drives automated picks for all non-user teams. Uses dynasty value + positional need multiplier + configurable noise. Emits picks on a 3–5s simulated delay via the Draft Engine.
-- **Advisor Agent** (`llds/advisor-agent.md`) — Claude-backed conversational advisor. Receives full draft state as context. Supports two modes: "advise me" (agent recommends a pick with reasoning) and "grill-me" (user shares their thinking, agent challenges it). Multi-turn Q&A scoped to the current pick.
-- **Data Model** (`llds/data-model.md`) — SQLite schema for players, future pick values, draft sessions, pick history, roster ownership, and trade history. Players carry: name, position, team, age, rookie status, dynasty value, ADP, and per-source raw values. Future pick values (keyed by year and round) are sourced from the ETL pipeline alongside player values.
-- **ETL Pipeline** (`llds/etl-pipeline.md`) — standalone `npm run etl` script that scrapes KTC, FantasyCalc, DynastyDaddy, and RosterAudit via Playwright. Normalizes each source's values to 0–9999 via min-max scaling, averages them into a single `dynasty_value`, and upserts results into the SQLite database. Runs two scrapers concurrently; commits partial results on failure with loud per-source warnings.
+- **Bot Simulator** (`llds/bot-simulator.md`) — drives automated picks for all non-user teams. Uses dynasty value + positional need multiplier + configurable noise across six team archetypes (`bpa`, `balanced`, `win_now`, `punt`, `rb_heavy`, `qb_early`). Emits picks on a 3–5s simulated delay via the Draft Engine. The core pick-selection logic lives in an isomorphic module (`src/draft/bot.ts`) shared with the static build.
+- **Advisor Agent** (`llds/advisor-agent.md`) — Claude-backed conversational advisor. Receives full draft state as context. Supports two modes: "advise me" (agent recommends a pick with reasoning) and "grill-me" (user shares their thinking, agent challenges it). Multi-turn Q&A scoped to the current pick. Excluded from the static build.
+- **Data Model** (`llds/data-model.md`) — SQLite schema for players, future pick values, draft sessions, pick history, roster ownership, and trade history. Players carry: name, position, team, age, rookie status, dynasty value, ADP, and per-source raw values. Future pick values (keyed by year and round) are sourced from the ETL pipeline alongside player values. Three additional tables support value history: `etl_runs` (one row per ETL execution), `player_value_snapshots` (raw per-source player values per run), and `pick_value_snapshots` (raw per-source pick values per run). Drafts carry a nullable `etl_run_id` FK that pins the draft to the ETL snapshot current at creation time, so later ETL refreshes do not alter in-progress or historical drafts.
+- **ETL Pipeline** (`llds/etl-pipeline.md`) — standalone `npm run etl` script that scrapes KTC, FantasyCalc, and RosterAudit via Playwright. DynastyDaddy is implemented but temporarily excluded from the live job due to scraper instability. Cross-source player matching uses normalized-name exact match, Dice-coefficient fuzzy match (≥ 0.85), and a `player-aliases.json` override file. Normalizes each source's values to 0–9999 via min-max scaling, averages them into a single `dynasty_value`, and writes raw snapshots + upserts results in per-source database transactions. Runs two scrapers concurrently; commits partial results on failure with loud per-source warnings. Also exposes `npm run export:snapshot` to write `data/snapshot.json` for the static build.
+- **UI** (`llds/ui.md`) — local React SPA connected to the Express backend via HTTP and SSE. Three views (config → drafting → history) driven by a top-level view-state enum. All draft state lives in a single `DraftContext` (React Context + useReducer); SSE events are the only write path during a live draft. Components are decoupled from data transport via a `DraftContextValue` interface — the main app wires `HttpDraftContext` (Express + SSE); the static build wires `InMemoryDraftContext` (in-memory engine + browser bot loop).
+- **Static Build** (`llds/static-build.md`) — browser-only second deployable target at `https://wulke.github.io/dynastyff/`. No Express server, no SQLite, no persistent storage. Player and pick-value data loads from `data/snapshot.json`, a committed JSON file regenerated on demand via a `workflow_dispatch` GitHub Actions workflow. An isomorphic in-memory draft engine (`src/draft/engine.ts`) runs the full draft state machine in the browser. The bot loop runs in the React context with a 1.5–3s async delay per pick. The advisor is excluded. A second `pages.yml` workflow deploys the static Vite build to GitHub Pages on every push to `main`.
 
 ## Key Design Decisions
 
@@ -96,6 +117,11 @@ Data (player values, ADP, dynasty rankings) is pre-loaded from a local SQLite da
 | Draft format | Snake, 20 rounds (configurable) | Auction; fixed rounds | Snake is the dominant startup format; 20 rounds covers a full dynasty roster |
 | Player pool | Open pool — any player searchable, ranked by adjusted dynasty value | Pre-ranked finite list | Matches Sleeper UX; handles edge cases (obscure players) without requiring exhaustive pre-population |
 | Future pick assets | 3 years, configurable rounds per year | Fixed format | Startup leagues trade future picks; configurable rounds match real league settings |
+| Static build | Browser-only GitHub Pages target; advisor excluded | Server-only; no public deployment | Lets anyone practice drafts without running the local server; keeps API key off a public site |
+| Draft value pinning | Nullable `etl_run_id` FK on `drafts` | Re-read current `players` on every pick | Prevents mid-draft or historical value drift when ETL runs during a draft or later |
+| ETL run snapshots | `etl_runs` + `player_value_snapshots` + `pick_value_snapshots` | Overwrite-only `players` table | Enables point-in-time value reconstruction and auditable per-run failure tracking |
+| Cross-source player matching | Name fuzzy match (Dice ≥ 0.85) + `player-aliases.json` | Shared external ID | No shared ID across all four sources; fuzzy match handles the common case; aliases handle known edge cases |
+| DynastyDaddy scraper | Implemented but excluded from live ETL | Removed from codebase | Scraper is unstable; keeping the module preserves re-enablement path without blocking the pipeline |
 
 ## Default League Configuration
 
@@ -127,4 +153,8 @@ Data (player values, ADP, dynasty rankings) is pre-loaded from a local SQLite da
 - `docs/llds/bot-simulator.md`
 - `docs/llds/advisor-agent.md`
 - `docs/llds/data-model.md`
+- `docs/llds/etl-pipeline.md`
+- `docs/llds/ui.md`
+- `docs/llds/static-build.md`
+- `docs/llds/player-value-history.md`
 - `docs/specs/`

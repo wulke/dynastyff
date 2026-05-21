@@ -1,5 +1,8 @@
 // @spec DFF-ENGINE-001
 // @spec DFF-ENGINE-003
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
+// @spec DFF-ENGINE-022
 // @spec DFF-ENGINE-060
 // @spec DFF-ENGINE-061
 // @spec DFF-ENGINE-062
@@ -17,6 +20,7 @@ import { createDraft, recordPick } from '../src/draft/service.js';
 import {
   createDraftErrorHandler,
   createDraftRoute,
+  createDraftPickRoute,
   createDraftStateRoute,
   createDraftHistoryRoute,
 } from '../src/server/app.js';
@@ -143,6 +147,39 @@ async function invokeDraftRoute(databasePath: string, body: Record<string, unkno
     route: createDraftRoute({ databasePath }),
     body,
   });
+}
+
+async function invokePickRoute(
+  databasePath: string,
+  draftId: string,
+  body: Record<string, unknown>,
+) {
+  return invokeRoute({
+    route: createDraftPickRoute({ databasePath }),
+    body,
+    params: { id: draftId },
+  });
+}
+
+function readDraftMutationCounts(databasePath: string, draftId: string) {
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    const pickCount = db
+      .prepare('SELECT COUNT(*) AS count FROM picks WHERE draft_id = ?')
+      .get(draftId) as { count: number };
+    const rosterCount = db
+      .prepare('SELECT COUNT(*) AS count FROM roster_players WHERE draft_id = ?')
+      .get(draftId) as { count: number };
+
+    return {
+      picks: pickCount.count,
+      rosterPlayers: rosterCount.count,
+    };
+  } finally {
+    db.close();
+  }
 }
 
 test('POST /drafts returns 201 and the created draft id for a valid camelCase config payload', async () => {
@@ -276,6 +313,235 @@ test('createDraftErrorHandler returns 400 for Express JSON body parse failures',
   assert.deepEqual(responseBody, {
     error: 'Invalid draft config: request body must be valid JSON.',
   });
+});
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-022
+test('POST /drafts/:id/pick returns 200 and records the user pick for a valid player on the current user slot', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-pick-valid-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-valid', 'Valid Player', 'WR');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokePickRoute(databasePath, draftId, {
+      playerId: 'player-valid',
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json, { ok: true });
+
+    const persistedPick = db
+      .prepare(
+        `SELECT draft_id, player_id, pick_number
+         FROM picks
+         WHERE draft_id = ?`,
+      )
+      .get(draftId) as
+      | {
+          draft_id: string;
+          player_id: string;
+          pick_number: number;
+        }
+      | undefined;
+
+    assert.deepEqual(persistedPick, {
+      draft_id: draftId,
+      player_id: 'player-valid',
+      pick_number: 1,
+    });
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
+test('POST /drafts/:id/pick returns 400 and leaves draft state unchanged when it is not the user turn', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-pick-turn-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-valid', 'Valid Player', 'WR');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 2,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const countsBefore = readDraftMutationCounts(databasePath, draftId);
+
+    const response = await invokePickRoute(databasePath, draftId, {
+      playerId: 'player-valid',
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid pick submission: it is not currently the user team turn.',
+    });
+    assert.deepEqual(readDraftMutationCounts(databasePath, draftId), countsBefore);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
+test('POST /drafts/:id/pick returns 400 and leaves draft state unchanged when the player does not exist', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-pick-unknown-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const countsBefore = readDraftMutationCounts(databasePath, draftId);
+
+    const response = await invokePickRoute(databasePath, draftId, {
+      playerId: 'missing-player',
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid pick submission: player does not exist.',
+    });
+    assert.deepEqual(readDraftMutationCounts(databasePath, draftId), countsBefore);
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
+test('POST /drafts/:id/pick returns 400 and leaves draft state unchanged when the player has already been picked', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-pick-picked-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-picked', 'Picked Player', 'QB');
+    seedPlayer(db, 'player-next', 'Next Player', 'WR');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 2,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const firstSlot = db
+      .prepare(
+        `SELECT id
+         FROM draft_order
+         WHERE draft_id = ?
+         ORDER BY pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as { id: string };
+
+    recordPick({
+      databasePath,
+      draftOrderId: firstSlot.id,
+      playerId: 'player-picked',
+      now: () => '2026-05-18T20:05:00.000Z',
+    });
+
+    const countsBefore = readDraftMutationCounts(databasePath, draftId);
+
+    const response = await invokePickRoute(databasePath, draftId, {
+      playerId: 'player-picked',
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid pick submission: player has already been picked.',
+    });
+    assert.deepEqual(readDraftMutationCounts(databasePath, draftId), countsBefore);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
 });
 
 test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for mid-draft hydration', async () => {

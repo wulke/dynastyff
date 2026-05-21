@@ -280,6 +280,33 @@ describe('UI app scaffold', () => {
 
   // @spec DFF-UI-014
   // @spec DFF-UI-015
+  test('remains on config when the success response body is not valid json', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response('not json', {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /draft creation failed\. check your config and try again\./i,
+    );
+    expect(
+      screen.getByRole('heading', {
+        name: /config screen/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-014
+  // @spec DFF-UI-015
   test('ignores a second submit while draft creation is already in flight', async () => {
     const deferredResponse = createDeferred<Response>();
     const user = userEvent.setup();

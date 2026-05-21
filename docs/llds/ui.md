@@ -256,6 +256,7 @@ function useDraftStream(
 - On `error`: dispatches `SSE_STATUS: 'disconnected'`, schedules reconnect with exponential backoff (1s, 2s, 4s, 8s, 16s, cap 30s)
 - On `draft_complete`: closes the `EventSource` cleanly
 - Cleanup: closes `EventSource` on unmount or `draftId` change
+- Malformed SSE payload: close the current stream, mark the connection `disconnected`, and run the same reconnect schedule used for network errors
 
 If the reconnect schedule reaches the capped 30-second attempt and that attempt also fails, the context surfaces a single global toast: `Lost connection to draft server. Refresh to reconnect.` The existing toast host remains single-instance and auto-dismisses after 6 seconds.
 

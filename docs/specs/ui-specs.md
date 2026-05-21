@@ -14,7 +14,7 @@ When the application loads and no draft is active, the system shall render the C
 **DFF-UI-002** `[x]` → #15
 When a draft is successfully created via POST /drafts, the system shall transition to the Drafting view.
 
-**DFF-UI-003** `[ ]` → #13
+**DFF-UI-003** `[x]` → #54
 When a `draft_complete` SSE event is received, the system shall transition to the History view.
 
 **DFF-UI-004** `[x]` → #13
@@ -165,14 +165,14 @@ The History view shall include a "New Draft" button that transitions the app to 
 
 ## SSE Integration
 
-**DFF-UI-070** `[ ]` → #54
+**DFF-UI-070** `[x]` → #54
 The `useDraftStream` hook shall open an `EventSource` to GET /drafts/:id/stream when `draftId` is set, and close it when `draftId` is cleared or the component unmounts.
 
 **DFF-UI-071** `[x]` → #54
 The hook shall dispatch `SSE_STATUS: 'connecting'` when opening the connection and `SSE_STATUS: 'connected'` on the first message received.
 
 **DFF-UI-072** `[x]` → #54
-On SSE error, the hook shall dispatch `SSE_STATUS: 'disconnected'` and attempt to reconnect with exponential backoff: 1s, 2s, 4s, capped at 30s.
+On SSE error, the hook shall dispatch `SSE_STATUS: 'disconnected'` and attempt to reconnect with exponential backoff: 1s, 2s, 4s, 8s, 16s, then 30s; if the 30s attempt also fails, reconnect is exhausted.
 
 **DFF-UI-073** `[x]` → #54
 On `draft_complete` event, the hook shall close the `EventSource` cleanly and dispatch `DRAFT_COMPLETE`.
@@ -194,7 +194,7 @@ While an advisor response is pending, the Advisor panel shall render an inline s
 The draft header shall display an SSE connection status badge showing "Connecting…" while `sseStatus` is `connecting`.
 
 **DFF-UI-083** `[x]` → #54
-If SSE reconnect attempts are exhausted (backoff cap reached with no reconnect), the system shall display a persistent error toast: "Lost connection to draft server. Refresh to reconnect."
+If SSE reconnect attempts are exhausted (backoff cap reached with no reconnect), the system shall display an error toast: "Lost connection to draft server. Refresh to reconnect."
 
 **DFF-UI-084** `[ ]` → #18
 If POST /drafts/:id/pick returns an error, the system shall display a toast: "Pick failed — player may already be taken."

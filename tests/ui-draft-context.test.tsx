@@ -13,6 +13,11 @@ import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { App } from '../src/ui/App.js';
+import {
+  HttpDraftContextProvider,
+  useDraftContext,
+  type QueueEntry,
+} from '../src/ui/context/DraftContext.js';
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -71,6 +76,14 @@ class MockEventSource {
     }
   }
 
+  emitRaw(type: string, data: string): void {
+    const event = new MessageEvent(type, { data });
+
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(event);
+    }
+  }
+
   emitError(): void {
     this.onerror?.(new Event('error'));
   }
@@ -92,6 +105,52 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
+
+function DraftContextHarness() {
+  const { startDraft, submitPick, updateQueue } = useDraftContext();
+
+  const queue: QueueEntry[] = [
+    {
+      playerId: 'player-queue-1',
+      rank: 1,
+    },
+  ];
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() =>
+          void startDraft({
+            name: 'Harness Draft',
+            teamCount: 12,
+            rounds: 20,
+            scoringFormat: 'ppr',
+            userPickPosition: 6,
+            futurePickYears: 3,
+            rosterConfig: {
+              QB: 1,
+              RB: 2,
+              WR: 3,
+              TE: 1,
+              FLEX: 1,
+              SF: 1,
+              bench: 6,
+            },
+          })
+        }
+      >
+        Start Harness Draft
+      </button>
+      <button type="button" onClick={() => void submitPick('player-123')}>
+        Submit Pick
+      </button>
+      <button type="button" onClick={() => void updateQueue(queue)}>
+        Update Queue
+      </button>
+    </>
+  );
+}
 
 describe('HTTP draft context', () => {
   // @spec DFF-STATIC-060
@@ -179,6 +238,36 @@ describe('HTTP draft context', () => {
     expect(stream?.closed).toBe(true);
   });
 
+  // @spec DFF-UI-070
+  test('closes the EventSource when the draft id is cleared by starting a new draft', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-history-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    const stream = MockEventSource.instances[0];
+
+    act(() => {
+      stream?.emit('draft_complete', {
+        draft_id: 'draft-history-123',
+        completed_at: '2026-05-21T18:00:00.000Z',
+      });
+    });
+
+    await user.click(screen.getByRole('button', { name: /new draft/i }));
+
+    expect(stream?.closed).toBe(true);
+  });
+
   // @spec DFF-UI-072
   // @spec DFF-UI-083
   test(
@@ -231,4 +320,123 @@ describe('HTTP draft context', () => {
     },
     20_000,
   );
+
+  // @spec DFF-UI-072
+  // @spec DFF-UI-074
+  test(
+    'handles malformed SSE payloads by disconnecting and reconnecting instead of throwing',
+    async () => {
+    vi.useFakeTimers();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-malformed-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
+      await Promise.resolve();
+    });
+
+    const initialStream = MockEventSource.instances[0];
+    expect(initialStream).toBeDefined();
+
+    act(() => {
+      initialStream?.emitRaw('pick_made', '{bad json');
+    });
+
+    expect(initialStream?.closed).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(MockEventSource.instances[1]?.url).toBe('/drafts/draft-malformed-123/stream');
+    expect(screen.getByText(/connecting…/i)).toBeInTheDocument();
+    },
+    20_000,
+  );
+
+  // @spec DFF-STATIC-060
+  // @spec DFF-STATIC-062
+  // @spec DFF-UI-084
+  test('submitPick posts to the draft pick endpoint and shows a toast on non-ok responses', async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ draftId: 'draft-pick-123' }), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(new Response('taken', { status: 400 }));
+
+    render(
+      <HttpDraftContextProvider>
+        <DraftContextHarness />
+      </HttpDraftContextProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /start harness draft/i }));
+    await user.click(screen.getByRole('button', { name: /submit pick/i }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/drafts/draft-pick-123/pick',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ playerId: 'player-123' }),
+      }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/pick failed — player may already be taken\./i);
+  });
+
+  // @spec DFF-STATIC-060
+  // @spec DFF-STATIC-062
+  test('updateQueue posts queue entries to the draft queue endpoint', async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ draftId: 'draft-queue-123' }), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    render(
+      <HttpDraftContextProvider>
+        <DraftContextHarness />
+      </HttpDraftContextProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /start harness draft/i }));
+    await user.click(screen.getByRole('button', { name: /update queue/i }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/drafts/draft-queue-123/queue',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          queue: [
+            {
+              playerId: 'player-queue-1',
+              rank: 1,
+            },
+          ],
+        }),
+      }),
+    );
+  });
 });

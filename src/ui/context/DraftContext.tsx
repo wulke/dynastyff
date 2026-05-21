@@ -573,6 +573,34 @@ export function useDraftContext(): DraftContextValue {
   return value;
 }
 
+// @spec DFF-UI-072
+// @spec DFF-UI-074
+// @spec DFF-UI-083
+function handleStreamDisconnect(
+  cleanupCurrentSource: () => void,
+  dispatch: Dispatch<DraftAction>,
+  reconnectAttemptRef: { current: number },
+  reconnectTimerRef: { current: number | null },
+  connect: () => void,
+  onDisconnectExhausted: () => void,
+) {
+  cleanupCurrentSource();
+  dispatch({ type: 'SSE_STATUS', status: 'disconnected' });
+
+  const reconnectDelay = RECONNECT_DELAYS_MS[reconnectAttemptRef.current];
+
+  if (reconnectDelay === undefined) {
+    onDisconnectExhausted();
+    return;
+  }
+
+  reconnectAttemptRef.current += 1;
+  reconnectTimerRef.current = window.setTimeout(() => {
+    reconnectTimerRef.current = null;
+    connect();
+  }, reconnectDelay);
+}
+
 // @spec DFF-STATIC-062
 // @spec DFF-UI-071
 // @spec DFF-UI-072
@@ -637,9 +665,20 @@ function useDraftStream(
         listener: (payload: TPayload, source: EventSource) => void,
       ) {
         eventSource.addEventListener(eventName, (event) => {
-          const payload = JSON.parse((event as MessageEvent<string>).data) as TPayload;
-          setConnectedFromMessage();
-          listener(payload, eventSource);
+          try {
+            const payload = JSON.parse((event as MessageEvent<string>).data) as TPayload;
+            setConnectedFromMessage();
+            listener(payload, eventSource);
+          } catch {
+            handleStreamDisconnect(
+              cleanupCurrentSource,
+              dispatch,
+              reconnectAttemptRef,
+              reconnectTimerRef,
+              connect,
+              onDisconnectExhaustedRef.current,
+            );
+          }
         });
       }
 
@@ -667,21 +706,14 @@ function useDraftStream(
       });
 
       eventSource.onerror = () => {
-        cleanupCurrentSource();
-        dispatch({ type: 'SSE_STATUS', status: 'disconnected' });
-
-        const reconnectDelay = RECONNECT_DELAYS_MS[reconnectAttemptRef.current];
-
-        if (reconnectDelay === undefined) {
-          onDisconnectExhaustedRef.current();
-          return;
-        }
-
-        reconnectAttemptRef.current += 1;
-        reconnectTimerRef.current = window.setTimeout(() => {
-          reconnectTimerRef.current = null;
-          connect();
-        }, reconnectDelay);
+        handleStreamDisconnect(
+          cleanupCurrentSource,
+          dispatch,
+          reconnectAttemptRef,
+          reconnectTimerRef,
+          connect,
+          onDisconnectExhaustedRef.current,
+        );
       };
     }
 
@@ -723,6 +755,8 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     return () => window.clearTimeout(timeoutId);
   }, [toastMessage]);
 
+  // @spec DFF-UI-014
+  // @spec DFF-UI-015
   async function startDraft(config: DraftConfig) {
     if (startDraftInFlightRef.current) {
       return;
@@ -775,6 +809,9 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
   }
 
+  // @spec DFF-STATIC-060
+  // @spec DFF-STATIC-062
+  // @spec DFF-UI-084
   async function submitPick(playerId: string) {
     const draftId = state.draftState?.draftId;
 
@@ -799,6 +836,8 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
   }
 
+  // @spec DFF-STATIC-060
+  // @spec DFF-STATIC-062
   async function updateQueue(queue: QueueEntry[]) {
     const draftId = state.draftState?.draftId;
 
@@ -819,6 +858,8 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
   }
 
+  // @spec DFF-STATIC-060
+  // @spec DFF-STATIC-062
   function newDraft() {
     setToastMessage(null);
     dispatch({ type: 'NEW_DRAFT' });

@@ -11,6 +11,10 @@ type RawDraftRequestBody = {
   futurePickYears?: unknown;
 };
 
+type RawPickSubmissionRequestBody = {
+  playerId?: unknown;
+};
+
 type DraftRequestRosterSlots = {
   QB: number;
   RB: number;
@@ -40,6 +44,7 @@ export type CreateDraftConfig = {
 };
 
 export class DraftConfigValidationError extends Error {}
+export class PickSubmissionValidationError extends Error {}
 
 export function parseCreateDraftConfig(input: unknown): CreateDraftConfig {
   if (!isRecord(input)) {
@@ -75,6 +80,26 @@ export function parseCreateDraftConfig(input: unknown): CreateDraftConfig {
       SF: rosterSlots.SF,
       bench: rosterSlots.BN,
     },
+  };
+}
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
+export function parsePickSubmission(input: unknown): { playerId: string } {
+  if (!isRecord(input)) {
+    throw new PickSubmissionValidationError(
+      'Invalid pick submission: request body must be a JSON object.',
+    );
+  }
+
+  const body = input as RawPickSubmissionRequestBody;
+
+  if (typeof body.playerId !== 'string' || body.playerId.trim() === '') {
+    throw new PickSubmissionValidationError('Invalid pick submission: playerId is required.');
+  }
+
+  return {
+    playerId: body.playerId,
   };
 }
 

@@ -478,6 +478,49 @@ test('POST /drafts/:id/pick returns 400 and leaves draft state unchanged when th
 
 // @spec DFF-ENGINE-020
 // @spec DFF-ENGINE-021
+test('POST /drafts/:id/pick returns 400 when playerId is missing from the request body', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-pick-body-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const countsBefore = readDraftMutationCounts(databasePath, draftId);
+
+    const response = await invokePickRoute(databasePath, draftId, {});
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid pick submission: playerId is required.',
+    });
+    assert.deepEqual(readDraftMutationCounts(databasePath, draftId), countsBefore);
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
 test('POST /drafts/:id/pick returns 400 and leaves draft state unchanged when the player has already been picked', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-pick-picked-');
   initializeDatabase(databasePath);

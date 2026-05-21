@@ -92,6 +92,7 @@ Current draft API surface:
 | Route | Purpose |
 |---|---|
 | `POST /drafts` | Create a new draft |
+| `POST /drafts/:id/pick` | Submit the user's pick with HTTP-layer validation for turn order and player availability |
 | `GET /drafts/:id/stream` | Subscribe to live draft SSE updates |
 | `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration, including available players |
 | `GET /drafts` | List persisted drafts for history / resume flows |

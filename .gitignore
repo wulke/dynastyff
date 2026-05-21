@@ -6,5 +6,8 @@ __pycache__/
 node_modules/
 .DS_Store
 .gemini/
-data/
+data/dynastyff.sqlite
+data/dynastyff.sqlite-shm
+data/dynastyff.sqlite-wal
+data/dynastyff.db
 dist/

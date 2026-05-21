@@ -88,7 +88,7 @@ Current draft API surface:
 |---|---|
 | `POST /drafts` | Create a new draft |
 | `GET /drafts/:id/stream` | Subscribe to live draft SSE updates |
-| `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration |
+| `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration, including available players |
 | `GET /drafts` | List persisted drafts for history / resume flows |
 
 ## ETL
@@ -112,6 +112,7 @@ Current ETL scope:
 - Treats a missing `player-aliases.json` as an empty alias list and fails fast on malformed alias JSON
 - Upserts the local SQLite `players` and `pick_values` tables from the current ETL write path
 - Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time
+- Reconstructs draft-scoped player `dynasty_value` reads from the pinned ETL run's `player_value_snapshots`, and falls back to `players` when a draft was created before any ETL run completed
 
 `player-aliases.json` lives at the project root and supports:
 

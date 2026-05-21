@@ -394,6 +394,7 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
       roster_players: Array<{ team_id: string; player_id: string }>;
       team_pick_assets: Array<{ team_id: string; year: number; round: number }>;
       user_queue: Array<{ player_id: string; rank: number }>;
+      available_players: Array<{ id: string; dynasty_value: number }>;
       trades: Array<{
         id: string;
         round: number;
@@ -435,6 +436,13 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
     ]);
     assert.equal(body.team_pick_assets.length, 8);
     assert.deepEqual(body.user_queue, [{ player_id: 'player-queued', rank: 1 }]);
+    assert.deepEqual(
+      body.available_players.map((player) => ({
+        id: player.id,
+        dynasty_value: player.dynasty_value,
+      })),
+      [{ id: 'player-queued', dynasty_value: 5000 }],
+    );
     assert.deepEqual(body.trades, [
       {
         id: 'trade-row-id',

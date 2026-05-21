@@ -252,6 +252,7 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
         roster_players: unknown[];
         team_pick_assets: Array<{ team_id: string; year: number; round: number }>;
         user_queue: unknown[];
+        available_players: Array<{ id: string; dynasty_value: number }>;
       };
 
       assert.equal(stateSync.draft_id, draftId);
@@ -299,6 +300,16 @@ test('GET /drafts/:id/stream returns state_sync immediately and emits pick_made 
       assert.deepEqual(stateSync.roster_players, []);
       assert.equal(stateSync.team_pick_assets.length, 4);
       assert.deepEqual(stateSync.user_queue, []);
+      assert.deepEqual(
+        stateSync.available_players.map((player) => ({
+          id: player.id,
+          dynasty_value: player.dynasty_value,
+        })),
+        [
+          { id: 'player-1', dynasty_value: 5000 },
+          { id: 'player-2', dynasty_value: 5000 },
+        ],
+      );
 
       recordPick({
         databasePath,

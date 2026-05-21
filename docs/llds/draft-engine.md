@@ -143,10 +143,12 @@ Returns one JSON document with:
 - `roster_players` ordered by current team then player
 - `team_pick_assets` ordered by current team then `(year, round)`
 - `user_queue` ordered by `rank`
+- `available_players` ordered by `dynasty_value` descending for the draft's pinned value context
 - `trades` ordered chronologically by `pick_number`
 
 Behavior:
 - The response shape matches the `state_sync` SSE payload and adds `trades`
+- `available_players` reads `player_value_snapshots` when `drafts.etl_run_id` is non-NULL and falls back to `players` when `drafts.etl_run_id` is NULL
 - `current_pick_number` is derived from the earliest `draft_order` row with no matching `picks` row
 - `assets_sent` and `assets_received` are returned as parsed JSON arrays/objects, not raw SQLite text
 - A missing `draft_id` returns HTTP `404`

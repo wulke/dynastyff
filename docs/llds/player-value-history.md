@@ -64,6 +64,16 @@ Add nullable column `etl_run_id TEXT` — FK → `etl_runs.id`. Points to the ET
 
 When a draft is created, query `SELECT id FROM etl_runs WHERE completed_at IS NOT NULL ORDER BY started_at DESC LIMIT 1`. Set `drafts.etl_run_id` to the result, or NULL if no completed run exists.
 
+### Draft-Scoped Player Value Reads
+
+When a draft operation needs player values during a live draft:
+
+1. Read `drafts.etl_run_id` for the draft.
+2. If it is non-NULL, read `player_value_snapshots` for that `run_id`, rebuild each source's normalization context across the full run, and recompute each player's draft-scoped `dynasty_value` from those snapshots.
+3. If it is NULL, read `players.dynasty_value` directly with no snapshot join.
+
+The concrete integration point in this slice is the available-player query returned by `GET /drafts/:id/state` / `state_sync`. That query is what hydrates the browser's available-player list for a live draft.
+
 ### Value History Query
 
 To reconstruct player values at a point in time: join `player_value_snapshots` on `run_id`. Apply min-max normalization at query time over that run's values. `players` is not involved in historical queries — it is the current-state table only.
@@ -71,6 +81,7 @@ To reconstruct player values at a point in time: join `player_value_snapshots` o
 ## Edge Case Probe
 
 - **No ETL run has ever completed** → `drafts.etl_run_id` is NULL; draft reads current `players` values unchanged.
+- **Draft pinned to a completed ETL run** → draft player-value reads use only that run's snapshot rows; later `players` updates do not change the draft's value context.
 - **KTC returns no supported players** → ETL exits before any source writes; the `etl_runs` row remains with `completed_at = NULL` and `sources_succeeded = []`, so draft pinning ignores the aborted run.
 - **ETL process is killed mid-run** → `etl_run.completed_at` remains NULL; sources_succeeded is incomplete. Draft creation query filters `completed_at IS NOT NULL`, so this partial run is never pinned to a draft.
 - **Snapshot write fails for a source** → that source's transaction is rolled back in full (no partial snapshot rows, no partial upsert). Source is excluded from this run. Other sources proceed normally.

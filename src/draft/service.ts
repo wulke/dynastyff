@@ -31,6 +31,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
+import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
 import { createDrizzleDb } from '../db/client.js';
 import {
   draftOrder,
@@ -188,6 +189,7 @@ export type DraftStateSnapshot = {
     player_id: string;
     rank: number;
   }>;
+  available_players: DraftAvailablePlayer[];
   trades: Array<{
     id: string;
     round: number;
@@ -499,6 +501,7 @@ export function recordPick({
   }
 }
 
+// @spec DFF-ENGINE-016
 export function getDraftState({
   databasePath,
   draftId,
@@ -596,6 +599,7 @@ export function getDraftState({
         .where(eq(userQueue.draftId, draftId))
         .orderBy(asc(userQueue.rank))
         .all(),
+      available_players: getAvailablePlayersForDraft({ databasePath, draftId }),
       trades: db
         .select({
           id: trades.id,
@@ -641,10 +645,12 @@ export function getDraftHistory({ databasePath }: GetDraftHistoryOptions): Draft
     sqlite.close();
   }
 }
+
 // @spec DFF-ENGINE-013
 export const emitTradeOffered = emitTradeOfferedEvent;
 // @spec DFF-ENGINE-014
 export const emitTradeResolved = emitTradeResolvedEvent;
+export { getAvailablePlayersForDraft };
 
 function buildTeams({
   draftId,

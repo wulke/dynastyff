@@ -28,7 +28,7 @@ If any derived draft-creation write fails after the draft row is inserted, the s
 ## SSE Stream
 
 **DFF-ENGINE-010** `[x]` → #26
-When a client connects to GET /drafts/:id/stream, the system shall establish an SSE connection and immediately emit the current draft state as a `state_sync` event with the following payload: draft_id, status, current_pick_number, teams (id, name, is_user, archetype), draft_order (pick_number, round, pick_in_round, team_id), picks (pick_number, team_id, player_id, picked_at), roster_players (team_id, player_id)[], team_pick_assets (team_id, year, round)[], and user_queue (player_id, rank)[].
+When a client connects to GET /drafts/:id/stream, the system shall establish an SSE connection and immediately emit the current draft state as a `state_sync` event with the following payload: draft_id, status, current_pick_number, teams (id, name, is_user, archetype), draft_order (pick_number, round, pick_in_round, team_id), picks (pick_number, team_id, player_id, picked_at), roster_players (team_id, player_id)[], team_pick_assets (team_id, year, round)[], user_queue (player_id, rank)[], and available_players (id, name, position, nfl_team, age, is_rookie, dynasty_value, adp)[].
 
 **DFF-ENGINE-011** `[x]` → #26
 While a draft is in_progress, the system shall emit a `pick_made` event on every pick containing: pick_number, team_id, player_id, and is_bot.

@@ -44,11 +44,11 @@ Transitions:
 
 ## App Scaffold
 
-Issue `#13` establishes the initial frontend shell under `/src/ui`, and issue `#15` replaces the placeholder config shell with the first real user workflow:
+Issue `#13` establishes the initial frontend shell under `/src/ui`, issue `#15` replaces the placeholder config shell with the first real user workflow, and issue `#54` introduces the shared draft context and HTTP-backed SSE lifecycle:
 
 - `index.html` mounts the React app through Vite
 - `main.tsx` hydrates a single `<App />` entry point
-- `App.tsx` owns the top-level `ViewState` reducer for `config | drafting | history`
+- `App.tsx` renders the top-level view shell while `HttpDraftContext` owns draft network effects and live draft state
 - Tailwind CSS provides the shell styling and layout primitives
 - A Radix UI primitive is wired into the shared shell so the initial scaffold proves the dependency path works before later feature slices add dialogs, tabs, and other interactive primitives
 
@@ -58,12 +58,13 @@ At this stage, each view is intentionally an empty shell with a single transitio
 - Draft shell: `Complete Draft` drives `drafting → history`
 - History shell: `New Draft` drives `history → config`
 
-The drafting and history controls remain placeholders until subsequent issues replace them with SSE-driven completion and real history data.
+The drafting and history shells remain intentionally light until subsequent issues replace them with the full board, player list, advisor, and history views, but draft creation and completion transitions are driven through the shared context and SSE stream.
 
 ## Component Hierarchy
 
 ```
-<App>                          ← holds ViewState, DraftContext, Toast
+<App>                          ← holds view shell
+  <HttpDraftContextProvider>   ← owns POST/queue/pick calls, SSE, toast state
   <ConfigScreen />             ← view: config
   <DraftView>                  ← view: drafting
     <DraftBoard />             ← grid: rounds × teams
@@ -81,7 +82,7 @@ The drafting and history controls remain placeholders until subsequent issues re
 
 ## State Model
 
-A single `DraftContext` (React Context + useReducer) holds all draft state. SSE events are the only write path into the reducer during a live draft.
+A single `DraftContext` (React Context + useReducer) holds all draft state. `HttpDraftContext` is the server-backed implementation used by the main app. SSE events are the only write path into the reducer during a live draft after the initial draft-creation POST succeeds.
 
 **State shape:**
 
@@ -108,6 +109,7 @@ type DraftState = {
 | Action | Triggered by |
 |---|---|
 | `DRAFT_CREATED` | `POST /drafts` response |
+| `STATE_SYNC` | Initial SSE hydration event |
 | `PICK_MADE` | `pick_made` SSE event |
 | `YOUR_TURN` | `your_turn` SSE event |
 | `TRADE_OFFERED` | `trade_offered` SSE event |
@@ -249,10 +251,12 @@ function useDraftStream(draftId: string | null, dispatch: Dispatch<DraftAction>)
 
 **Behavior:**
 - Opens `EventSource` to `GET /drafts/:id/stream` when `draftId` is set
-- On each SSE message: parses event type and payload, dispatches the corresponding action
-- On `error`: dispatches `SSE_STATUS: 'disconnected'`, schedules reconnect with exponential backoff (1s, 2s, 4s, cap 30s)
+- On each SSE message: parses event type and payload, dispatches the corresponding action, and marks the stream `connected` on the first successfully parsed event
+- On `error`: dispatches `SSE_STATUS: 'disconnected'`, schedules reconnect with exponential backoff (1s, 2s, 4s, 8s, 16s, cap 30s)
 - On `draft_complete`: closes the `EventSource` cleanly
 - Cleanup: closes `EventSource` on unmount or `draftId` change
+
+If the reconnect schedule reaches the capped 30-second attempt and that attempt also fails, the context surfaces a single global toast: `Lost connection to draft server. Refresh to reconnect.` The existing toast host remains single-instance and auto-dismisses after 6 seconds.
 
 The hook does not return anything — it is side-effect only.
 

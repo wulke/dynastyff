@@ -107,7 +107,7 @@ afterEach(() => {
 });
 
 function DraftContextHarness() {
-  const { startDraft, submitPick, updateQueue } = useDraftContext();
+  const { startDraft, submitPick, updateQueue, newDraft } = useDraftContext();
 
   const queue: QueueEntry[] = [
     {
@@ -147,6 +147,9 @@ function DraftContextHarness() {
       </button>
       <button type="button" onClick={() => void updateQueue(queue)}>
         Update Queue
+      </button>
+      <button type="button" onClick={() => newDraft()}>
+        Reset Draft
       </button>
     </>
   );
@@ -239,10 +242,10 @@ describe('HTTP draft context', () => {
   });
 
   // @spec DFF-UI-070
-  test('closes the EventSource when the draft id is cleared by starting a new draft', async () => {
+  test('closes the EventSource when newDraft clears the draft id', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-history-123' }), {
+      new Response(JSON.stringify({ draftId: 'draft-reset-123' }), {
         status: 201,
         headers: {
           'Content-Type': 'application/json',
@@ -250,20 +253,18 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    render(
+      <HttpDraftContextProvider>
+        <DraftContextHarness />
+      </HttpDraftContextProvider>,
+    );
 
-    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    await user.click(screen.getByRole('button', { name: /start harness draft/i }));
 
     const stream = MockEventSource.instances[0];
+    expect(stream?.url).toBe('/drafts/draft-reset-123/stream');
 
-    act(() => {
-      stream?.emit('draft_complete', {
-        draft_id: 'draft-history-123',
-        completed_at: '2026-05-21T18:00:00.000Z',
-      });
-    });
-
-    await user.click(screen.getByRole('button', { name: /new draft/i }));
+    await user.click(screen.getByRole('button', { name: /reset draft/i }));
 
     expect(stream?.closed).toBe(true);
   });

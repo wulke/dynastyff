@@ -574,7 +574,6 @@ export function useDraftContext(): DraftContextValue {
 }
 
 // @spec DFF-UI-072
-// @spec DFF-UI-074
 // @spec DFF-UI-083
 function handleStreamDisconnect(
   cleanupCurrentSource: () => void,

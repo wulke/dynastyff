@@ -63,13 +63,15 @@ The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs
 
 ## UI Scaffold
 
-Issues `#13` and `#15` establish the initial frontend shell under `/src/ui`:
+Issues `#13`, `#15`, and `#54` establish the current frontend shell under `/src/ui`:
 
 - `Config Screen` renders on first load as a real league configuration form
-- `Start Draft` submits camelCase `POST /drafts` JSON translated from the UI form state into the backend draft-create contract
-- Successful draft creation transitions the UI into the drafting view
+- `src/ui/context/DraftContext.tsx` owns the HTTP draft lifecycle and exposes `useDraftContext()` for all draft data and actions
+- `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
+- Successful draft creation transitions the UI into the drafting view and shows a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen
-- `Complete Draft` and `New Draft` remain scaffold controls for later UI slices
+- Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh
+- `New Draft` remains the only manual shell control; transition into History now comes from `draft_complete` SSE
 - Live browser verification of draft creation remains blocked until the HTTP draft route is implemented; current verification for this slice is mocked at the UI test layer
 
 Current UI commands:
@@ -80,7 +82,7 @@ Current UI commands:
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
-| `npm run test:ui` | Run the UI tests for config submission and view-state transitions |
+| `npm run test:ui` | Run the UI tests for config submission, draft context, and SSE lifecycle transitions |
 
 Current draft API surface:
 

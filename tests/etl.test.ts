@@ -650,7 +650,13 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
          FROM pick_values
          ORDER BY year, round`,
       )
-      .all();
+      .all() as Array<{
+        id: string;
+        year: number;
+        round: number;
+        dynasty_value: number;
+        updated_at: string;
+      }>;
     const runId = (db.prepare('SELECT id FROM etl_runs').get() as { id: string }).id;
     const snapshots = db
       .prepare(

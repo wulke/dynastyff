@@ -134,7 +134,7 @@ async function connectToDraftStream(databasePath: string, draftId: string) {
       notify?.();
       return this;
     },
-  } as Response;
+  } as unknown as Response;
 
   route(request, response, () => undefined);
   return {

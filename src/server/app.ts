@@ -1,13 +1,18 @@
 // @spec DFF-ENGINE-001
 // @spec DFF-ENGINE-003
 // @spec DFF-ENGINE-010
+// @spec DFF-ENGINE-060
+// @spec DFF-ENGINE-062
+// @spec DFF-ENGINE-063
 import express, {
   type ErrorRequestHandler,
   type Express,
+  type Request,
   type RequestHandler,
+  type Response,
 } from 'express';
 
-import { createDraft } from '../draft/service.js';
+import { createDraft, getDraftHistory, getDraftState } from '../draft/service.js';
 import { getDraftStateSyncPayload, subscribeToDraftStream, type DraftStreamEvent } from '../draft/stream.js';
 import { DraftConfigValidationError, parseCreateDraftConfig } from './config.js';
 
@@ -19,7 +24,9 @@ export function createDraftApp({ databasePath }: CreateDraftServerOptions): Expr
   const app = express();
 
   app.use(express.json());
+  app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath }));
+  app.get('/drafts/:id/state', createDraftStateRoute({ databasePath }));
   app.get('/drafts/:id/stream', createDraftStreamRoute({ databasePath }));
   app.use(notFoundHandler);
   app.use(createDraftErrorHandler());
@@ -40,10 +47,54 @@ export function createDraftRoute({ databasePath }: CreateDraftServerOptions): Re
   };
 }
 
+// @spec DFF-ENGINE-060
+// @spec DFF-ENGINE-063
+export function createDraftStateRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
+
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const state = getDraftState({ databasePath, draftId });
+
+      if (!state) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      response.status(200).json(state);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+// @spec DFF-ENGINE-062
+// @spec DFF-ENGINE-063
+export function createDraftHistoryRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+  return (_request, response, next) => {
+    try {
+      response.status(200).json(getDraftHistory({ databasePath }));
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
 // @spec DFF-ENGINE-010
 export function createDraftStreamRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
   return (request, response) => {
-    const draftId = request.params.id;
+    const draftId = readDraftIdParam(request);
+
+    if (!draftId) {
+      response.status(404).json({ error: 'Draft not found.' });
+      return;
+    }
+
     const state = getDraftStateSyncPayload({ databasePath, draftId });
 
     if (!state) {
@@ -85,7 +136,7 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
       return;
     }
 
-    if (error instanceof SyntaxError) {
+    if (isJsonBodyParseError(error)) {
       response.status(400).json({ error: 'Invalid draft config: request body must be valid JSON.' });
       return;
     }
@@ -96,9 +147,26 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
 }
 
 function writeSseEvent(
-  response: Parameters<RequestHandler>[1],
+  response: Response,
   event: DraftStreamEvent,
 ): void {
   response.write(`event: ${event.event}\n`);
   response.write(`data: ${JSON.stringify(event.data)}\n\n`);
+}
+
+function readDraftIdParam(request: Request): string | null {
+  const draftId = request.params.id;
+  return typeof draftId === 'string' ? draftId : null;
+}
+
+function isJsonBodyParseError(error: unknown): error is SyntaxError & {
+  status: number;
+  body: unknown;
+} {
+  return (
+    error instanceof SyntaxError &&
+    'status' in error &&
+    (error as { status?: unknown }).status === 400 &&
+    'body' in error
+  );
 }

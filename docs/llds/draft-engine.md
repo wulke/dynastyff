@@ -45,7 +45,7 @@ create → in_progress → [pick loop] → completed
 | GET | `/drafts/:id/state` | Full current draft state snapshot |
 | POST | `/drafts/:id/pick` | Submit user pick (player_id) |
 | POST | `/drafts/:id/trade-response` | Accept, decline, or force-decline a pending trade |
-| GET | `/drafts` | List completed draft sessions |
+| GET | `/drafts` | List all persisted drafts for history / resume flows |
 | GET | `/drafts/:id/summary` | Post-draft summary for history view |
 
 ## POST /drafts Request Contract
@@ -127,6 +127,45 @@ When any team makes a pick, the draft engine records the selection as one SQLite
 
 `picks` is historical fact and is never updated or deleted after insertion. `roster_players` remains the authoritative source for current ownership.
 
+## Read Models
+
+The draft engine exposes SQLite-backed read endpoints for browser hydration and draft history. These routes do not maintain separate projections; they read the persisted authoritative tables directly so a browser refresh can recover current state without replaying SSE history.
+
+### GET /drafts/:id/state
+
+Returns one JSON document with:
+- `draft_id`
+- `status`
+- `current_pick_number` (`null` when the draft has no remaining open slot)
+- `teams` ordered by `pick_position`
+- `draft_order` ordered by `pick_number`
+- `picks` ordered by `pick_number`
+- `roster_players` ordered by current team then player
+- `team_pick_assets` ordered by current team then `(year, round)`
+- `user_queue` ordered by `rank`
+- `trades` ordered chronologically by `pick_number`
+
+Behavior:
+- The response shape matches the `state_sync` SSE payload and adds `trades`
+- `current_pick_number` is derived from the earliest `draft_order` row with no matching `picks` row
+- `assets_sent` and `assets_received` are returned as parsed JSON arrays/objects, not raw SQLite text
+- A missing `draft_id` returns HTTP `404`
+- If any unexpected read or JSON-parse error occurs, the route forwards the exception to the shared Express error handler and returns HTTP `500`
+
+### GET /drafts
+
+Returns every persisted draft, ordered by `created_at` descending, with:
+- `id`
+- `created_at`
+- `completed_at`
+- `status`
+- `team_count`
+- `rounds`
+
+Behavior:
+- When no drafts exist, the route returns an empty array
+- If any unexpected database error occurs, the route forwards the exception to the shared Express error handler and returns HTTP `500`
+
 ## Trade Resolution
 
 All trade modals — including bot-to-bot trades — are blocking and require explicit user acknowledgment before the draft continues. This is intentional: the draft is untimed and solo, so the user should have full visibility into every trade that reshapes the board. For bot-to-bot trades the buttons are "OK" (acknowledge, trade stands) and "Force Decline" (user vetoes the trade). For user-targeted trades the buttons are "Accept" and "Decline."
@@ -148,6 +187,7 @@ When a bot initiates a trade (see bot-simulator LLD for initiation logic):
 | Bot chain execution | Server-side loop with setTimeout delays | Client-triggered per-bot-pick | Keeps orchestration on the server; client is passive and can reconnect to the SSE stream without losing state |
 | Trade pause mechanism | In-memory flag on draft session object | DB-based lock | Trade resolution is synchronous per session; in-memory flag is sufficient for a single-user local app |
 | State snapshot endpoint | `GET /drafts/:id/state` returns full state | Rebuild from events client-side | Allows browser to reconnect and recover full state without replaying the event stream |
+| History list scope | Return all drafts from `GET /drafts` | Only completed drafts | In-progress drafts must remain discoverable so a refresh or history screen can re-open persisted work |
 | Pick validation | Server validates player is available and not already picked | Trust client | Prevents bugs where the UI and server state diverge |
 
 ## Open Questions

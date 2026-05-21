@@ -11,6 +11,9 @@
 // @spec DFF-ENGINE-022
 // @spec DFF-ENGINE-023
 // @spec DFF-ENGINE-024
+// @spec DFF-ENGINE-060
+// @spec DFF-ENGINE-061
+// @spec DFF-ENGINE-062
 // @spec DFF-DATA-020
 // @spec DFF-DATA-023
 // @spec DFF-DATA-030
@@ -40,6 +43,8 @@ import {
   teamArchetypes,
   teamPickAssets,
   teams,
+  tradeStatuses,
+  trades,
   userQueue,
 } from '../db/schema.js';
 import {
@@ -53,6 +58,7 @@ import {
 type DraftStatus = (typeof draftStatuses)[number];
 type ScoringFormat = (typeof scoringFormats)[number];
 type TeamArchetype = (typeof teamArchetypes)[number];
+type TradeStatus = (typeof tradeStatuses)[number];
 
 type RosterConfig = {
   QB: number;
@@ -97,6 +103,15 @@ type RecordPickOptions = {
   idGenerator?: () => string;
 };
 
+type GetDraftStateOptions = {
+  databasePath: string;
+  draftId: string;
+};
+
+type GetDraftHistoryOptions = {
+  databasePath: string;
+};
+
 const botTeamNames = [
   'Bob',
   'Carl',
@@ -137,6 +152,61 @@ type TeamSeed = {
 const defaultNow = () => new Date().toISOString();
 const defaultRandom = () => Math.random();
 const defaultIdGenerator = () => randomUUID();
+
+export type DraftStateSnapshot = {
+  draft_id: string;
+  status: DraftStatus;
+  current_pick_number: number | null;
+  teams: Array<{
+    id: string;
+    name: string;
+    is_user: boolean;
+    archetype: TeamArchetype | null;
+  }>;
+  draft_order: Array<{
+    pick_number: number;
+    round: number;
+    pick_in_round: number;
+    team_id: string;
+  }>;
+  picks: Array<{
+    pick_number: number;
+    team_id: string;
+    player_id: string;
+    picked_at: string;
+  }>;
+  roster_players: Array<{
+    team_id: string;
+    player_id: string;
+  }>;
+  team_pick_assets: Array<{
+    team_id: string;
+    year: number;
+    round: number;
+  }>;
+  user_queue: Array<{
+    player_id: string;
+    rank: number;
+  }>;
+  trades: Array<{
+    id: string;
+    round: number;
+    initiating_team_id: string;
+    receiving_team_id: string;
+    assets_sent: unknown;
+    assets_received: unknown;
+    status: TradeStatus;
+  }>;
+};
+
+export type DraftHistoryEntry = {
+  id: string;
+  created_at: string;
+  completed_at: string | null;
+  status: DraftStatus;
+  team_count: number;
+  rounds: number;
+};
 
 export function createDraft({
   databasePath,
@@ -429,6 +499,148 @@ export function recordPick({
   }
 }
 
+export function getDraftState({
+  databasePath,
+  draftId,
+}: GetDraftStateOptions): DraftStateSnapshot | null {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    const draft = db
+      .select({
+        id: drafts.id,
+        status: drafts.status,
+      })
+      .from(drafts)
+      .where(eq(drafts.id, draftId))
+      .get() as { id: string; status: DraftStatus } | undefined;
+
+    if (!draft) {
+      return null;
+    }
+
+    const currentPick = db
+      .select({
+        pickNumber: draftOrder.pickNumber,
+      })
+      .from(draftOrder)
+      .leftJoin(picks, eq(draftOrder.id, picks.draftOrderId))
+      .where(and(eq(draftOrder.draftId, draftId), isNull(picks.id)))
+      .orderBy(asc(draftOrder.pickNumber))
+      .get();
+
+    return {
+      draft_id: draft.id,
+      status: draft.status,
+      current_pick_number: currentPick?.pickNumber ?? null,
+      teams: db
+        .select({
+          id: teams.id,
+          name: teams.name,
+          is_user: teams.isUser,
+          archetype: teams.archetype,
+        })
+        .from(teams)
+        .where(eq(teams.draftId, draftId))
+        .orderBy(asc(teams.pickPosition))
+        .all() as DraftStateSnapshot['teams'],
+      draft_order: db
+        .select({
+          pick_number: draftOrder.pickNumber,
+          round: draftOrder.round,
+          pick_in_round: draftOrder.pickInRound,
+          team_id: draftOrder.teamId,
+        })
+        .from(draftOrder)
+        .where(eq(draftOrder.draftId, draftId))
+        .orderBy(asc(draftOrder.pickNumber))
+        .all(),
+      picks: db
+        .select({
+          pick_number: picks.pickNumber,
+          team_id: picks.teamId,
+          player_id: picks.playerId,
+          picked_at: picks.pickedAt,
+        })
+        .from(picks)
+        .where(eq(picks.draftId, draftId))
+        .orderBy(asc(picks.pickNumber))
+        .all(),
+      roster_players: db
+        .select({
+          team_id: rosterPlayers.teamId,
+          player_id: rosterPlayers.playerId,
+        })
+        .from(rosterPlayers)
+        .innerJoin(teams, eq(rosterPlayers.teamId, teams.id))
+        .where(eq(rosterPlayers.draftId, draftId))
+        .orderBy(asc(teams.pickPosition), asc(rosterPlayers.playerId))
+        .all(),
+      team_pick_assets: db
+        .select({
+          team_id: teamPickAssets.teamId,
+          year: teamPickAssets.year,
+          round: teamPickAssets.round,
+        })
+        .from(teamPickAssets)
+        .innerJoin(teams, eq(teamPickAssets.teamId, teams.id))
+        .where(eq(teamPickAssets.draftId, draftId))
+        .orderBy(asc(teams.pickPosition), asc(teamPickAssets.year), asc(teamPickAssets.round))
+        .all(),
+      user_queue: db
+        .select({
+          player_id: userQueue.playerId,
+          rank: userQueue.rank,
+        })
+        .from(userQueue)
+        .where(eq(userQueue.draftId, draftId))
+        .orderBy(asc(userQueue.rank))
+        .all(),
+      trades: db
+        .select({
+          id: trades.id,
+          round: trades.round,
+          initiating_team_id: trades.initiatingTeamId,
+          receiving_team_id: trades.receivingTeamId,
+          assets_sent: trades.assetsSent,
+          assets_received: trades.assetsReceived,
+          status: trades.status,
+        })
+        .from(trades)
+        .where(eq(trades.draftId, draftId))
+        .orderBy(asc(trades.pickNumber), asc(trades.createdAt))
+        .all()
+        .map((trade) => ({
+          ...trade,
+          assets_sent: parseJsonColumn(trade.assets_sent),
+          assets_received: parseJsonColumn(trade.assets_received),
+        })) as DraftStateSnapshot['trades'],
+    };
+  } finally {
+    sqlite.close();
+  }
+}
+
+export function getDraftHistory({ databasePath }: GetDraftHistoryOptions): DraftHistoryEntry[] {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    return db
+      .select({
+        id: drafts.id,
+        created_at: drafts.createdAt,
+        completed_at: drafts.completedAt,
+        status: drafts.status,
+        team_count: drafts.teamCount,
+        rounds: drafts.rounds,
+      })
+      .from(drafts)
+      .orderBy(desc(drafts.createdAt), desc(drafts.id))
+      .all() as DraftHistoryEntry[];
+  } finally {
+    sqlite.close();
+  }
+}
 // @spec DFF-ENGINE-013
 export const emitTradeOffered = emitTradeOfferedEvent;
 // @spec DFF-ENGINE-014
@@ -528,4 +740,8 @@ function selectArchetype(random: () => number): TeamArchetype {
   const index = Math.min(Math.floor(random() * teamArchetypes.length), lastIndex);
 
   return teamArchetypes[index];
+}
+
+function parseJsonColumn(value: string): unknown {
+  return JSON.parse(value);
 }

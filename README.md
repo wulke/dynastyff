@@ -66,7 +66,7 @@ The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs
 Issues `#13` and `#15` establish the initial frontend shell under `/src/ui`:
 
 - `Config Screen` renders on first load as a real league configuration form
-- `Start Draft` submits camelCase `POST /drafts` JSON matching the UI form state
+- `Start Draft` submits camelCase `POST /drafts` JSON translated from the UI form state into the backend draft-create contract
 - Successful draft creation transitions the UI into the drafting view
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - `Complete Draft` and `New Draft` remain scaffold controls for later UI slices

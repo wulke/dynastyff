@@ -50,6 +50,25 @@ type DraftCreateResponse = {
   draftId?: string;
 };
 
+// @spec DFF-UI-014
+type DraftCreateRequestBody = {
+  configName: string;
+  teamCount: number;
+  rounds: number;
+  scoringFormat: ScoringFormat;
+  pickPosition: number;
+  futurePickYears: number;
+  rosterSlots: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    BN: number;
+  };
+};
+
 // @spec DFF-UI-015
 type ToastProps = {
   message: string;
@@ -153,6 +172,27 @@ function sanitizeDraftConfig(config: ConfigFormState): ConfigFormState {
       FLEX: clamp(config.rosterConfig.FLEX, 0, 5),
       SF: clamp(config.rosterConfig.SF, 0, 3),
       bench: clamp(config.rosterConfig.bench, 0, 20),
+    },
+  };
+}
+
+// @spec DFF-UI-014
+function toDraftCreateRequestBody(config: ConfigFormState): DraftCreateRequestBody {
+  return {
+    configName: config.name,
+    teamCount: config.teamCount,
+    rounds: config.rounds,
+    scoringFormat: config.scoringFormat,
+    pickPosition: config.userPickPosition,
+    futurePickYears: config.futurePickYears,
+    rosterSlots: {
+      QB: config.rosterConfig.QB,
+      RB: config.rosterConfig.RB,
+      WR: config.rosterConfig.WR,
+      TE: config.rosterConfig.TE,
+      FLEX: config.rosterConfig.FLEX,
+      SF: config.rosterConfig.SF,
+      BN: config.rosterConfig.bench,
     },
   };
 }
@@ -464,12 +504,13 @@ export function App() {
     setToastMessage(null);
 
     try {
+      const requestBody = toDraftCreateRequestBody(safeConfig);
       const response = await fetch('/drafts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(safeConfig),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {

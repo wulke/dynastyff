@@ -179,33 +179,33 @@ A single-page form rendered before any draft starts. Fields:
 
 Issue `#15` scope:
 - Render the full form with the defaults above
-- Submit `POST /drafts` with camelCase JSON matching the UI `ConfigFormState` when the user clicks `Start Draft`
+- Submit `POST /drafts` with camelCase JSON translated from the UI form state into the backend draft-create contract when the user clicks `Start Draft`
 - Transition to the drafting view on success
 - Show a global error toast and remain on the config screen if draft creation fails
 
 `POST /drafts` request contract for the UI slice:
 
 ```ts
-type ConfigFormState = {
-  name: string;
+type DraftCreateRequestBody = {
+  configName: string;
   teamCount: number;
   rounds: number;
   scoringFormat: 'ppr' | 'half_ppr' | 'standard';
-  userPickPosition: number;
+  pickPosition: number;
   futurePickYears: number;
-  rosterConfig: {
+  rosterSlots: {
     QB: number;
     RB: number;
     WR: number;
     TE: number;
     FLEX: number;
     SF: number;
-    bench: number;
+    BN: number;
   };
 };
 ```
 
-The browser form clamps numeric values before submit. Until the HTTP draft-creation route exists on the server, live browser verification for this flow is deferred; current coverage for issue `#15` is component-level UI testing with mocked `fetch`.
+The browser form keeps local state in a UI-friendly `ConfigFormState` shape, then clamps numeric values and translates that state into the HTTP request body above before submit.
 
 Deferred to issue `#16`:
 - Saved-config dropdown loaded from `GET /configs`
@@ -216,7 +216,7 @@ Deferred to issue `#16`:
 
 ## Edge Case Probe
 
-- Team count changes can invalidate `userPickPosition` -> clamp the dependent pick position immediately on change and clamp again at submit time before `POST /drafts`.
+- Team count changes can invalidate `userPickPosition` -> clamp the dependent pick position immediately on change and clamp again at submit time before translating to `pickPosition` in `POST /drafts`.
 - Empty config name is allowed client-side -> submit proceeds and any stricter validation is deferred to the server response path.
 - Server returns non-JSON success payload or omits `draftId` -> remain on the config screen and show the generic draft-creation failure toast because the success contract is incomplete.
 - User attempts to submit twice -> `isSubmittingDraft` short-circuits duplicate requests until the first request settles.

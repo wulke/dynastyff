@@ -72,8 +72,9 @@ pickup_pr() {
   pr_count=$(echo "$prs" | jq 'length')
 
   if [[ "$pr_count" -eq 0 ]]; then
-    echo "Error: Issue #${issue_number} is marked in-progress but no open PR was found. Resolve manually." >&2
-    exit 1
+    echo "Warning: Issue #${issue_number} is marked in-progress but no open PR was found. Continuing without PR context." >&2
+    printf 'NO_PR'
+    return 0
   fi
 
   if [[ "$pr_count" -gt 1 ]]; then
@@ -164,11 +165,19 @@ $(echo "$selected" | jq -r '.body')"
 # If picking up an in-progress PR, append resume context
 if [[ "${validation_result:-}" == "in-progress" ]]; then
   pickup_output=$(pickup_pr "$(echo "$selected" | jq -r '.number')")
-  pr_number=$(echo "$pickup_output" | awk '/---PR_DESCRIPTION---/{exit} {print}')
-  pr_description=$(echo "$pickup_output" | awk '/---PR_DESCRIPTION---/{f=1;next} /---PR_DIFF---/{f=0} f{print}')
-  pr_diff=$(echo "$pickup_output" | awk '/---PR_DIFF---/{f=1;next} f{print}')
 
-  context="$context
+  if [[ "$pickup_output" == "NO_PR" ]]; then
+    context="$context
+
+## Resuming In-Progress Work (No PR Found)
+This issue was marked in-progress but no open PR exists — work was likely interrupted before a PR was created.
+Check for any local branch related to this issue (e.g. \`git branch --list '*$(echo "$selected" | jq -r '.number')*'\`), check it out if present, then continue implementing from where things left off."
+  else
+    pr_number=$(echo "$pickup_output" | awk '/---PR_DESCRIPTION---/{exit} {print}')
+    pr_description=$(echo "$pickup_output" | awk '/---PR_DESCRIPTION---/{f=1;next} /---PR_DIFF---/{f=0} f{print}')
+    pr_diff=$(echo "$pickup_output" | awk '/---PR_DIFF---/{f=1;next} f{print}')
+
+    context="$context
 
 ## Resuming In-Progress Work
 You are picking up an existing PR (#${pr_number}) for this issue. The branch has already been checked out and merged with the latest main.
@@ -182,6 +191,7 @@ ${pr_diff}
 \`\`\`
 
 Do not re-do work already reflected in the diff above. Focus on what remains unfinished, any review feedback, or new requirements described in the issue or its comments."
+  fi
 fi
 
 if [[ "$AGENT" == "codex" ]]; then

@@ -132,6 +132,69 @@ describe('UI app scaffold', () => {
     ).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-015
+  test('shows the server validation message for a 4xx draft creation error', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(new Response('Pick position must be between 1 and 12.', { status: 422 }));
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/pick position must be between 1 and 12\./i);
+    expect(
+      screen.getByRole('heading', {
+        name: /config screen/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-015
+  test('shows the generic error toast when the draft creation request rejects', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockRejectedValue(new Error('socket hang up'));
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /draft creation failed\. check your config and try again\./i,
+    );
+    expect(
+      screen.getByRole('heading', {
+        name: /config screen/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-014
+  // @spec DFF-UI-015
+  test('remains on config when the success response is missing a draft id', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({}), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /draft creation failed\. check your config and try again\./i,
+    );
+    expect(
+      screen.getByRole('heading', {
+        name: /config screen/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-010
   // @spec DFF-UI-014
   test('clamps out-of-range numeric values before posting the draft request', async () => {

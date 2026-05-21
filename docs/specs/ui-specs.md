@@ -11,7 +11,7 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 **DFF-UI-001** `[x]` → #13
 When the application loads and no draft is active, the system shall render the Config screen.
 
-**DFF-UI-002** `[x]` → #13
+**DFF-UI-002** `[x]` → #15
 When a draft is successfully created via POST /drafts, the system shall transition to the Drafting view.
 
 **DFF-UI-003** `[ ]` → #13
@@ -202,8 +202,8 @@ If POST /drafts/:id/pick returns an error, the system shall display a toast: "Pi
 **DFF-UI-085** `[ ]` → #20
 If an advisor API call returns an error, the system shall display a toast: "Advisor unavailable. Try again."
 
-**DFF-UI-086** `[ ]` → #14
+**DFF-UI-086** `[x]` → #15
 Only one toast shall be visible at a time; a new error toast shall replace the currently displayed toast.
 
-**DFF-UI-087** `[ ]` → #14
+**DFF-UI-087** `[x]` → #15
 Toasts shall auto-dismiss after 6 seconds unless replaced by a new error.

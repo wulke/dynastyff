@@ -55,6 +55,11 @@ type ToastProps = {
   message: string;
 };
 
+const GENERIC_DRAFT_CREATE_ERROR = 'Draft creation failed. Check your config and try again.';
+
+// @spec DFF-UI-015
+class DraftCreateUiError extends Error {}
+
 // @spec DFF-UI-010
 const configDefaults: ConfigFormState = {
   name: '',
@@ -423,6 +428,8 @@ function ViewShell({ eyebrow, title, description, actionLabel, onAction }: Shell
 // @spec DFF-UI-010
 // @spec DFF-UI-014
 // @spec DFF-UI-015
+// @spec DFF-UI-086
+// @spec DFF-UI-087
 export function App() {
   const [view, dispatch] = useReducer(viewStateReducer, 'config');
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
@@ -430,6 +437,8 @@ export function App() {
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // @spec DFF-UI-086
+  // @spec DFF-UI-087
   useEffect(() => {
     if (!toastMessage) {
       return undefined;
@@ -466,21 +475,24 @@ export function App() {
       if (!response.ok) {
         const message = (await response.text().catch(() => '')).trim();
         if (response.status >= 400 && response.status < 500 && message) {
-          throw new Error(message);
+          throw new DraftCreateUiError(message);
         }
 
-        throw new Error('Draft creation failed. Check your config and try again.');
+        throw new DraftCreateUiError(GENERIC_DRAFT_CREATE_ERROR);
       }
 
-      const responseData = (await response.json()) as DraftCreateResponse;
-      setDraftId(responseData.draftId ?? null);
+      const responseData = (await response.json().catch(() => {
+        throw new DraftCreateUiError(GENERIC_DRAFT_CREATE_ERROR);
+      })) as DraftCreateResponse;
+
+      if (typeof responseData.draftId !== 'string' || responseData.draftId.trim() === '') {
+        throw new DraftCreateUiError(GENERIC_DRAFT_CREATE_ERROR);
+      }
+
+      setDraftId(responseData.draftId);
       dispatch({ type: 'draft_created' });
     } catch (error) {
-      setToastMessage(
-        error instanceof Error && error.message
-          ? error.message
-          : 'Draft creation failed. Check your config and try again.',
-      );
+      setToastMessage(error instanceof DraftCreateUiError ? error.message : GENERIC_DRAFT_CREATE_ERROR);
     } finally {
       setIsSubmittingDraft(false);
     }

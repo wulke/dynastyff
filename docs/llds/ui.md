@@ -214,6 +214,14 @@ Deferred to issue `#16`:
 
 **Schema amendment required:** A `league_configs` table is needed in the data model. Columns: `id` (text, PK), `name` (text, not null), `team_count`, `rounds`, `scoring_format`, `roster_slots` (JSON text), `pick_position`, `future_pick_years`, `created_at`.
 
+## Edge Case Probe
+
+- Team count changes can invalidate `userPickPosition` -> clamp the dependent pick position immediately on change and clamp again at submit time before `POST /drafts`.
+- Empty config name is allowed client-side -> submit proceeds and any stricter validation is deferred to the server response path.
+- Server returns non-JSON success payload or omits `draftId` -> remain on the config screen and show the generic draft-creation failure toast because the success contract is incomplete.
+- User attempts to submit twice -> `isSubmittingDraft` short-circuits duplicate requests until the first request settles.
+- Fetch rejects entirely or the server returns a 5xx error -> remain on the config screen and show the generic draft-creation failure toast.
+
 ## Draft History View
 
 Rendered after `draft_complete`. Reachable by navigating back from the config screen via `GET /drafts` (list) → select a draft.

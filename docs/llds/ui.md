@@ -44,7 +44,7 @@ Transitions:
 
 ## App Scaffold
 
-Issue `#13` establishes the initial frontend shell under `/src/ui`:
+Issue `#13` establishes the initial frontend shell under `/src/ui`, and issue `#15` replaces the placeholder config shell with the first real user workflow:
 
 - `index.html` mounts the React app through Vite
 - `main.tsx` hydrates a single `<App />` entry point
@@ -54,11 +54,11 @@ Issue `#13` establishes the initial frontend shell under `/src/ui`:
 
 At this stage, each view is intentionally an empty shell with a single transition control:
 
-- Config shell: `Start Draft` drives `config → drafting`
+- Config screen: league settings form + `Start Draft` POSTs `/drafts` and drives `config → drafting`
 - Draft shell: `Complete Draft` drives `drafting → history`
 - History shell: `New Draft` drives `history → config`
 
-These controls are placeholders for the real draft creation request, SSE completion event, and reset flow that arrive in subsequent issues.
+The drafting and history controls remain placeholders until subsequent issues replace them with SSE-driven completion and real history data.
 
 ## Component Hierarchy
 
@@ -177,9 +177,50 @@ A single-page form rendered before any draft starts. Fields:
 | Pick position | number (1–team_count) | 6 |
 | Future pick years | number (1–5) | 3 |
 
-**Saved configs:** A dropdown lists previously saved configs (loaded from `GET /configs`). Selecting one populates the form. A "Save" button sends `POST /configs` to persist. A "Start Draft" button sends `POST /drafts` with the current form values.
+Issue `#15` scope:
+- Render the full form with the defaults above
+- Submit `POST /drafts` with camelCase JSON matching the UI `ConfigFormState` when the user clicks `Start Draft`
+- Transition to the drafting view on success
+- Show a global error toast and remain on the config screen if draft creation fails
+
+`POST /drafts` request contract for the UI slice:
+
+```ts
+type ConfigFormState = {
+  name: string;
+  teamCount: number;
+  rounds: number;
+  scoringFormat: 'ppr' | 'half_ppr' | 'standard';
+  userPickPosition: number;
+  futurePickYears: number;
+  rosterConfig: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    bench: number;
+  };
+};
+```
+
+The browser form clamps numeric values before submit. Until the HTTP draft-creation route exists on the server, live browser verification for this flow is deferred; current coverage for issue `#15` is component-level UI testing with mocked `fetch`.
+
+Deferred to issue `#16`:
+- Saved-config dropdown loaded from `GET /configs`
+- Selecting a saved config to repopulate the form
+- `Save` button backed by `POST /configs`
 
 **Schema amendment required:** A `league_configs` table is needed in the data model. Columns: `id` (text, PK), `name` (text, not null), `team_count`, `rounds`, `scoring_format`, `roster_slots` (JSON text), `pick_position`, `future_pick_years`, `created_at`.
+
+## Edge Case Probe
+
+- Team count changes can invalidate `userPickPosition` -> clamp the dependent pick position immediately on change and clamp again at submit time before `POST /drafts`.
+- Empty config name is allowed client-side -> submit proceeds and any stricter validation is deferred to the server response path.
+- Server returns non-JSON success payload or omits `draftId` -> remain on the config screen and show the generic draft-creation failure toast because the success contract is incomplete.
+- User attempts to submit twice -> `isSubmittingDraft` short-circuits duplicate requests until the first request settles.
+- Fetch rejects entirely or the server returns a 5xx error -> remain on the config screen and show the generic draft-creation failure toast.
 
 ## Draft History View
 

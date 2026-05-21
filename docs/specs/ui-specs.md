@@ -11,7 +11,7 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 **DFF-UI-001** `[x]` → #13
 When the application loads and no draft is active, the system shall render the Config screen.
 
-**DFF-UI-002** `[ ]` → #13
+**DFF-UI-002** `[x]` → #15
 When a draft is successfully created via POST /drafts, the system shall transition to the Drafting view.
 
 **DFF-UI-003** `[ ]` → #13
@@ -24,7 +24,7 @@ When the user clicks "New Draft" from the History view, the system shall transit
 
 ## Config Screen
 
-**DFF-UI-010** `[ ]` → #15
+**DFF-UI-010** `[x]` → #15
 The Config screen shall render input fields for: config name, team count (8–16), rounds (10–30), scoring format (PPR / Half PPR / Standard), roster slots per position (QB, RB, WR, TE, FLEX, SF, BN), pick position (1–team_count), and future pick years (1–5).
 
 **DFF-UI-011** `[ ]` → #16
@@ -36,10 +36,10 @@ When the user selects a saved config from the dropdown, the system shall populat
 **DFF-UI-013** `[ ]` → #16
 When the user clicks "Save", the system shall POST /configs with the current form values and add the saved config to the dropdown.
 
-**DFF-UI-014** `[ ]` → #15
+**DFF-UI-014** `[x]` → #15
 When the user clicks "Start Draft", the system shall POST /drafts with the current form values and, on success, transition to the Drafting view.
 
-**DFF-UI-015** `[ ]` → #15
+**DFF-UI-015** `[x]` → #15
 If POST /drafts returns an error, the system shall display an error toast and remain on the Config screen.
 
 ---
@@ -202,8 +202,8 @@ If POST /drafts/:id/pick returns an error, the system shall display a toast: "Pi
 **DFF-UI-085** `[ ]` → #20
 If an advisor API call returns an error, the system shall display a toast: "Advisor unavailable. Try again."
 
-**DFF-UI-086** `[ ]` → #14
+**DFF-UI-086** `[x]` → #15
 Only one toast shall be visible at a time; a new error toast shall replace the currently displayed toast.
 
-**DFF-UI-087** `[ ]` → #14
+**DFF-UI-087** `[x]` → #15
 Toasts shall auto-dismiss after 6 seconds unless replaced by a new error.

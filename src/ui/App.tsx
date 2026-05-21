@@ -10,13 +10,19 @@ import * as Separator from '@radix-ui/react-separator';
 
 export type ViewState = 'config' | 'drafting' | 'history';
 
+// @spec DFF-UI-001
+// @spec DFF-UI-002
+// @spec DFF-UI-003
+// @spec DFF-UI-004
 type ViewAction =
   | { type: 'draft_created' }
   | { type: 'draft_complete' }
   | { type: 'new_draft' };
 
+// @spec DFF-UI-010
 type ScoringFormat = 'ppr' | 'half_ppr' | 'standard';
 
+// @spec DFF-UI-010
 type RosterConfig = {
   QB: number;
   RB: number;
@@ -27,6 +33,8 @@ type RosterConfig = {
   bench: number;
 };
 
+// @spec DFF-UI-010
+// @spec DFF-UI-014
 type ConfigFormState = {
   name: string;
   teamCount: number;
@@ -37,14 +45,17 @@ type ConfigFormState = {
   rosterConfig: RosterConfig;
 };
 
+// @spec DFF-UI-014
 type DraftCreateResponse = {
   draftId?: string;
 };
 
+// @spec DFF-UI-015
 type ToastProps = {
   message: string;
 };
 
+// @spec DFF-UI-010
 const configDefaults: ConfigFormState = {
   name: '',
   teamCount: 12,
@@ -63,6 +74,7 @@ const configDefaults: ConfigFormState = {
   },
 };
 
+// @spec DFF-UI-010
 const ROSTER_FIELDS: Array<{ key: keyof RosterConfig; label: string; min: number; max: number }> = [
   { key: 'QB', label: 'QB', min: 0, max: 4 },
   { key: 'RB', label: 'RB', min: 0, max: 8 },
@@ -73,6 +85,10 @@ const ROSTER_FIELDS: Array<{ key: keyof RosterConfig; label: string; min: number
   { key: 'bench', label: 'BN', min: 0, max: 20 },
 ];
 
+// @spec DFF-UI-001
+// @spec DFF-UI-002
+// @spec DFF-UI-003
+// @spec DFF-UI-004
 export function viewStateReducer(state: ViewState, action: ViewAction): ViewState {
   switch (action.type) {
     case 'draft_created':
@@ -86,10 +102,13 @@ export function viewStateReducer(state: ViewState, action: ViewAction): ViewStat
   }
 }
 
+// @spec DFF-UI-014
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+// @spec DFF-UI-010
+// @spec DFF-UI-014
 function parseNumberInput(input: string, fallback: number) {
   if (input.trim() === '') {
     return fallback;
@@ -104,10 +123,14 @@ function parseNumberInput(input: string, fallback: number) {
   return parsed;
 }
 
+// @spec DFF-UI-010
+// @spec DFF-UI-014
 function getNumberValue(input: string, fallback: number, min: number, max: number) {
   return clamp(parseNumberInput(input, fallback), min, max);
 }
 
+// @spec DFF-UI-010
+// @spec DFF-UI-014
 function sanitizeDraftConfig(config: ConfigFormState): ConfigFormState {
   const safeTeamCount = clamp(config.teamCount, 8, 16);
 
@@ -129,6 +152,7 @@ function sanitizeDraftConfig(config: ConfigFormState): ConfigFormState {
   };
 }
 
+// @spec DFF-UI-015
 function DraftToast({ message }: ToastProps) {
   return (
     <div
@@ -140,6 +164,7 @@ function DraftToast({ message }: ToastProps) {
   );
 }
 
+// @spec DFF-UI-010
 type NumberFieldProps = {
   id: string;
   label: string;
@@ -149,6 +174,8 @@ type NumberFieldProps = {
   onChange: (nextValue: number) => void;
 };
 
+// @spec DFF-UI-010
+// @spec DFF-UI-014
 function NumberField({ id, label, min, max, value, onChange }: NumberFieldProps) {
   const [draftValue, setDraftValue] = useState(() => String(value));
 
@@ -186,6 +213,8 @@ function NumberField({ id, label, min, max, value, onChange }: NumberFieldProps)
   );
 }
 
+// @spec DFF-UI-010
+// @spec DFF-UI-014
 type DraftConfigScreenProps = {
   config: ConfigFormState;
   isSubmitting: boolean;
@@ -193,6 +222,8 @@ type DraftConfigScreenProps = {
   onStartDraft: () => Promise<void>;
 };
 
+// @spec DFF-UI-010
+// @spec DFF-UI-014
 function DraftConfigScreen({
   config,
   isSubmitting,
@@ -342,6 +373,9 @@ function DraftConfigScreen({
   );
 }
 
+// @spec DFF-UI-002
+// @spec DFF-UI-003
+// @spec DFF-UI-004
 type ShellProps = {
   eyebrow: string;
   title: string;
@@ -350,6 +384,9 @@ type ShellProps = {
   onAction?: () => void;
 };
 
+// @spec DFF-UI-002
+// @spec DFF-UI-003
+// @spec DFF-UI-004
 function ViewShell({ eyebrow, title, description, actionLabel, onAction }: ShellProps) {
   return (
     <section className="w-full max-w-4xl rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20">
@@ -379,6 +416,13 @@ function ViewShell({ eyebrow, title, description, actionLabel, onAction }: Shell
   );
 }
 
+// @spec DFF-UI-001
+// @spec DFF-UI-002
+// @spec DFF-UI-003
+// @spec DFF-UI-004
+// @spec DFF-UI-010
+// @spec DFF-UI-014
+// @spec DFF-UI-015
 export function App() {
   const [view, dispatch] = useReducer(viewStateReducer, 'config');
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
@@ -398,6 +442,8 @@ export function App() {
     return () => window.clearTimeout(timeoutId);
   }, [toastMessage]);
 
+  // @spec DFF-UI-014
+  // @spec DFF-UI-015
   async function handleStartDraft() {
     if (isSubmittingDraft) {
       return;

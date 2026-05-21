@@ -13,17 +13,23 @@ import { App } from '../src/ui/App.js';
 
 const fetchMock = vi.fn<typeof fetch>();
 
+// @spec DFF-UI-014
+// @spec DFF-UI-015
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
 });
 
+// @spec DFF-UI-014
+// @spec DFF-UI-015
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
 describe('UI app scaffold', () => {
+  // @spec DFF-UI-001
+  // @spec DFF-UI-010
   test('renders the config screen with the expected default draft fields', () => {
     render(<App />);
 
@@ -47,6 +53,8 @@ describe('UI app scaffold', () => {
     expect(screen.getByLabelText(/future pick years/i)).toHaveValue(3);
   });
 
+  // @spec DFF-UI-002
+  // @spec DFF-UI-014
   test('posts the current form values and transitions to drafting when a draft is created', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
@@ -105,6 +113,7 @@ describe('UI app scaffold', () => {
     ).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-015
   test('shows an error toast and remains on config when draft creation fails', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
@@ -123,6 +132,8 @@ describe('UI app scaffold', () => {
     ).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-010
+  // @spec DFF-UI-014
   test('clamps out-of-range numeric values before posting the draft request', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
@@ -172,6 +183,7 @@ describe('UI app scaffold', () => {
     );
   });
 
+  // @spec DFF-UI-003
   test('transitions from drafting to history on draft completion', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
@@ -195,6 +207,7 @@ describe('UI app scaffold', () => {
     ).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-004
   test('transitions from history back to config when the user starts a new draft', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(

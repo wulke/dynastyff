@@ -117,7 +117,9 @@ export function exportSnapshot(options?: {
   const snapshotPath = options?.snapshotPath ?? resolveSnapshotPath();
 
   if (!fs.existsSync(databasePath)) {
-    throw new Error(`[export:snapshot] Database file not found at ${databasePath}.`);
+    throw new Error(
+      `[export:snapshot] Database file not found at ${databasePath}. Run \`npm run etl\` first.`,
+    );
   }
 
   const sqlite = createDatabase(databasePath);

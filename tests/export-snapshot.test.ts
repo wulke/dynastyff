@@ -190,8 +190,34 @@ test('export-snapshot exits with code 1 and a clear error when the database file
 
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Database file not found/);
+    assert.match(result.stderr, /Run `npm run etl` first\./);
     assert.equal(fs.existsSync(outputPath), false);
   } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-STATIC-012
+test('export-snapshot exits with code 1 and ETL guidance when the players table is missing', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-export-snapshot-missing-players-'));
+  const dbPath = path.join(tempDir, 'raw.sqlite');
+  const outputPath = path.join(tempDir, 'snapshot.json');
+  const db = new Database(dbPath);
+
+  try {
+    db.exec('CREATE TABLE placeholder (id TEXT PRIMARY KEY);');
+    db.close();
+
+    const result = runExportSnapshot(dbPath, outputPath);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Run `npm run etl` first\./);
+    assert.equal(fs.existsSync(outputPath), false);
+  } finally {
+    if (db.open) {
+      db.close();
+    }
+
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });

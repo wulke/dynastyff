@@ -24,12 +24,17 @@ npx playwright install
 cp .env.example .env
 # Add your ANTHROPIC_API_KEY to .env
 
-# Populate the database (scrapes KTC, FantasyCalc, DynastyDaddy, RosterAudit)
+# Populate the database (scrapes KTC, FantasyCalc, and RosterAudit)
 npm run etl
 
-# Start the UI dev server
+# Start the backend API server
+npm run serve
+
+# Start the UI dev server in a second terminal
 npm run dev
 ```
+
+The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so both commands should be running for draft creation, state/history reads, and the live draft SSE stream.
 
 Open the Vite URL shown in the terminal to begin.
 
@@ -49,7 +54,7 @@ Open the Vite URL shown in the terminal to begin.
 | Teams | 12 | |
 | Draft rounds | 20 | |
 | Scoring | PPR | |
-| User pick position | Random | |
+| User pick position | Configurable | Selected on the config screen |
 | Future pick years | 3 | |
 
 All settings are configurable on the league config screen before starting a draft.
@@ -71,10 +76,20 @@ Current UI commands:
 
 | Command | Purpose |
 |---|---|
+| `npm run serve` | Start the local HTTP API server for draft creation and live `/drafts/:id/stream` SSE updates |
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
 | `npm run test:ui` | Run the UI tests for config submission and view-state transitions |
+
+Current draft API surface:
+
+| Route | Purpose |
+|---|---|
+| `POST /drafts` | Create a new draft |
+| `GET /drafts/:id/stream` | Subscribe to live draft SSE updates |
+| `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration |
+| `GET /drafts` | List persisted drafts for history / resume flows |
 
 ## ETL
 
@@ -82,10 +97,34 @@ Current UI commands:
 
 Current ETL scope:
 
-- Scrapes KTC player values with Playwright
+- Runs KTC, FantasyCalc, and RosterAudit scrapers with Playwright headless Chromium
+- Leaves DynastyDaddy disabled in the live ETL job for now due to scraper instability
+- Caps scraper concurrency at 2 in-flight scrapers
 - Filters players to `QB`, `RB`, `WR`, and `TE`
-- Normalizes KTC values to `0-9999`
-- Upserts the local SQLite `players` table
+- Returns a shared scraper contract: players `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values `{ year, round, rawValue }`
+- Creates an `etl_runs` record at ETL start and finalizes it with per-source success status on completion
+- Persists raw per-source player and pick snapshots into `player_value_snapshots` and `pick_value_snapshots`
+- Wraps each source's snapshot writes plus `players` / `pick_values` hot-path updates in a single transaction
+- Normalizes player values and pick values per source to `0-9999`
+- Matches non-KTC players onto KTC-backed canonical rows with normalized-name exact match, Dice fuzzy match, and `player-aliases.json` overrides
+- Aggregates player `dynasty_value` as the rounded mean of the non-NULL per-source normalized values
+- Aggregates each `pick_values` `(year, round)` row as the rounded mean of the current run's non-NULL per-source normalized pick values
+- Treats a missing `player-aliases.json` as an empty alias list and fails fast on malformed alias JSON
+- Upserts the local SQLite `players` and `pick_values` tables from the current ETL write path
+- Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time
+
+`player-aliases.json` lives at the project root and supports:
+
+```json
+{
+  "aliases": [
+    {
+      "canonical": "Odell Beckham Jr.",
+      "variants": ["Odell Beckham", "OBJ"]
+    }
+  ]
+}
+```
 
 ## Project Structure
 
@@ -105,6 +144,7 @@ src/
     schema.ts            # Shared Drizzle table definitions
   draft/
     service.ts           # Transactional draft bootstrap, pick recording, and status updates
+    stream.ts            # Draft SSE snapshot queries and in-process event fanout
   ui/
     App.tsx              # Top-level React view-state shell
     main.tsx             # Vite React entry point

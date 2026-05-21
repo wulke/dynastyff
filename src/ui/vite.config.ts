@@ -6,12 +6,20 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveApiBaseUrl } from '../server/runtime.js';
 
 const uiRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   root: uiRoot,
   plugins: [react()],
+  server: {
+    proxy: {
+      '/drafts': {
+        target: resolveApiBaseUrl(),
+      },
+    },
+  },
   build: {
     outDir: path.resolve(uiRoot, '../../dist/ui'),
     emptyOutDir: true,

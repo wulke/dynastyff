@@ -2,7 +2,7 @@
 
 ## Context
 
-The ETL pipeline is a standalone script (`src/etl/index.ts`) that populates the `players` and `pick_values` tables in the local SQLite database. It is invoked manually via `npm run etl` — no scheduling, no server dependency. It shares the Drizzle ORM schema and database module with the Express server.
+The ETL pipeline is a standalone script (`src/etl/index.ts`) that populates the local SQLite database. It is invoked manually via `npm run etl` — no scheduling, no server dependency. It shares the Drizzle ORM schema and database module with the Express server.
 
 Drives specs: `docs/specs/etl-pipeline-specs.md`
 
@@ -14,17 +14,16 @@ npm run etl
             ├── runScrapers()          — launches scrapers with concurrency limit 2
             │       ├── scraper/ktc.ts
             │       ├── scraper/fantasycalc.ts
-            │       ├── scraper/dynastydaddy.ts
             │       └── scraper/rosteraudit.ts
-            ├── matchPlayers()         — fuzzy name+position matching across sources
-            ├── normalize()            — min-max scale each source to 0–9999
-            ├── aggregate()            — average normalized values → dynasty_value
-            └── upsert()               — write players + pick_values to SQLite
+            ├── normalize()            — normalizes player and pick values to 0–9999
+            └── upsert()               — writes players and pick values to SQLite
 ```
+
+Cross-source player matching, multi-source aggregation, pick value persistence, and partial-failure hardening are introduced across issues #4, #5, and #6. Issue #3 establishes the shared scraper contract and orchestration boundary those later slices build on.
 
 ## Scrapers
 
-Each scraper is a self-contained module that returns a typed result array. All four use Playwright (headless Chromium) to handle JS-rendered pages.
+Each scraper is a self-contained module that returns the shared typed result object. All four use Playwright (headless Chromium) to handle JS-rendered pages.
 
 ### Scraper contract
 
@@ -52,30 +51,47 @@ type RawPickValue = {
 };
 ```
 
-Scrapers throw on unrecoverable failure (site unreachable, structure changed). The orchestrator catches per-scraper errors and continues.
+Scrapers throw on unrecoverable failure (site unreachable, structure changed). Partial-failure handling is added in issue #6.
+DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` source list due to scraper instability.
 
 ## Concurrency
 
 Scrapers run two at a time using a simple promise pool. Order of execution is not guaranteed.
 
 ```
-[ktc, fantasycalc, dynastydaddy, rosteraudit]
+[ktc, fantasycalc, rosteraudit]
   → run ktc + fantasycalc in parallel
-  → run dynastydaddy + rosteraudit in parallel
+  → run rosteraudit
 ```
+
+## Current Write Path
+
+The current ETL write path is source-aware and history-aware.
+DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` job due to scraper instability.
+
+1. `runScrapers()` launches KTC, FantasyCalc, and RosterAudit with a maximum concurrency of 2.
+2. `runEtl()` inserts an `etl_runs` row at the start of execution with the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and `completed_at = NULL`.
+3. Each successful source is processed in its own database transaction:
+   - normalize that source's player and pick values
+   - write raw `player_value_snapshots` and `pick_value_snapshots`
+   - update the current-state `players` table
+   - recompute the current-state `pick_values` row for each touched `(year, round)` from the current run's raw pick snapshots using that run's per-source normalization contexts
+4. If any write fails inside a source transaction, the full source transaction is rolled back and excluded from `sources_succeeded`.
+5. After all source transactions finish, `runEtl()` updates the `etl_runs` row with `completed_at` and the final `sources_succeeded` list.
 
 ## Player Matching
 
-Players must be matched across sources before normalization, since each source uses its own naming conventions.
+Cross-source player matching is implemented during ETL startup before non-KTC source values are written into the hot `players` table.
 
-**Algorithm:**
-
-1. Collect all players from all successful scrapers.
-2. Build a canonical player list from the union of all names. Primary source priority: KTC → FantasyCalc → DynastyDaddy → RosterAudit (used only for canonical name/metadata; all sources contribute values).
-3. For each non-primary source player, attempt exact match on `(normalized_name, position)` first.
-4. On exact miss, run fuzzy match using `string-similarity` (Dice coefficient) on name, filtered to same position. Accept match if score ≥ 0.85.
-5. On fuzzy miss, check `player-aliases.json` for a hard-coded override.
-6. On alias miss, log a loud warning and skip the source's value for that player (does not abort the run).
+1. Load `player-aliases.json` from the project root once at ETL startup.
+2. Normalize each source's player values independently with the existing min-max path.
+3. Write KTC players first so KTC establishes the canonical player rows and metadata for the run.
+4. For each non-KTC player, attempt to match an existing canonical row at the same position in this order:
+   - exact match on normalized name
+   - highest Dice-coefficient fuzzy match on normalized name, accepted only if score is `>= 0.85`
+   - alias lookup using `player-aliases.json`
+5. When a non-KTC player matches, update that source's value column, update `adp` when the source provides a non-NULL `adp`, recompute `dynasty_value` as the rounded mean of all non-NULL per-source values, and keep the canonical name / metadata from the highest-priority matched source.
+6. When a non-KTC player does not match, log a warning and exclude that player from the hot `players` table for the run.
 
 **`player-aliases.json` format:**
 
@@ -90,6 +106,9 @@ Players must be matched across sources before normalization, since each source u
 }
 ```
 
+If `player-aliases.json` is absent at ETL startup, ETL continues with an empty alias list and logs a warning.
+If `player-aliases.json` exists but contains malformed JSON, ETL fails before any database writes with a clear configuration error.
+
 ## Normalization
 
 Each source is normalized independently using min-max scaling:
@@ -98,55 +117,57 @@ Each source is normalized independently using min-max scaling:
 normalized = round((raw - min) / (max - min) * 9999)
 ```
 
-- `min` and `max` are computed from all players returned by that source in the current run.
-- Normalization is applied to both player values and pick values.
-- If a source returns only one player (degenerate case), that player is assigned value 9999 and a warning is logged.
+- Player and pick value normalization both use the same per-source min-max path.
+- If a source returns only one player or pick value (degenerate case), that entry is assigned value 9999 and a warning is logged.
 
 ## Aggregation
 
-After normalization, each player's `dynasty_value` is the simple mean of all non-NULL normalized values across sources that successfully matched that player.
+Player aggregation is implemented as the rounded mean of the non-NULL normalized source columns:
 
-```
-dynasty_value = round(mean([value_ktc, value_fantasycalc, ...].filter(v => v !== null)))
-```
+`round(mean(value_ktc, value_fantasycalc, value_dynastydaddy, value_rosteraudit))`
 
-Pick values follow the same pattern.
+Only source columns that successfully matched the canonical player row participate in the mean.
 
 ## Partial Failure Behavior
 
-- A scraper failure (throw) logs a warning: `[ETL] WARN: {source} scraper failed — {error.message}. Excluding from this run.`
-- The run continues with remaining successful scrapers.
-- If ≥ 1 scraper succeeds, the upsert proceeds with available data.
-- If all scrapers fail, the run exits with a non-zero code and no database writes occur.
-- Per-source columns (`value_ktc`, etc.) for failed sources are left as NULL in the upserted rows; existing non-NULL values from a prior run are not overwritten.
+Partial-failure handling is specified for issue #6 and has not been implemented in this slice.
+
+## Edge Case Probe
+
+- Missing `etl_runs` table -> print a `npm run db:init` guidance error and exit with code 1 before attempting any ETL writes
+- Playwright page never reaches `networkidle` -> warn and continue scraping the currently loaded DOM
+- KTC returns no supported players -> exit before any source writes; leave the `etl_runs` row incomplete so draft pinning ignores it
+- DynastyDaddy runtime instability -> keep the scraper module in the codebase, but exclude it from the live `npm run etl` source list until re-enabled
 
 ## Upsert
 
 All writes use Drizzle ORM against the shared SQLite database.
 
 **Players:**
-- Match on `players.name + players.position` (not ID, since IDs are not shared across sources).
-- On match: update `dynasty_value`, all `value_*` columns (non-NULL only), `adp` (if source provided), and `updated_at`.
-- On no match: insert a new row with a generated UUID.
+- Canonical rows are established by the highest-priority matched source: `KTC -> FantasyCalc -> DynastyDaddy -> RosterAudit`.
+- Existing row matching uses normalized-name exact match first, then same-position Dice fuzzy match, then alias override.
+- On KTC match: update canonical name, metadata, `value_ktc`, `dynasty_value`, `adp` when provided, and `updated_at`.
+- On non-KTC match: update the corresponding `value_*` column, update `adp` when provided, recompute `dynasty_value`, and update `updated_at`.
+- On unmatched KTC row: insert a new row with a generated UUID and `NULL` for all missing source columns.
+- On unmatched non-KTC row: log a warning and exclude that player's value from the hot `players` table for the run.
 
 **Pick values:**
-- Match on `(year, round)`.
-- On match: update `dynasty_value` and `updated_at`.
-- On no match: insert a new row.
+- Existing row matching uses `(year, round)`.
+- On match: recompute `dynasty_value` as the rounded mean of all normalized current-run source values for that `(year, round)`, then update `updated_at`.
+- On miss: insert a new row with a generated UUID, the aggregated `dynasty_value`, and `updated_at`.
 
 ## File Layout
 
 ```
 src/etl/
-  index.ts                  — orchestrator: concurrency, matching, normalize, aggregate, upsert
+  index.ts                  — orchestrator: concurrency, current KTC normalization, players upsert
   normalize.ts              — min-max scaling utilities
-  match.ts                  — fuzzy player matching logic
   scraper/
+    shared.ts
     ktc.ts
     fantasycalc.ts
     dynastydaddy.ts
     rosteraudit.ts
-player-aliases.json         — manual name override file (project root)
 ```
 
 ## Decisions

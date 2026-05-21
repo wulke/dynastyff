@@ -30,10 +30,10 @@ When the ETL pipeline encounters a player not currently in `players`, the system
 **DFF-DATA-010** `[x]`
 The system shall store a dynasty value for each future pick asset keyed by `(year, round)` in the `pick_values` table with the following columns: id, year, round, dynasty_value, updated_at.
 
-**DFF-DATA-011** `[ ]`
+**DFF-DATA-011** `[x]`
 When the ETL pipeline refreshes pick value data, the system shall update `pick_values.dynasty_value` and `pick_values.updated_at` for all rows where `(year, round)` already exists.
 
-**DFF-DATA-012** `[ ]`
+**DFF-DATA-012** `[x]`
 When the ETL pipeline encounters a `(year, round)` combination not currently in `pick_values`, the system shall insert a new row for that combination.
 
 ---

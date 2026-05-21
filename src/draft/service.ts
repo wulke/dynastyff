@@ -501,6 +501,7 @@ export function recordPick({
   }
 }
 
+// @spec DFF-ENGINE-016
 export function getDraftState({
   databasePath,
   draftId,

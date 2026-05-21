@@ -52,11 +52,11 @@ Issue `#13` establishes the initial frontend shell under `/src/ui`, issue `#15` 
 - Tailwind CSS provides the shell styling and layout primitives
 - A Radix UI primitive is wired into the shared shell so the initial scaffold proves the dependency path works before later feature slices add dialogs, tabs, and other interactive primitives
 
-At this stage, each view is intentionally an empty shell with a single transition control:
+At this stage, the config view is functional and the drafting/history views are still intentionally light shells:
 
-- Config screen: league settings form + `Start Draft` POSTs `/drafts` and drives `config → drafting`
-- Draft shell: `Complete Draft` drives `drafting → history`
-- History shell: `New Draft` drives `history → config`
+- Config screen: league settings form + `Start Draft` calls `startDraft()` on `HttpDraftContext`
+- Draft shell: renders the current `draftId` plus an SSE status badge while `useDraftStream` connects and hydrates
+- History shell: becomes visible only after a `draft_complete` SSE event and exposes `New Draft`
 
 The drafting and history shells remain intentionally light until subsequent issues replace them with the full board, player list, advisor, and history views, but draft creation and completion transitions are driven through the shared context and SSE stream.
 
@@ -90,17 +90,18 @@ A single `DraftContext` (React Context + useReducer) holds all draft state. `Htt
 type DraftState = {
   draftId: string | null;
   status: 'idle' | 'in_progress' | 'completed';
-  config: LeagueConfig | null;
-  picks: Pick[];           // all picks made so far
-  teams: Team[];           // all teams with current rosters
-  availablePlayers: Player[];
-  currentPickNumber: number;
-  isUserTurn: boolean;
-  pendingTrade: TradeOffer | null;
+  currentPickNumber: number | null;
+  teams: Team[];
+  draftOrder: DraftOrderSlot[];
+  picks: PickRecord[];
+  rosterPlayers: RosterPlayerRecord[];
+  teamPickAssets: TeamPickAsset[];
+  userQueue: QueueEntry[];
+  availablePlayers: AvailablePlayer[];
+  trades: TradeRecord[];
+  pendingTrade: PendingTrade | null;
   sseStatus: 'connecting' | 'connected' | 'disconnected';
-  advisorOpen: boolean;
-  advisorMode: 'advise' | 'grill';
-  advisorMessages: Message[];
+  completedAt: string | null;
 };
 ```
 
@@ -116,10 +117,6 @@ type DraftState = {
 | `TRADE_RESOLVED` | `trade_resolved` SSE event |
 | `DRAFT_COMPLETE` | `draft_complete` SSE event |
 | `SSE_STATUS` | `useDraftStream` hook |
-| `ADVISOR_OPEN` | User clicks advisor button |
-| `ADVISOR_MESSAGE` | Advisor API response |
-| `ADVISOR_RESET` | User commits pick |
-
 ## Draft Board Grid
 
 Rounds are columns; teams are rows. The grid is fixed at draft creation (`round_count × team_count` cells). Cells fill in as `pick_made` events arrive.
@@ -246,7 +243,11 @@ Three tabs toggled by pill buttons at the top:
 A custom hook that owns the SSE lifecycle and dispatches into the `DraftContext` reducer.
 
 ```ts
-function useDraftStream(draftId: string | null, dispatch: Dispatch<DraftAction>): void
+function useDraftStream(
+  draftId: string | null,
+  dispatch: Dispatch<DraftAction>,
+  onDisconnectExhausted: () => void,
+): void
 ```
 
 **Behavior:**

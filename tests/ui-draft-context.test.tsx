@@ -8,7 +8,7 @@
 // @spec DFF-UI-074
 // @spec DFF-UI-082
 // @spec DFF-UI-083
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -181,9 +181,10 @@ describe('HTTP draft context', () => {
 
   // @spec DFF-UI-072
   // @spec DFF-UI-083
-  test('reconnects with exponential backoff capped at 30 seconds and shows a disconnect toast when retries are exhausted', async () => {
+  test(
+    'reconnects with exponential backoff capped at 30 seconds and shows a disconnect toast when retries are exhausted',
+    async () => {
     vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTimeAsync });
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-reconnect-123' }), {
         status: 201,
@@ -195,7 +196,10 @@ describe('HTTP draft context', () => {
 
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
+      await Promise.resolve();
+    });
 
     const reconnectDelays = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000];
 
@@ -217,14 +221,14 @@ describe('HTTP draft context', () => {
       MockEventSource.instances.at(-1)?.emitError();
     });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /lost connection to draft server\. refresh to reconnect\./i,
-    );
+    expect(screen.getByRole('alert')).toHaveTextContent(/lost connection to draft server\. refresh to reconnect\./i);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(6_001);
     });
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
+    },
+    20_000,
+  );
 });

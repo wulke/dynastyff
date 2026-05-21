@@ -13,6 +13,54 @@ import { App } from '../src/ui/App.js';
 
 const fetchMock = vi.fn<typeof fetch>();
 
+class MockEventSource {
+  static instances: MockEventSource[] = [];
+
+  readonly listeners = new Map<string, Set<(event: MessageEvent<string>) => void>>();
+
+  constructor(_url: string | URL) {
+    MockEventSource.instances.push(this);
+  }
+
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+    const callback =
+      typeof listener === 'function'
+        ? (listener as (event: MessageEvent<string>) => void)
+        : (event: MessageEvent<string>) => listener.handleEvent(event);
+    const current = this.listeners.get(type) ?? new Set<(event: MessageEvent<string>) => void>();
+    current.add(callback);
+    this.listeners.set(type, current);
+  }
+
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+    const current = this.listeners.get(type);
+
+    if (!current) {
+      return;
+    }
+
+    const callback =
+      typeof listener === 'function'
+        ? (listener as (event: MessageEvent<string>) => void)
+        : (event: MessageEvent<string>) => listener.handleEvent(event);
+    current.delete(callback);
+  }
+
+  close(): void {
+    return;
+  }
+
+  emit(type: string, data: unknown): void {
+    const event = new MessageEvent(type, {
+      data: JSON.stringify(data),
+    });
+
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(event);
+    }
+  }
+}
+
 function createDeferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (reason?: unknown) => void;
@@ -28,7 +76,9 @@ function createDeferred<T>() {
 // @spec DFF-UI-015
 beforeEach(() => {
   fetchMock.mockReset();
+  MockEventSource.instances = [];
   vi.stubGlobal('fetch', fetchMock);
+  vi.stubGlobal('EventSource', MockEventSource as unknown as typeof EventSource);
 });
 
 // @spec DFF-UI-014
@@ -330,7 +380,13 @@ describe('UI app scaffold', () => {
     render(<App />);
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
-    await user.click(screen.getByRole('button', { name: /complete draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('draft_complete', {
+        draft_id: 'draft-123',
+        completed_at: '2026-05-21T18:00:00.000Z',
+      });
+    });
 
     expect(
       screen.getByRole('heading', {
@@ -354,7 +410,13 @@ describe('UI app scaffold', () => {
     render(<App />);
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
-    await user.click(screen.getByRole('button', { name: /complete draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('draft_complete', {
+        draft_id: 'draft-123',
+        completed_at: '2026-05-21T18:00:00.000Z',
+      });
+    });
     await user.click(screen.getByRole('button', { name: /new draft/i }));
 
     expect(

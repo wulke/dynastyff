@@ -137,13 +137,13 @@ The Pages deploy workflow shall use the `github-pages` environment so deployment
 
 ## Component Decoupling
 
-**DFF-STATIC-060** `[ ]` → #54
+**DFF-STATIC-060** `[x]` → #54
 The system shall define a `DraftContextValue` interface in `src/ui/context/DraftContext.tsx` exposing: `snapshot`, `draftState`, `sessionHistory`, `startDraft`, `submitPick`, `updateQueue`, and `newDraft`.
 
-**DFF-STATIC-061** `[ ]` → #54
+**DFF-STATIC-061** `[x]` → #54
 Existing `src/ui/` components shall reference `useDraftContext()` for all draft data and action calls and shall not directly call `fetch` against Express endpoints.
 
-**DFF-STATIC-062** `[ ]` → #54
+**DFF-STATIC-062** `[x]` → #54
 The main app (`src/ui/App.tsx`) shall wire an `HttpDraftContext` implementation of `DraftContextValue` that calls Express HTTP endpoints and subscribes to the SSE stream.
 
 **DFF-STATIC-063** `[ ]`

@@ -168,16 +168,16 @@ The History view shall include a "New Draft" button that transitions the app to 
 **DFF-UI-070** `[ ]` → #54
 The `useDraftStream` hook shall open an `EventSource` to GET /drafts/:id/stream when `draftId` is set, and close it when `draftId` is cleared or the component unmounts.
 
-**DFF-UI-071** `[ ]` → #54
+**DFF-UI-071** `[x]` → #54
 The hook shall dispatch `SSE_STATUS: 'connecting'` when opening the connection and `SSE_STATUS: 'connected'` on the first message received.
 
-**DFF-UI-072** `[ ]` → #54
+**DFF-UI-072** `[x]` → #54
 On SSE error, the hook shall dispatch `SSE_STATUS: 'disconnected'` and attempt to reconnect with exponential backoff: 1s, 2s, 4s, capped at 30s.
 
-**DFF-UI-073** `[ ]` → #54
+**DFF-UI-073** `[x]` → #54
 On `draft_complete` event, the hook shall close the `EventSource` cleanly and dispatch `DRAFT_COMPLETE`.
 
-**DFF-UI-074** `[ ]` → #54
+**DFF-UI-074** `[x]` → #54
 For each SSE event type (`pick_made`, `your_turn`, `trade_offered`, `trade_resolved`, `draft_complete`), the hook shall parse the payload and dispatch the corresponding reducer action.
 
 ---
@@ -190,10 +190,10 @@ While GET /drafts/:id/state is in flight at draft start, the Available Players l
 **DFF-UI-081** `[ ]` → #20
 While an advisor response is pending, the Advisor panel shall render an inline spinner; the rest of the UI shall remain interactive.
 
-**DFF-UI-082** `[ ]` → #54
+**DFF-UI-082** `[x]` → #54
 The draft header shall display an SSE connection status badge showing "Connecting…" while `sseStatus` is `connecting`.
 
-**DFF-UI-083** `[ ]` → #54
+**DFF-UI-083** `[x]` → #54
 If SSE reconnect attempts are exhausted (backoff cap reached with no reconnect), the system shall display a persistent error toast: "Lost connection to draft server. Refresh to reconnect."
 
 **DFF-UI-084** `[ ]` → #18

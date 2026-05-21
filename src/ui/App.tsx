@@ -5,79 +5,21 @@
 // @spec DFF-UI-010
 // @spec DFF-UI-014
 // @spec DFF-UI-015
-import { useEffect, useReducer, useState } from 'react';
+// @spec DFF-STATIC-060
+// @spec DFF-STATIC-061
+// @spec DFF-STATIC-062
+// @spec DFF-UI-082
+import { useEffect, useState } from 'react';
 import * as Separator from '@radix-ui/react-separator';
+import {
+  HttpDraftContextProvider,
+  useDraftContext,
+  type DraftConfig,
+  type RosterConfig,
+  type ScoringFormat,
+} from './context/DraftContext.js';
 
-export type ViewState = 'config' | 'drafting' | 'history';
-
-// @spec DFF-UI-001
-// @spec DFF-UI-002
-// @spec DFF-UI-003
-// @spec DFF-UI-004
-type ViewAction =
-  | { type: 'draft_created' }
-  | { type: 'draft_complete' }
-  | { type: 'new_draft' };
-
-// @spec DFF-UI-010
-type ScoringFormat = 'ppr' | 'half_ppr' | 'standard';
-
-// @spec DFF-UI-010
-type RosterConfig = {
-  QB: number;
-  RB: number;
-  WR: number;
-  TE: number;
-  FLEX: number;
-  SF: number;
-  bench: number;
-};
-
-// @spec DFF-UI-010
-// @spec DFF-UI-014
-type ConfigFormState = {
-  name: string;
-  teamCount: number;
-  rounds: number;
-  scoringFormat: ScoringFormat;
-  userPickPosition: number;
-  futurePickYears: number;
-  rosterConfig: RosterConfig;
-};
-
-// @spec DFF-UI-014
-type DraftCreateResponse = {
-  draftId?: string;
-};
-
-// @spec DFF-UI-014
-type DraftCreateRequestBody = {
-  configName: string;
-  teamCount: number;
-  rounds: number;
-  scoringFormat: ScoringFormat;
-  pickPosition: number;
-  futurePickYears: number;
-  rosterSlots: {
-    QB: number;
-    RB: number;
-    WR: number;
-    TE: number;
-    FLEX: number;
-    SF: number;
-    BN: number;
-  };
-};
-
-// @spec DFF-UI-015
-type ToastProps = {
-  message: string;
-};
-
-const GENERIC_DRAFT_CREATE_ERROR = 'Draft creation failed. Check your config and try again.';
-
-// @spec DFF-UI-015
-class DraftCreateUiError extends Error {}
+type ConfigFormState = DraftConfig;
 
 // @spec DFF-UI-010
 const configDefaults: ConfigFormState = {
@@ -99,7 +41,12 @@ const configDefaults: ConfigFormState = {
 };
 
 // @spec DFF-UI-010
-const ROSTER_FIELDS: Array<{ key: keyof RosterConfig; label: string; min: number; max: number }> = [
+const ROSTER_FIELDS: Array<{
+  key: 'QB' | 'RB' | 'WR' | 'TE' | 'FLEX' | 'SF' | 'bench';
+  label: string;
+  min: number;
+  max: number;
+}> = [
   { key: 'QB', label: 'QB', min: 0, max: 4 },
   { key: 'RB', label: 'RB', min: 0, max: 8 },
   { key: 'WR', label: 'WR', min: 0, max: 8 },
@@ -108,23 +55,6 @@ const ROSTER_FIELDS: Array<{ key: keyof RosterConfig; label: string; min: number
   { key: 'SF', label: 'SF', min: 0, max: 3 },
   { key: 'bench', label: 'BN', min: 0, max: 20 },
 ];
-
-// @spec DFF-UI-001
-// @spec DFF-UI-002
-// @spec DFF-UI-003
-// @spec DFF-UI-004
-export function viewStateReducer(state: ViewState, action: ViewAction): ViewState {
-  switch (action.type) {
-    case 'draft_created':
-      return 'drafting';
-    case 'draft_complete':
-      return 'history';
-    case 'new_draft':
-      return 'config';
-    default:
-      return state;
-  }
-}
 
 // @spec DFF-UI-014
 function clamp(value: number, min: number, max: number) {
@@ -174,39 +104,6 @@ function sanitizeDraftConfig(config: ConfigFormState): ConfigFormState {
       bench: clamp(config.rosterConfig.bench, 0, 20),
     },
   };
-}
-
-// @spec DFF-UI-014
-function toDraftCreateRequestBody(config: ConfigFormState): DraftCreateRequestBody {
-  return {
-    configName: config.name,
-    teamCount: config.teamCount,
-    rounds: config.rounds,
-    scoringFormat: config.scoringFormat,
-    pickPosition: config.userPickPosition,
-    futurePickYears: config.futurePickYears,
-    rosterSlots: {
-      QB: config.rosterConfig.QB,
-      RB: config.rosterConfig.RB,
-      WR: config.rosterConfig.WR,
-      TE: config.rosterConfig.TE,
-      FLEX: config.rosterConfig.FLEX,
-      SF: config.rosterConfig.SF,
-      BN: config.rosterConfig.bench,
-    },
-  };
-}
-
-// @spec DFF-UI-015
-function DraftToast({ message }: ToastProps) {
-  return (
-    <div
-      role="alert"
-      className="fixed right-6 top-6 z-10 max-w-sm rounded-2xl border border-red-400/40 bg-red-950/90 px-4 py-3 text-sm text-red-100 shadow-2xl shadow-black/30"
-    >
-      {message}
-    </div>
-  );
 }
 
 // @spec DFF-UI-010
@@ -425,6 +322,7 @@ type ShellProps = {
   eyebrow: string;
   title: string;
   description: string;
+  statusBadge?: string | null;
   actionLabel?: string;
   onAction?: () => void;
 };
@@ -432,10 +330,18 @@ type ShellProps = {
 // @spec DFF-UI-002
 // @spec DFF-UI-003
 // @spec DFF-UI-004
-function ViewShell({ eyebrow, title, description, actionLabel, onAction }: ShellProps) {
+// @spec DFF-UI-082
+function ViewShell({ eyebrow, title, description, statusBadge, actionLabel, onAction }: ShellProps) {
   return (
     <section className="w-full max-w-4xl rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20">
-      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">{eyebrow}</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">{eyebrow}</p>
+        {statusBadge ? (
+          <span className="rounded-full border border-stone-700 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-stone-300">
+            {statusBadge}
+          </span>
+        ) : null}
+      </div>
       <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50">{title}</h1>
       <p className="mt-3 max-w-2xl text-base leading-7 text-stone-300">{description}</p>
       <Separator.Root
@@ -471,25 +377,20 @@ function ViewShell({ eyebrow, title, description, actionLabel, onAction }: Shell
 // @spec DFF-UI-086
 // @spec DFF-UI-087
 export function App() {
-  const [view, dispatch] = useReducer(viewStateReducer, 'config');
+  return (
+    <HttpDraftContextProvider>
+      <DraftApp />
+    </HttpDraftContextProvider>
+  );
+}
+
+function DraftApp() {
+  // @spec DFF-STATIC-061
+  // @spec DFF-STATIC-062
+  const { draftState, newDraft, startDraft } = useDraftContext();
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
-  const [draftId, setDraftId] = useState<string | null>(null);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // @spec DFF-UI-086
-  // @spec DFF-UI-087
-  useEffect(() => {
-    if (!toastMessage) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setToastMessage(null);
-    }, 6000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [toastMessage]);
+  const view = !draftState ? 'config' : draftState.status === 'completed' ? 'history' : 'drafting';
 
   // @spec DFF-UI-014
   // @spec DFF-UI-015
@@ -501,39 +402,9 @@ export function App() {
     const safeConfig = sanitizeDraftConfig(draftConfig);
     setDraftConfig(safeConfig);
     setIsSubmittingDraft(true);
-    setToastMessage(null);
 
     try {
-      const requestBody = toDraftCreateRequestBody(safeConfig);
-      const response = await fetch('/drafts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const message = (await response.text().catch(() => '')).trim();
-        if (response.status >= 400 && response.status < 500 && message) {
-          throw new DraftCreateUiError(message);
-        }
-
-        throw new DraftCreateUiError(GENERIC_DRAFT_CREATE_ERROR);
-      }
-
-      const responseData = (await response.json().catch(() => {
-        throw new DraftCreateUiError(GENERIC_DRAFT_CREATE_ERROR);
-      })) as DraftCreateResponse;
-
-      if (typeof responseData.draftId !== 'string' || responseData.draftId.trim() === '') {
-        throw new DraftCreateUiError(GENERIC_DRAFT_CREATE_ERROR);
-      }
-
-      setDraftId(responseData.draftId);
-      dispatch({ type: 'draft_created' });
-    } catch (error) {
-      setToastMessage(error instanceof DraftCreateUiError ? error.message : GENERIC_DRAFT_CREATE_ERROR);
+      await startDraft(safeConfig);
     } finally {
       setIsSubmittingDraft(false);
     }
@@ -541,7 +412,6 @@ export function App() {
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_35%),linear-gradient(180deg,_#1c1917_0%,_#0c0a09_100%)] px-6 py-12 text-stone-100">
-      {toastMessage ? <DraftToast message={toastMessage} /> : null}
       <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-6xl items-center justify-center">
         {view === 'config' ? (
           <DraftConfigScreen
@@ -554,11 +424,10 @@ export function App() {
 
         {view === 'drafting' ? (
           <ViewShell
-            eyebrow={draftId ? `Draft ${draftId}` : 'Drafting'}
+            eyebrow={draftState?.draftId ? `Draft ${draftState.draftId}` : 'Drafting'}
             title="Draft Shell"
             description="This shell reserves the drafting surface for the board, player list, advisor panel, and trade modal."
-            actionLabel="Complete Draft"
-            onAction={() => dispatch({ type: 'draft_complete' })}
+            statusBadge={draftState?.sseStatus === 'connecting' ? 'Connecting…' : null}
           />
         ) : null}
 
@@ -569,10 +438,8 @@ export function App() {
             description="This shell reserves the post-draft review experience for pick logs, roster snapshots, and trade history."
             actionLabel="New Draft"
             onAction={() => {
-              setDraftId(null);
-              setToastMessage(null);
               setDraftConfig(configDefaults);
-              dispatch({ type: 'new_draft' });
+              newDraft();
             }}
           />
         ) : null}

@@ -24,14 +24,14 @@ The static build shall exclude the advisor agent — no Anthropic SDK imports, n
 
 ## Static Data Snapshot
 
-**DFF-STATIC-010** `[ ]`
+**DFF-STATIC-010** `[x]`
 The system shall expose an `npm run export:snapshot` command that reads the `players` and `pick_values` tables from the local SQLite database and writes a JSON file to `data/snapshot.json`.
 
-**DFF-STATIC-011** `[ ]`
+**DFF-STATIC-011** `[x]`
 The exported `snapshot.json` shall conform to the following shape: `{ exportedAt: string, players: SnapshotPlayer[], pickValues: SnapshotPickValue[] }` where `SnapshotPlayer` carries `id, name, position, nflTeam, age, isRookie, dynastyValue, adp` and `SnapshotPickValue` carries `year, round, dynastyValue`.
 
-**DFF-STATIC-012** `[ ]`
-When the export script is run against an empty or missing `players` table, the system shall exit with code 1 and print an error instructing the user to run `npm run etl` first.
+**DFF-STATIC-012** `[x]`
+When the export script is run against an empty or missing `players` table, or when the local SQLite database file is absent, the system shall exit with code 1 and print an error instructing the user to run `npm run etl` first.
 
 **DFF-STATIC-013** `[ ]`
 When the static application loads, it shall fetch `./data/snapshot.json` before rendering any draft configuration UI.

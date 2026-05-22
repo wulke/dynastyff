@@ -46,6 +46,7 @@ Open the Vite URL shown in the terminal to begin.
 1. **Configure your league** — set team count, roster slots, scoring, and your draft position on the config screen.
 2. **Start a mock draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically.
    - On the API-backed draft flow, bot turns continue server-side after every successful user pick with a randomized `3–5s` delay between bot selections.
+   - If your league settings place a bot on the opening slot, the server now auto-starts those opening bot turns immediately after draft creation so the board advances to your first turn without extra input.
 3. **Use the advisor (optional)** — on any pick, choose:
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.

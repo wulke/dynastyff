@@ -66,11 +66,19 @@ export function createDraftApp({
   return app;
 }
 
-export function createDraftRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+// @spec DFF-ENGINE-001
+// @spec DFF-ENGINE-002
+// @spec DFF-ENGINE-002b
+// @spec DFF-ENGINE-030
+export function createDraftRoute({
+  databasePath,
+  botChain = createBotChainCoordinator({ databasePath }),
+}: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
     try {
       const config = parseCreateDraftConfig(request.body);
       const draftId = createDraft({ databasePath, config });
+      botChain.trigger(draftId);
 
       response.status(201).json({ draftId });
     } catch (error) {

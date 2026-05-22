@@ -4,7 +4,8 @@
 // @spec DFF-STATIC-016
 import { useEffect, useState } from 'react';
 
-import type { Snapshot } from '../ui/context/DraftContext.js';
+import { DraftConfigScreen, configDefaults, type ConfigFormState } from '../ui/components/DraftConfigScreen.js';
+import type { Snapshot } from '../ui/types.js';
 
 type SnapshotLoadState =
   | { status: 'loading' }
@@ -45,6 +46,7 @@ function FullScreenMessage({ title, detail }: { title: string; detail: string })
 export function App() {
   const [snapshotState, setSnapshotState] = useState<SnapshotLoadState>({ status: 'loading' });
   const [isStaleBannerDismissed, setIsStaleBannerDismissed] = useState(false);
+  const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,39 +121,42 @@ export function App() {
             </button>
           </section>
         ) : null}
-
-        <section className="w-full rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">League Setup</p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50">Config Screen</h1>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-stone-300">
-            Snapshot data is loaded. The in-browser draft flow will be wired in the next static-build
-            slices.
-          </p>
-          <dl className="mt-8 grid gap-4 text-sm text-stone-300 md:grid-cols-3">
-            <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
-              <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Players</dt>
-              <dd className="mt-2 text-2xl font-semibold text-stone-50">
-                {snapshotState.snapshot.players.length}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
-              <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Pick Values</dt>
-              <dd className="mt-2 text-2xl font-semibold text-stone-50">
-                {snapshotState.snapshot.pickValues.length}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
-              <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Exported</dt>
-              <dd className="mt-2 text-lg font-semibold text-stone-50">
-                {new Date(snapshotState.snapshot.exportedAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </dd>
-            </div>
-          </dl>
-        </section>
+        <DraftConfigScreen
+          config={draftConfig}
+          isSubmitting={false}
+          isSubmitDisabled
+          startButtonLabel="Draft Flow Coming Next"
+          footerBadgeLabel="Static snapshot scaffold"
+          description="Snapshot data is loaded. The in-browser draft flow will be wired in the next static-build slices."
+          onConfigChange={setDraftConfig}
+          onStartDraft={async () => {}}
+          supportingContent={
+            <dl className="grid gap-4 text-sm text-stone-300 md:grid-cols-3">
+              <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
+                <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Players</dt>
+                <dd className="mt-2 text-2xl font-semibold text-stone-50">
+                  {snapshotState.snapshot.players.length}
+                </dd>
+              </div>
+              <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
+                <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Pick Values</dt>
+                <dd className="mt-2 text-2xl font-semibold text-stone-50">
+                  {snapshotState.snapshot.pickValues.length}
+                </dd>
+              </div>
+              <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
+                <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Exported</dt>
+                <dd className="mt-2 text-lg font-semibold text-stone-50">
+                  {new Date(snapshotState.snapshot.exportedAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </dd>
+              </div>
+            </dl>
+          }
+        />
       </div>
     </main>
   );

@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { build } from 'vite';
+import { build, type Plugin } from 'vite';
 
 // @spec DFF-STATIC-001
 test('package.json exposes npm run build:static as a standalone entry point', () => {
@@ -61,7 +61,7 @@ test('the static build guard rejects forbidden server-side imports in the source
     );
 
     const configModule = (await import('../src/ui-static/vite.config.js')) as {
-      createStaticBuildGuardPlugin?: () => unknown;
+      createStaticBuildGuardPlugin?: () => Plugin;
     };
 
     await assert.rejects(

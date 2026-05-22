@@ -18,47 +18,7 @@ import {
   type Dispatch,
   type PropsWithChildren,
 } from 'react';
-
-export type ScoringFormat = 'ppr' | 'half_ppr' | 'standard';
-
-export type RosterConfig = {
-  QB: number;
-  RB: number;
-  WR: number;
-  TE: number;
-  FLEX: number;
-  SF: number;
-  bench: number;
-};
-
-export type DraftConfig = {
-  name: string;
-  teamCount: number;
-  rounds: number;
-  scoringFormat: ScoringFormat;
-  userPickPosition: number;
-  futurePickYears: number;
-  rosterConfig: RosterConfig;
-};
-
-export type Snapshot = {
-  exportedAt: string;
-  players: Array<{
-    id: string;
-    name: string;
-    position: 'QB' | 'RB' | 'WR' | 'TE';
-    nflTeam: string | null;
-    age: number | null;
-    isRookie: boolean;
-    dynastyValue: number;
-    adp: number | null;
-  }>;
-  pickValues: Array<{
-    year: number;
-    round: number;
-    dynastyValue: number;
-  }>;
-};
+import type { DraftConfig, Snapshot } from '../types.js';
 
 export type QueueEntry = {
   playerId: string;

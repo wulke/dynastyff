@@ -165,6 +165,32 @@ Route behavior:
 - Delegates successful submissions to `recordPick()` using the current open `draft_order` slot id
 
 The route does not perform draft-state writes itself. Validation failures stop before `recordPick()` is called, so the persisted draft state remains unchanged.
+After a successful user pick, the route asynchronously triggers the server-owned bot-chain coordinator for that draft. The HTTP response returns immediately; subsequent bot picks and turn transitions are delivered over SSE.
+
+## Bot Chain Coordinator
+
+The bot chain runs in a per-draft in-process coordinator with one active loop per draft id:
+
+1. Read the current open `draft_order` slot
+2. Stop immediately if the draft is complete or the next slot belongs to the user
+3. Wait a randomized `3000-5000ms` delay before each bot turn
+4. Re-read the current slot after the delay so the chain does not act on stale state
+5. Query `available_players` from SQLite and select the current slice's bot pick as the highest `dynasty_value` player
+6. Delegate the actual write path to `recordPick()` so bot picks reuse the same transactional persistence and SSE emission as user picks
+7. Repeat until the next open slot belongs to the user or the draft completes
+
+The coordinator de-duplicates concurrent triggers per draft id so repeated `POST /drafts/:id/pick` success paths cannot start overlapping bot loops.
+
+## POST /drafts/:id/trade-response
+
+The trade-response route currently exists to unblock the bot-chain pause/resume contract:
+
+- Accepts `{ "status": "accepted" | "declined" | "force_declined" }`
+- Returns HTTP `400` for missing or unsupported statuses
+- Returns HTTP `409` when no trade is currently paused for that draft
+- Resolves the pending in-memory bot-chain pause, emits `trade_resolved`, and allows the bot chain to continue
+
+Trade persistence and asset transfer remain owned by the dedicated trade-execution slice. The route does not yet write a `trades` row or mutate assets on `accepted`.
 
 ## Read Models
 
@@ -253,9 +279,8 @@ When a bot initiates a trade (see bot-simulator LLD for initiation logic):
 1. Draft engine pauses the bot chain
 2. Emits `trade_offered` SSE event with `is_bot_to_bot` flag
 3. Waits for `POST /trade-response`
-4. On `accepted`: transfers assets (mutates `draft_order` rows, transfers `team_pick_assets` rows, moves drafted players between teams if applicable), writes `trades` record with status `accepted`. Startup pick slot dynasty values for the trade display are resolved from `InMemoryDraftState.startupPickValues` by global pick number.
-5. On `declined` or `force_declined`: writes `trades` record with appropriate status, resumes bot chain
-6. Resumes the bot chain after any resolution
+4. In the current bot-chain slice, `POST /trade-response` emits `trade_resolved` and resumes the bot chain
+5. In the later trade-execution slice, `accepted` transfers assets (mutates `draft_order` rows, transfers `team_pick_assets` rows, moves drafted players between teams if applicable) and writes the `trades` row; `declined` / `force_declined` persist the declined outcome without asset transfer. Startup pick slot dynasty values for the trade display are resolved from `InMemoryDraftState.startupPickValues` by global pick number.
 
 ## Decisions
 

@@ -18,7 +18,8 @@ import express, {
 
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
-import { draftOrder, drafts, picks, players, teams } from '../db/schema.js';
+import { createBotChainCoordinator, type BotChainCoordinator } from '../draft/bot-chain.js';
+import { draftOrder, drafts, picks, players, teams, tradeStatuses } from '../db/schema.js';
 import {
   createDraft,
   deleteDraftQueueEntry,
@@ -40,15 +41,20 @@ import {
 
 type CreateDraftServerOptions = {
   databasePath: string;
+  botChain?: BotChainCoordinator;
 };
 
-export function createDraftApp({ databasePath }: CreateDraftServerOptions): Express {
+export function createDraftApp({
+  databasePath,
+  botChain = createBotChainCoordinator({ databasePath }),
+}: CreateDraftServerOptions): Express {
   const app = express();
 
   app.use(express.json());
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath }));
-  app.post('/drafts/:id/pick', createDraftPickRoute({ databasePath }));
+  app.post('/drafts/:id/pick', createDraftPickRoute({ databasePath, botChain }));
+  app.post('/drafts/:id/trade-response', createDraftTradeResponseRoute({ databasePath, botChain }));
   app.post('/drafts/:id/queue', createDraftQueuePostRoute({ databasePath }));
   app.get('/drafts/:id/queue', createDraftQueueGetRoute({ databasePath }));
   app.delete('/drafts/:id/queue/:player_id', createDraftQueueDeleteRoute({ databasePath }));
@@ -76,7 +82,10 @@ export function createDraftRoute({ databasePath }: CreateDraftServerOptions): Re
 // @spec DFF-ENGINE-020
 // @spec DFF-ENGINE-021
 // @spec DFF-ENGINE-022
-export function createDraftPickRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+export function createDraftPickRoute({
+  databasePath,
+  botChain = createBotChainCoordinator({ databasePath }),
+}: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
     try {
       const draftId = readDraftIdParam(request);
@@ -108,11 +117,47 @@ export function createDraftPickRoute({ databasePath }: CreateDraftServerOptions)
         draftOrderId: validation.draftOrderId,
         playerId,
       });
+      botChain.trigger(draftId);
 
       response.status(200).json({ ok: true });
     } catch (error) {
       next(error);
     }
+  };
+}
+
+// @spec DFF-ENGINE-033
+// @spec DFF-ENGINE-039
+// @spec DFF-ENGINE-039b
+export function createDraftTradeResponseRoute({
+  databasePath,
+  botChain = createBotChainCoordinator({ databasePath }),
+}: CreateDraftServerOptions): RequestHandler {
+  return (request, response) => {
+    const draftId = readDraftIdParam(request);
+
+    if (!draftId) {
+      response.status(404).json({ error: 'Draft not found.' });
+      return;
+    }
+
+    const status = readTradeResponseStatus(request.body);
+
+    if (!status) {
+      response.status(400).json({
+        error: 'Invalid trade response: status must be accepted, declined, or force_declined.',
+      });
+      return;
+    }
+
+    const resumed = botChain.resolvePendingTrade(draftId, status);
+
+    if (!resumed) {
+      response.status(409).json({ error: 'No pending trade for this draft.' });
+      return;
+    }
+
+    response.status(200).json({ ok: true });
   };
 }
 
@@ -350,6 +395,18 @@ function readPlayerIdParam(request: Request): string | null {
   }
 
   return playerId;
+}
+
+function readTradeResponseStatus(requestBody: unknown): (typeof tradeStatuses)[number] | null {
+  if (typeof requestBody !== 'object' || requestBody === null || Array.isArray(requestBody)) {
+    return null;
+  }
+
+  const status = (requestBody as { status?: unknown }).status;
+
+  return typeof status === 'string' && tradeStatuses.includes(status as (typeof tradeStatuses)[number])
+    ? (status as (typeof tradeStatuses)[number])
+    : null;
 }
 
 type UserPickValidationResult =

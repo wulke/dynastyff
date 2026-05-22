@@ -36,10 +36,10 @@ While a draft is in_progress, the system shall emit a `pick_made` event on every
 **DFF-ENGINE-012** `[x]` → #26
 When it becomes the user's turn to pick, the system shall emit a `your_turn` event containing: pick_number, round, and pick_in_round.
 
-**DFF-ENGINE-013** `[D]` → #26
+**DFF-ENGINE-013** `[x]` → #26
 When a trade is initiated, the system shall emit a `trade_offered` event containing: trade_id, initiating_team_id, receiving_team_id, assets_sent, assets_received, and is_bot_to_bot.
 
-**DFF-ENGINE-014** `[D]` → #26
+**DFF-ENGINE-014** `[x]` → #26
 When a trade is resolved, the system shall emit a `trade_resolved` event containing: trade_id, status, assets_sent, and assets_received.
 
 **DFF-ENGINE-015** `[x]` → #26
@@ -90,7 +90,10 @@ When the bot simulator initiates a trade during the bot chain, the system shall 
 When a bot-to-bot trade is initiated, the system shall pause the bot chain, emit a `trade_offered` SSE event with `is_bot_to_bot: true`, and require explicit user acknowledgment before resuming. This is intentional: the draft is untimed and solo, and the user must maintain full visibility of all board changes including bot-to-bot deals.
 
 **DFF-ENGINE-039b** `[x]` → #28
-For bot-to-bot trade modals, the system shall present two options: "OK" (user acknowledges; trade stands as resolved by the bots) and "Force Decline" (user vetoes the trade; it is written to `trades` with status `force_declined` and no assets transfer).
+For bot-to-bot trade modals, the system shall present two options: "OK" (user acknowledges; trade stands) and "Force Decline" (user vetoes the trade).
+
+**DFF-ENGINE-039c** `[ ]` → #10
+If the user chooses "Force Decline" for a bot-to-bot trade, the system shall write the trade to `trades` with status `force_declined` and perform no asset transfer.
 
 ---
 

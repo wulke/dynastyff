@@ -52,6 +52,9 @@ function DraftRoom({ snapshot }: { snapshot: Snapshot }) {
     return null;
   }
 
+  // @spec DFF-STATIC-036
+  // Completed static drafts expose `currentPickNumber = null`, so the turn indicator
+  // must derive the active slot only when an open draft-order entry still exists.
   const currentPickSlot =
     draftState.currentPickNumber === null
       ? null

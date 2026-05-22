@@ -27,6 +27,7 @@ import {
   createDraftQueuePostRoute,
   createDraftPickRoute,
   createDraftStateRoute,
+  createDraftTradeResponseRoute,
   createDraftHistoryRoute,
 } from '../src/server/app.js';
 import { parseCreateDraftConfig } from '../src/server/config.js';
@@ -161,6 +162,25 @@ async function invokePickRoute(
 ) {
   return invokeRoute({
     route: createDraftPickRoute({
+      databasePath,
+      botChain: {
+        trigger: () => undefined,
+        waitForIdle: async () => undefined,
+        resolvePendingTrade: () => false,
+      },
+    }),
+    body,
+    params: { id: draftId },
+  });
+}
+
+async function invokeTradeResponseRoute(
+  databasePath: string,
+  draftId: string,
+  body: unknown,
+) {
+  return invokeRoute({
+    route: createDraftTradeResponseRoute({
       databasePath,
       botChain: {
         trigger: () => undefined,
@@ -921,6 +941,90 @@ test('POST /drafts/:id/pick returns 404 when the draft does not exist', async ()
     assert.equal(response.statusCode, 404);
     assert.deepEqual(response.json, {
       error: 'Draft not found.',
+    });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-033
+// @spec DFF-ENGINE-039
+// @spec DFF-ENGINE-039b
+test('POST /drafts/:id/trade-response returns 400 when status is missing', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-response-missing-status-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeTradeResponseRoute(databasePath, draftId, {});
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade response: status must be accepted, declined, or force_declined.',
+    });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-033
+// @spec DFF-ENGINE-039
+// @spec DFF-ENGINE-039b
+test('POST /drafts/:id/trade-response returns 400 when status is invalid', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-response-invalid-status-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeTradeResponseRoute(databasePath, draftId, { status: 'bogus' });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade response: status must be accepted, declined, or force_declined.',
     });
   } finally {
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });

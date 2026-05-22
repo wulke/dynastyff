@@ -181,6 +181,12 @@ The bot chain runs in a per-draft in-process coordinator with one active loop pe
 
 The coordinator de-duplicates concurrent triggers per draft id so repeated `POST /drafts/:id/pick` success paths cannot start overlapping bot loops.
 
+### Edge Case Probe
+
+- `available_players` is unexpectedly empty on a bot turn -> the coordinator throws, logs the failure, and halts the chain without recording an invalid pick. No recovery path is attempted in this slice.
+- The current slot changes during the sleep window (draft completes, the next slot becomes user-owned, or the draft disappears) -> the coordinator re-reads the open slot after the delay and exits cleanly if no bot-owned slot remains.
+- `POST /drafts/:id/trade-response` is retried after the pending trade has already been resolved or the chain has already exited -> the route returns HTTP `409` and leaves draft state unchanged.
+
 ## POST /drafts/:id/trade-response
 
 The trade-response route currently exists to unblock the bot-chain pause/resume contract:

@@ -129,6 +129,7 @@ export function createDraftPickRoute({
 // @spec DFF-ENGINE-033
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
+// @spec DFF-ENGINE-043
 export function createDraftTradeResponseRoute({
   databasePath,
   botChain = createBotChainCoordinator({ databasePath }),

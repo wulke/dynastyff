@@ -52,10 +52,10 @@ When a draft transitions to `completed`, the system shall set `drafts.completed_
 
 ## Pick Submission
 
-**DFF-ENGINE-020** `[ ]` → #27
+**DFF-ENGINE-020** `[x]` → #27
 When a POST /drafts/:id/pick request is received, the system shall validate that it is currently the user's turn, that the player exists, and that the player has not already been picked.
 
-**DFF-ENGINE-021** `[ ]` → #27
+**DFF-ENGINE-021** `[x]` → #27
 If a pick submission fails validation, the system shall return a 400 error and shall not modify draft state.
 
 **DFF-ENGINE-022** `[x]` → #9

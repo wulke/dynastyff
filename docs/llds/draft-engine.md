@@ -127,6 +127,26 @@ When any team makes a pick, the draft engine records the selection as one SQLite
 
 `picks` is historical fact and is never updated or deleted after insertion. `roster_players` remains the authoritative source for current ownership.
 
+## POST /drafts/:id/pick
+
+The pick-submission route is a thin HTTP layer in front of `recordPick()`. It accepts a camelCase JSON body:
+
+```json
+{
+  "playerId": "uuid"
+}
+```
+
+Route behavior:
+- Returns HTTP `404` when `:id` does not match an existing draft
+- Returns HTTP `400` when `playerId` is missing, blank, or the request body is not a JSON object
+- Returns HTTP `400` when the next open pick slot does not belong to the user team
+- Returns HTTP `400` when `playerId` does not match a persisted player row
+- Returns HTTP `400` when the player is already present in `picks` for the same draft
+- Delegates successful submissions to `recordPick()` using the current open `draft_order` slot id
+
+The route does not perform draft-state writes itself. Validation failures stop before `recordPick()` is called, so the persisted draft state remains unchanged.
+
 ## Read Models
 
 The draft engine exposes SQLite-backed read endpoints for browser hydration and draft history. These routes do not maintain separate projections; they read the persisted authoritative tables directly so a browser refresh can recover current state without replaying SSE history.

@@ -52,10 +52,15 @@ function DraftRoom({ snapshot }: { snapshot: Snapshot }) {
     return null;
   }
 
-  const currentTeam = draftState.currentPickNumber
-    ? draftState.draftOrder[draftState.currentPickNumber - 1]
-      ? draftState.teams.find((team) => team.id === draftState.draftOrder[draftState.currentPickNumber - 1]!.teamId) ?? null
-      : null
+  // @spec DFF-STATIC-036
+  // Completed static drafts expose `currentPickNumber = null`, so the turn indicator
+  // must derive the active slot only when an open draft-order entry still exists.
+  const currentPickSlot =
+    draftState.currentPickNumber === null
+      ? null
+      : draftState.draftOrder[draftState.currentPickNumber - 1] ?? null;
+  const currentTeam = currentPickSlot
+    ? draftState.teams.find((team) => team.id === currentPickSlot.teamId) ?? null
     : null;
   const isUserTurn = Boolean(currentTeam?.isUser);
 

@@ -45,6 +45,7 @@ Open the Vite URL shown in the terminal to begin.
 
 1. **Configure your league** — set team count, roster slots, scoring, and your draft position on the config screen.
 2. **Start a mock draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically.
+   - On the API-backed draft flow, bot turns continue server-side after every successful user pick with a randomized `3–5s` delay between bot selections.
 3. **Use the advisor (optional)** — on any pick, choose:
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.
@@ -119,6 +120,7 @@ Current draft API surface:
 |---|---|
 | `POST /drafts` | Create a new draft |
 | `POST /drafts/:id/pick` | Submit the user's pick with HTTP-layer validation for turn order and player availability |
+| `POST /drafts/:id/trade-response` | Acknowledge a paused bot-chain trade (`accepted`, `declined`, or `force_declined`) so the draft can resume |
 | `POST /drafts/:id/queue` | Add a player to the user's queue or update that player's rank |
 | `DELETE /drafts/:id/queue/:player_id` | Remove one player from the user's queue |
 | `GET /drafts/:id/queue` | Read the user's queue ordered by ascending rank |
@@ -181,6 +183,7 @@ src/
     init.ts              # SQLite schema init entry point
     schema.ts            # Shared Drizzle table definitions
   draft/
+    bot-chain.ts         # Server-side bot chain coordinator for delayed bot turns and paused trade acknowledgements
     bot.ts               # Pure bot pick selection for the static/browser draft flow
     engine.ts            # Pure in-memory draft engine for the static/browser draft flow
     invariant.ts         # Shared invariant error for pure draft modules

@@ -103,7 +103,7 @@ Static build commands:
 |---|---|
 | `npm run build:static` | Build the browser-only GitHub Pages bundle into `dist/static/` |
 | `npm run export:snapshot` | Refresh `data/snapshot.json` before building or deploying the static app |
-| `npx vite --config src/ui-static/vite.config.ts` | Run the static build in Vite dev mode for local testing (handles the `/dynastyff/` base path; `npx serve dist/static` will not work due to the base path) |
+| `npm run dev:static` | Run the static build in Vite dev mode for local testing (handles the `/dynastyff/` base path; `npx serve dist/static` will not work due to the base path) |
 
 Static draft runtime modules:
 

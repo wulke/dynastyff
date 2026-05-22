@@ -223,4 +223,30 @@ describe('InMemoryDraftContextProvider', () => {
       expect(setItemSpy).not.toHaveBeenCalled();
     });
   });
+
+  // @spec DFF-STATIC-035
+  test('cancels a pending bot pick when newDraft is called before the bot delay elapses', async () => {
+    vi.useFakeTimers();
+
+    await withMockedDraftEnvironment(async () => {
+      render(
+        <InMemoryDraftContextProvider snapshot={TEST_SNAPSHOT}>
+          <ContextHarness />
+        </InMemoryDraftContextProvider>,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /start bot first/i }));
+      fireEvent.click(screen.getByRole('button', { name: /new draft/i }));
+
+      expect(screen.getByLabelText(/draft status/i)).toHaveTextContent('idle');
+      expect(screen.getByLabelText(/pick count/i)).toHaveTextContent('0');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_001);
+      });
+
+      expect(screen.getByLabelText(/draft status/i)).toHaveTextContent('idle');
+      expect(screen.getByLabelText(/pick count/i)).toHaveTextContent('0');
+    });
+  });
 });

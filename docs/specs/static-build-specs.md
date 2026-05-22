@@ -98,6 +98,9 @@ The static build's bot loop shall delay 1.5–3 seconds (randomly sampled) betwe
 **DFF-STATIC-035** `[x]` → #56
 The static build's bot loop shall halt and yield control to the user when `currentTeam(state)` returns a team flagged `isUser = true`.
 
+**DFF-STATIC-036** `[x]` → #56
+During an active static draft, the system shall render an in-browser Draft Room showing the current turn indicator, the available undrafted player list, and a recent-picks list using player names rather than raw player IDs.
+
 ---
 
 ## GitHub Actions: ETL Snapshot Workflow

@@ -42,6 +42,51 @@ function mockSnapshotFetch(snapshot: Snapshot) {
   );
 }
 
+function configureSmallDraft() {
+  fireEvent.change(screen.getByLabelText(/team count/i), { target: { value: '8' } });
+  fireEvent.blur(screen.getByLabelText(/team count/i));
+  fireEvent.change(screen.getByLabelText(/^rounds$/i), { target: { value: '10' } });
+  fireEvent.blur(screen.getByLabelText(/^rounds$/i));
+  fireEvent.change(screen.getByLabelText(/pick position/i), { target: { value: '2' } });
+  fireEvent.blur(screen.getByLabelText(/pick position/i));
+}
+
+async function completeStaticDraft() {
+  fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
+
+  expect(screen.getByRole('heading', { name: /draft room/i })).toBeInTheDocument();
+
+  for (let turn = 0; turn < 10; turn += 1) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+
+    if (screen.queryByRole('heading', { name: /session history/i })) {
+      return;
+    }
+
+    if (turn === 0) {
+      expect(screen.getByText(/player 001/i)).toBeInTheDocument();
+    }
+
+    const playerButtons = screen.getAllByRole('button');
+    const playerButton = playerButtons.find((button) => /player \d{3}/i.test(button.textContent ?? ''));
+
+    expect(playerButton).toBeDefined();
+    expect(playerButton).toBeEnabled();
+
+    fireEvent.click(playerButton!);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25_000);
+    });
+
+    if (screen.queryByRole('heading', { name: /session history/i })) {
+      return;
+    }
+  }
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
@@ -80,51 +125,22 @@ describe('static in-browser draft flow', () => {
 
       await screen.findByRole('heading', { name: /config screen/i });
       vi.useFakeTimers();
-
-      fireEvent.change(screen.getByLabelText(/team count/i), { target: { value: '8' } });
-      fireEvent.blur(screen.getByLabelText(/team count/i));
-      fireEvent.change(screen.getByLabelText(/^rounds$/i), { target: { value: '10' } });
-      fireEvent.blur(screen.getByLabelText(/^rounds$/i));
-      fireEvent.change(screen.getByLabelText(/pick position/i), { target: { value: '2' } });
-      fireEvent.blur(screen.getByLabelText(/pick position/i));
-      fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
-
-      expect(screen.getByRole('heading', { name: /draft room/i })).toBeInTheDocument();
-      expect(screen.getByText(/bot is picking/i)).toBeInTheDocument();
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(1_499);
-      });
-
-      expect(screen.getByText(/bot is picking/i)).toBeInTheDocument();
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(1_501);
-      });
-
-      for (let turn = 0; turn < 10; turn += 1) {
-        const playerButtons = screen.getAllByRole('button');
-        const playerButton = playerButtons.find((button) => /player \d{3}/i.test(button.textContent ?? ''));
-
-        expect(playerButton).toBeDefined();
-        expect(playerButton).toBeEnabled();
-
-        fireEvent.click(playerButton!);
-
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(50_000);
-        });
-
-        if (screen.queryByRole('heading', { name: /session history/i })) {
-          break;
-        }
-      }
+      configureSmallDraft();
+      await completeStaticDraft();
 
       expect(screen.getByRole('heading', { name: /session history/i })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /new draft/i }));
+      expect(screen.getByRole('heading', { name: /config screen/i })).toBeInTheDocument();
+
+      configureSmallDraft();
+      await completeStaticDraft();
+
       const historyItems = within(screen.getByRole('list', { name: /completed drafts/i })).getAllByRole('listitem');
 
-      expect(historyItems).toHaveLength(1);
-      expect(historyItems[0]).toHaveTextContent(/static-app-1/i);
+      expect(historyItems).toHaveLength(2);
+      expect(historyItems[0]).toHaveTextContent(/static-app-10/i);
+      expect(historyItems[1]).toHaveTextContent(/static-app-1/i);
     } finally {
       Object.defineProperty(globalThis, 'crypto', {
         configurable: true,

@@ -237,10 +237,12 @@ In the static build, draft history is in-memory only — it does not survive a p
 type CompletedDraft = {
   draftId: string;
   completedAt: string;
-  config: DraftConfig;
+  draftOrder: DraftSlot[];
   picks: Pick[];
   teams: Team[];
   rosterPlayers: RosterEntry[];
+  teamPickAssets: TeamPickAsset[];
+  trades: TradeRecord[];
 };
 ```
 

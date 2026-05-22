@@ -111,6 +111,7 @@ export function InMemoryDraftContextProvider({
     botLoopTokenRef.current += 1;
   }
 
+  // @spec DFF-STATIC-071
   function applyDraftState(nextEngineState: InMemoryDraftState): InMemoryDraftState {
     engineStateRef.current = nextEngineState;
 
@@ -127,6 +128,8 @@ export function InMemoryDraftContextProvider({
     return nextEngineState;
   }
 
+  // @spec DFF-STATIC-034
+  // @spec DFF-STATIC-035
   async function runBotLoop(initialState: InMemoryDraftState, token: number) {
     let workingState = initialState;
 

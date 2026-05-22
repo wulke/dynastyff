@@ -42,9 +42,10 @@ function FullScreenMessage({ title, detail }: { title: string; detail: string })
 }
 
 // @spec DFF-STATIC-063
+// @spec DFF-STATIC-036
 // @spec DFF-STATIC-034
 // @spec DFF-STATIC-035
-function DraftRoom() {
+function DraftRoom({ snapshot }: { snapshot: Snapshot }) {
   const { draftState, submitPick } = useDraftContext();
 
   if (!draftState) {
@@ -100,8 +101,7 @@ function DraftRoom() {
           <h2 className="text-lg font-semibold text-stone-50">Recent Picks</h2>
           <ul className="mt-4 space-y-3">
             {draftState.picks.slice(-10).reverse().map((pick) => {
-              const player = draftState.availablePlayers.find((entry) => entry.id === pick.playerId);
-              const draftedPlayer = player ?? null;
+              const draftedPlayer = snapshot.players.find((entry) => entry.id === pick.playerId) ?? null;
               const team = draftState.teams.find((entry) => entry.id === pick.teamId);
 
               return (
@@ -222,7 +222,7 @@ function StaticDraftApp({ snapshot }: { snapshot: Snapshot }) {
             }
           />
         ) : null}
-        {view === 'drafting' ? <DraftRoom /> : null}
+        {view === 'drafting' ? <DraftRoom snapshot={snapshot} /> : null}
         {view === 'history' ? <SessionHistoryView onNewDraft={() => newDraft()} /> : null}
       </div>
     </main>
@@ -236,7 +236,6 @@ function StaticDraftApp({ snapshot }: { snapshot: Snapshot }) {
 export function App() {
   const [snapshotState, setSnapshotState] = useState<SnapshotLoadState>({ status: 'loading' });
   const [isStaleBannerDismissed, setIsStaleBannerDismissed] = useState(false);
-  const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
 
   useEffect(() => {
     let cancelled = false;

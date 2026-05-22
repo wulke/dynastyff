@@ -17,6 +17,7 @@ import {
 } from './context/DraftContext.js';
 import { DraftConfigScreen, configDefaults, sanitizeDraftConfig, type ConfigFormState } from './components/DraftConfigScreen.js';
 import { DraftBoard } from './components/DraftBoard.js';
+import { HistoryView } from './components/HistoryView.js';
 
 // @spec DFF-UI-002
 // @spec DFF-UI-003
@@ -129,13 +130,12 @@ function DraftApp() {
           draftState ? <DraftBoard draftState={draftState} /> : null
         ) : null}
 
-        {view === 'history' ? (
-          <ViewShell
-            eyebrow="History"
-            title="History Shell"
-            description="This shell reserves the post-draft review experience for pick logs, roster snapshots, and trade history."
-            actionLabel="New Draft"
-            onAction={() => {
+        {/* @spec DFF-UI-060 */}
+        {/* @spec DFF-UI-065 */}
+        {view === 'history' && draftState ? (
+          <HistoryView
+            draftState={draftState}
+            onNewDraft={() => {
               setDraftConfig(configDefaults);
               newDraft();
             }}

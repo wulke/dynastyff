@@ -38,7 +38,8 @@ Browser runtime (no server):
 │    src/draft/engine.ts  ←→  src/draft/bot.ts     │
 │         ↓                                         │
 │  Shared React components (src/ui/components/)     │
-│    Config  │  Draft Board  │  Session History     │
+│    Config  │  Draft Board + DraftRoom  │  History │
+│            │  (full grid + picks UI)   │   View   │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -229,7 +230,9 @@ The static app wires an `InMemoryDraftContext` implementation (manages in-memory
 
 Components reference `useDraftContext()` and are unaware of which implementation is active.
 
-In the current static slice, `src/ui-static/App.tsx` reuses the shared `DraftConfigScreen` from `src/ui/components/` and provides static-only drafting/history shells around the shared context contract. This keeps the config workflow identical across deploy targets while letting the static build own the in-browser bot loop and session-only history state.
+In the current static slice, `src/ui-static/App.tsx` reuses the shared `DraftConfigScreen` and `DraftBoard` from `src/ui/components/` for the config and drafting views. The `DraftRoom` component wraps the `DraftBoard` grid alongside the available players list and recent picks feed, providing the full drafting experience in-browser. After draft completion, the shared `HistoryView` component renders the three-tab summary (Pick Log, Roster View, Trade Log).
+
+**Dev mode:** Running `npm run dev:static` starts Vite's dev server with the static build's config. The `createSnapshotCopyPlugin` serves `data/snapshot.json` at runtime via a `configureServer` middleware so the snapshot fetch succeeds. The `base: '/dynastyff/'` path is handled correctly in both dev and production builds.
 
 ## Session History
 
@@ -248,9 +251,9 @@ type CompletedDraft = {
 };
 ```
 
-The history view renders `sessionHistory` in reverse chronological order. Only the current session's drafts are visible.
+The history view renders the shared `HistoryView` component with three tabs (Pick Log, Roster View, Trade Log) using `draftState` from the completed draft — the same component used by the server-backed build. The `buildDraftState` function populates `playerCatalog` from all snapshot players so drafted players are renderable with their metadata.
 
-`newDraft()` clears only the active draft state. Snapshot data and `sessionHistory` remain in memory so the user can run another mock and compare it against prior completions in the same tab session.
+`newDraft()` clears only the active draft state. Snapshot data and `sessionHistory` remain in memory so the user can run another mock in the same tab session, though the UI only shows the most recently completed draft at a time.
 
 ## File Layout
 

@@ -5,6 +5,9 @@
 // @spec DFF-STATIC-071
 // @spec DFF-STATIC-072
 // @spec DFF-STATIC-036
+// @spec DFF-UI-060
+// @spec DFF-UI-061
+// @spec DFF-UI-065
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -62,7 +65,7 @@ async function completeStaticDraft() {
       await vi.advanceTimersByTimeAsync(3_000);
     });
 
-    if (screen.queryByRole('heading', { name: /session history/i })) {
+    if (screen.queryByRole('heading', { name: /draft summary/i })) {
       return;
     }
 
@@ -85,7 +88,7 @@ async function completeStaticDraft() {
       await vi.advanceTimersByTimeAsync(25_000);
     });
 
-    if (screen.queryByRole('heading', { name: /session history/i })) {
+    if (screen.queryByRole('heading', { name: /draft summary/i })) {
       return;
     }
   }
@@ -112,7 +115,10 @@ describe('static in-browser draft flow', () => {
   // @spec DFF-STATIC-071
   // @spec DFF-STATIC-072
   // @spec DFF-STATIC-036
-  test('completes config to history in-browser and renders completed drafts in reverse chronological order', async () => {
+  // @spec DFF-UI-060
+  // @spec DFF-UI-061
+  // @spec DFF-UI-065
+  test('completes config to history in-browser and renders draft summary with Pick Log, Roster View, and Trade Log tabs', async () => {
     const originalCrypto = globalThis.crypto;
     let nextId = 0;
 
@@ -133,19 +139,26 @@ describe('static in-browser draft flow', () => {
       configureSmallDraft();
       await completeStaticDraft();
 
-      expect(screen.getByRole('heading', { name: /session history/i })).toBeInTheDocument();
+      // @spec DFF-UI-060 — Draft Summary heading and tab pills
+      expect(screen.getByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /roster view/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /trade log/i })).toBeInTheDocument();
 
+      // @spec DFF-UI-061 — Pick Log has picks
+      const pickLogPanel = screen.getByRole('tabpanel', { name: /pick log/i });
+      expect(within(pickLogPanel).getByText(/player 001/i)).toBeInTheDocument();
+
+      // @spec DFF-UI-065 — New Draft button works
       fireEvent.click(screen.getByRole('button', { name: /new draft/i }));
       expect(screen.getByRole('heading', { name: /config screen/i })).toBeInTheDocument();
 
+      // Complete a second draft to verify the flow works again
       configureSmallDraft();
       await completeStaticDraft();
 
-      const historyItems = within(screen.getByRole('list', { name: /completed drafts/i })).getAllByRole('listitem');
-
-      expect(historyItems).toHaveLength(2);
-      expect(historyItems[0]).toHaveTextContent(/static-app-10/i);
-      expect(historyItems[1]).toHaveTextContent(/static-app-1/i);
+      expect(screen.getByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
     } finally {
       Object.defineProperty(globalThis, 'crypto', {
         configurable: true,

@@ -50,7 +50,11 @@ Open the Vite URL shown in the terminal to begin.
 3. **Use the advisor (optional)** — on any pick, choose:
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.
-4. **Review history** — completed mock drafts are saved locally and queryable from the draft history view.
+4. **Review history** — when a draft completes, the history view renders automatically with three tabs:
+   - **Pick Log** — chronological list of all picks with round, pick number, team, player name, position badge, and dynasty value at draft time.
+   - **Roster View** — per-team cards with players grouped by position (QB, RB, WR, TE), showing round drafted and dynasty value. Your team card is highlighted.
+   - **Trade Log** — chronological list of all trades with round, teams involved, assets exchanged, and outcome (accepted / declined / force_declined).
+   A "New Draft" button returns you to the config screen.
 
 ## Configuration
 
@@ -79,7 +83,8 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh
-- `New Draft` remains the only manual shell control; transition into History now comes from `draft_complete` SSE
+- Transition into History comes from `draft_complete` SSE, rendering the full History view with Pick Log, Roster View, and Trade Log tabs
+- `New Draft` returns the user to the config screen
 - Human live-browser verification of the board fill behavior remains required before merge per issue `#17`
 
 Current UI commands:
@@ -90,7 +95,7 @@ Current UI commands:
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
-| `npm run test:ui` | Run the UI tests for config submission, draft board rendering, draft context, and SSE lifecycle transitions |
+| `npm run test:ui` | Run the UI tests for config submission, draft board rendering, draft context, SSE lifecycle transitions, and draft history view |
 
 Static build commands:
 
@@ -98,6 +103,7 @@ Static build commands:
 |---|---|
 | `npm run build:static` | Build the browser-only GitHub Pages bundle into `dist/static/` |
 | `npm run export:snapshot` | Refresh `data/snapshot.json` before building or deploying the static app |
+| `npm run dev:static` | Run the static build in Vite dev mode for local testing (handles the `/dynastyff/` base path; `npx serve dist/static` will not work due to the base path) |
 
 Static draft runtime modules:
 
@@ -198,6 +204,12 @@ src/
     main.tsx             # Vite React entry point
     index.html           # Vite HTML entry
     styles.css           # Tailwind entry stylesheet
+    components/
+      DraftBoard.tsx     # Draft board grid with snake-order slot rendering
+      DraftConfigScreen.tsx # League configuration form
+      HistoryView.tsx    # Post-draft history view with Pick Log, Roster View, and Trade Log tabs
+    context/
+      DraftContext.tsx   # Draft state management, SSE lifecycle, and HTTP draft actions
 ```
 
 ## Development Workflow

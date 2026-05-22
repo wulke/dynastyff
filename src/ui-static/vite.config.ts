@@ -96,6 +96,30 @@ export function createStaticBuildGuardPlugin(): Plugin {
 export function createSnapshotCopyPlugin(snapshotPath = snapshotSourcePath): Plugin {
   return {
     name: 'copy-static-snapshot',
+    configureServer(server) {
+      // @spec DFF-STATIC-001
+      // Serve data/snapshot.json in dev mode so the runtime fetch succeeds.
+      // Handles both /data/snapshot.json (dev without base) and
+      // /dynastyff/data/snapshot.json (dev with base /dynastyff/).
+      server.middlewares.use((req, res, next) => {
+        const url = req.url ?? '';
+
+        if (!url.endsWith('/data/snapshot.json')) {
+          next();
+          return;
+        }
+
+        if (!fs.existsSync(snapshotPath)) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'text/plain');
+          res.end(STATIC_SNAPSHOT_MISSING_MESSAGE);
+          return;
+        }
+
+        res.setHeader('Content-Type', 'application/json');
+        res.end(fs.readFileSync(snapshotPath, 'utf-8'));
+      });
+    },
     writeBundle(options) {
       const outDir = options.dir;
 

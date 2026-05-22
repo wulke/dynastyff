@@ -235,7 +235,7 @@ describe('HTTP draft context', () => {
 
     expect(
       await screen.findByRole('heading', {
-        name: /history shell/i,
+        name: /draft summary/i,
       }),
     ).toBeInTheDocument();
     expect(stream?.closed).toBe(true);

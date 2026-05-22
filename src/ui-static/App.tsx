@@ -4,7 +4,9 @@
 // @spec DFF-STATIC-016
 import { useEffect, useState } from 'react';
 
+import { DraftBoard } from '../ui/components/DraftBoard.js';
 import { DraftConfigScreen, configDefaults, type ConfigFormState } from '../ui/components/DraftConfigScreen.js';
+import { HistoryView } from '../ui/components/HistoryView.js';
 import { useDraftContext } from '../ui/context/DraftContext.js';
 import type { Snapshot } from '../ui/types.js';
 import { InMemoryDraftContextProvider } from './InMemoryDraftContext.js';
@@ -80,6 +82,11 @@ function DraftRoom({ snapshot }: { snapshot: Snapshot }) {
         </div>
       </div>
 
+      {/* @spec DFF-STATIC-036 */}
+      <div className="mt-8">
+        <DraftBoard draftState={draftState} />
+      </div>
+
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-[1.5rem] border border-stone-800 bg-stone-950/60 p-5">
           <h2 className="text-lg font-semibold text-stone-50">Available Players</h2>
@@ -128,49 +135,16 @@ function DraftRoom({ snapshot }: { snapshot: Snapshot }) {
 // @spec DFF-STATIC-070
 // @spec DFF-STATIC-071
 // @spec DFF-STATIC-072
-function SessionHistoryView({ onNewDraft }: { onNewDraft: () => void }) {
-  const { sessionHistory } = useDraftContext();
+// @spec DFF-UI-060
+// @spec DFF-UI-065
+function StaticHistoryView({ onNewDraft }: { onNewDraft: () => void }) {
+  const { draftState } = useDraftContext();
 
-  return (
-    <section className="w-full rounded-[2rem] border border-stone-800 bg-stone-900/90 p-8 shadow-2xl shadow-black/20">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Completed Drafts</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-50">Session History</h1>
-          <p className="mt-3 text-sm text-stone-300">Drafts are kept only for the current browser session.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onNewDraft}
-          className="rounded-full bg-amber-300 px-5 py-2.5 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
-        >
-          New Draft
-        </button>
-      </div>
+  if (!draftState) {
+    return null;
+  }
 
-      <ol aria-label="Completed drafts" className="mt-8 space-y-4">
-        {[...sessionHistory].reverse().map((draft) => (
-          <li key={draft.draftId} className="rounded-[1.5rem] border border-stone-800 bg-stone-950/60 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-lg font-semibold text-stone-50">{draft.draftId}</p>
-              <p className="text-sm text-stone-400">
-                {new Date(draft.completedAt).toLocaleString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
-              </p>
-            </div>
-            <p className="mt-3 text-sm text-stone-300">
-              {draft.picks.length} picks · {draft.teams.length} teams
-            </p>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
+  return <HistoryView draftState={draftState} onNewDraft={onNewDraft} />;
 }
 
 // @spec DFF-STATIC-063
@@ -228,7 +202,7 @@ function StaticDraftApp({ snapshot }: { snapshot: Snapshot }) {
           />
         ) : null}
         {view === 'drafting' ? <DraftRoom snapshot={snapshot} /> : null}
-        {view === 'history' ? <SessionHistoryView onNewDraft={() => newDraft()} /> : null}
+        {view === 'history' ? <StaticHistoryView onNewDraft={() => newDraft()} /> : null}
       </div>
     </main>
   );

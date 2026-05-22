@@ -85,6 +85,7 @@ type PendingTrade = {
   assetsSent: unknown[];
   assetsReceived: unknown[];
   isBotToBot: boolean;
+  round: number;
 };
 
 type SseStatus = 'connecting' | 'connected' | 'disconnected';
@@ -424,6 +425,17 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         return state;
       }
 
+      // @spec DFF-UI-064
+      // Derive round from current pick number if not provided in payload
+      const tradeRound =
+        action.payload.round > 0
+          ? action.payload.round
+          : state.draftState.currentPickNumber
+            ? state.draftState.draftOrder.find(
+                (slot) => slot.pickNumber === state.draftState.currentPickNumber,
+              )?.round ?? 0
+            : 0;
+
       return {
         ...state,
         draftState: {
@@ -435,6 +447,7 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
             assetsSent: action.payload.assets_sent,
             assetsReceived: action.payload.assets_received,
             isBotToBot: action.payload.is_bot_to_bot,
+            round: tradeRound,
           },
         },
       };
@@ -453,7 +466,7 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
                 ...state.draftState.trades,
                 {
                   id: state.draftState.pendingTrade.tradeId,
-                  round: 0,
+                  round: state.draftState.pendingTrade.round,
                   initiatingTeamId: state.draftState.pendingTrade.initiatingTeamId,
                   receivingTeamId: state.draftState.pendingTrade.receivingTeamId,
                   assetsSent: action.payload.assets_sent,

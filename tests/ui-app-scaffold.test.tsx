@@ -417,7 +417,7 @@ describe('UI app scaffold', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /history shell/i,
+        name: /draft summary/i,
       }),
     ).toBeInTheDocument();
   });

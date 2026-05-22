@@ -196,6 +196,8 @@ fi
 
 if [[ "$AGENT" == "codex" ]]; then
   codex "$context"
+elif [[ "$AGENT" == "pi" ]]; then
+  pi "$context"
 else
-  claude --permission-mode acceptEdits -p "$context"
+  claude --permission-mode acceptEdits "$context"
 fi

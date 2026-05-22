@@ -206,7 +206,10 @@ src/
 |---|---|
 | `/grill-me` | Stress-test a feature idea or design — Claude interviews you until the plan is solid |
 | `/to-issues @<spec-or-lld>` | Break a spec or LLD into independently-grabbable GitHub issues |
-| `./scripts/do-work.sh` | Spin up an agent to implement an open issue |
+| `./scripts/do-work.sh` | Spin up an agent to implement an open issue (default: claude; also: `codex`, `pi`) |
+| `./scripts/do-work.sh pi` | Same, but route to the `pi` harness (deepseek via default config) |
+| `./scripts/do-work.sh codex` | Same, but route to Codex |
+| `./scripts/do-work.sh claude` | Same, but explicitly use Claude |
 
 ## Architecture
 

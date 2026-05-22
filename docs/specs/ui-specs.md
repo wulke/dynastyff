@@ -159,7 +159,7 @@ The Roster View tab shall render one card per team with players grouped by posit
 The user's team card in the Roster View shall be visually highlighted.
 
 **DFF-UI-064** `[x]` → #21
-The Trade Log tab shall list all trades in chronological order, showing: round, initiating team, receiving team, assets exchanged, and outcome (accepted / declined / force_declined).
+The Trade Log tab shall list all trades in chronological order, showing: round, initiating team, receiving team, assets exchanged, and outcome (accepted / declined / force_declined). `player` type assets shall display the player's name resolved from the catalog (not the raw ID), consistent with the Pick Log column.
 
 **DFF-UI-065** `[x]` → #21
 The History view shall include a "New Draft" button that transitions the app to the Config screen.

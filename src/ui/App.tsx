@@ -130,6 +130,8 @@ function DraftApp() {
           draftState ? <DraftBoard draftState={draftState} /> : null
         ) : null}
 
+        {/* @spec DFF-UI-060 */}
+        {/* @spec DFF-UI-065 */}
         {view === 'history' && draftState ? (
           <HistoryView
             draftState={draftState}

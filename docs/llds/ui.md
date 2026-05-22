@@ -245,6 +245,13 @@ Three tabs toggled by pill buttons at the top, implemented in `src/ui/components
 **Trade Log tab:**
 - Chronological list of trades: round, initiating team, receiving team, assets sent, assets received, outcome (accepted / declined / force_declined)
 
+**Edge Case Probe:**
+- Player has a non-standard position (e.g., FLEX, K, DEF) -> position group not in `POSITION_ORDER` (`QB`, `RB`, `WR`, `TE`); the player is silently excluded from the Roster View tab. This is acceptable because the player pool is filtered to QB/RB/WR/TE at ETL time.
+- All three tabs have an empty draft with no picks, roster players, or trades -> each tab renders a descriptive empty-state message instead of an empty table or crash.
+- Trade asset is `player` type with a `player_id` absent from `playerCatalog` -> `getPlayerName` falls back to the raw `playerId`, keeping the Trade Log cell visible instead of showing an empty string.
+- Trade has zero assets in either direction -> `formatAssets` returns `—` (em dash) for that column.
+- User's team card has no roster players -> the card renders with all position groups showing `—` and the `You` badge is still visible.
+
 ## SSE Integration: `useDraftStream`
 
 A custom hook that owns the SSE lifecycle and dispatches into the `DraftContext` reducer.

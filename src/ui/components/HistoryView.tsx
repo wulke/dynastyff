@@ -26,7 +26,7 @@ const TABS: TabConfig[] = [
   { id: 'trade-log', label: 'Trade Log' },
 ];
 
-// @spec DFF-UI-065
+// @spec DFF-UI-062
 const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE'] as const;
 type Position = (typeof POSITION_ORDER)[number];
 
@@ -203,13 +203,9 @@ function RosterViewTab({ draftState }: { draftState: DraftState }) {
         const posEntry = positionMap.get(position);
         if (posEntry) {
           posEntry.push({ playerId: rp.playerId, name, position, round, value });
-        } else {
-          // Handle positions outside the standard four (shouldn't happen typically)
-          if (!positionMap.has('TE')) {
-            positionMap.set('TE', []);
-          }
-          positionMap.get('TE')!.push({ playerId: rp.playerId, name, position, round, value });
         }
+        // Non-standard positions (FLEX, K, DEF, etc.) are silently skipped
+        // to avoid rendering groups not defined in POSITION_ORDER
       }
 
       // Sort players within each position by value descending
@@ -299,7 +295,7 @@ function RosterViewTab({ draftState }: { draftState: DraftState }) {
 }
 
 // @spec DFF-UI-064
-function formatAssets(assets: unknown[]): string {
+function formatAssets(assets: unknown[], draftState: DraftState): string {
   if (!assets || assets.length === 0) {
     return '—';
   }
@@ -310,7 +306,8 @@ function formatAssets(assets: unknown[]): string {
         const a = asset as Record<string, unknown>;
 
         if (a.type === 'player') {
-          return `Player: ${String(a.player_id ?? '?')}`;
+          const playerId = String(a.player_id ?? '');
+          return getPlayerName(draftState, playerId);
         }
 
         if (a.type === 'future_pick') {
@@ -376,8 +373,8 @@ function TradeLogTab({ draftState }: { draftState: DraftState }) {
               <td className="px-4 py-3 text-sm font-medium text-stone-200">
                 {getTeamName(draftState, trade.receivingTeamId)}
               </td>
-              <td className="px-4 py-3 text-sm text-stone-300">{formatAssets(trade.assetsSent)}</td>
-              <td className="px-4 py-3 text-sm text-stone-300">{formatAssets(trade.assetsReceived)}</td>
+              <td className="px-4 py-3 text-sm text-stone-300">{formatAssets(trade.assetsSent, draftState)}</td>
+              <td className="px-4 py-3 text-sm text-stone-300">{formatAssets(trade.assetsReceived, draftState)}</td>
               <td className="px-4 py-3 text-right">
                 <span
                   className={`inline-block rounded-full px-2.5 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${

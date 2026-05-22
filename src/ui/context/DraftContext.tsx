@@ -425,6 +425,7 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         return state;
       }
 
+      // @spec DFF-UI-064
       // Derive round from current pick number if not provided in payload
       const tradeRound =
         action.payload.round > 0

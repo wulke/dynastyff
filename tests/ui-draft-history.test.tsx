@@ -276,20 +276,28 @@ describe('draft history view', () => {
     const userCard = within(rosterPanel).getByTestId('history-team-card-team-2');
     expect(userCard.getAttribute('data-user-team')).toBe('true');
 
-    // Team-1 (Bob) has Josh Allen (QB)
+    // Team-1 (Bob) has Josh Allen (QB) — Rd 1 drafted, value 9,999
     const bobCard = within(rosterPanel).getByTestId('history-team-card-team-1');
     expect(within(bobCard).getByText('Josh Allen')).toBeInTheDocument();
+    expect(within(bobCard).getByText('Rd 1')).toBeInTheDocument();
+    expect(within(bobCard).getByText('9,999')).toBeInTheDocument();
     expect(within(bobCard).getByText('QB')).toBeInTheDocument();
 
-    // Team-2 (You) has Bijan Robinson (RB)
+    // Team-2 (You) has Bijan Robinson (RB) — Rd 1 drafted, value 9,500
     const youCard = within(rosterPanel).getByTestId('history-team-card-team-2');
     expect(within(youCard).getByText('Bijan Robinson')).toBeInTheDocument();
+    expect(within(youCard).getByText('Rd 1')).toBeInTheDocument();
+    expect(within(youCard).getByText('9,500')).toBeInTheDocument();
     expect(within(youCard).getByText('RB')).toBeInTheDocument();
 
-    // Team-3 (Sue) has Justin Jefferson (WR) and Brock Bowers (TE)
+    // Team-3 (Sue) has Justin Jefferson (WR) — Rd 1 drafted, and Brock Bowers (TE) — Rd 2 drafted
     const sueCard = within(rosterPanel).getByTestId('history-team-card-team-3');
     expect(within(sueCard).getByText('Justin Jefferson')).toBeInTheDocument();
     expect(within(sueCard).getByText('Brock Bowers')).toBeInTheDocument();
+    expect(within(sueCard).getByText('Rd 1')).toBeInTheDocument();
+    expect(within(sueCard).getByText('Rd 2')).toBeInTheDocument();
+    expect(within(sueCard).getByText('9,700')).toBeInTheDocument();
+    expect(within(sueCard).getByText('8,800')).toBeInTheDocument();
     expect(within(sueCard).getByText('WR')).toBeInTheDocument();
     expect(within(sueCard).getByText('TE')).toBeInTheDocument();
   });
@@ -316,10 +324,25 @@ describe('draft history view', () => {
 
     const tradePanel = screen.getByRole('tabpanel', { name: /trade log/i });
 
-    // Trade should show initiating team, receiving team, and outcome
-    expect(within(tradePanel).getByText(/bob/i)).toBeInTheDocument();
-    expect(within(tradePanel).getByText(/sue/i)).toBeInTheDocument();
-    expect(within(tradePanel).getByText(/accepted/i)).toBeInTheDocument();
+    // Trade should show round, initiating team, receiving team, resolved assets, and outcome
+    const tradeRow = within(tradePanel).getByTestId('history-trade-trade-1');
+    expect(tradeRow).toBeInTheDocument();
+
+    // Round derived from currentPickNumber at trade time
+    expect(within(tradeRow).getByText('2')).toBeInTheDocument();
+
+    // Team names
+    expect(within(tradeRow).getByText('Bob')).toBeInTheDocument();
+    expect(within(tradeRow).getByText('Sue')).toBeInTheDocument();
+
+    // Assets sent: player name resolved via catalog
+    expect(within(tradeRow).getByText('Josh Allen')).toBeInTheDocument();
+
+    // Assets received: future pick formatted
+    expect(within(tradeRow).getByText('2027 Rd 1')).toBeInTheDocument();
+
+    // Outcome badge
+    expect(within(tradeRow).getByText(/accepted/i)).toBeInTheDocument();
   });
 
   // @spec DFF-UI-065
@@ -367,5 +390,63 @@ describe('draft history view', () => {
     expect(screen.getByRole('tabpanel', { name: /pick log/i })).toBeInTheDocument();
     expect(screen.queryByRole('tabpanel', { name: /roster view/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('tabpanel', { name: /trade log/i })).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-060
+  // @spec DFF-UI-061
+  // @spec DFF-UI-062
+  // @spec DFF-UI-064
+  test('renders empty-state messages in all three tabs when no data exists', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'history-empty-1' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    // Emit state_sync with no picks, no roster players, no trades
+    act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', {
+        draft_id: 'history-empty-1',
+        status: 'in_progress',
+        current_pick_number: null,
+        teams: [
+          { id: 'team-1', name: 'You', is_user: true, archetype: null },
+        ],
+        draft_order: [],
+        picks: [],
+        roster_players: [],
+        team_pick_assets: [],
+        user_queue: [],
+        available_players: [],
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('draft_complete', {
+        draft_id: 'history-empty-1',
+        completed_at: '2026-05-22T19:00:00.000Z',
+      });
+    });
+
+    // Pick Log — empty state
+    expect(screen.getByText('No picks recorded for this draft.')).toBeInTheDocument();
+
+    // Roster View — team card exists but has no roster players; all positions show em dash
+    await user.click(screen.getByRole('tab', { name: /roster view/i }));
+    const rosterPanel = screen.getByRole('tabpanel', { name: /roster view/i });
+    const teamCard = within(rosterPanel).getByTestId('history-team-card-team-1');
+    expect(teamCard).toBeInTheDocument();
+    // Each empty position group shows em dash — verify across all four positions
+    expect(within(teamCard).getAllByText('—')).toHaveLength(4);
+
+    // Trade Log — empty state
+    await user.click(screen.getByRole('tab', { name: /trade log/i }));
+    expect(screen.getByText('No trades occurred during this draft.')).toBeInTheDocument();
   });
 });

@@ -50,7 +50,7 @@ Open the Vite URL shown in the terminal to begin.
 3. **Use the advisor (optional)** — on any pick, choose:
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.
-4. **Review history** — when a draft completes, the history view renders automatically with three tabs:
+4. **Review history** — when a draft completes, the draft board stays visible behind a completion banner. Click **View Full History** to open the history view with three tabs:
    - **Pick Log** — chronological list of all picks with round, pick number, team, player name, position badge, and dynasty value at draft time.
    - **Roster View** — per-team cards with players grouped by position (QB, RB, WR, TE), showing round drafted and dynasty value. Your team card is highlighted.
    - **Trade Log** — chronological list of all trades with round, teams involved, assets exchanged, and outcome (accepted / declined / force_declined).
@@ -83,7 +83,8 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh
-- Transition into History comes from `draft_complete` SSE, rendering the full History view with Pick Log, Roster View, and Trade Log tabs
+- `draft_complete` SSE now renders a blocking completion banner over the live draft board so the final grid remains visible in the background
+- The completion banner shows your team name and a `View Full History` CTA that opens the full History view with Pick Log, Roster View, and Trade Log tabs
 - `New Draft` returns the user to the config screen
 - Human live-browser verification of the board fill behavior remains required before merge per issue `#17`
 

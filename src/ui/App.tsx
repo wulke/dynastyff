@@ -2,6 +2,9 @@
 // @spec DFF-UI-002
 // @spec DFF-UI-003
 // @spec DFF-UI-004
+// @spec DFF-UI-005
+// @spec DFF-UI-006
+// @spec DFF-UI-007
 // @spec DFF-UI-010
 // @spec DFF-UI-014
 // @spec DFF-UI-015
@@ -19,6 +22,11 @@ import { DraftConfigScreen, configDefaults, sanitizeDraftConfig, type ConfigForm
 import { DraftBoard } from './components/DraftBoard.js';
 import { PickFeedPanel } from './components/PickFeedPanel.js';
 import { HistoryView } from './components/HistoryView.js';
+
+type DraftCompletionBannerProps = {
+  teamName: string;
+  onViewHistory: () => void;
+};
 
 // @spec DFF-UI-002
 // @spec DFF-UI-003
@@ -72,10 +80,42 @@ function ViewShell({ eyebrow, title, description, statusBadge, actionLabel, onAc
   );
 }
 
+// @spec DFF-UI-003
+// @spec DFF-UI-005
+// @spec DFF-UI-006
+// @spec DFF-UI-007
+function DraftCompletionBanner({ teamName, onViewHistory }: DraftCompletionBannerProps) {
+  return (
+    <div
+      className="absolute inset-0 z-10 flex items-center justify-center rounded-[2rem] bg-stone-950/70 p-6 backdrop-blur-[2px]"
+      aria-label="Draft completion banner"
+      data-testid="draft-completion-banner"
+    >
+      <section className="w-full max-w-xl rounded-[1.75rem] border border-amber-300/20 bg-stone-900/95 p-8 text-center shadow-2xl shadow-black/40">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Draft Complete</p>
+        <h2 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50">Draft complete</h2>
+        <p className="mt-4 text-base leading-7 text-stone-300">
+          {teamName} finished the board. Review every pick, roster decision, and trade from the full draft history.
+        </p>
+        <button
+          type="button"
+          onClick={onViewHistory}
+          className="mt-8 rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
+        >
+          View Full History
+        </button>
+      </section>
+    </div>
+  );
+}
+
 // @spec DFF-UI-001
 // @spec DFF-UI-002
 // @spec DFF-UI-003
 // @spec DFF-UI-004
+// @spec DFF-UI-005
+// @spec DFF-UI-006
+// @spec DFF-UI-007
 // @spec DFF-UI-010
 // @spec DFF-UI-014
 // @spec DFF-UI-015
@@ -95,7 +135,10 @@ function DraftApp() {
   const { draftState, newDraft, startDraft } = useDraftContext();
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
-  const view = !draftState ? 'config' : draftState.status === 'completed' ? 'history' : 'drafting';
+  const [showHistory, setShowHistory] = useState(false);
+  const view = !draftState ? 'config' : showHistory ? 'history' : 'drafting';
+  const completionBannerTeamName = draftState?.teams.find((team) => team.isUser)?.name ?? 'Your team';
+  const showCompletionBanner = draftState?.status === 'completed' && !showHistory;
 
   // @spec DFF-UI-014
   // @spec DFF-UI-015
@@ -107,6 +150,7 @@ function DraftApp() {
     const safeConfig = sanitizeDraftConfig(draftConfig);
     setDraftConfig(safeConfig);
     setIsSubmittingDraft(true);
+    setShowHistory(false);
 
     try {
       await startDraft(safeConfig);
@@ -130,8 +174,16 @@ function DraftApp() {
         {/* @spec DFF-UI-100 */}
         {view === 'drafting' && draftState ? (
           <div className="flex w-full flex-col gap-6 lg:flex-row">
-            <div className="min-w-0 flex-1">
+            <div className="relative min-w-0 flex-1">
               <DraftBoard draftState={draftState} />
+              {showCompletionBanner ? (
+                <DraftCompletionBanner
+                  teamName={completionBannerTeamName}
+                  onViewHistory={() => {
+                    setShowHistory(true);
+                  }}
+                />
+              ) : null}
             </div>
             <div className="w-full shrink-0 lg:w-80">
               <PickFeedPanel draftState={draftState} />
@@ -145,6 +197,7 @@ function DraftApp() {
           <HistoryView
             draftState={draftState}
             onNewDraft={() => {
+              setShowHistory(false);
               setDraftConfig(configDefaults);
               newDraft();
             }}

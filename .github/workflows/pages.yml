@@ -1,0 +1,45 @@
+# @spec DFF-STATIC-050
+# @spec DFF-STATIC-051
+# @spec DFF-STATIC-052
+# @spec DFF-STATIC-053
+# @spec DFF-STATIC-054
+name: Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build:static
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/static/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+
+    steps:
+      - uses: actions/deploy-pages@v4

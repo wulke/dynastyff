@@ -94,6 +94,12 @@ Static build commands:
 | `npm run build:static` | Build the browser-only GitHub Pages bundle into `dist/static/` |
 | `npm run export:snapshot` | Refresh `data/snapshot.json` before building or deploying the static app |
 
+GitHub Actions deployment:
+
+- `.github/workflows/etl-snapshot.yml` is a manual `workflow_dispatch` workflow that runs `npm run etl`, runs `npm run export:snapshot`, and commits `data/snapshot.json` back to the triggering branch only when the snapshot changed
+- `.github/workflows/pages.yml` deploys `dist/static/` to GitHub Pages on every push to `main`, with `pages: write` on the build job for artifact upload and `pages: write` plus `id-token: write` on the deploy job
+- Before the first Pages deployment succeeds, set the repository Pages source to `GitHub Actions` in GitHub Settings
+
 Current draft API surface:
 
 | Route | Purpose |

@@ -195,6 +195,8 @@ Triggered on every push to `main`. Steps:
 4. Upload artifact via `actions/upload-pages-artifact` (source: `dist/static/`)
 5. Deploy via `actions/deploy-pages`
 
+The build job declares `pages: write` so `actions/upload-pages-artifact` can publish the static artifact even in repositories with a read-only default `GITHUB_TOKEN`. The deploy job declares `pages: write` and `id-token: write` and uses the `github-pages` environment.
+
 The `pages.yml` workflow requires the repository's Pages source to be set to "GitHub Actions" in the repo settings.
 
 ## Static Build Guardrails

@@ -102,36 +102,39 @@ The static build's bot loop shall halt and yield control to the user when `curre
 
 ## GitHub Actions: ETL Snapshot Workflow
 
-**DFF-STATIC-040** `[ ]`
+**DFF-STATIC-040** `[x]` → #57
 The system shall provide a GitHub Actions workflow file at `.github/workflows/etl-snapshot.yml` triggered exclusively by `workflow_dispatch`.
 
-**DFF-STATIC-041** `[ ]`
+**DFF-STATIC-041** `[x]` → #57
 The ETL snapshot workflow shall: install Node 22, run `npm ci`, install Playwright Chromium (`npx playwright install --with-deps chromium`), run `npm run etl`, and run `npm run export:snapshot`.
 
-**DFF-STATIC-042** `[ ]`
+**DFF-STATIC-042** `[x]` → #57
 After `export:snapshot` completes, the ETL snapshot workflow shall commit and push `data/snapshot.json` to the branch that triggered the workflow using the `github-actions[bot]` identity.
 
-**DFF-STATIC-043** `[ ]`
+**DFF-STATIC-043** `[x]` → #57
 If `data/snapshot.json` is unchanged after the export (no diff), the ETL snapshot workflow shall skip the commit step and exit cleanly without error.
 
-**DFF-STATIC-044** `[ ]`
+**DFF-STATIC-044** `[x]` → #57
 If `npm run export:snapshot` exits with a non-zero code, the ETL snapshot workflow shall fail the job and not attempt a commit.
 
 ---
 
 ## GitHub Actions: Pages Deploy Workflow
 
-**DFF-STATIC-050** `[ ]`
+**DFF-STATIC-050** `[x]` → #57
 The system shall provide a GitHub Actions workflow file at `.github/workflows/pages.yml` triggered on every push to `main`.
 
-**DFF-STATIC-051** `[ ]`
+**DFF-STATIC-051** `[x]` → #57
 The Pages deploy workflow shall declare `permissions: pages: write, id-token: write` on the deploy job.
 
-**DFF-STATIC-052** `[ ]`
+**DFF-STATIC-052** `[x]` → #57
 The Pages deploy workflow shall: install Node 22, run `npm ci`, run `npm run build:static`, upload the `dist/static/` directory via `actions/upload-pages-artifact`, and deploy via `actions/deploy-pages`.
 
-**DFF-STATIC-053** `[ ]`
+**DFF-STATIC-053** `[x]` → #57
 The Pages deploy workflow shall use the `github-pages` environment so deployments are gated and visible in the GitHub Deployments UI.
+
+**DFF-STATIC-054** `[x]` → #57
+The Pages deploy workflow's build job shall declare permissions sufficient to upload the static artifact, including `pages: write`.
 
 ---
 

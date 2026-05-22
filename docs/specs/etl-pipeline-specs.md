@@ -112,10 +112,10 @@ The system shall set `value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, and
 ## Upsert — Pick Values
 
 **DFF-ETL-070** `[x]` → #5
-When a `(year, round)` entry already exists in `pick_values`, the system shall update `dynasty_value` and `updated_at`.
+When a `(year, round, pick_in_round)` entry already exists in `pick_values`, the system shall update `dynasty_value` and `updated_at`.
 
 **DFF-ETL-071** `[x]` → #5
-When a `(year, round)` entry does not exist in `pick_values`, the system shall insert a new row with a generated UUID.
+When a `(year, round, pick_in_round)` entry does not exist in `pick_values`, the system shall insert a new row with a generated UUID.
 
 ---
 

@@ -77,6 +77,7 @@ function loadPlayers(sqlite: Database.Database): SnapshotPlayer[] {
 }
 
 // @spec DFF-STATIC-011
+// @spec DFF-SPKV-015
 function loadPickValues(sqlite: Database.Database): SnapshotPickValue[] {
   return sqlite
     .prepare(
@@ -85,6 +86,7 @@ function loadPickValues(sqlite: Database.Database): SnapshotPickValue[] {
          round,
          dynasty_value AS dynastyValue
        FROM pick_values
+       WHERE pick_in_round = 0
        ORDER BY year ASC, round ASC`,
     )
     .all() as PickValueRow[];

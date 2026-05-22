@@ -72,13 +72,13 @@ The current ETL write path is source-aware and history-aware.
 DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` job due to scraper instability.
 
 1. `runScrapers()` launches KTC, FantasyCalc, and RosterAudit with a maximum concurrency of 2.
-2. KTC and FantasyCalc parse asset names like `2027 Early 1st` with the ETL pick regex, returning `{ year, round, tier? }` from the shared parser, then average any tier variants for the same `(year, round)` into a single row and emit current-state `pickValues` keyed by the extracted `(year, round)`.
+2. KTC and FantasyCalc parse asset names like `2027 Early 1st` with the ETL pick regex, returning `{ year, round, tier? }` from the shared parser, then average any tier variants for the same `(year, round)` into a single row and emit current-state `pickValues` keyed by `(year, round, pick_in_round = 0)`.
 3. `runEtl()` inserts an `etl_runs` row at the start of execution with the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and `completed_at = NULL`.
 4. Each successful source is processed in its own database transaction:
    - normalize that source's player and pick values
    - write raw `player_value_snapshots` and `pick_value_snapshots`
    - update the current-state `players` table
-   - recompute the current-state `pick_values` row for each touched `(year, round)` from the current run's raw pick snapshots using that run's per-source normalization contexts
+   - recompute the current-state `pick_values` row for each touched `(year, round, pick_in_round)` from the current run's raw pick snapshots using that run's per-source normalization contexts
 5. If any write fails inside a source transaction, the full source transaction is rolled back and excluded from `sources_succeeded`.
 6. After all source transactions finish, `runEtl()` updates the `etl_runs` row with `completed_at` and the final `sources_succeeded` list.
 

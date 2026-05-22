@@ -39,6 +39,7 @@ function buildDraftState(
   completedAt: string | null,
 ): DraftState {
   const syncedPlayers = availablePlayers(engineState, snapshot.players);
+  // @spec DFF-STATIC-063
   // Build player catalog from all snapshot players so drafted players
   // remain renderable in the history view by their player metadata.
   const playerCatalog = Object.fromEntries(

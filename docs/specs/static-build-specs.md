@@ -99,7 +99,7 @@ The static build's bot loop shall delay 1.5–3 seconds (randomly sampled) betwe
 The static build's bot loop shall halt and yield control to the user when `currentTeam(state)` returns a team flagged `isUser = true`.
 
 **DFF-STATIC-036** `[x]` → #56
-During an active static draft, the system shall render an in-browser Draft Room showing the current turn indicator, the available undrafted player list, and a recent-picks list using player names rather than raw player IDs.
+During an active static draft, the system shall render an in-browser Draft Room showing the current turn indicator, the Draft Board grid (rounds × teams), the available undrafted player list, and a recent-picks list using player names rather than raw player IDs.
 
 **DFF-STATIC-037** `[x]` → #56
 If the static bot loop encounters an invariant failure while selecting or submitting a bot pick, the system shall halt the bot loop and display an error toast indicating the draft cannot continue.
@@ -169,7 +169,7 @@ The static app's `InMemoryDraftContext` shall maintain a `sessionHistory` array 
 When a draft transitions to `completed`, the context shall append a `CompletedDraft` snapshot to `sessionHistory` before transitioning the view state to `history`.
 
 **DFF-STATIC-072** `[x]` → #56
-The history view in the static app shall render the `sessionHistory` array in reverse chronological order.
+The history view in the static app shall render the `HistoryView` component with three tabs (Pick Log, Roster View, Trade Log) using the completed draft's `draftState`. The `sessionHistory` array continues to accumulate completed drafts in the background.
 
 **DFF-STATIC-073** `[x]` → #56
 Session history shall not be persisted to `localStorage` or any browser storage API — it is intentionally lost on page refresh.

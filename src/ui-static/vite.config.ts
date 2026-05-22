@@ -97,6 +97,7 @@ export function createSnapshotCopyPlugin(snapshotPath = snapshotSourcePath): Plu
   return {
     name: 'copy-static-snapshot',
     configureServer(server) {
+      // @spec DFF-STATIC-001
       // Serve data/snapshot.json in dev mode so the runtime fetch succeeds.
       // Handles both /data/snapshot.json (dev without base) and
       // /dynastyff/data/snapshot.json (dev with base /dynastyff/).

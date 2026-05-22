@@ -82,6 +82,7 @@ function DraftRoom({ snapshot }: { snapshot: Snapshot }) {
         </div>
       </div>
 
+      {/* @spec DFF-STATIC-036 */}
       <div className="mt-8">
         <DraftBoard draftState={draftState} />
       </div>

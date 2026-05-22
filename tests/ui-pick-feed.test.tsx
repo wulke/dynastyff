@@ -354,6 +354,44 @@ describe('pick feed panel', () => {
     expect(within(entry).queryByText(/rd 0/i)).not.toBeInTheDocument();
   });
 
+  // @spec DFF-UI-103
+  test('renders duplicate entries when the same player is picked twice (two pick_made events with same player_id)', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync();
+
+    // First pick_made for player-1
+    emitPickMade(1, 'team-1', 'player-1');
+
+    // Second pick_made for the same player-1 at a different pick number
+    emitPickMade(4, 'team-3', 'player-1');
+
+    const pickFeed = screen.getByTestId('pick-feed-panel');
+    const feedEntries = within(pickFeed).getAllByTestId(/^pick-feed-entry-/);
+
+    // Both entries should exist
+    expect(feedEntries).toHaveLength(2);
+
+    // Both entries should reference Josh Allen
+    expect(within(pickFeed).getByTestId('pick-feed-entry-1')).toBeInTheDocument();
+    expect(within(pickFeed).getByTestId('pick-feed-entry-4')).toBeInTheDocument();
+
+    // Each entry has the player name
+    const nameElements = within(pickFeed).getAllByText('Josh Allen');
+    expect(nameElements).toHaveLength(2);
+  });
+
   // @spec DFF-UI-100
   test('pick feed panel renders alongside the draft board without replacing it', async () => {
     const user = userEvent.setup();

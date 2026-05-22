@@ -3,6 +3,7 @@
 // @spec DFF-UI-022
 // @spec DFF-UI-023
 // @spec DFF-UI-024
+// @spec DFF-UI-024b
 // @spec DFF-UI-025
 // @spec DFF-UI-026
 import { act, cleanup, render, screen, within } from '@testing-library/react';
@@ -115,6 +116,47 @@ function emitDraftState() {
   });
 }
 
+function emitStateSync(overrides: Partial<Record<string, unknown>> = {}) {
+  act(() => {
+    MockEventSource.instances[0]?.emit('state_sync', {
+      draft_id: 'draft-board-123',
+      status: 'in_progress',
+      current_pick_number: 1,
+      teams: [
+        { id: 'team-1', name: 'Bob', is_user: false, archetype: 'win_now' },
+        { id: 'team-2', name: 'You', is_user: true, archetype: null },
+        { id: 'team-3', name: 'Sue', is_user: false, archetype: 'productive_struggle' },
+      ],
+      draft_order: [
+        { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+        { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+        { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+        { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
+        { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
+      ],
+      picks: [],
+      roster_players: [],
+      team_pick_assets: [],
+      user_queue: [],
+      available_players: [
+        {
+          id: 'player-1',
+          name: 'Josh Allen',
+          position: 'QB',
+          nfl_team: 'BUF',
+          age: 30,
+          is_rookie: false,
+          dynasty_value: 9999,
+          adp: 1,
+        },
+      ],
+      trades: [],
+      ...overrides,
+    });
+  });
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
   MockEventSource.instances = [];
@@ -204,5 +246,106 @@ describe('draft board UI', () => {
     expect(within(pickedCell).getByText('QB')).toBeInTheDocument();
     expect(within(pickedCell).getByText('Bob')).toBeInTheDocument();
     expect(screen.queryByTestId('draft-slot-skeleton')).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-022
+  // @spec DFF-UI-025
+  test('falls back to the raw player id and NA badge when a picked player is absent from the catalog', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync({ available_players: [] });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 1,
+        team_id: 'team-1',
+        player_id: 'player-X',
+        is_bot: true,
+      });
+    });
+
+    const pickedCell = screen.getByTestId('draft-slot-1');
+    expect(within(pickedCell).getByText('player-X')).toBeInTheDocument();
+    expect(within(pickedCell).getByText('NA')).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-022
+  // @spec DFF-UI-025
+  test('keeps drafted player metadata after reconnect when a later state_sync omits that player from available_players', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitDraftState();
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 1,
+        team_id: 'team-1',
+        player_id: 'player-1',
+        is_bot: true,
+      });
+    });
+
+    emitStateSync({
+      current_pick_number: 2,
+      picks: [
+        {
+          pick_number: 1,
+          team_id: 'team-1',
+          player_id: 'player-1',
+          picked_at: '2026-05-22T18:00:00.000Z',
+        },
+      ],
+      roster_players: [{ team_id: 'team-1', player_id: 'player-1' }],
+      available_players: [],
+    });
+
+    const pickedCell = screen.getByTestId('draft-slot-1');
+    expect(within(pickedCell).getByText('Josh Allen')).toBeInTheDocument();
+    expect(within(pickedCell).getByText('QB')).toBeInTheDocument();
+    expect(within(pickedCell).getByText('Bob')).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-024
+  // @spec DFF-UI-024b
+  test('does not render a skeleton when the current pick belongs to the user team', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync({ current_pick_number: 2 });
+
+    expect(screen.queryByTestId('draft-slot-skeleton')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('draft-slot-2')).getByText(/waiting for selection/i)).toBeInTheDocument();
   });
 });

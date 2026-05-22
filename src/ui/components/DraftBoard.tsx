@@ -3,6 +3,7 @@
 // @spec DFF-UI-022
 // @spec DFF-UI-023
 // @spec DFF-UI-024
+// @spec DFF-UI-024b
 // @spec DFF-UI-025
 // @spec DFF-UI-026
 import type { DraftState } from '../context/DraftContext.js';
@@ -42,6 +43,7 @@ function getDraftedPlayerSummary(draftState: DraftState, playerId: string): Draf
 // @spec DFF-UI-021
 // @spec DFF-UI-022
 // @spec DFF-UI-024
+// @spec DFF-UI-024b
 // @spec DFF-UI-025
 function DraftBoardCell({
   draftState,
@@ -114,6 +116,7 @@ function DraftBoardCell({
 // @spec DFF-UI-021
 // @spec DFF-UI-023
 // @spec DFF-UI-024
+// @spec DFF-UI-024b
 // @spec DFF-UI-025
 // @spec DFF-UI-026
 export function DraftBoard({ draftState }: DraftBoardProps) {

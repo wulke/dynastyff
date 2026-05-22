@@ -61,6 +61,9 @@ The user's team row shall be visually distinguished from bot rows with a distinc
 **DFF-UI-024** `[x]` → #17
 While a bot pick is in progress, the current pick slot shall display a pulsing skeleton animation.
 
+**DFF-UI-024b** `[x]` → #17
+When `currentPickNumber` corresponds to the user's own team slot, the current pick slot shall not display a skeleton animation; it shall display the same waiting state as other unfilled future slots.
+
 **DFF-UI-025** `[x]` → #17
 When a `pick_made` SSE event is received, the corresponding grid cell shall update immediately without requiring a re-fetch.
 

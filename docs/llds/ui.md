@@ -126,10 +126,17 @@ Rounds are columns; teams are rows. The grid is fixed at draft creation (`round_
 - Empty (future pick): faint border, waiting state copy
 - Filled pick: player name, position badge, drafting team name, and NFL team when available
 - Current pick (bot in progress): pulsing skeleton
+- Current pick (user turn): same waiting state copy as other unfilled future slots; no skeleton
 
 The grid scrolls horizontally for rounds beyond the viewport. The user's row is visually highlighted with a distinct background, and the team-name column remains sticky so the row stays scannable across all rounds.
 
 Pick position in a round is derived from the snake order: odd rounds left-to-right, even rounds right-to-left. The header row shows round numbers; the left column shows team names.
+
+**Edge Case Probe:**
+- `pick_made` arrives before the first `state_sync` (empty catalog) -> `getDraftedPlayerSummary` falls back to the raw `playerId` as the name and `NA` as the position badge so the cell degrades without crashing
+- Player exists in `picks` but is absent from all `available_players` payloads -> the same fallback path keeps the cell visible instead of hiding the pick
+- Reconnect `state_sync` omits already drafted players from `available_players` -> `playerCatalog` is merged rather than replaced so prior drafted-player metadata still renders
+- Team has no pick in a given round (for example after a pick-slot trade) -> the board renders an empty `<td>` for that team/round intersection without throwing
 
 ## Available Players List
 

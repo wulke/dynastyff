@@ -4,6 +4,7 @@
 // @spec DFF-STATIC-016
 import { useEffect, useState } from 'react';
 
+import { DraftBoard } from '../ui/components/DraftBoard.js';
 import { DraftConfigScreen, configDefaults, type ConfigFormState } from '../ui/components/DraftConfigScreen.js';
 import { HistoryView } from '../ui/components/HistoryView.js';
 import { useDraftContext } from '../ui/context/DraftContext.js';
@@ -79,6 +80,10 @@ function DraftRoom({ snapshot }: { snapshot: Snapshot }) {
         <div className="rounded-full border border-stone-700 px-4 py-2 text-sm text-stone-200">
           {isUserTurn ? 'Your turn' : 'Bot is picking…'}
         </div>
+      </div>
+
+      <div className="mt-8">
+        <DraftBoard draftState={draftState} />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">

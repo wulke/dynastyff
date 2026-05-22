@@ -53,7 +53,7 @@ type RawPickValue = {
 
 Scrapers throw on unrecoverable failure (site unreachable, structure changed). Partial-failure handling is added in issue #6.
 DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` source list due to scraper instability.
-KTC and FantasyCalc separate future pick assets from player rows before applying the player position allowlist. Rows with source position `PI` are parsed from the asset name into `{ year, round, tier? }`. Both scrapers then collapse multiple rows for the same `(year, round)` — including tier variants — into a single averaged row with `rawValue = mean(all tier rawValues)`. The current-state scraper output therefore emits at most one `pickValues` entry per `(year, round)`. The `tier` field is discarded at this stage and not carried into `pickValues`; sub-pick storage and per-tier normalization are deferred to DFF-ETL-091–094.
+KTC and FantasyCalc separate future pick assets from player rows before applying the player position allowlist. Rows with source position `RDP` (KTC) or `PICK` (FantasyCalc) are parsed from the asset name into `{ year, round, tier? }`. Both scrapers then collapse multiple rows for the same `(year, round)` — including tier variants — into a single averaged row with `rawValue = mean(all tier rawValues)` (DFF-ETL-091). The current-state scraper output therefore emits at most one `pickValues` entry per `(year, round)`. The `tier` field is discarded at this stage and not carried into `pickValues`; sub-pick storage and per-tier normalization (DFF-ETL-092–094) remain deferred.
 
 ## Concurrency
 
@@ -139,8 +139,8 @@ Partial-failure handling is specified for issue #6 and has not been implemented 
 - Missing `etl_runs` table -> print a `npm run db:init` guidance error and exit with code 1 before attempting any ETL writes
 - Playwright page never reaches `networkidle` -> warn and continue scraping the currently loaded DOM
 - KTC returns no supported players -> exit before any source writes; leave the `etl_runs` row incomplete so draft pinning ignores it
-- KTC or FantasyCalc returns a `PI` row whose name matches `YYYY [tier] Nth` -> store it as a pick value row for the extracted `(year, round)` pair instead of dropping it as an unsupported player position
-- KTC or FantasyCalc returns a `PI` row whose name does not match the ETL pick regex -> treat it as a non-pick asset and exclude it from `pickValues`
+- KTC or FantasyCalc returns an `RDP`/`PICK` row whose name matches `YYYY [tier] Nth` -> store it as a pick value row for the extracted `(year, round)` pair instead of dropping it as an unsupported player position
+- KTC or FantasyCalc returns an `RDP`/`PICK` row whose name does not match the ETL pick regex -> treat it as a non-pick asset and exclude it from `pickValues`
 - DynastyDaddy runtime instability -> keep the scraper module in the codebase, but exclude it from the live `npm run etl` source list until re-enabled
 
 ## Upsert

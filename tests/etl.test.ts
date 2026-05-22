@@ -280,6 +280,16 @@ test('parsePickAssetName returns year, round, and optional tier for supported pi
     round: 1,
     tier: 'early',
   });
+  assert.deepEqual(parsePickAssetName('2027 Mid 1st'), {
+    year: 2027,
+    round: 1,
+    tier: 'mid',
+  });
+  assert.deepEqual(parsePickAssetName('2027 Late 2nd'), {
+    year: 2027,
+    round: 2,
+    tier: 'late',
+  });
   assert.deepEqual(parsePickAssetName('2027 1st'), {
     year: 2027,
     round: 1,

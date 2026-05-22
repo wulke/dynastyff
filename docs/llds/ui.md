@@ -13,6 +13,7 @@ Drives specs: `docs/specs/ui-specs.md`
 - Render the Available Players list with position filter and name search
 - Open and close the Advisor slide-out panel, managing advise-me and grill-me interactions
 - Render the Draft History view with pick log, roster view, and trade log
+- Render the Pick Feed panel with real-time pick updates alongside the draft board
 - Display inline loading states and surface errors via a global toast
 - Handle SSE connect, reconnect, and disconnect gracefully
 
@@ -68,6 +69,7 @@ The player list, advisor panel, trade modal, and full history views remain defer
   <ConfigScreen />             ← view: config
   <DraftView>                  ← view: drafting
     <DraftBoard />             ← grid: rounds × teams
+    <PickFeedPanel />         ← real-time pick feed
     <PlayerList />             ← available players, filter + search
     <AdvisorPanel />           ← slide-out, advise-me + grill-me
     <TradeModal />             ← blocking modal on trade_offered SSE
@@ -142,6 +144,27 @@ Pick position in a round is derived from the snake order: odd rounds left-to-rig
 - Player exists in `picks` but is absent from all `available_players` payloads -> the same fallback path keeps the cell visible instead of hiding the pick
 - Reconnect `state_sync` omits already drafted players from `available_players` -> `playerCatalog` is merged rather than replaced so prior drafted-player metadata still renders
 - Team has no pick in a given round (for example after a pick-slot trade) -> the board renders an empty `<td>` for that team/round intersection without throwing
+
+## Pick Feed Panel
+
+A scrolling real-time feed panel rendered alongside the draft board, driven by `pick_made` SSE events processed through the `DraftContext` reducer. Every pick — bot or user — appears as a new entry at the top of the feed as it happens.
+
+**Features:**
+- Hydrates from `draftState.picks` on initial load, sorted by `pickNumber` descending so the most recent pick appears at the top
+- Each new `pick_made` event adds the pick to `draftState.picks` via the reducer; the feed re-renders with the new entry at the top
+- Each entry displays: player name, position badge (color-coded via `getPositionBadgeClass`), drafting team name, round, and pick-in-round (e.g. "Rd 3, Pick 5")
+- Fixed-height panel with independent vertical scroll (overflow-y-auto)
+- Shows an empty-state message ("No picks yet") when `draftState.picks` is empty
+- Foundation for the Pick Log tab in the History View (#21) — shares the same rendering patterns
+
+**Decisions:**
+- `getPositionBadgeClass` is intentionally duplicated inline rather than extracted to a shared module. The function is small (~20 lines of Tailwind class strings) and its behavior is identical across DraftBoard, PickFeedPanel, and HistoryView. A future color change affecting all three surfaces should update all three call sites. If the function grows additional behavior (e.g., tooltips, icons), extract to `src/ui/components/positionBadge.ts`.
+
+**Edge Case Probe:**
+- Player ID is absent from `playerCatalog` → entry displays the raw `playerId` as the name and `NA` as the position badge
+- Draft has zero picks → panel shows empty state without crashing
+- Same player is picked twice (impossible in valid state but handles gracefully) → duplicate entries render, since each `pick_made` produces a unique pick record
+- Pick number is absent from `draftOrder` (should not happen in practice but handle defensively) → entry renders an em dash (`—`) in place of "Rd N, Pick M" instead of showing "Rd 0, Pick 0"
 
 ## Available Players List
 

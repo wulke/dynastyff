@@ -261,8 +261,19 @@ test('submitPick throws when the player is already drafted and does not mutate t
   const afterFirstPick = submitPick(initialState, 'player-wr-1');
   const snapshotBeforeDuplicate = structuredClone(afterFirstPick);
 
-  assert.throws(() => submitPick(afterFirstPick, 'player-wr-1'));
+  assert.throws(() => submitPick(afterFirstPick, 'player-wr-1'), InvariantError);
   assert.deepEqual(afterFirstPick, snapshotBeforeDuplicate);
+});
+
+// @spec DFF-STATIC-023
+test('submitPick throws for a completed draft and does not mutate the original state', () => {
+  const initialState = createSmallDraftState({ rounds: 1 });
+  const afterFirstPick = submitPick(initialState, 'player-wr-1');
+  const completedState = submitPick(afterFirstPick, 'player-qb-1');
+  const snapshotBeforeInvalidPick = structuredClone(completedState);
+
+  assert.throws(() => submitPick(completedState, 'player-rb-1'), InvariantError);
+  assert.deepEqual(completedState, snapshotBeforeInvalidPick);
 });
 
 // @spec DFF-STATIC-026

@@ -52,7 +52,7 @@ export function createDraftApp({
 
   app.use(express.json());
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
-  app.post('/drafts', createDraftRoute({ databasePath }));
+  app.post('/drafts', createDraftRoute({ databasePath, botChain }));
   app.post('/drafts/:id/pick', createDraftPickRoute({ databasePath, botChain }));
   app.post('/drafts/:id/trade-response', createDraftTradeResponseRoute({ databasePath, botChain }));
   app.post('/drafts/:id/queue', createDraftQueuePostRoute({ databasePath }));

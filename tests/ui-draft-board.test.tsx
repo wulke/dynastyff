@@ -116,6 +116,14 @@ function emitDraftState() {
   });
 }
 
+// @spec DFF-UI-020
+// @spec DFF-UI-021
+// @spec DFF-UI-022
+// @spec DFF-UI-023
+// @spec DFF-UI-024
+// @spec DFF-UI-024b
+// @spec DFF-UI-025
+// @spec DFF-UI-026
 function emitStateSync(overrides: Partial<Record<string, unknown>> = {}) {
   act(() => {
     MockEventSource.instances[0]?.emit('state_sync', {
@@ -347,5 +355,39 @@ describe('draft board UI', () => {
 
     expect(screen.queryByTestId('draft-slot-skeleton')).not.toBeInTheDocument();
     expect(within(screen.getByTestId('draft-slot-2')).getByText(/waiting for selection/i)).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-020
+  // @spec DFF-UI-021
+  test('renders an empty cell when a team has no slot in a round', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync({
+      draft_order: [
+        { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+        { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+        { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+        { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-1' },
+      ],
+    });
+
+    const userRow = screen.getByTestId('draft-board-row-team-2');
+    expect(within(userRow).getByTestId('draft-slot-2')).toBeInTheDocument();
+
+    const cells = userRow.querySelectorAll('td');
+    expect(cells).toHaveLength(2);
+    expect(cells[1]?.textContent?.trim()).toBe('');
   });
 });

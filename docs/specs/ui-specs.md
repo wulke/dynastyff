@@ -210,3 +210,26 @@ Only one toast shall be visible at a time; a new error toast shall replace the c
 
 **DFF-UI-087** `[x]` → #15
 Toasts shall auto-dismiss after 6 seconds unless replaced by a new error.
+
+---
+
+## Draft Board Layout Toggle
+
+**DFF-UI-088** `[ ]`
+The Draft Board header shall render an icon-only toggle button that switches the board between row mode (teams as rows, rounds as columns) and column mode (rounds as rows, teams as columns).
+
+**DFF-UI-089** `[ ]`
+The layout toggle shall default to row mode on first load. The user's selected mode shall be persisted to localStorage and restored on subsequent loads.
+
+**DFF-UI-090** `[ ]`
+In column mode the Draft Board shall render `round_count` rows and `team_count` columns, with team names in the header row and round numbers in the left column.
+
+**DFF-UI-091** `[ ]`
+In column mode the team name header row shall remain sticky at the top of the scroll container during vertical scroll.
+
+---
+
+## Position Badge Color Coding
+
+**DFF-UI-092** `[ ]`
+Every position badge on the Draft Board shall be color-coded by position: QB=amber, RB=blue, WR=emerald, TE=purple, PICK/RDP=yellow, all other values=stone.

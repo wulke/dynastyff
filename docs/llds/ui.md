@@ -120,7 +120,12 @@ type DraftState = {
 | `SSE_STATUS` | `useDraftStream` hook |
 ## Draft Board Grid
 
-Rounds are columns; teams are rows. The grid is fixed at draft creation (`round_count × team_count` cells). Cells fill in as `pick_made` events arrive, using a persistent in-memory player catalog so the board can keep rendering drafted player metadata after each player is removed from `availablePlayers`.
+The grid is fixed at draft creation (`round_count × team_count` cells). Cells fill in as `pick_made` events arrive, using a persistent in-memory player catalog so the board can keep rendering drafted player metadata after each player is removed from `availablePlayers`.
+
+**Layout modes** (toggled via an icon-only button in the draft board header; preference persisted to localStorage; default: row mode):
+
+- **Row mode** — rounds are columns, teams are rows. The header row shows round numbers; the left column shows team names and remains sticky during horizontal scroll. The user's row is visually highlighted.
+- **Column mode** — teams are columns, rounds are rows. The header row shows team names and remains sticky during vertical scroll; the left column shows round numbers.
 
 **Cell states:**
 - Empty (future pick): faint border, waiting state copy
@@ -128,9 +133,9 @@ Rounds are columns; teams are rows. The grid is fixed at draft creation (`round_
 - Current pick (bot in progress): pulsing skeleton
 - Current pick (user turn): same waiting state copy as other unfilled future slots; no skeleton
 
-The grid scrolls horizontally for rounds beyond the viewport. The user's row is visually highlighted with a distinct background, and the team-name column remains sticky so the row stays scannable across all rounds.
+**Position badge colors:** QB=amber, RB=blue, WR=emerald, TE=purple, PICK/RDP=yellow, default=stone.
 
-Pick position in a round is derived from the snake order: odd rounds left-to-right, even rounds right-to-left. The header row shows round numbers; the left column shows team names.
+Pick position in a round is derived from the snake order: odd rounds left-to-right, even rounds right-to-left.
 
 **Edge Case Probe:**
 - `pick_made` arrives before the first `state_sync` (empty catalog) -> `getDraftedPlayerSummary` falls back to the raw `playerId` as the name and `NA` as the position badge so the cell degrades without crashing

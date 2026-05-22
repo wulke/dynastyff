@@ -92,10 +92,10 @@ The system shall implement `src/draft/bot.ts` as an isomorphic module exporting 
 **DFF-STATIC-033** `[x]` → #52
 `selectBotPick` shall throw an `InvariantError` if `available` is empty.
 
-**DFF-STATIC-034** `[ ]`
+**DFF-STATIC-034** `[x]` → #56
 The static build's bot loop shall delay 1.5–3 seconds (randomly sampled) between successive bot picks to simulate realistic draft pacing.
 
-**DFF-STATIC-035** `[ ]`
+**DFF-STATIC-035** `[x]` → #56
 The static build's bot loop shall halt and yield control to the user when `currentTeam(state)` returns a team flagged `isUser = true`.
 
 ---
@@ -149,21 +149,21 @@ Existing `src/ui/` components shall reference `useDraftContext()` for all draft 
 **DFF-STATIC-062** `[x]` → #54
 The main app (`src/ui/App.tsx`) shall wire an `HttpDraftContext` implementation of `DraftContextValue` that calls Express HTTP endpoints and subscribes to the SSE stream.
 
-**DFF-STATIC-063** `[ ]`
+**DFF-STATIC-063** `[x]` → #56
 The static app (`src/ui-static/App.tsx`) shall wire an `InMemoryDraftContext` implementation of `DraftContextValue` that operates entirely in browser memory using the in-memory draft engine.
 
 ---
 
 ## Session History
 
-**DFF-STATIC-070** `[ ]`
+**DFF-STATIC-070** `[x]` → #56
 The static app's `InMemoryDraftContext` shall maintain a `sessionHistory` array that accumulates one `CompletedDraft` entry per finished draft session.
 
-**DFF-STATIC-071** `[ ]`
+**DFF-STATIC-071** `[x]` → #56
 When a draft transitions to `completed`, the context shall append a `CompletedDraft` snapshot to `sessionHistory` before transitioning the view state to `history`.
 
-**DFF-STATIC-072** `[ ]`
+**DFF-STATIC-072** `[x]` → #56
 The history view in the static app shall render the `sessionHistory` array in reverse chronological order.
 
-**DFF-STATIC-073** `[ ]`
+**DFF-STATIC-073** `[x]` → #56
 Session history shall not be persisted to `localStorage` or any browser storage API — it is intentionally lost on page refresh.

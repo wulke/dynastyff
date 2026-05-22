@@ -533,6 +533,15 @@ export function useDraftContext(): DraftContextValue {
   return value;
 }
 
+// @spec DFF-STATIC-060
+// @spec DFF-STATIC-061
+export function DraftContextProvider({
+  value,
+  children,
+}: PropsWithChildren<{ value: DraftContextValue }>) {
+  return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;
+}
+
 // @spec DFF-UI-072
 // @spec DFF-UI-083
 function handleStreamDisconnect(

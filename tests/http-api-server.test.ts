@@ -1031,6 +1031,49 @@ test('POST /drafts/:id/trade-response returns 400 when status is invalid', async
   }
 });
 
+// @spec DFF-ENGINE-033
+// @spec DFF-ENGINE-039
+// @spec DFF-ENGINE-039b
+// @spec DFF-ENGINE-043
+test('POST /drafts/:id/trade-response returns 409 when no trade is pending', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-response-no-pending-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeTradeResponseRoute(databasePath, draftId, { status: 'accepted' });
+
+    assert.equal(response.statusCode, 409);
+    assert.deepEqual(response.json, {
+      error: 'No pending trade for this draft.',
+    });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
 // @spec DFF-DATA-093
 test('POST /drafts/:id/queue returns 200 and inserts a new queue entry for a valid playerId and rank', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-queue-post-insert-');

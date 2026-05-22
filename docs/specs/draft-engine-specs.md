@@ -90,7 +90,7 @@ When the bot simulator initiates a trade during the bot chain, the system shall 
 When a bot-to-bot trade is initiated, the system shall pause the bot chain, emit a `trade_offered` SSE event with `is_bot_to_bot: true`, and require explicit user acknowledgment before resuming. This is intentional: the draft is untimed and solo, and the user must maintain full visibility of all board changes including bot-to-bot deals.
 
 **DFF-ENGINE-039b** `[x]` → #28
-For bot-to-bot trade modals, the system shall present two options: "OK" (user acknowledges; trade stands) and "Force Decline" (user vetoes the trade).
+For a bot-to-bot trade paused by the draft engine, the system shall require one of two explicit user responses before resuming: acknowledge the trade so it stands, or veto it as `force_declined`.
 
 **DFF-ENGINE-039c** `[ ]` → #10
 If the user chooses "Force Decline" for a bot-to-bot trade, the system shall write the trade to `trades` with status `force_declined` and perform no asset transfer.

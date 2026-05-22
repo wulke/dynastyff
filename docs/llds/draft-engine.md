@@ -278,7 +278,7 @@ Behavior:
 
 ## Trade Resolution
 
-All trade modals — including bot-to-bot trades — are blocking and require explicit user acknowledgment before the draft continues. This is intentional: the draft is untimed and solo, so the user should have full visibility into every trade that reshapes the board. For bot-to-bot trades the buttons are "OK" (acknowledge, trade stands) and "Force Decline" (user vetoes the trade). For user-targeted trades the buttons are "Accept" and "Decline."
+All trade interruptions — including bot-to-bot trades — are blocking and require explicit user acknowledgment before the draft continues. This is intentional: the draft is untimed and solo, so the user should have full visibility into every trade that reshapes the board. In this draft-engine slice, the backend only owns the response semantics: bot-to-bot trades resume on either an acknowledgment that lets the trade stand or a `force_declined` veto. Concrete button labels are owned by the UI slice.
 
 When a bot initiates a trade (see bot-simulator LLD for initiation logic):
 

@@ -8,6 +8,8 @@ The advisor agent is intentionally excluded from this build — it requires a li
 
 Drives specs: `docs/specs/static-build-specs.md`
 
+The static build actively guards this boundary at build time. The Vite config rejects forbidden server-only imports (`express`, `better-sqlite3`, `drizzle-orm`, `node:*`) and advisor-only references (`@anthropic-ai/sdk`, `ANTHROPIC_API_KEY`, advisor API endpoint strings) anywhere in the static entry graph. CI also scans the emitted JS bundle to ensure those strings never ship in `dist/static/`.
+
 ## Architecture
 
 ```
@@ -167,7 +169,7 @@ Source-specific value columns (`value_ktc`, `value_fantasycalc`, etc.) are omitt
 
 ### Loading in the static app
 
-`src/ui-static/App.tsx` issues a single `fetch` call to `./data/snapshot.json` (relative to the page base) at app mount, before any draft config is displayed. The snapshot is held in React state and passed to the `InMemoryDraftContext` when a draft is created. If the fetch fails, a full-screen error is shown and the app is unusable — there is no draft without data.
+`src/ui-static/App.tsx` issues a single `fetch` call to `./data/snapshot.json` (relative to the page base) at app mount, before any draft config is displayed. The static Vite build copies the repository snapshot file into `dist/static/data/snapshot.json`, so the browser fetch resolves without a server. The snapshot is held in React state and passed to the `InMemoryDraftContext` when a draft is created. If the fetch fails, a full-screen error is shown and the app is unusable — there is no draft without data.
 
 ## GitHub Actions Workflows
 
@@ -194,6 +196,13 @@ Triggered on every push to `main`. Steps:
 5. Deploy via `actions/deploy-pages`
 
 The `pages.yml` workflow requires the repository's Pages source to be set to "GitHub Actions" in the repo settings.
+
+## Static Build Guardrails
+
+`src/ui-static/vite.config.ts` owns two build-time enforcement checks:
+
+1. A source-graph guard plugin scans every static-build module and throws immediately when a forbidden server-side or advisor-only import/reference appears.
+2. A snapshot copy plugin verifies `data/snapshot.json` exists before copying it into `dist/static/data/snapshot.json` and throws a descriptive error telling the user to run `npm run export:snapshot` first when it is missing.
 
 ## Shared Components and Component Decoupling
 

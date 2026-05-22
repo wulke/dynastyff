@@ -1,6 +1,7 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
+// @spec DFF-ETL-090
 import fs from 'node:fs/promises';
 
 import type { Page } from 'playwright';
@@ -29,6 +30,9 @@ type FixturePayload = {
   players?: ScrapedPlayerRow[];
   pickValues?: ScrapedPickValueRow[];
 };
+
+const pickAssetNamePattern =
+  /^(?<year>\d{4})(?:\s+(?<tier>early|mid|late))?\s+(?<round>[1-4])(st|nd|rd|th)$/i;
 
 function normalizePlayers(rows: readonly ScrapedPlayerRow[]): RawPlayer[] {
   return rows.flatMap((row) => {
@@ -85,6 +89,24 @@ export async function loadFixtureScraperResult(
     players: normalizePlayers(payload.players ?? []),
     pickValues: normalizePickValues(payload.pickValues ?? []),
   };
+}
+
+// @spec DFF-ETL-090
+export function parsePickAssetName(name: string): Pick<RawPickValue, 'year' | 'round'> | null {
+  const match = pickAssetNamePattern.exec(name.trim());
+
+  if (!match?.groups) {
+    return null;
+  }
+
+  const year = Number(match.groups.year);
+  const round = Number(match.groups.round);
+
+  if (!Number.isInteger(year) || !Number.isInteger(round)) {
+    return null;
+  }
+
+  return { year, round };
 }
 
 type ExtractedPagePayload = {

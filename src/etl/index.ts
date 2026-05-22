@@ -6,6 +6,7 @@
 // @spec DFF-ETL-030
 // @spec DFF-ETL-031
 // @spec DFF-ETL-032
+// @spec DFF-ETL-090
 // @spec DFF-ETL-041
 // @spec DFF-ETL-070
 // @spec DFF-ETL-071
@@ -44,7 +45,7 @@ import { type EtlSource, type NormalizedPickValue, type NormalizedPlayer, type R
 type RunEtlOptions = {
   databasePath?: string;
   aliasesPath?: string;
-  scrapeKtc?: () => Promise<RawPlayer[]>;
+  scrapeKtc?: () => Promise<ScraperResult>;
   scrapeFantasycalc?: () => Promise<ScraperResult>;
   scrapeRosteraudit?: () => Promise<ScraperResult>;
   now?: () => string;
@@ -505,6 +506,7 @@ async function runScraper<T extends ScraperResult>(
 // @spec DFF-ETL-011
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
+// @spec DFF-ETL-090
 // @spec DFF-ETL-015
 export async function runScrapers(options: RunScrapersOptions = {}): Promise<ScraperResult[]> {
   const scrapeKtc = options.scrapeKtc ?? scrapeKtcPlayers;
@@ -513,12 +515,7 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
 
   return runTasksWithConcurrencyLimit(
     [
-      () =>
-        runScraper('ktc', async () => ({
-          source: 'ktc' as const,
-          players: await scrapeKtc(),
-          pickValues: [],
-        })),
+      () => runScraper('ktc', scrapeKtc),
       () => runScraper('fantasycalc', scrapeFantasycalc),
       () => runScraper('rosteraudit', scrapeRosteraudit),
     ],

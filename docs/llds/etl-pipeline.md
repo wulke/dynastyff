@@ -53,7 +53,7 @@ type RawPickValue = {
 
 Scrapers throw on unrecoverable failure (site unreachable, structure changed). Partial-failure handling is added in issue #6.
 DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` source list due to scraper instability.
-KTC and FantasyCalc separate future pick assets from player rows before applying the player position allowlist. Rows with source position `RDP` (KTC) or `PICK` (FantasyCalc) are parsed from the asset name into `{ year, round, tier? }`. Both scrapers then collapse multiple rows for the same `(year, round)` — including tier variants — into a single averaged row with `rawValue = mean(all tier rawValues)` (DFF-ETL-091). The current-state scraper output therefore emits at most one `pickValues` entry per `(year, round)`. The `tier` field is discarded at this stage and not carried into `pickValues`; sub-pick storage and per-tier normalization (DFF-ETL-092–094) remain deferred.
+KTC and FantasyCalc separate future pick assets from player rows before applying the player position allowlist. Rows with source position `RDP` (KTC) or `PICK` (FantasyCalc) are parsed from the asset name into `{ year, round, tier? }`. Both scrapers then collapse multiple rows for the same `(year, round)` — including tier variants and plain picks with `tier: undefined` — into a single averaged row with `rawValue = mean(all rawValues in that bucket)` (DFF-ETL-091). The current-state scraper output therefore emits at most one `pickValues` entry per `(year, round)`. The `tier` field is discarded at this stage and not carried into `pickValues`; sub-pick storage and per-tier normalization (DFF-ETL-092–094) remain deferred.
 
 ## Concurrency
 

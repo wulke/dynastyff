@@ -22,6 +22,7 @@ type ScrapedRow = {
 
 // @spec DFF-ETL-012
 // @spec DFF-ETL-090
+// @spec DFF-ETL-091
 function normalizeScrapedRows(rows: readonly ScrapedRow[]): ScraperResult {
   const players: RawPlayer[] = [];
   const pickAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();

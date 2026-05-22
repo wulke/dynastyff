@@ -295,10 +295,12 @@ test('parsePickAssetName returns year, round, and optional tier for supported pi
     round: 1,
     tier: undefined,
   });
+  assert.equal(parsePickAssetName('2027 5th'), null);
   assert.equal(parsePickAssetName('Rookie Pick'), null);
 });
 
 // @spec DFF-ETL-090
+// @spec DFF-ETL-091
 test('scrapeKtcPlayers fixture path splits RDP rows into pick values, averages tier variants, and filters unsupported positions', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'ktc.json');
@@ -407,6 +409,7 @@ test('scrapeKtcPlayers fixture path splits RDP rows into pick values, averages t
 });
 
 // @spec DFF-ETL-090
+// @spec DFF-ETL-091
 test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'fantasycalc-api.json');
@@ -491,6 +494,7 @@ test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', asy
 });
 
 // @spec DFF-ETL-090
+// @spec DFF-ETL-091
 // @spec DFF-ETL-041
 test('runEtl emits one pick snapshot per source when FantasyCalc fixture has tier and plain picks for the same (year, round)', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();

@@ -28,6 +28,7 @@ type FantasyCalcApiEntry = {
 
 // @spec DFF-ETL-012
 // @spec DFF-ETL-090
+// @spec DFF-ETL-091
 function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, 'players' | 'pickValues'> {
   const players: RawPlayer[] = [];
   const pickAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();
@@ -69,14 +70,14 @@ function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, '
     }
 
     players.push({
-        name: name.trim(),
-        position: position as SupportedEtlPosition,
-        nflTeam: nflTeam.trim(),
-        age,
-        isRookie: Boolean(p.rookie),
-        rawValue,
-        adp: null,
-      });
+      name: name.trim(),
+      position: position as SupportedEtlPosition,
+      nflTeam: nflTeam.trim(),
+      age,
+      isRookie: Boolean(p.rookie),
+      rawValue,
+      adp: null,
+    });
   }
 
   const pickValues: RawPickValue[] = Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({

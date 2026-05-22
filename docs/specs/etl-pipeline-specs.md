@@ -125,7 +125,7 @@ When a `(year, round)` entry does not exist in `pick_values`, the system shall i
 When parsing pick asset names from a scraper source, the system shall use a regex and return the extracted `year` (4-digit integer), `round` (ordinal: 1st→1, 2nd→2, 3rd→3, 4th→4), and optional `tier` (case-insensitive keyword: early, mid, late) to callers. Asset names that match year + round but contain no tier keyword shall be treated as plain picks with `tier: undefined`. Asset names that do not match year + round shall be treated as player assets.
 
 **DFF-ETL-091** `[x]` → #62
-After scraping, for each source the system shall group sub-pick rows by `(year, round)` and compute an averaged row with `rawValue` equal to the arithmetic mean of all available tier raw values for that group. The averaged row shall have `tier: undefined`. Averaging shall proceed with whatever tiers are present; a complete set is not required.
+After scraping, for each source the system shall group parsed pick rows by `(year, round)` and compute an averaged row with `rawValue` equal to the arithmetic mean of all available raw values for that group, including both tiered rows and plain picks with `tier: undefined`. The averaged row shall have `tier: undefined`. Averaging shall proceed with whatever rows are present for that `(year, round)` bucket; a complete set of tiers is not required.
 
 **DFF-ETL-092** `[ ]`
 The system shall write both the raw sub-pick rows (with tier) and the averaged rows (without tier) to `pickValueSnapshots`, storing the tier value in a nullable `tier` varchar column. A null `tier` indicates an averaged or plain pick row; a non-null `tier` indicates a raw sub-pick row.

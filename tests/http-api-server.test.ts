@@ -18,6 +18,7 @@ import type { Request, RequestHandler, Response } from 'express';
 
 import { initializeDatabase } from '../src/db/init.js';
 import { createDraft, recordPick } from '../src/draft/service.js';
+import { createBotChainCoordinator } from '../src/draft/bot-chain.js';
 import {
   createDraftErrorHandler,
   createDraftRoute,
@@ -159,7 +160,14 @@ async function invokePickRoute(
   body: unknown,
 ) {
   return invokeRoute({
-    route: createDraftPickRoute({ databasePath }),
+    route: createDraftPickRoute({
+      databasePath,
+      botChain: {
+        trigger: () => undefined,
+        waitForIdle: async () => undefined,
+        resolvePendingTrade: () => false,
+      },
+    }),
     body,
     params: { id: draftId },
   });
@@ -413,6 +421,192 @@ test('POST /drafts/:id/pick returns 200 and records the user pick for a valid pl
       picks: 1,
       rosterPlayers: 1,
     });
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-030
+// @spec DFF-ENGINE-031
+// @spec DFF-ENGINE-032
+test('POST /drafts/:id/pick triggers consecutive bot picks with a 3-5 second delay and stops at the next user turn', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-bot-chain-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-1', 'Player One', 'WR');
+    db.prepare('UPDATE players SET dynasty_value = 6000 WHERE id = ?').run('player-1');
+    seedPlayer(db, 'player-2', 'Player Two', 'WR');
+    db.prepare('UPDATE players SET dynasty_value = 5900 WHERE id = ?').run('player-2');
+    seedPlayer(db, 'player-3', 'Player Three', 'WR');
+    db.prepare('UPDATE players SET dynasty_value = 5800 WHERE id = ?').run('player-3');
+    seedPlayer(db, 'player-4', 'Player Four', 'WR');
+    db.prepare('UPDATE players SET dynasty_value = 5700 WHERE id = ?').run('player-4');
+    seedPlayer(db, 'player-5', 'Player Five', 'WR');
+    db.prepare('UPDATE players SET dynasty_value = 5600 WHERE id = ?').run('player-5');
+    seedPlayer(db, 'player-6', 'Player Six', 'WR');
+    db.prepare('UPDATE players SET dynasty_value = 5500 WHERE id = ?').run('player-6');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const delayCalls: number[] = [];
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      random: () => 0.5,
+      sleep: async (delayMs) => {
+        delayCalls.push(delayMs);
+      },
+    });
+
+    const response = await invokeRoute({
+      route: createDraftPickRoute({ databasePath, botChain }),
+      body: { playerId: 'player-1' },
+      params: { id: draftId },
+    });
+
+    await botChain.waitForIdle(draftId);
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(delayCalls, [4000, 4000, 4000, 4000]);
+
+    const persistedPicks = db
+      .prepare(
+        `SELECT pick_number, player_id
+         FROM picks
+         WHERE draft_id = ?
+         ORDER BY pick_number`,
+      )
+      .all(draftId) as Array<{ pick_number: number; player_id: string }>;
+
+    assert.deepEqual(persistedPicks, [
+      { pick_number: 1, player_id: 'player-1' },
+      { pick_number: 2, player_id: 'player-2' },
+      { pick_number: 3, player_id: 'player-3' },
+      { pick_number: 4, player_id: 'player-4' },
+      { pick_number: 5, player_id: 'player-5' },
+    ]);
+
+    const nextOpenSlot = db
+      .prepare(
+        `SELECT draft_order.pick_number, teams.is_user
+         FROM draft_order
+         INNER JOIN teams ON teams.id = draft_order.team_id
+         LEFT JOIN picks ON picks.draft_order_id = draft_order.id
+         WHERE draft_order.draft_id = ?
+           AND picks.id IS NULL
+         ORDER BY draft_order.pick_number
+         LIMIT 1`,
+      )
+      .get(draftId) as { pick_number: number; is_user: number };
+
+    assert.deepEqual(nextOpenSlot, {
+      pick_number: 6,
+      is_user: 1,
+    });
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-030
+// @spec DFF-ENGINE-032
+test('POST /drafts/:id/pick completes the draft automatically when the bot chain exhausts the remaining slots', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-bot-complete-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-1', 'Player One', 'WR');
+    db.prepare('UPDATE players SET dynasty_value = 6000 WHERE id = ?').run('player-1');
+    seedPlayer(db, 'player-2', 'Player Two', 'WR');
+    db.prepare('UPDATE players SET dynasty_value = 5900 WHERE id = ?').run('player-2');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      sleep: async () => undefined,
+    });
+
+    const response = await invokeRoute({
+      route: createDraftPickRoute({ databasePath, botChain }),
+      body: { playerId: 'player-1' },
+      params: { id: draftId },
+    });
+
+    await botChain.waitForIdle(draftId);
+
+    assert.equal(response.statusCode, 200);
+
+    const completedDraft = db
+      .prepare(
+        `SELECT status, completed_at
+         FROM drafts
+         WHERE id = ?`,
+      )
+      .get(draftId) as { status: string; completed_at: string | null };
+
+    assert.equal(completedDraft.status, 'completed');
+    assert.equal(completedDraft.completed_at !== null, true);
+
+    const persistedPicks = db
+      .prepare(
+        `SELECT pick_number, player_id
+         FROM picks
+         WHERE draft_id = ?
+         ORDER BY pick_number`,
+      )
+      .all(draftId) as Array<{ pick_number: number; player_id: string }>;
+
+    assert.deepEqual(persistedPicks, [
+      { pick_number: 1, player_id: 'player-1' },
+      { pick_number: 2, player_id: 'player-2' },
+    ]);
   } finally {
     db.close();
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });

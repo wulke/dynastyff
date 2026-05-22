@@ -1,11 +1,14 @@
 // @spec DFF-UI-001
 // @spec DFF-UI-002
 // @spec DFF-UI-003
+// @spec DFF-UI-005
+// @spec DFF-UI-006
+// @spec DFF-UI-007
 // @spec DFF-UI-004
 // @spec DFF-UI-010
 // @spec DFF-UI-014
 // @spec DFF-UI-015
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -393,7 +396,9 @@ describe('UI app scaffold', () => {
   });
 
   // @spec DFF-UI-003
-  test('transitions from drafting to history on draft completion', async () => {
+  // @spec DFF-UI-005
+  // @spec DFF-UI-007
+  test('renders a completion banner over the draft board when the draft completes', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-123' }), {
@@ -407,6 +412,27 @@ describe('UI app scaffold', () => {
     render(<App />);
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', {
+        draft_id: 'draft-123',
+        status: 'in_progress',
+        current_pick_number: 24,
+        teams: [
+          { id: 'team-1', name: 'Bot Alpha', is_user: false, archetype: 'win_now' },
+          { id: 'team-2', name: 'Lakeview Legends', is_user: true, archetype: null },
+        ],
+        draft_order: [
+          { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+          { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        ],
+        picks: [],
+        roster_players: [],
+        team_pick_assets: [],
+        user_queue: [],
+        available_players: [],
+      });
+    });
 
     act(() => {
       MockEventSource.instances[0]?.emit('draft_complete', {
@@ -417,13 +443,22 @@ describe('UI app scaffold', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /draft summary/i,
+        name: /draft complete/i,
       }),
     ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('draft-completion-banner')).getByText(
+        /lakeview legends finished the board/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
   });
 
+  // @spec DFF-UI-006
   // @spec DFF-UI-004
-  test('transitions from history back to config when the user starts a new draft', async () => {
+  test('opens history from the completion banner and then returns to config when the user starts a new draft', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-123' }), {
@@ -439,11 +474,33 @@ describe('UI app scaffold', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', {
+        draft_id: 'draft-123',
+        status: 'in_progress',
+        current_pick_number: 24,
+        teams: [
+          { id: 'team-1', name: 'Bot Alpha', is_user: false, archetype: 'win_now' },
+          { id: 'team-2', name: 'Lakeview Legends', is_user: true, archetype: null },
+        ],
+        draft_order: [
+          { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+          { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        ],
+        picks: [],
+        roster_players: [],
+        team_pick_assets: [],
+        user_queue: [],
+        available_players: [],
+      });
+    });
+
+    act(() => {
       MockEventSource.instances[0]?.emit('draft_complete', {
         draft_id: 'draft-123',
         completed_at: '2026-05-21T18:00:00.000Z',
       });
     });
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
     await user.click(screen.getByRole('button', { name: /new draft/i }));
 
     expect(

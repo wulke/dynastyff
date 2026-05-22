@@ -34,13 +34,15 @@ There is no router. A single top-level enum drives which view is rendered:
 
 ```
 config → drafting → history
-           │
-           └── (advisor panel overlays drafting view)
+           │        ▲
+           │        │
+           └── (advisor panel + completion banner overlay drafting view)
 ```
 
 Transitions:
 - `config → drafting`: user submits config and a draft is created (`POST /drafts`)
-- `drafting → history`: `draft_complete` SSE event received
+- `drafting (board) → drafting (completed banner)`: `draft_complete` SSE event received
+- `drafting (completed banner) → history`: user clicks `View Full History`
 - `history → config`: user clicks "New Draft"
 
 ## App Scaffold
@@ -57,7 +59,8 @@ At this stage, the config view is functional, the drafting view now renders the 
 
 - Config screen: league settings form + `Start Draft` calls `startDraft()` on `HttpDraftContext`
 - Draft board: renders immediately after draft creation, keeps the live SSE status badge, and hydrates the grid in place from `state_sync` / `pick_made` events
-- History shell: becomes visible only after a `draft_complete` SSE event and exposes `New Draft`
+- Draft completion banner: renders over the Draft Board when `draft_complete` arrives, keeps the board visible behind the overlay, and exposes `View Full History`
+- History shell: becomes visible only after the user clicks `View Full History`, then exposes `New Draft`
 
 The player list, advisor panel, trade modal, and full history views remain deferred to later issues, but draft creation, live board updates, and draft completion transitions are now driven through the shared context and SSE stream.
 
@@ -69,6 +72,7 @@ The player list, advisor panel, trade modal, and full history views remain defer
   <ConfigScreen />             ← view: config
   <DraftView>                  ← view: drafting
     <DraftBoard />             ← grid: rounds × teams
+    <DraftCompletionBanner />  ← modal-style overlay on completed drafts
     <PickFeedPanel />         ← real-time pick feed
     <PlayerList />             ← available players, filter + search
     <AdvisorPanel />           ← slide-out, advise-me + grill-me
@@ -144,6 +148,22 @@ Pick position in a round is derived from the snake order: odd rounds left-to-rig
 - Player exists in `picks` but is absent from all `available_players` payloads -> the same fallback path keeps the cell visible instead of hiding the pick
 - Reconnect `state_sync` omits already drafted players from `available_players` -> `playerCatalog` is merged rather than replaced so prior drafted-player metadata still renders
 - Team has no pick in a given round (for example after a pick-slot trade) -> the board renders an empty `<td>` for that team/round intersection without throwing
+
+## Draft Completion Banner
+
+A blocking banner rendered only after the draft reaches `status: 'completed'`. It overlays the Draft Board container instead of navigating away immediately, so the final board remains visible in the background.
+
+**Features:**
+- Triggered by the `draft_complete` SSE event after the reducer marks the draft completed
+- Displays a congratulatory heading, the user's team name, and a single `View Full History` CTA
+- Keeps the Draft Board grid visible but non-interactive beneath a translucent overlay
+- Does not expose a dismiss or close affordance; the only in-flow exit is `View Full History`
+- Leaves the existing history data in `draftState`, so clicking the CTA swaps the view shell to the already-hydrated `HistoryView`
+
+**Edge Case Probe:**
+- User team lookup fails (unexpected malformed state) -> banner falls back to `Your team`
+- `draft_complete` arrives before the first `state_sync` -> banner still renders from reducer state, even if the board has sparse metadata
+- User refreshes after completion -> `GET /drafts/:id/state` still restores `status: 'completed'`; the app may enter history directly on a fresh load because the banner is only required for the live draft-complete transition
 
 ## Pick Feed Panel
 
@@ -258,7 +278,7 @@ Deferred to issue `#16`:
 
 ## Draft History View
 
-Rendered automatically after `draft_complete` SSE event. Uses the `draftState` data accumulated during the draft via SSE events (picks, trades, rosters).
+Rendered after the user clicks `View Full History` from the draft completion banner. Uses the `draftState` data accumulated during the draft via SSE events (picks, trades, rosters).
 
 Three tabs toggled by pill buttons at the top, implemented in `src/ui/components/HistoryView.tsx`:
 

@@ -14,8 +14,17 @@ When the application loads and no draft is active, the system shall render the C
 **DFF-UI-002** `[x]` → #15
 When a draft is successfully created via POST /drafts, the system shall transition to the Drafting view.
 
-**DFF-UI-003** `[x]` → #54
-When a `draft_complete` SSE event is received, the system shall transition to the History view.
+**DFF-UI-003** `[ ]` → #81
+When a `draft_complete` SSE event is received, the system shall render a completion banner over the Draft Board without navigating away.
+
+**DFF-UI-005** `[ ]` → #81
+The draft completion banner shall display a congratulatory message, the user's team name, and a `View Full History` call to action.
+
+**DFF-UI-006** `[ ]` → #81
+When the user clicks `View Full History` from the draft completion banner, the system shall transition to the History view.
+
+**DFF-UI-007** `[ ]` → #81
+While the draft completion banner is open, the Draft Board grid shall remain visible behind it and shall not be interactive.
 
 **DFF-UI-004** `[x]` → #13
 When the user clicks "New Draft" from the History view, the system shall transition to the Config screen.

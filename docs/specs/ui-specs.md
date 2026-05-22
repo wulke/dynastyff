@@ -227,6 +227,9 @@ In column mode the Draft Board shall render `round_count` rows and `team_count` 
 **DFF-UI-091** `[x]` → #78
 In column mode the team name header row shall remain sticky at the top of the scroll container during vertical scroll.
 
+**DFF-UI-093** `[x]` → #78
+In column mode the user's team column header shall be visually distinguished with an amber tint.
+
 ---
 
 ## Position Badge Color Coding

@@ -433,6 +433,7 @@ describe('draft board UI', () => {
 
   // @spec DFF-UI-088
   // @spec DFF-UI-090
+  // @spec DFF-UI-091
   test('column mode renders rounds as rows and teams as columns with sticky team-name header row', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
@@ -464,7 +465,7 @@ describe('draft board UI', () => {
   });
 
   // @spec DFF-UI-092
-  test('position badges are color-coded by position', async () => {
+  test('position badges are color-coded by position (QB=amber, RB=blue, WR=emerald, TE=purple, PICK=yellow, RDP=yellow, other=stone)', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
@@ -552,6 +553,34 @@ describe('draft board UI', () => {
       });
     });
 
+    // Make picks for each slot
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 1,
+        team_id: 'team-1',
+        player_id: 'player-1',
+        is_bot: true,
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 2,
+        team_id: 'team-2',
+        player_id: 'player-2',
+        is_bot: true,
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 3,
+        team_id: 'team-3',
+        player_id: 'player-3',
+        is_bot: true,
+      });
+    });
+
     // Verify QB badge has amber color classes
     const qbBadge = within(screen.getByTestId('draft-slot-1')).getByText('QB');
     expect(qbBadge.className).toContain('amber');
@@ -565,6 +594,141 @@ describe('draft board UI', () => {
     // Verify WR badge has emerald color classes
     const wrBadge = within(screen.getByTestId('draft-slot-3')).getByText('WR');
     expect(wrBadge.className).toContain('emerald');
+
+    // Verify TE badge has purple color classes
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 4,
+        team_id: 'team-1',
+        player_id: 'player-4',
+        is_bot: true,
+      });
+    });
+
+    const teBadge = within(screen.getByTestId('draft-slot-4')).getByText('TE');
+    expect(teBadge.className).toContain('purple');
+  });
+
+  // @spec DFF-UI-092
+  test('position badges use yellow for PICK/RDP and stone for unknown positions', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync({
+      current_pick_number: 1,
+      available_players: [
+        {
+          id: 'player-pick',
+          name: 'Startup Pick',
+          position: 'PICK',
+          nfl_team: null,
+          age: null,
+          is_rookie: false,
+          dynasty_value: 5000,
+          adp: null,
+        },
+        {
+          id: 'player-rdp',
+          name: 'Rookie Pick',
+          position: 'RDP',
+          nfl_team: null,
+          age: null,
+          is_rookie: false,
+          dynasty_value: 4000,
+          adp: null,
+        },
+        {
+          id: 'player-unknown',
+          name: 'Unknown',
+          position: 'K',
+          nfl_team: null,
+          age: null,
+          is_rookie: false,
+          dynasty_value: 1000,
+          adp: null,
+        },
+      ],
+    });
+
+    // Pick the first two players so slots fill in
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 1,
+        team_id: 'team-1',
+        player_id: 'player-pick',
+        is_bot: true,
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 2,
+        team_id: 'team-2',
+        player_id: 'player-rdp',
+        is_bot: true,
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 3,
+        team_id: 'team-3',
+        player_id: 'player-unknown',
+        is_bot: true,
+      });
+    });
+
+    // Verify PICK badge has yellow color classes
+    const pickBadge = within(screen.getByTestId('draft-slot-1')).getByText('PICK');
+    expect(pickBadge.className).toContain('yellow');
+
+    // Verify RDP badge has yellow color classes
+    const rdpBadge = within(screen.getByTestId('draft-slot-2')).getByText('RDP');
+    expect(rdpBadge.className).toContain('yellow');
+
+    // Verify unknown position (K) badge has stone color classes
+    const unknownBadge = within(screen.getByTestId('draft-slot-3')).getByText('K');
+    expect(unknownBadge.className).toContain('stone');
+    expect(unknownBadge.className).not.toContain('amber');
+    expect(unknownBadge.className).not.toContain('blue');
+    expect(unknownBadge.className).not.toContain('emerald');
+    expect(unknownBadge.className).not.toContain('purple');
+    expect(unknownBadge.className).not.toContain('yellow');
+  });
+
+  // @spec DFF-UI-089
+  test('invalid localStorage value defaults to row mode', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    // Set localStorage to a corrupted value
+    localStorage.setItem('draftBoardLayout', 'garbage');
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitDraftState();
+
+    // Should start in row mode despite corrupted localStorage
+    expect(screen.getByRole('columnheader', { name: /team/i })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /bob/i })).toBeInTheDocument();
   });
 
   // @spec DFF-UI-020

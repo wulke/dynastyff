@@ -170,6 +170,7 @@ function persistLayout(mode: LayoutMode): void {
 // @spec DFF-UI-089
 // @spec DFF-UI-090
 // @spec DFF-UI-091
+// @spec DFF-UI-093
 function ColumnModeDraftBoard({ draftState }: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
 

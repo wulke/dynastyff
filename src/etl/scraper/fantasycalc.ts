@@ -46,7 +46,7 @@ function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, '
       continue;
     }
 
-    if (position === 'PI') {
+    if (position === 'PICK') {
       const parsedPick = parsePickAssetName(name);
 
       if (parsedPick) {

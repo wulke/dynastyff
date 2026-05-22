@@ -24,20 +24,24 @@ type ScrapedRow = {
 // @spec DFF-ETL-090
 function normalizeScrapedRows(rows: readonly ScrapedRow[]): ScraperResult {
   const players: RawPlayer[] = [];
-  const pickValues: RawPickValue[] = [];
+  const pickAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();
 
   for (const row of rows) {
     const position = row.position.toUpperCase();
 
-    if (position === 'PI') {
+    if (position === 'RDP') {
       const parsedPick = parsePickAssetName(row.name);
 
       if (parsedPick) {
-        pickValues.push({
-          year: parsedPick.year,
-          round: parsedPick.round,
-          rawValue: row.rawValue,
-        });
+        const key = `${parsedPick.year}-${parsedPick.round}`;
+        const acc = pickAccumulator.get(key);
+
+        if (acc) {
+          acc.sum += row.rawValue;
+          acc.count += 1;
+        } else {
+          pickAccumulator.set(key, { sum: row.rawValue, count: 1, year: parsedPick.year, round: parsedPick.round });
+        }
       }
 
       continue;
@@ -57,6 +61,12 @@ function normalizeScrapedRows(rows: readonly ScrapedRow[]): ScraperResult {
       adp: row.adp,
     });
   }
+
+  const pickValues: RawPickValue[] = Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({
+    year,
+    round,
+    rawValue: sum / count,
+  }));
 
   return {
     source: 'ktc',
@@ -95,7 +105,6 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
             if (
               typeof player.playerName !== 'string' ||
               typeof player.position !== 'string' ||
-              typeof player.team !== 'string' ||
               typeof player.superflexValues?.value !== 'number'
             ) {
               return [];
@@ -105,7 +114,7 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
               {
                 name: player.playerName,
                 position: player.position,
-                nflTeam: player.team,
+                nflTeam: typeof player.team === 'string' ? player.team : '',
                 age: typeof player.age === 'number' ? player.age : null,
                 isRookie: Boolean(player.rookie),
                 rawValue: player.superflexValues.value,

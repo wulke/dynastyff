@@ -289,7 +289,7 @@ test('parsePickAssetName returns year, round, and optional tier for supported pi
 });
 
 // @spec DFF-ETL-090
-test('scrapeKtcPlayers fixture path splits PI rows into pick values while filtering unsupported player positions', async () => {
+test('scrapeKtcPlayers fixture path splits RDP rows into pick values, averages tier variants, and filters unsupported positions', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'ktc.json');
 
@@ -314,28 +314,49 @@ test('scrapeKtcPlayers fixture path splits PI rows into pick values while filter
         rawValue: 999,
         adp: null,
       },
+      // Three tier variants for 2027 1st — should be averaged into one entry
       {
         name: '2027 Early 1st',
-        position: 'PI',
-        nflTeam: '',
+        position: 'RDP',
+        nflTeam: 'FA',
         age: null,
         isRookie: false,
-        rawValue: 321,
+        rawValue: 300,
         adp: null,
       },
       {
-        name: '2027 1st',
-        position: 'PI',
-        nflTeam: '',
+        name: '2027 Mid 1st',
+        position: 'RDP',
+        nflTeam: 'FA',
         age: null,
         isRookie: false,
-        rawValue: 222,
+        rawValue: 200,
         adp: null,
       },
+      {
+        name: '2027 Late 1st',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 100,
+        adp: null,
+      },
+      // Distinct year+round — should produce a separate entry
+      {
+        name: '2028 2nd',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 500,
+        adp: null,
+      },
+      // Non-matching name — should be excluded
       {
         name: 'Rookie Pick',
-        position: 'PI',
-        nflTeam: '',
+        position: 'RDP',
+        nflTeam: 'FA',
         age: null,
         isRookie: false,
         rawValue: 111,
@@ -363,16 +384,10 @@ test('scrapeKtcPlayers fixture path splits PI rows into pick values while filter
         },
       ],
       pickValues: [
-        {
-          year: 2027,
-          round: 1,
-          rawValue: 321,
-        },
-        {
-          year: 2027,
-          round: 1,
-          rawValue: 222,
-        },
+        // (300 + 200 + 100) / 3 = 200
+        { year: 2027, round: 1, rawValue: 200 },
+        // single entry, no averaging
+        { year: 2028, round: 2, rawValue: 500 },
       ],
     });
   } finally {
@@ -382,7 +397,7 @@ test('scrapeKtcPlayers fixture path splits PI rows into pick values while filter
 });
 
 // @spec DFF-ETL-090
-test('FantasyCalc API-shape fixture parsing emits PI rows as pick values', async () => {
+test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'fantasycalc-api.json');
 
@@ -403,7 +418,7 @@ test('FantasyCalc API-shape fixture parsing emits PI rows as pick values', async
         value: 789,
         player: {
           name: '2027 Early 1st',
-          position: 'PI',
+          position: 'PICK',
           team: '',
           age: null,
           rookie: false,
@@ -413,7 +428,7 @@ test('FantasyCalc API-shape fixture parsing emits PI rows as pick values', async
         value: 654,
         player: {
           name: '2027 1st',
-          position: 'PI',
+          position: 'PICK',
           team: '',
           age: null,
           rookie: false,
@@ -423,7 +438,7 @@ test('FantasyCalc API-shape fixture parsing emits PI rows as pick values', async
         value: 321,
         player: {
           name: 'Rookie Pick',
-          position: 'PI',
+          position: 'PICK',
           team: '',
           age: null,
           rookie: false,
@@ -563,6 +578,54 @@ test('extractKtcRowsFromPage serializes without tsx helper references', async ()
   });
 
   assert.equal(callbackSource.includes('__name'), false);
+});
+
+// @spec DFF-ETL-090
+test('extractKtcRowsFromPage includes RDP rows from embedded playersArray', async () => {
+  const rows = await extractKtcRowsFromPage({
+    evaluate: async <T>(pageFunction: () => T | Promise<T>) => {
+      (globalThis as Record<string, unknown>).playersArray = [
+        {
+          playerName: 'Alpha QB',
+          position: 'QB',
+          team: 'BUF',
+          age: 24,
+          rookie: false,
+          superflexValues: { value: 8000, startupAdp: 5.0 },
+        },
+        {
+          playerName: '2027 Early 1st',
+          position: 'RDP',
+          team: 'FA',
+          age: null,
+          rookie: false,
+          superflexValues: { value: 3500, startupAdp: null },
+        },
+      ];
+      return pageFunction() as T;
+    },
+  });
+
+  assert.deepEqual(rows, [
+    {
+      name: 'Alpha QB',
+      position: 'QB',
+      nflTeam: 'BUF',
+      age: 24,
+      isRookie: false,
+      rawValue: 8000,
+      adp: 5.0,
+    },
+    {
+      name: '2027 Early 1st',
+      position: 'RDP',
+      nflTeam: 'FA',
+      age: null,
+      isRookie: false,
+      rawValue: 3500,
+      adp: null,
+    },
+  ]);
 });
 
 // @spec DFF-ETL-014

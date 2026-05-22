@@ -1,3 +1,8 @@
+# @spec DFF-STATIC-050
+# @spec DFF-STATIC-051
+# @spec DFF-STATIC-052
+# @spec DFF-STATIC-053
+# @spec DFF-STATIC-054
 name: Pages
 
 on:
@@ -7,6 +12,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
 
     steps:
       - uses: actions/checkout@v4

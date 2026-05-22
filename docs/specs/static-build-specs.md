@@ -133,6 +133,9 @@ The Pages deploy workflow shall: install Node 22, run `npm ci`, run `npm run bui
 **DFF-STATIC-053** `[x]` → #57
 The Pages deploy workflow shall use the `github-pages` environment so deployments are gated and visible in the GitHub Deployments UI.
 
+**DFF-STATIC-054** `[x]` → #57
+The Pages deploy workflow's build job shall declare permissions sufficient to upload the static artifact, including `pages: write`.
+
 ---
 
 ## Component Decoupling

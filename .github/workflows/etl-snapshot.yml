@@ -1,3 +1,8 @@
+# @spec DFF-STATIC-040
+# @spec DFF-STATIC-041
+# @spec DFF-STATIC-042
+# @spec DFF-STATIC-043
+# @spec DFF-STATIC-044
 name: ETL Snapshot
 
 on:

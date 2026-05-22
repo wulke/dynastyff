@@ -42,6 +42,9 @@ test('etl-snapshot workflow is manual-only and runs the ETL plus snapshot export
 // @spec DFF-STATIC-044
 test('etl-snapshot workflow commits only snapshot diffs with the github-actions bot identity', () => {
   const workflow = readWorkflow('.github/workflows/etl-snapshot.yml');
+  const exportIndex = workflow.indexOf('run: npm run export:snapshot');
+  const diffIndex = workflow.indexOf('- id: snapshot_diff');
+  const commitGuardIndex = workflow.indexOf("if: steps.snapshot_diff.outputs.changed == 'true'");
 
   assert.match(workflow, /git diff --quiet --exit-code -- data\/snapshot\.json/);
   assert.match(workflow, /git config user\.name "github-actions\[bot\]"/);
@@ -50,6 +53,11 @@ test('etl-snapshot workflow commits only snapshot diffs with the github-actions 
   assert.match(workflow, /git commit -m "chore: refresh static snapshot"/);
   assert.match(workflow, /git push origin HEAD:\$\{\{\s*github\.ref_name\s*\}\}/);
   assert.match(workflow, /if:\s*steps\.snapshot_diff\.outputs\.changed == 'true'/);
+  assert.notEqual(exportIndex, -1);
+  assert.notEqual(diffIndex, -1);
+  assert.notEqual(commitGuardIndex, -1);
+  assert.ok(exportIndex < diffIndex);
+  assert.ok(diffIndex < commitGuardIndex);
   assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
 });
 
@@ -70,6 +78,7 @@ test('pages workflow deploys the static bundle to GitHub Pages on pushes to main
   assert.match(workflow, /actions\/upload-pages-artifact@v3/);
   assert.match(workflow, /path:\s*dist\/static\/?/);
   assert.match(workflow, /actions\/deploy-pages@v4/);
+  assert.match(workflow, /jobs:\s*\n\s*build:\s*\n\s*runs-on:\s*ubuntu-latest\s*\n\s*permissions:\s*\n\s*contents:\s*read\s*\n\s*pages:\s*write/m);
   assert.match(workflow, /pages:\s*write/);
   assert.match(workflow, /id-token:\s*write/);
   assert.match(workflow, /environment:\s*\n\s*name:\s*github-pages/);

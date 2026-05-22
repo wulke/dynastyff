@@ -173,6 +173,7 @@ type TeamSeed = {
 const defaultNow = () => new Date().toISOString();
 const defaultRandom = () => Math.random();
 const defaultIdGenerator = () => randomUUID();
+const queueRankShiftOffset = 100_000;
 
 export type DraftStateSnapshot = {
   draft_id: string;
@@ -753,49 +754,44 @@ export function upsertDraftQueueEntry({
         .get();
 
       if (existingEntry) {
-        if (rank < existingEntry.rank) {
-          const entriesToShift = tx
-            .select({ id: userQueue.id, rank: userQueue.rank })
-            .from(userQueue)
-            .where(
-              and(
-                eq(userQueue.draftId, draftId),
-                gte(userQueue.rank, rank),
-                lt(userQueue.rank, existingEntry.rank),
-              ),
-            )
-            .orderBy(desc(userQueue.rank))
-            .all();
-
-          for (const entry of entriesToShift) {
-            tx.update(userQueue)
-              .set({ rank: entry.rank + 1 })
-              .where(eq(userQueue.id, entry.id))
-              .run();
-          }
-        } else if (rank > existingEntry.rank) {
-          const entriesToShift = tx
-            .select({ id: userQueue.id, rank: userQueue.rank })
-            .from(userQueue)
-            .where(
-              and(
-                eq(userQueue.draftId, draftId),
-                gt(userQueue.rank, existingEntry.rank),
-                lte(userQueue.rank, rank),
-              ),
-            )
-            .orderBy(asc(userQueue.rank))
-            .all();
-
-          for (const entry of entriesToShift) {
-            tx.update(userQueue)
-              .set({ rank: entry.rank - 1 })
-              .where(eq(userQueue.id, entry.id))
-              .run();
-          }
-        }
-
         if (rank !== existingEntry.rank) {
+          tx.update(userQueue)
+            .set({ rank: existingEntry.rank + queueRankShiftOffset * 2 })
+            .where(eq(userQueue.id, existingEntry.id))
+            .run();
+
+          if (rank < existingEntry.rank) {
+            const entriesToShift = tx
+              .select({ id: userQueue.id, rank: userQueue.rank })
+              .from(userQueue)
+              .where(
+                and(
+                  eq(userQueue.draftId, draftId),
+                  gte(userQueue.rank, rank),
+                  lt(userQueue.rank, existingEntry.rank),
+                ),
+              )
+              .orderBy(desc(userQueue.rank))
+              .all();
+
+            shiftQueueEntryRanks(tx, entriesToShift, 1);
+          } else {
+            const entriesToShift = tx
+              .select({ id: userQueue.id, rank: userQueue.rank })
+              .from(userQueue)
+              .where(
+                and(
+                  eq(userQueue.draftId, draftId),
+                  gt(userQueue.rank, existingEntry.rank),
+                  lte(userQueue.rank, rank),
+                ),
+              )
+              .orderBy(asc(userQueue.rank))
+              .all();
+
+            shiftQueueEntryRanks(tx, entriesToShift, -1);
+          }
+
           tx.update(userQueue)
             .set({ rank })
             .where(eq(userQueue.id, existingEntry.id))
@@ -809,12 +805,7 @@ export function upsertDraftQueueEntry({
           .orderBy(desc(userQueue.rank))
           .all();
 
-        for (const entry of entriesToShift) {
-          tx.update(userQueue)
-            .set({ rank: entry.rank + 1 })
-            .where(eq(userQueue.id, entry.id))
-            .run();
-        }
+        shiftQueueEntryRanks(tx, entriesToShift, 1);
 
         tx.insert(userQueue)
           .values({
@@ -917,6 +908,26 @@ function buildTeams({
     botIndex += 1;
     return team;
   });
+}
+
+function shiftQueueEntryRanks(
+  tx: any,
+  entries: Array<{ id: string; rank: number }>,
+  delta: 1 | -1,
+): void {
+  for (const entry of entries) {
+    tx.update(userQueue)
+      .set({ rank: entry.rank + queueRankShiftOffset })
+      .where(eq(userQueue.id, entry.id))
+      .run();
+  }
+
+  for (const entry of entries) {
+    tx.update(userQueue)
+      .set({ rank: entry.rank + delta })
+      .where(eq(userQueue.id, entry.id))
+      .run();
+  }
 }
 
 function buildDraftOrder(

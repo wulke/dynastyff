@@ -926,6 +926,98 @@ test('POST /drafts/:id/queue returns 400 when rank is missing', async () => {
 });
 
 // @spec DFF-DATA-093
+test('POST /drafts/:id/queue returns 400 when playerId does not exist in the players table', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-queue-post-unknown-player-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeQueuePostRoute(databasePath, draftId, {
+      playerId: 'missing-player',
+      rank: 1,
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid queue submission: player does not exist.',
+    });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-093
+test('POST /drafts/:id/queue returns 400 when rank is invalid', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-queue-post-invalid-rank-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-queue-1', 'Queue Player 1', 'RB');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeQueuePostRoute(databasePath, draftId, {
+      playerId: 'player-queue-1',
+      rank: 0,
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid queue submission: rank must be a positive integer.',
+    });
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-091
+// @spec DFF-DATA-093
 test('POST /drafts/:id/queue returns 404 for an unknown draft id', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-queue-post-missing-draft-');
   initializeDatabase(databasePath);
@@ -939,6 +1031,155 @@ test('POST /drafts/:id/queue returns 404 for an unknown draft id', async () => {
     assert.equal(response.statusCode, 404);
     assert.deepEqual(response.json, { error: 'Draft not found.' });
   } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-093
+test('POST /drafts/:id/queue shifts existing ranks when moving an existing entry up', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-queue-post-update-up-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-queue-1', 'Queue Player 1', 'RB');
+    seedPlayer(db, 'player-queue-2', 'Queue Player 2', 'WR');
+    seedPlayer(db, 'player-queue-3', 'Queue Player 3', 'TE');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    db.prepare('INSERT INTO user_queue (id, draft_id, player_id, rank) VALUES (?, ?, ?, ?)').run(
+      'queue-row-1',
+      draftId,
+      'player-queue-1',
+      1,
+    );
+    db.prepare('INSERT INTO user_queue (id, draft_id, player_id, rank) VALUES (?, ?, ?, ?)').run(
+      'queue-row-2',
+      draftId,
+      'player-queue-2',
+      2,
+    );
+    db.prepare('INSERT INTO user_queue (id, draft_id, player_id, rank) VALUES (?, ?, ?, ?)').run(
+      'queue-row-3',
+      draftId,
+      'player-queue-3',
+      3,
+    );
+
+    const response = await invokeQueuePostRoute(databasePath, draftId, {
+      playerId: 'player-queue-3',
+      rank: 1,
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(
+      db.prepare('SELECT player_id, rank FROM user_queue WHERE draft_id = ? ORDER BY rank').all(draftId),
+      [
+        { player_id: 'player-queue-3', rank: 1 },
+        { player_id: 'player-queue-1', rank: 2 },
+        { player_id: 'player-queue-2', rank: 3 },
+      ],
+    );
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-091
+// @spec DFF-DATA-093
+test('POST /drafts/:id/queue shifts existing ranks when moving an existing entry down', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-queue-post-update-down-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedPlayer(db, 'player-queue-1', 'Queue Player 1', 'RB');
+    seedPlayer(db, 'player-queue-2', 'Queue Player 2', 'WR');
+    seedPlayer(db, 'player-queue-3', 'Queue Player 3', 'TE');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    db.prepare('INSERT INTO user_queue (id, draft_id, player_id, rank) VALUES (?, ?, ?, ?)').run(
+      'queue-row-1',
+      draftId,
+      'player-queue-1',
+      1,
+    );
+    db.prepare('INSERT INTO user_queue (id, draft_id, player_id, rank) VALUES (?, ?, ?, ?)').run(
+      'queue-row-2',
+      draftId,
+      'player-queue-2',
+      2,
+    );
+    db.prepare('INSERT INTO user_queue (id, draft_id, player_id, rank) VALUES (?, ?, ?, ?)').run(
+      'queue-row-3',
+      draftId,
+      'player-queue-3',
+      3,
+    );
+
+    const response = await invokeQueuePostRoute(databasePath, draftId, {
+      playerId: 'player-queue-1',
+      rank: 3,
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(
+      db.prepare('SELECT player_id, rank FROM user_queue WHERE draft_id = ? ORDER BY rank').all(draftId),
+      [
+        { player_id: 'player-queue-2', rank: 1 },
+        { player_id: 'player-queue-3', rank: 2 },
+        { player_id: 'player-queue-1', rank: 3 },
+      ],
+    );
+  } finally {
+    db.close();
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
   }
 });

@@ -209,8 +209,10 @@ Request body:
 Behavior:
 - Returns HTTP `404` when `draft_id` does not exist
 - Returns HTTP `400` when `playerId` is missing/blank or `rank` is missing/invalid
+- Returns HTTP `400` when `playerId` does not match any player in the database
 - Inserts a new queue row when the player is not already queued
 - Updates the existing row's `rank` when the player is already queued
+- Permits `rank` values beyond the current queue length; the queue remains ordered by ascending rank even if that leaves gaps
 
 #### DELETE /drafts/:id/queue/:player_id
 

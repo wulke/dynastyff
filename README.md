@@ -94,6 +94,11 @@ Static build commands:
 | `npm run build:static` | Build the browser-only GitHub Pages bundle into `dist/static/` |
 | `npm run export:snapshot` | Refresh `data/snapshot.json` before building or deploying the static app |
 
+Static draft runtime modules:
+
+- `src/draft/engine.ts` provides the pure in-memory draft state machine used by the browser-only build
+- `src/draft/bot.ts` provides pure bot-pick selection logic shared by the static draft flow
+
 GitHub Actions deployment:
 
 - `.github/workflows/etl-snapshot.yml` is a manual `workflow_dispatch` workflow that runs `npm run etl`, runs `npm run export:snapshot`, and commits `data/snapshot.json` back to the triggering branch only when the snapshot changed
@@ -168,6 +173,9 @@ src/
     init.ts              # SQLite schema init entry point
     schema.ts            # Shared Drizzle table definitions
   draft/
+    bot.ts               # Pure bot pick selection for the static/browser draft flow
+    engine.ts            # Pure in-memory draft engine for the static/browser draft flow
+    invariant.ts         # Shared invariant error for pure draft modules
     service.ts           # Transactional draft bootstrap, pick recording, and status updates
     stream.ts            # Draft SSE snapshot queries and in-process event fanout
   ui/

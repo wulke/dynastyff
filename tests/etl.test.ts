@@ -41,7 +41,7 @@ import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
 import { extractKtcRowsFromPage, scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
 import { scrapeRosterAudit } from '../src/etl/scraper/rosteraudit.js';
-import { waitForScraperPageReady } from '../src/etl/scraper/shared.js';
+import { parsePickAssetName, waitForScraperPageReady } from '../src/etl/scraper/shared.js';
 import type { RawPlayer, ScraperResult } from '../src/etl/types.js';
 
 function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup: () => void } {
@@ -59,6 +59,14 @@ function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup:
       db.close();
       fs.rmSync(tempDir, { recursive: true, force: true });
     },
+  };
+}
+
+function makeKtcResult(players: RawPlayer[], pickValues: ScraperResult['pickValues'] = []): ScraperResult {
+  return {
+    source: 'ktc',
+    players,
+    pickValues,
   };
 }
 
@@ -265,7 +273,35 @@ test('normalizePickValues assigns 9999 when all pick values share the same raw v
   ]);
 });
 
-test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper boundary', async () => {
+// @spec DFF-ETL-090
+test('parsePickAssetName returns year, round, and optional tier for supported pick names', () => {
+  assert.deepEqual(parsePickAssetName('2027 Early 1st'), {
+    year: 2027,
+    round: 1,
+    tier: 'early',
+  });
+  assert.deepEqual(parsePickAssetName('2027 Mid 1st'), {
+    year: 2027,
+    round: 1,
+    tier: 'mid',
+  });
+  assert.deepEqual(parsePickAssetName('2027 Late 2nd'), {
+    year: 2027,
+    round: 2,
+    tier: 'late',
+  });
+  assert.deepEqual(parsePickAssetName('2027 1st'), {
+    year: 2027,
+    round: 1,
+    tier: undefined,
+  });
+  assert.equal(parsePickAssetName('2027 5th'), null);
+  assert.equal(parsePickAssetName('Rookie Pick'), null);
+});
+
+// @spec DFF-ETL-090
+// @spec DFF-ETL-091
+test('scrapeKtcPlayers fixture path splits RDP rows into pick values, averages tier variants, and filters unsupported positions', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'ktc.json');
 
@@ -290,28 +326,224 @@ test('scrapeKtcPlayers fixture path filters unsupported positions at the scraper
         rawValue: 999,
         adp: null,
       },
+      // Three tier variants for 2027 1st — should be averaged into one entry
+      {
+        name: '2027 Early 1st',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 300,
+        adp: null,
+      },
+      {
+        name: '2027 Mid 1st',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 200,
+        adp: null,
+      },
+      {
+        name: '2027 Late 1st',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 100,
+        adp: null,
+      },
+      // Distinct year+round — should produce a separate entry
+      {
+        name: '2028 2nd',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 500,
+        adp: null,
+      },
+      // Non-matching name — should be excluded
+      {
+        name: 'Rookie Pick',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 111,
+        adp: null,
+      },
     ]),
   );
 
   process.env.DYNASTYFF_KTC_FIXTURE_PATH = fixturePath;
 
   try {
-    const players = await scrapeKtcPlayers();
+    const result = await scrapeKtcPlayers();
 
-    assert.deepEqual(players, [
-      {
-        name: 'Alpha QB',
-        position: 'QB',
-        nflTeam: 'BUF',
-        age: 24,
-        isRookie: false,
-        rawValue: 100,
-        adp: 12.5,
-      },
-    ]);
+    assert.deepEqual(result, {
+      source: 'ktc',
+      players: [
+        {
+          name: 'Alpha QB',
+          position: 'QB',
+          nflTeam: 'BUF',
+          age: 24,
+          isRookie: false,
+          rawValue: 100,
+          adp: 12.5,
+        },
+      ],
+      pickValues: [
+        // (300 + 200 + 100) / 3 = 200
+        { year: 2027, round: 1, rawValue: 200 },
+        // single entry, no averaging
+        { year: 2028, round: 2, rawValue: 500 },
+      ],
+    });
   } finally {
     delete process.env.DYNASTYFF_KTC_FIXTURE_PATH;
     fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ETL-090
+// @spec DFF-ETL-091
+test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fixturePath = path.join(tempDir, 'fantasycalc-api.json');
+
+  fs.writeFileSync(
+    fixturePath,
+    JSON.stringify([
+      {
+        value: 456,
+        player: {
+          name: 'Bravo WR',
+          position: 'WR',
+          team: 'CIN',
+          age: 23,
+          rookie: false,
+        },
+      },
+      {
+        value: 789,
+        player: {
+          name: '2027 Early 1st',
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+      {
+        value: 654,
+        player: {
+          name: '2027 1st',
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+      {
+        value: 321,
+        player: {
+          name: 'Rookie Pick',
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+    ]),
+  );
+
+  process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH = fixturePath;
+
+  try {
+    const result = await scrapeFantasyCalc();
+
+    assert.deepEqual(result, {
+      source: 'fantasycalc',
+      players: [
+        {
+          name: 'Bravo WR',
+          position: 'WR',
+          nflTeam: 'CIN',
+          age: 23,
+          isRookie: false,
+          rawValue: 456,
+          adp: null,
+        },
+      ],
+      pickValues: [
+        // (789 + 654) / 2 = 721.5 — averaged like KTC
+        {
+          year: 2027,
+          round: 1,
+          rawValue: 721.5,
+        },
+      ],
+    });
+  } finally {
+    delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ETL-090
+// @spec DFF-ETL-091
+// @spec DFF-ETL-041
+test('runEtl emits one pick snapshot per source when FantasyCalc fixture has tier and plain picks for the same (year, round)', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fc-picks-'));
+  const fcFixturePath = path.join(tempDir, 'fc-picks.json');
+
+  // Tier pick (800) and plain pick (400) for the same (2027, 1) — scraper must average to 600
+  fs.writeFileSync(
+    fcFixturePath,
+    JSON.stringify([
+      { value: 800, player: { name: '2027 Early 1st', position: 'PICK', team: '', age: null, rookie: false } },
+      { value: 400, player: { name: '2027 1st', position: 'PICK', team: '', age: null, rookie: false } },
+      { value: 456, player: { name: 'Bravo WR', position: 'WR', team: 'CIN', age: 23, rookie: false } },
+    ]),
+  );
+
+  process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH = fcFixturePath;
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () =>
+        makeKtcResult(
+          [{ name: 'Bravo WR', position: 'WR', nflTeam: 'CIN', age: 23, isRookie: false, rawValue: 1000, adp: 10 }],
+          [{ year: 2027, round: 1, rawValue: 1000 }],
+        ),
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+      now: () => '2026-05-22T10:00:00.000Z',
+    });
+
+    const pickRow = db
+      .prepare('SELECT dynasty_value FROM pick_values WHERE year = 2027 AND round = 1')
+      .get() as { dynasty_value: number };
+    const snapshots = db
+      .prepare('SELECT source, raw_value FROM pick_value_snapshots ORDER BY source, raw_value')
+      .all() as Array<{ source: string; raw_value: number }>;
+
+    assert.equal(exitCode, 0);
+    // FC averaged its two entries (800 + 400) / 2 = 600 — only one snapshot per source
+    assert.deepEqual(snapshots, [
+      { source: 'fantasycalc', raw_value: 600 },
+      { source: 'ktc', raw_value: 1000 },
+    ]);
+    // Both sources normalize independently (single-value per source → 9999 each), mean = 9999
+    assert.equal(pickRow.dynasty_value, 9999);
+  } finally {
+    delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanup();
   }
 });
 
@@ -411,6 +643,54 @@ test('extractKtcRowsFromPage serializes without tsx helper references', async ()
   assert.equal(callbackSource.includes('__name'), false);
 });
 
+// @spec DFF-ETL-090
+test('extractKtcRowsFromPage includes RDP rows from embedded playersArray', async () => {
+  const rows = await extractKtcRowsFromPage({
+    evaluate: async <T>(pageFunction: () => T | Promise<T>) => {
+      (globalThis as Record<string, unknown>).playersArray = [
+        {
+          playerName: 'Alpha QB',
+          position: 'QB',
+          team: 'BUF',
+          age: 24,
+          rookie: false,
+          superflexValues: { value: 8000, startupAdp: 5.0 },
+        },
+        {
+          playerName: '2027 Early 1st',
+          position: 'RDP',
+          team: 'FA',
+          age: null,
+          rookie: false,
+          superflexValues: { value: 3500, startupAdp: null },
+        },
+      ];
+      return pageFunction() as T;
+    },
+  });
+
+  assert.deepEqual(rows, [
+    {
+      name: 'Alpha QB',
+      position: 'QB',
+      nflTeam: 'BUF',
+      age: 24,
+      isRookie: false,
+      rawValue: 8000,
+      adp: 5.0,
+    },
+    {
+      name: '2027 Early 1st',
+      position: 'RDP',
+      nflTeam: 'FA',
+      age: null,
+      isRookie: false,
+      rawValue: 3500,
+      adp: null,
+    },
+  ]);
+});
+
 // @spec DFF-ETL-014
 test('waitForScraperPageReady warns and continues when networkidle never resolves', async () => {
   const warnings: string[] = [];
@@ -452,6 +732,7 @@ test('waitForScraperPageReady rethrows non-timeout page readiness errors', async
 
 // @spec DFF-ETL-011
 // @spec DFF-ETL-015
+// @spec DFF-ETL-090
 test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
   let activeCount = 0;
   let maxActiveCount = 0;
@@ -483,7 +764,11 @@ test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
   const results = await runScrapers({
     scrapeKtc: async () => {
       await enterScraper(40);
-      return [];
+      return {
+        source: 'ktc',
+        players: [],
+        pickValues: [{ year: 2027, round: 1, rawValue: 100 }],
+      };
     },
     scrapeFantasycalc: createSourceScraper('fantasycalc', 40),
     scrapeRosteraudit: createSourceScraper('rosteraudit', 40),
@@ -495,6 +780,9 @@ test('runScrapers caps concurrency at two simultaneous scrapers', async () => {
     results.map((result) => result.source).sort(),
     ['fantasycalc', 'ktc', 'rosteraudit'],
   );
+  assert.deepEqual(results.find((result) => result.source === 'ktc')?.pickValues, [
+    { year: 2027, round: 1, rawValue: 100 },
+  ]);
 });
 
 test('runEtl inserts KTC players with normalized dynasty values', async () => {
@@ -524,7 +812,7 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
 
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () => players as RawPlayer[],
+      scrapeKtc: async () => makeKtcResult(players),
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T20:00:00.000Z',
@@ -591,6 +879,7 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
 // @spec DFF-ETL-041
 // @spec DFF-ETL-070
 // @spec DFF-ETL-071
+// @spec DFF-ETL-090
 // @spec DFF-DATA-011
 // @spec DFF-DATA-012
 test('runEtl aggregates pick values across sources and updates existing year-round rows in place', async () => {
@@ -609,17 +898,21 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
 
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () => [
-        {
-          name: 'Alpha QB',
-          position: 'QB',
-          nflTeam: 'BUF',
-          age: 24,
-          isRookie: false,
-          rawValue: 100,
-          adp: 10,
-        },
-      ],
+      scrapeKtc: async () =>
+        makeKtcResult(
+          [
+            {
+              name: 'Alpha QB',
+              position: 'QB',
+              nflTeam: 'BUF',
+              age: 24,
+              isRookie: false,
+              rawValue: 100,
+              adp: 10,
+            },
+          ],
+          [{ year: 2027, round: 1, rawValue: 500 }],
+        ),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
         players: [],
@@ -677,7 +970,7 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
         id: 'pick-2027-1',
         year: 2027,
         round: 1,
-        dynasty_value: 5000,
+        dynasty_value: 6666,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
       {
@@ -699,6 +992,7 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
     assert.deepEqual(snapshots, [
       { source: 'fantasycalc', year: 2027, round: 1, raw_value: 100 },
       { source: 'fantasycalc', year: 2028, round: 1, raw_value: 300 },
+      { source: 'ktc', year: 2027, round: 1, raw_value: 500 },
       { source: 'rosteraudit', year: 2027, round: 1, raw_value: 600 },
       { source: 'rosteraudit', year: 2029, round: 1, raw_value: 200 },
     ]);
@@ -745,17 +1039,18 @@ test('runEtl updates an existing player matched by name and position', async () 
 
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () => [
-        {
-          name: 'Existing Player',
-          position: 'WR',
-          nflTeam: 'SEA',
-          age: 26,
-          isRookie: false,
-          rawValue: 999,
-          adp: 11.2,
-        },
-      ],
+      scrapeKtc: async () =>
+        makeKtcResult([
+          {
+            name: 'Existing Player',
+            position: 'WR',
+            nflTeam: 'SEA',
+            age: 26,
+            isRookie: false,
+            rawValue: 999,
+            adp: 11.2,
+          },
+        ]),
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T21:00:00.000Z',
@@ -806,17 +1101,18 @@ test('runEtl continues with an empty alias list when player-aliases.json is miss
   try {
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () => [
-        {
-          name: 'Alpha QB',
-          position: 'QB',
-          nflTeam: 'BUF',
-          age: 24,
-          isRookie: false,
-          rawValue: 100,
-          adp: 12.5,
-        },
-      ],
+      scrapeKtc: async () =>
+        makeKtcResult([
+          {
+            name: 'Alpha QB',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 100,
+            adp: 12.5,
+          },
+        ]),
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-20T05:00:00.000Z',
@@ -859,17 +1155,18 @@ test('runEtl fails before database writes when player-aliases.json contains malf
       () =>
         runEtl({
           databasePath: dbPath,
-          scrapeKtc: async () => [
-            {
-              name: 'Alpha QB',
-              position: 'QB',
-              nflTeam: 'BUF',
-              age: 24,
-              isRookie: false,
-              rawValue: 100,
-              adp: 12.5,
-            },
-          ],
+          scrapeKtc: async () =>
+            makeKtcResult([
+              {
+                name: 'Alpha QB',
+                position: 'QB',
+                nflTeam: 'BUF',
+                age: 24,
+                isRookie: false,
+                rawValue: 100,
+                adp: 12.5,
+              },
+            ]),
           scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
           scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
           now: () => '2026-05-20T06:00:00.000Z',
@@ -928,35 +1225,36 @@ test('runEtl matches non-KTC players by exact name, fuzzy name, and alias while 
     const exitCode = await runEtl({
       databasePath: dbPath,
       aliasesPath,
-      scrapeKtc: async () => [
-        {
-          name: 'Odell Beckham Jr.',
-          position: 'WR',
-          nflTeam: 'MIA',
-          age: 31,
-          isRookie: false,
-          rawValue: 100,
-          adp: 10,
-        },
-        {
-          name: 'Jaxon Smith-Njigba',
-          position: 'WR',
-          nflTeam: 'SEA',
-          age: 23,
-          isRookie: false,
-          rawValue: 200,
-          adp: 20,
-        },
-        {
-          name: 'Brian Thomas Jr.',
-          position: 'WR',
-          nflTeam: 'JAX',
-          age: 22,
-          isRookie: true,
-          rawValue: 300,
-          adp: 30,
-        },
-      ],
+      scrapeKtc: async () =>
+        makeKtcResult([
+          {
+            name: 'Odell Beckham Jr.',
+            position: 'WR',
+            nflTeam: 'MIA',
+            age: 31,
+            isRookie: false,
+            rawValue: 100,
+            adp: 10,
+          },
+          {
+            name: 'Jaxon Smith-Njigba',
+            position: 'WR',
+            nflTeam: 'SEA',
+            age: 23,
+            isRookie: false,
+            rawValue: 200,
+            adp: 20,
+          },
+          {
+            name: 'Brian Thomas Jr.',
+            position: 'WR',
+            nflTeam: 'JAX',
+            age: 22,
+            isRookie: true,
+            rawValue: 300,
+            adp: 30,
+          },
+        ]),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
         players: [
@@ -1103,7 +1401,7 @@ test('runEtl exits non-zero and leaves the etl run incomplete when KTC yields no
   try {
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () => [],
+      scrapeKtc: async () => makeKtcResult([]),
       scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
       scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
       now: () => '2026-05-18T22:00:00.000Z',
@@ -1142,17 +1440,18 @@ test('runEtl creates one etl_runs row and raw snapshots for each successful sour
   try {
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () => [
-        {
-          name: 'Shared Player',
-          position: 'QB',
-          nflTeam: 'BUF',
-          age: 24,
-          isRookie: false,
-          rawValue: 100,
-          adp: 10,
-        },
-      ],
+      scrapeKtc: async () =>
+        makeKtcResult([
+          {
+            name: 'Shared Player',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 100,
+            adp: 10,
+          },
+        ]),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
         players: [
@@ -1250,17 +1549,18 @@ test('runEtl rolls back one source transaction when snapshot writes fail and con
 
     const exitCode = await runEtl({
       databasePath: dbPath,
-      scrapeKtc: async () => [
-        {
-          name: 'Shared Player',
-          position: 'QB',
-          nflTeam: 'BUF',
-          age: 24,
-          isRookie: false,
-          rawValue: 100,
-          adp: 10,
-        },
-      ],
+      scrapeKtc: async () =>
+        makeKtcResult([
+          {
+            name: 'Shared Player',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 100,
+            adp: 10,
+          },
+        ]),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
         players: [
@@ -1361,17 +1661,18 @@ test('runEtl leaves etl_runs.completed_at null when final completion update neve
       () =>
         runEtl({
           databasePath: dbPath,
-          scrapeKtc: async () => [
-            {
-              name: 'Solo Player',
-              position: 'QB',
-              nflTeam: 'BUF',
-              age: 24,
-              isRookie: false,
-              rawValue: 100,
-              adp: 10,
-            },
-          ],
+          scrapeKtc: async () =>
+            makeKtcResult([
+              {
+                name: 'Solo Player',
+                position: 'QB',
+                nflTeam: 'BUF',
+                age: 24,
+                isRookie: false,
+                rawValue: 100,
+                adp: 10,
+              },
+            ]),
           scrapeFantasycalc: async () => ({ source: 'fantasycalc', players: [], pickValues: [] }),
           scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
           now: () => '2026-05-20T04:00:00.000Z',

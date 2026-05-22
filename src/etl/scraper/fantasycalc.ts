@@ -1,9 +1,10 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
+// @spec DFF-ETL-090
 import fs from 'node:fs/promises';
 
-import { loadFixtureScraperResult } from './shared.js';
+import { loadFixtureScraperResult, parsePickAssetName } from './shared.js';
 import type { RawPickValue, RawPlayer, ScraperResult, SupportedEtlPosition } from '../types.js';
 
 const FANTASYCALC_API_URL =
@@ -25,8 +26,14 @@ type FantasyCalcApiEntry = {
   };
 };
 
-function parseApiResponse(entries: FantasyCalcApiEntry[]): RawPlayer[] {
-  return entries.flatMap((entry) => {
+// @spec DFF-ETL-012
+// @spec DFF-ETL-090
+// @spec DFF-ETL-091
+function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, 'players' | 'pickValues'> {
+  const players: RawPlayer[] = [];
+  const pickAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();
+
+  for (const entry of entries) {
     const p = entry.player ?? {};
     const name = typeof p.name === 'string' ? p.name : typeof p.maybeName === 'string' ? p.maybeName : null;
     const position = typeof p.position === 'string' ? p.position.toUpperCase() : null;
@@ -37,47 +44,79 @@ function parseApiResponse(entries: FantasyCalcApiEntry[]): RawPlayer[] {
     const rawValue = typeof entry.value === 'number' ? entry.value : null;
 
     if (name === null || position === null || rawValue === null) {
-      return [];
+      continue;
+    }
+
+    if (position === 'PICK') {
+      const parsedPick = parsePickAssetName(name);
+
+      if (parsedPick) {
+        const key = `${parsedPick.year}-${parsedPick.round}`;
+        const acc = pickAccumulator.get(key);
+
+        if (acc) {
+          acc.sum += rawValue;
+          acc.count += 1;
+        } else {
+          pickAccumulator.set(key, { sum: rawValue, count: 1, year: parsedPick.year, round: parsedPick.round });
+        }
+      }
+
+      continue;
     }
 
     if (!supportedPositions.has(position as SupportedEtlPosition)) {
-      return [];
+      continue;
     }
 
-    return [
-      {
-        name: name.trim(),
-        position: position as SupportedEtlPosition,
-        nflTeam: nflTeam.trim(),
-        age,
-        isRookie: Boolean(p.rookie),
-        rawValue,
-        adp: null,
-      },
-    ];
-  });
+    players.push({
+      name: name.trim(),
+      position: position as SupportedEtlPosition,
+      nflTeam: nflTeam.trim(),
+      age,
+      isRookie: Boolean(p.rookie),
+      rawValue,
+      adp: null,
+    });
+  }
+
+  const pickValues: RawPickValue[] = Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({
+    year,
+    round,
+    rawValue: sum / count,
+  }));
+
+  return { players, pickValues };
 }
 
+// @spec DFF-ETL-010
+// @spec DFF-ETL-012
+// @spec DFF-ETL-090
 export async function scrapeFantasyCalc(): Promise<ScraperResult> {
   const fixturePath = process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
 
   if (fixturePath) {
-    const fixtureResult = await loadFixtureScraperResult(fixturePath, 'fantasycalc');
+    const rawFixture = await fs.readFile(fixturePath, 'utf8');
+    const parsed = JSON.parse(rawFixture) as
+      | FantasyCalcApiEntry[]
+      | { players?: FantasyCalcApiEntry[]; pickValues?: RawPickValue[] };
 
-    if (fixtureResult.players.length > 0 || fixtureResult.pickValues.length > 0) {
-      return fixtureResult;
+    if (!Array.isArray(parsed)) {
+      const fixtureResult = await loadFixtureScraperResult(fixturePath, 'fantasycalc');
+
+      if (fixtureResult.players.length > 0 || fixtureResult.pickValues.length > 0) {
+        return fixtureResult;
+      }
     }
 
-    const rawFixture = await fs.readFile(fixturePath, 'utf8');
-    const parsed = JSON.parse(rawFixture) as FantasyCalcApiEntry[] | { players?: FantasyCalcApiEntry[] };
     const entries = Array.isArray(parsed) ? parsed : (parsed.players ?? []);
-    const players = parseApiResponse(entries);
+    const { players, pickValues } = parseApiResponse(entries);
 
     if (players.length === 0) {
       throw new Error('fantasycalc scraper returned no supported players');
     }
 
-    return { source: 'fantasycalc', players, pickValues: [] as RawPickValue[] };
+    return { source: 'fantasycalc', players, pickValues };
   }
 
   const response = await fetch(FANTASYCALC_API_URL, {
@@ -92,11 +131,11 @@ export async function scrapeFantasyCalc(): Promise<ScraperResult> {
 
   const json = (await response.json()) as unknown;
   const entries: FantasyCalcApiEntry[] = Array.isArray(json) ? (json as FantasyCalcApiEntry[]) : [];
-  const players = parseApiResponse(entries);
+  const { players, pickValues } = parseApiResponse(entries);
 
   if (players.length === 0) {
     throw new Error('fantasycalc scraper returned no supported players');
   }
 
-  return { source: 'fantasycalc', players, pickValues: [] as RawPickValue[] };
+  return { source: 'fantasycalc', players, pickValues };
 }

@@ -1,6 +1,7 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
+// @spec DFF-ETL-090
 import fs from 'node:fs/promises';
 
 import type { Page } from 'playwright';
@@ -29,6 +30,15 @@ type FixturePayload = {
   players?: ScrapedPlayerRow[];
   pickValues?: ScrapedPickValueRow[];
 };
+
+export type ParsedPickAssetName = {
+  year: number;
+  round: number;
+  tier?: 'early' | 'mid' | 'late';
+};
+
+const pickAssetNamePattern =
+  /^(?<year>\d{4})(?:\s+(?<tier>early|mid|late))?\s+(?<round>[1-4])(st|nd|rd|th)$/i;
 
 function normalizePlayers(rows: readonly ScrapedPlayerRow[]): RawPlayer[] {
   return rows.flatMap((row) => {
@@ -85,6 +95,29 @@ export async function loadFixtureScraperResult(
     players: normalizePlayers(payload.players ?? []),
     pickValues: normalizePickValues(payload.pickValues ?? []),
   };
+}
+
+// @spec DFF-ETL-090
+export function parsePickAssetName(name: string): ParsedPickAssetName | null {
+  const match = pickAssetNamePattern.exec(name.trim());
+
+  if (!match?.groups) {
+    return null;
+  }
+
+  const year = Number(match.groups.year);
+  const round = Number(match.groups.round);
+  const tier = match.groups.tier?.toLowerCase();
+
+  if (!Number.isInteger(year) || !Number.isInteger(round)) {
+    return null;
+  }
+
+  if (tier !== undefined && tier !== 'early' && tier !== 'mid' && tier !== 'late') {
+    return null;
+  }
+
+  return { year, round, tier };
 }
 
 type ExtractedPagePayload = {

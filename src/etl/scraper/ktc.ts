@@ -1,9 +1,11 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-012
+// @spec DFF-ETL-090
 import fs from 'node:fs/promises';
 
 import type { Page } from 'playwright';
-import type { RawPlayer, SupportedEtlPosition } from '../types.js';
+import { parsePickAssetName } from './shared.js';
+import type { RawPickValue, RawPlayer, ScraperResult, SupportedEtlPosition } from '../types.js';
 
 const KTC_URL = 'https://keeptradecut.com/dynasty-rankings';
 const supportedPositions = new Set<SupportedEtlPosition>(['QB', 'RB', 'WR', 'TE']);
@@ -18,29 +20,65 @@ type ScrapedRow = {
   adp: number | null;
 };
 
-function normalizeScrapedRows(rows: readonly ScrapedRow[]): RawPlayer[] {
-  return rows.flatMap((row) => {
+// @spec DFF-ETL-012
+// @spec DFF-ETL-090
+// @spec DFF-ETL-091
+function normalizeScrapedRows(rows: readonly ScrapedRow[]): ScraperResult {
+  const players: RawPlayer[] = [];
+  const pickAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();
+
+  for (const row of rows) {
     const position = row.position.toUpperCase();
 
-    if (!supportedPositions.has(position as SupportedEtlPosition)) {
-      return [];
+    if (position === 'RDP') {
+      const parsedPick = parsePickAssetName(row.name);
+
+      if (parsedPick) {
+        const key = `${parsedPick.year}-${parsedPick.round}`;
+        const acc = pickAccumulator.get(key);
+
+        if (acc) {
+          acc.sum += row.rawValue;
+          acc.count += 1;
+        } else {
+          pickAccumulator.set(key, { sum: row.rawValue, count: 1, year: parsedPick.year, round: parsedPick.round });
+        }
+      }
+
+      continue;
     }
 
-    return [
-      {
-        name: row.name.trim(),
-        position: position as SupportedEtlPosition,
-        nflTeam: row.nflTeam.trim(),
-        age: row.age,
-        isRookie: row.isRookie,
-        rawValue: row.rawValue,
-        adp: row.adp,
-      },
-    ];
-  });
+    if (!supportedPositions.has(position as SupportedEtlPosition)) {
+      continue;
+    }
+
+    players.push({
+      name: row.name.trim(),
+      position: position as SupportedEtlPosition,
+      nflTeam: row.nflTeam.trim(),
+      age: row.age,
+      isRookie: row.isRookie,
+      rawValue: row.rawValue,
+      adp: row.adp,
+    });
+  }
+
+  const pickValues: RawPickValue[] = Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({
+    year,
+    round,
+    rawValue: sum / count,
+  }));
+
+  return {
+    source: 'ktc',
+    players,
+    pickValues,
+  };
 }
 
-async function loadFixturePlayers(fixturePath: string): Promise<RawPlayer[]> {
+// @spec DFF-ETL-012
+// @spec DFF-ETL-090
+async function loadFixturePlayers(fixturePath: string): Promise<ScraperResult> {
   const rawFixture = await fs.readFile(fixturePath, 'utf8');
   const parsed = JSON.parse(rawFixture) as ScrapedRow[];
   return normalizeScrapedRows(parsed);
@@ -68,7 +106,6 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
             if (
               typeof player.playerName !== 'string' ||
               typeof player.position !== 'string' ||
-              typeof player.team !== 'string' ||
               typeof player.superflexValues?.value !== 'number'
             ) {
               return [];
@@ -78,7 +115,7 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
               {
                 name: player.playerName,
                 position: player.position,
-                nflTeam: player.team,
+                nflTeam: typeof player.team === 'string' ? player.team : '',
                 age: typeof player.age === 'number' ? player.age : null,
                 isRookie: Boolean(player.rookie),
                 rawValue: player.superflexValues.value,
@@ -163,7 +200,10 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
   });
 }
 
-export async function scrapeKtcPlayers(): Promise<RawPlayer[]> {
+// @spec DFF-ETL-010
+// @spec DFF-ETL-012
+// @spec DFF-ETL-090
+export async function scrapeKtcPlayers(): Promise<ScraperResult> {
   const fixturePath = process.env.DYNASTYFF_KTC_FIXTURE_PATH;
 
   if (fixturePath) {
@@ -179,15 +219,15 @@ export async function scrapeKtcPlayers(): Promise<RawPlayer[]> {
     await page.waitForLoadState('networkidle', { timeout: 30_000 });
     const rows = await extractKtcRowsFromPage(page);
 
-    const players = normalizeScrapedRows(
+    const result = normalizeScrapedRows(
       rows.filter((row): row is ScrapedRow => row !== null && typeof row === 'object'),
     );
 
-    if (players.length === 0) {
+    if (result.players.length === 0) {
       throw new Error('KTC scraper returned no supported players');
     }
 
-    return players;
+    return result;
   } finally {
     await browser.close();
   }

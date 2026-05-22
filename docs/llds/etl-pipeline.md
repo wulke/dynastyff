@@ -53,6 +53,7 @@ type RawPickValue = {
 
 Scrapers throw on unrecoverable failure (site unreachable, structure changed). Partial-failure handling is added in issue #6.
 DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` source list due to scraper instability.
+KTC and FantasyCalc separate future pick assets from player rows before applying the player position allowlist. Rows with source position `RDP` (KTC) or `PICK` (FantasyCalc) are parsed from the asset name into `{ year, round, tier? }`. Both scrapers then collapse multiple rows for the same `(year, round)` — including tier variants and plain picks with `tier: undefined` — into a single averaged row with `rawValue = mean(all rawValues in that bucket)` (DFF-ETL-091). The current-state scraper output therefore emits at most one `pickValues` entry per `(year, round)`. The `tier` field is discarded at this stage and not carried into `pickValues`; sub-pick storage and per-tier normalization (DFF-ETL-092–094) remain deferred.
 
 ## Concurrency
 
@@ -70,14 +71,15 @@ The current ETL write path is source-aware and history-aware.
 DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` job due to scraper instability.
 
 1. `runScrapers()` launches KTC, FantasyCalc, and RosterAudit with a maximum concurrency of 2.
-2. `runEtl()` inserts an `etl_runs` row at the start of execution with the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and `completed_at = NULL`.
-3. Each successful source is processed in its own database transaction:
+2. KTC and FantasyCalc parse asset names like `2027 Early 1st` with the ETL pick regex, returning `{ year, round, tier? }` from the shared parser, then average any tier variants for the same `(year, round)` into a single row and emit current-state `pickValues` keyed by the extracted `(year, round)`.
+3. `runEtl()` inserts an `etl_runs` row at the start of execution with the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and `completed_at = NULL`.
+4. Each successful source is processed in its own database transaction:
    - normalize that source's player and pick values
    - write raw `player_value_snapshots` and `pick_value_snapshots`
    - update the current-state `players` table
    - recompute the current-state `pick_values` row for each touched `(year, round)` from the current run's raw pick snapshots using that run's per-source normalization contexts
-4. If any write fails inside a source transaction, the full source transaction is rolled back and excluded from `sources_succeeded`.
-5. After all source transactions finish, `runEtl()` updates the `etl_runs` row with `completed_at` and the final `sources_succeeded` list.
+5. If any write fails inside a source transaction, the full source transaction is rolled back and excluded from `sources_succeeded`.
+6. After all source transactions finish, `runEtl()` updates the `etl_runs` row with `completed_at` and the final `sources_succeeded` list.
 
 ## Player Matching
 
@@ -137,6 +139,8 @@ Partial-failure handling is specified for issue #6 and has not been implemented 
 - Missing `etl_runs` table -> print a `npm run db:init` guidance error and exit with code 1 before attempting any ETL writes
 - Playwright page never reaches `networkidle` -> warn and continue scraping the currently loaded DOM
 - KTC returns no supported players -> exit before any source writes; leave the `etl_runs` row incomplete so draft pinning ignores it
+- KTC or FantasyCalc returns an `RDP`/`PICK` row whose name matches `YYYY [tier] Nth` -> store it as a pick value row for the extracted `(year, round)` pair instead of dropping it as an unsupported player position
+- KTC or FantasyCalc returns an `RDP`/`PICK` row whose name does not match the ETL pick regex -> treat it as a non-pick asset and exclude it from `pickValues`
 - DynastyDaddy runtime instability -> keep the scraper module in the codebase, but exclude it from the live `npm run etl` source list until re-enabled
 
 ## Upsert

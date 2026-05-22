@@ -111,6 +111,7 @@ describe('static in-browser draft flow', () => {
   // @spec DFF-STATIC-070
   // @spec DFF-STATIC-071
   // @spec DFF-STATIC-072
+  // @spec DFF-STATIC-036
   test('completes config to history in-browser and renders completed drafts in reverse chronological order', async () => {
     const originalCrypto = globalThis.crypto;
     let nextId = 0;

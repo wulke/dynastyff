@@ -38,6 +38,25 @@ function buildDraftState(
   snapshot: Snapshot,
   completedAt: string | null,
 ): DraftState {
+  const syncedPlayers = availablePlayers(engineState, snapshot.players);
+  // Build player catalog from all snapshot players so drafted players
+  // remain renderable in the history view by their player metadata.
+  const playerCatalog = Object.fromEntries(
+    snapshot.players.map((player) => [
+      player.id,
+      {
+        id: player.id,
+        name: player.name,
+        position: player.position,
+        nflTeam: player.nflTeam,
+        age: player.age,
+        isRookie: player.isRookie,
+        dynastyValue: player.dynastyValue,
+        adp: player.adp,
+      },
+    ]),
+  );
+
   return {
     draftId: engineState.draftId,
     status: engineState.status,
@@ -48,7 +67,17 @@ function buildDraftState(
     rosterPlayers: engineState.rosterPlayers,
     teamPickAssets: engineState.teamPickAssets,
     userQueue: engineState.userQueue,
-    availablePlayers: availablePlayers(engineState, snapshot.players),
+    playerCatalog,
+    availablePlayers: syncedPlayers.map((player) => ({
+      id: player.id,
+      name: player.name,
+      position: player.position,
+      nflTeam: player.nflTeam,
+      age: player.age,
+      isRookie: player.isRookie,
+      dynastyValue: player.dynastyValue,
+      adp: player.adp,
+    })),
     trades: [],
     pendingTrade: null,
     sseStatus: 'connected',

@@ -95,6 +95,7 @@ export type DraftState = {
   currentPickNumber: number | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
+  playerCatalog: Record<string, AvailablePlayer>;
   picks: PickRecord[];
   rosterPlayers: RosterPlayerRecord[];
   teamPickAssets: TeamPickAsset[];
@@ -252,6 +253,7 @@ function createEmptyDraftState(draftId: string): DraftState {
     currentPickNumber: null,
     teams: [],
     draftOrder: [],
+    playerCatalog: {},
     picks: [],
     rosterPlayers: [],
     teamPickAssets: [],
@@ -268,6 +270,22 @@ function createEmptyDraftState(draftId: string): DraftState {
 // @spec DFF-STATIC-062
 // @spec DFF-UI-071
 function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftState | null): DraftState {
+  const syncedPlayers = payload.available_players.map((player) => ({
+    id: player.id,
+    name: player.name,
+    position: player.position,
+    nflTeam: player.nfl_team,
+    age: player.age,
+    isRookie: player.is_rookie,
+    dynastyValue: player.dynasty_value,
+    adp: player.adp,
+  }));
+
+  const playerCatalog = {
+    ...(existingState?.playerCatalog ?? {}),
+    ...Object.fromEntries(syncedPlayers.map((player) => [player.id, player])),
+  };
+
   return {
     draftId: payload.draft_id,
     status: payload.status,
@@ -284,6 +302,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
       pickInRound: slot.pick_in_round,
       teamId: slot.team_id,
     })),
+    playerCatalog,
     picks: payload.picks.map((pick) => ({
       pickNumber: pick.pick_number,
       teamId: pick.team_id,
@@ -303,16 +322,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
       playerId: entry.player_id,
       rank: entry.rank,
     })),
-    availablePlayers: payload.available_players.map((player) => ({
-      id: player.id,
-      name: player.name,
-      position: player.position,
-      nflTeam: player.nfl_team,
-      age: player.age,
-      isRookie: player.is_rookie,
-      dynastyValue: player.dynasty_value,
-      adp: player.adp,
-    })),
+    availablePlayers: syncedPlayers,
     trades: existingState?.trades ?? [],
     pendingTrade: existingState?.pendingTrade ?? null,
     sseStatus: existingState?.sseStatus ?? 'connected',
@@ -373,6 +383,14 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         draftState: {
           ...state.draftState,
           currentPickNumber: action.payload.pick_number + 1,
+          playerCatalog: {
+            ...state.draftState.playerCatalog,
+            ...Object.fromEntries(
+              state.draftState.availablePlayers
+                .filter((player) => player.id === action.payload.player_id)
+                .map((player) => [player.id, player]),
+            ),
+          },
           picks: nextPicks,
           rosterPlayers: [
             ...state.draftState.rosterPlayers,

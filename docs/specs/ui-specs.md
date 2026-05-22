@@ -46,25 +46,25 @@ If POST /drafts returns an error, the system shall display an error toast and re
 
 ## Draft Board
 
-**DFF-UI-020** `[ ]` → #17
+**DFF-UI-020** `[x]` → #17
 The Draft Board shall render a grid of `round_count` columns by `team_count` rows, with round numbers in the header row and team names in the left column.
 
-**DFF-UI-021** `[ ]` → #17
+**DFF-UI-021** `[x]` → #17
 The Draft Board shall display picks in snake order: odd rounds fill left-to-right; even rounds fill right-to-left.
 
-**DFF-UI-022** `[ ]` → #17
+**DFF-UI-022** `[x]` → #17
 Each filled cell shall display the player name, a position badge, and the drafting team name.
 
-**DFF-UI-023** `[ ]` → #17
+**DFF-UI-023** `[x]` → #17
 The user's team row shall be visually distinguished from bot rows with a distinct background.
 
-**DFF-UI-024** `[ ]` → #17
+**DFF-UI-024** `[x]` → #17
 While a bot pick is in progress, the current pick slot shall display a pulsing skeleton animation.
 
-**DFF-UI-025** `[ ]` → #17
+**DFF-UI-025** `[x]` → #17
 When a `pick_made` SSE event is received, the corresponding grid cell shall update immediately without requiring a re-fetch.
 
-**DFF-UI-026** `[ ]` → #17
+**DFF-UI-026** `[x]` → #17
 The Draft Board shall scroll horizontally to accommodate rounds beyond the initial viewport.
 
 ---

@@ -48,6 +48,7 @@ type RawPickValue = {
   year: number;
   round: number;
   rawValue: number;
+  pickInRound?: number;  // >= 1 for exact startup slots; absent/0 for round-level future picks
 };
 ```
 
@@ -111,6 +112,18 @@ Cross-source player matching is implemented during ETL startup before non-KTC so
 If `player-aliases.json` is absent at ETL startup, ETL continues with an empty alias list and logs a warning.
 If `player-aliases.json` exists but contains malformed JSON, ETL fails before any database writes with a clear configuration error.
 
+## Startup Pick Parsing
+
+KTC and RosterAudit publish startup draft pick values using the naming format `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`). A new `parseStartupPickName` function (in `shared.ts`) extracts `round` and `pick_in_round` from this format:
+
+```
+Regex: /^startup\s+(?<round>\d+)\.(?<pickInRound>\d+)$/i
+```
+
+Rows matching this pattern are emitted as `RawPickValue` entries with `year = current calendar year`, `round`, `pick_in_round`, and `rawValue`. They are not averaged across tier variants (startup slots have no tier concept) and do not go through the existing `parsePickAssetName` future-pick path.
+
+FantasyCalc's startup pick naming format is to be determined by inspecting the live source at implementation time. Once identified, the same `parseStartupPickName` regex or an equivalent shall be applied.
+
 ## Normalization
 
 Each source is normalized independently using min-max scaling:
@@ -141,6 +154,8 @@ Partial-failure handling is specified for issue #6 and has not been implemented 
 - KTC returns no supported players -> exit before any source writes; leave the `etl_runs` row incomplete so draft pinning ignores it
 - KTC or FantasyCalc returns an `RDP`/`PICK` row whose name matches `YYYY [tier] Nth` -> store it as a pick value row for the extracted `(year, round)` pair instead of dropping it as an unsupported player position
 - KTC or FantasyCalc returns an `RDP`/`PICK` row whose name does not match the ETL pick regex -> treat it as a non-pick asset and exclude it from `pickValues`
+- KTC or RosterAudit returns a row beginning with `"Startup"` whose name does not match `Startup R.PP` -> log a warning and exclude from `pickValues`; do not treat as a player row
+- ETL run contains no startup pick rows for the current year -> continue normally; log a warning so operators know to re-run ETL before starting a draft
 - DynastyDaddy runtime instability -> keep the scraper module in the codebase, but exclude it from the live `npm run etl` source list until re-enabled
 
 ## Upsert
@@ -156,9 +171,11 @@ All writes use Drizzle ORM against the shared SQLite database.
 - On unmatched non-KTC row: log a warning and exclude that player's value from the hot `players` table for the run.
 
 **Pick values:**
-- Existing row matching uses `(year, round)`.
-- On match: recompute `dynasty_value` as the rounded mean of all normalized current-run source values for that `(year, round)`, then update `updated_at`.
+- Existing row matching uses `(year, round, pick_in_round)`. Future picks use `pick_in_round = 0`; startup picks use `pick_in_round >= 1`.
+- On match: recompute `dynasty_value` as the rounded mean of all normalized current-run source values for that `(year, round, pick_in_round)`, then update `updated_at`.
 - On miss: insert a new row with a generated UUID, the aggregated `dynasty_value`, and `updated_at`.
+- Startup pick values (parsed from `"Startup R.PP"` names) are assigned `year = current calendar year` at ETL run time and stored in the canonical 12-team reference frame (i.e. `round` and `pick_in_round` reflect a 12-team league exactly as published by the source).
+- Startup and future pick rows are normalized in the same per-source min-max pool; all pick rows for a source are scaled together on 0–9999 in a single pass.
 
 ## File Layout
 

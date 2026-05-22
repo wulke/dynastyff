@@ -104,15 +104,20 @@ Tracks which future pick assets each team currently owns. All teams start with i
 | round | INTEGER | 1-based round within that year |
 
 ### `pick_values`
-Dynasty values for future pick assets, populated by the ETL pipeline alongside player values. Keyed by year and round — no draft-specific data.
+Dynasty values for pick assets (both future and startup), populated by the ETL pipeline alongside player values. Keyed by `(year, round, pick_in_round)` — no draft-specific data.
+
+`pick_in_round = 0` is a sentinel meaning "round-level value, no specific slot assigned" — used for future pick assets whose exact slot is unknown. Values with `pick_in_round >= 1` represent exact startup draft slots in a canonical 12-team reference frame.
 
 | Column | Type | Notes |
 |---|---|---|
 | id | TEXT (UUID) | Primary key |
-| year | INTEGER | e.g. 2026, 2027, 2028 |
+| year | INTEGER | e.g. 2026, 2027, 2028; startup picks use current calendar year |
 | round | INTEGER | 1-based round |
+| pick_in_round | INTEGER | 1-based slot within the round; `0` = round-level future pick sentinel |
 | dynasty_value | INTEGER | Rounded mean of all non-NULL current-run per-source normalized pick values (0–9999) |
 | updated_at | TEXT (ISO8601) | Last ETL refresh timestamp |
+
+Unique constraint: `(year, round, pick_in_round)`.
 
 ### `trades`
 One row per executed (or declined) trade. Assets are recorded as JSON arrays for flexibility across trade types.
@@ -148,6 +153,8 @@ One row per executed (or declined) trade. Assets are recorded as JSON arrays for
 | Persistence timing | Every pick written immediately | Flush on completion | Continuous writes give full history even if the session is abandoned; no resume required but history is preserved |
 | Roster config storage | JSON blob in `drafts` | Separate `roster_slots` table | Roster config is read as a whole and never queried into; JSON blob avoids unnecessary normalization |
 | Pick slot mutability | `draft_order.team_id` updated in place | Separate swap log | The current owner of a slot is the authoritative fact; swap history is captured in `trades` |
+| Startup pick value storage | Extend `pick_values` with `pick_in_round`; sentinel `0` for round-level future picks | Separate `startup_pick_values` table | Future picks will eventually gain `pick_in_round` values when draft order is assigned; a unified table avoids a schema split for what is the same entity at different information levels |
+| Startup pick reference frame | Store 12-team canonical values in DB; derive draft-specific map at creation time | Store per-team-count values or global pick number | Keeps raw ETL data source-faithful (KTC publishes 12-team slots); the conversion is pure arithmetic and happens once per draft, not per lookup |
 | Denormalized columns in `picks` | `round` and `pick_number` copied | Always join to `draft_order` | Pick history queries are frequent and read-heavy; denormalizing avoids joins on the hot path |
 | Trade asset format | Polymorphic JSON array | Separate columns per asset type | Trades can mix asset types (pick slot + future pick + player); JSON handles arbitrary combinations cleanly |
 | UUIDs as PKs | TEXT UUID | Auto-increment INTEGER | Easier to generate client-side and reference across the SSE event stream without a round-trip |

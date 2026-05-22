@@ -109,7 +109,23 @@ Draft creation is a single transactional bootstrap that writes the base `drafts`
 4. Assign every bot team a predefined generic name and one valid archetype
 5. Generate `draft_order` rows for every round in snake order
 6. Generate `team_pick_assets` rows for every team across the configured future `(year, round)` matrix
-7. Commit only if all derived rows were written successfully
+7. Load startup pick values from `pick_values` (current year, `pick_in_round >= 1`) from the pinned ETL snapshot and derive the `startupPickValues` map (see below)
+8. Commit only if all derived rows were written successfully
+
+### Startup Pick Values Map
+
+At draft creation, the engine derives a `startupPickValues: Map<number, number>` (global pick number → dynasty value) for the specific draft's team count. The source data is stored in a canonical 12-team reference frame; the conversion is:
+
+```
+// For each slot in draft_order:
+sourceGlobal    = (round - 1) * teamCount + pickInRound
+ktc_round       = Math.ceil(sourceGlobal / 12)
+ktc_pickInRound = ((sourceGlobal - 1) % 12) + 1
+dynastyValue    = pick_values.get(currentYear, ktc_round, ktc_pickInRound)
+                  ?? pick_values.getLastPublished()  // clamp if sourceGlobal exceeds coverage
+```
+
+The resulting map is stored on `InMemoryDraftState.startupPickValues` and is not recomputed mid-draft. If no startup pick values exist in the ETL snapshot for the current year, the map is empty and bot trade evaluation treats all startup pick slots as having `dynasty_value = 0`.
 
 If any team, draft-order, or pick-asset write fails, the transaction is rolled back so no partial draft remains in SQLite.
 
@@ -237,7 +253,7 @@ When a bot initiates a trade (see bot-simulator LLD for initiation logic):
 1. Draft engine pauses the bot chain
 2. Emits `trade_offered` SSE event with `is_bot_to_bot` flag
 3. Waits for `POST /trade-response`
-4. On `accepted`: transfers assets (mutates `draft_order` rows, transfers `team_pick_assets` rows, moves drafted players between teams if applicable), writes `trades` record with status `accepted`
+4. On `accepted`: transfers assets (mutates `draft_order` rows, transfers `team_pick_assets` rows, moves drafted players between teams if applicable), writes `trades` record with status `accepted`. Startup pick slot dynasty values for the trade display are resolved from `InMemoryDraftState.startupPickValues` by global pick number.
 5. On `declined` or `force_declined`: writes `trades` record with appropriate status, resumes bot chain
 6. Resumes the bot chain after any resolution
 

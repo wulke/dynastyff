@@ -191,6 +191,7 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
       return;
     }
 
+    // @spec DFF-ENGINE-021
     if (error instanceof PickSubmissionValidationError) {
       response.status(400).json({ error: error.message });
       return;

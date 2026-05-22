@@ -95,7 +95,7 @@ async function invokeRoute({
   params,
 }: {
   route: RequestHandler;
-  body?: Record<string, unknown>;
+  body?: unknown;
   params?: Record<string, string>;
 }): Promise<{
   statusCode: number;
@@ -152,7 +152,7 @@ async function invokeDraftRoute(databasePath: string, body: Record<string, unkno
 async function invokePickRoute(
   databasePath: string,
   draftId: string,
-  body: Record<string, unknown>,
+  body: unknown,
 ) {
   return invokeRoute({
     route: createDraftPickRoute({ databasePath }),
@@ -375,6 +375,10 @@ test('POST /drafts/:id/pick returns 200 and records the user pick for a valid pl
       player_id: 'player-valid',
       pick_number: 1,
     });
+    assert.deepEqual(readDraftMutationCounts(databasePath, draftId), {
+      picks: 1,
+      rosterPlayers: 1,
+    });
   } finally {
     db.close();
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
@@ -521,6 +525,94 @@ test('POST /drafts/:id/pick returns 400 when playerId is missing from the reques
 
 // @spec DFF-ENGINE-020
 // @spec DFF-ENGINE-021
+test('POST /drafts/:id/pick returns 400 when the request body is not a JSON object', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-pick-non-object-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const countsBefore = readDraftMutationCounts(databasePath, draftId);
+
+    const response = await invokePickRoute(databasePath, draftId, []);
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid pick submission: request body must be a JSON object.',
+    });
+    assert.deepEqual(readDraftMutationCounts(databasePath, draftId), countsBefore);
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
+test('POST /drafts/:id/pick returns 400 when playerId is blank', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-pick-blank-id-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const countsBefore = readDraftMutationCounts(databasePath, draftId);
+
+    const response = await invokePickRoute(databasePath, draftId, {
+      playerId: '   ',
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid pick submission: playerId is required.',
+    });
+    assert.deepEqual(readDraftMutationCounts(databasePath, draftId), countsBefore);
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
 test('POST /drafts/:id/pick returns 400 and leaves draft state unchanged when the player has already been picked', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-pick-picked-');
   initializeDatabase(databasePath);
@@ -583,6 +675,26 @@ test('POST /drafts/:id/pick returns 400 and leaves draft state unchanged when th
     assert.deepEqual(readDraftMutationCounts(databasePath, draftId), countsBefore);
   } finally {
     db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-020
+// @spec DFF-ENGINE-021
+test('POST /drafts/:id/pick returns 404 when the draft does not exist', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-pick-missing-draft-');
+  initializeDatabase(databasePath);
+
+  try {
+    const response = await invokePickRoute(databasePath, 'missing-draft-id', {
+      playerId: 'player-valid',
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(response.json, {
+      error: 'Draft not found.',
+    });
+  } finally {
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
   }
 });

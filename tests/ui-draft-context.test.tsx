@@ -188,10 +188,12 @@ describe('HTTP draft context', () => {
     expect(screen.getByText(/connecting…/i)).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-003
+  // @spec DFF-UI-006
   // @spec DFF-UI-071
   // @spec DFF-UI-073
   // @spec DFF-UI-074
-  test('dispatches SSE events into the app and transitions to history on draft_complete', async () => {
+  test('dispatches draft_complete into the app, closes the stream, and waits for the user to open history', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-stream-123' }), {
@@ -214,8 +216,14 @@ describe('HTTP draft context', () => {
         draft_id: 'draft-stream-123',
         status: 'in_progress',
         current_pick_number: 1,
-        teams: [],
-        draft_order: [],
+        teams: [
+          { id: 'team-1', name: 'Bot Alpha', is_user: false, archetype: 'win_now' },
+          { id: 'team-2', name: 'River City Rebuild', is_user: true, archetype: null },
+        ],
+        draft_order: [
+          { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+          { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        ],
         picks: [],
         roster_players: [],
         team_pick_assets: [],
@@ -235,10 +243,19 @@ describe('HTTP draft context', () => {
 
     expect(
       await screen.findByRole('heading', {
+        name: /you finished the draft/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
+    expect(stream?.closed).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
+
+    expect(
+      await screen.findByRole('heading', {
         name: /draft summary/i,
       }),
     ).toBeInTheDocument();
-    expect(stream?.closed).toBe(true);
   });
 
   // @spec DFF-UI-070

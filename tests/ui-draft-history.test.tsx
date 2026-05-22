@@ -186,6 +186,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // @spec DFF-UI-060 - three tab pills
     expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
@@ -212,6 +213,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // The Pick Log tab should be visible by default
     const pickLogTab = screen.getByRole('tab', { name: /pick log/i });
@@ -261,6 +263,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Switch to Roster View tab
     await user.click(screen.getByRole('tab', { name: /roster view/i }));
@@ -318,6 +321,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Switch to Trade Log tab
     await user.click(screen.getByRole('tab', { name: /trade log/i }));
@@ -360,6 +364,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Click New Draft button
     await user.click(screen.getByRole('button', { name: /new draft/i }));
@@ -385,6 +390,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Pick Log tabpanel should be visible by default
     expect(screen.getByRole('tabpanel', { name: /pick log/i })).toBeInTheDocument();
@@ -433,6 +439,8 @@ describe('draft history view', () => {
         completed_at: '2026-05-22T19:00:00.000Z',
       });
     });
+
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Pick Log — empty state
     expect(screen.getByText('No picks recorded for this draft.')).toBeInTheDocument();

@@ -8,16 +8,16 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ## Build Target
 
-**DFF-STATIC-001** `[ ]`
+**DFF-STATIC-001** `[x]` → #55
 The system shall expose an `npm run build:static` command that runs `vite build --config src/ui-static/vite.config.ts` and outputs the compiled assets to `dist/static/`.
 
-**DFF-STATIC-002** `[ ]`
+**DFF-STATIC-002** `[x]` → #55
 The static Vite config shall set `base` to `/dynastyff/` so all asset URLs resolve correctly under the GitHub Pages subpath.
 
-**DFF-STATIC-003** `[ ]`
+**DFF-STATIC-003** `[x]` → #55
 The static build shall include no server-side imports (`express`, `better-sqlite3`, `drizzle-orm`, `node:crypto`) and shall fail the build if any are present.
 
-**DFF-STATIC-004** `[ ]`
+**DFF-STATIC-004** `[x]` → #55
 The static build shall exclude the advisor agent — no Anthropic SDK imports, no advisor UI components, and no API key configuration.
 
 ---
@@ -33,16 +33,16 @@ The exported `snapshot.json` shall conform to the following shape: `{ exportedAt
 **DFF-STATIC-012** `[x]`
 When the export script is run against an empty or missing `players` table, or when the local SQLite database file is absent, the system shall exit with code 1 and print an error instructing the user to run `npm run etl` first.
 
-**DFF-STATIC-013** `[ ]`
+**DFF-STATIC-013** `[x]` → #55
 When the static application loads, it shall fetch `./data/snapshot.json` before rendering any draft configuration UI.
 
-**DFF-STATIC-014** `[ ]`
+**DFF-STATIC-014** `[x]` → #55
 If the `snapshot.json` fetch fails or returns a non-OK HTTP status, the system shall display a full-screen error message and prevent draft creation.
 
-**DFF-STATIC-015** `[ ]`
+**DFF-STATIC-015** `[x]` → #55
 If `snapshot.json` parses successfully but contains zero players, the system shall display a full-screen error message and prevent draft creation.
 
-**DFF-STATIC-016** `[ ]`
+**DFF-STATIC-016** `[x]` → #55
 If `snapshot.json` was exported more than 30 days before the current date (as determined by `exportedAt`), the system shall display a dismissible banner warning the user that player data may be stale.
 
 ---

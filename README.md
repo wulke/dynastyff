@@ -87,6 +87,13 @@ Current UI commands:
 | `npm run preview` | Preview the built Vite UI bundle locally |
 | `npm run test:ui` | Run the UI tests for config submission, draft context, and SSE lifecycle transitions |
 
+Static build commands:
+
+| Command | Purpose |
+|---|---|
+| `npm run build:static` | Build the browser-only GitHub Pages bundle into `dist/static/` |
+| `npm run export:snapshot` | Refresh `data/snapshot.json` before building or deploying the static app |
+
 Current draft API surface:
 
 | Route | Purpose |

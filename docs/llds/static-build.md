@@ -167,7 +167,7 @@ Source-specific value columns (`value_ktc`, `value_fantasycalc`, etc.) are omitt
 
 ### Loading in the static app
 
-`src/ui-static/App.tsx` issues a single `fetch` call to `./data/snapshot.json` (relative to the page base) at app mount, before any draft config is displayed. The snapshot is held in React state and passed to the `InMemoryDraftContext` when a draft is created. If the fetch fails, a full-screen error is shown and the app is unusable — there is no draft without data.
+`src/ui-static/App.tsx` issues a single `fetch` call to `./data/snapshot.json` (relative to the page base) at app mount, before any draft config is displayed. The static Vite build copies the repository snapshot file into `dist/static/data/snapshot.json`, so the browser fetch resolves without a server. The snapshot is held in React state and passed to the `InMemoryDraftContext` when a draft is created. If the fetch fails, a full-screen error is shown and the app is unusable — there is no draft without data.
 
 ## GitHub Actions Workflows
 

@@ -143,8 +143,7 @@ describe('static snapshot app', () => {
   // @spec DFF-STATIC-013
   // @spec DFF-STATIC-016
   test('shows a dismissible stale-data banner when exportedAt is more than 30 days old', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-05-22T12:00:00.000Z'));
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-05-22T12:00:00.000Z').valueOf());
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -183,9 +182,7 @@ describe('static snapshot app', () => {
       }),
     ).toBeInTheDocument();
 
-    await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(
-      screen.getByRole('button', { name: /dismiss stale data warning/i }),
-    );
+    await userEvent.setup().click(screen.getByRole('button', { name: /dismiss stale data warning/i }));
 
     await waitFor(() => {
       expect(screen.queryByText(/player data is over 30 days old/i)).not.toBeInTheDocument();

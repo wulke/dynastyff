@@ -80,6 +80,7 @@ Route behavior:
 - `rosterSlots.BN` is mapped to the service-layer `rosterConfig.bench` field
 - `pickPosition` is mapped to `userPickPosition`
 - `futurePickRounds` is derived from `rounds` so each future year starts with one pick asset per round in the configured startup draft
+- After the draft is created, the route immediately triggers the per-draft bot-chain coordinator; if the first open slot belongs to a bot, the draft begins advancing before any user pick is submitted
 - Invalid JSON, missing required fields, wrong types, or out-of-range values return HTTP `400` and do not create a draft
 
 ## SSE Event Types

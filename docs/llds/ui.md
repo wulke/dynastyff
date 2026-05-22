@@ -52,13 +52,13 @@ Issue `#13` establishes the initial frontend shell under `/src/ui`, issue `#15` 
 - Tailwind CSS provides the shell styling and layout primitives
 - A Radix UI primitive is wired into the shared shell so the initial scaffold proves the dependency path works before later feature slices add dialogs, tabs, and other interactive primitives
 
-At this stage, the config view is functional and the drafting/history views are still intentionally light shells:
+At this stage, the config view is functional, the drafting view now renders the live draft board, and the history view remains a light shell:
 
 - Config screen: league settings form + `Start Draft` calls `startDraft()` on `HttpDraftContext`
-- Draft shell: renders the current `draftId` plus an SSE status badge while `useDraftStream` connects and hydrates
+- Draft board: renders immediately after draft creation, keeps the live SSE status badge, and hydrates the grid in place from `state_sync` / `pick_made` events
 - History shell: becomes visible only after a `draft_complete` SSE event and exposes `New Draft`
 
-The drafting and history shells remain intentionally light until subsequent issues replace them with the full board, player list, advisor, and history views, but draft creation and completion transitions are driven through the shared context and SSE stream.
+The player list, advisor panel, trade modal, and full history views remain deferred to later issues, but draft creation, live board updates, and draft completion transitions are now driven through the shared context and SSE stream.
 
 ## Component Hierarchy
 
@@ -93,6 +93,7 @@ type DraftState = {
   currentPickNumber: number | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
+  playerCatalog: Record<string, AvailablePlayer>;
   picks: PickRecord[];
   rosterPlayers: RosterPlayerRecord[];
   teamPickAssets: TeamPickAsset[];
@@ -119,17 +120,23 @@ type DraftState = {
 | `SSE_STATUS` | `useDraftStream` hook |
 ## Draft Board Grid
 
-Rounds are columns; teams are rows. The grid is fixed at draft creation (`round_count × team_count` cells). Cells fill in as `pick_made` events arrive.
+Rounds are columns; teams are rows. The grid is fixed at draft creation (`round_count × team_count` cells). Cells fill in as `pick_made` events arrive, using a persistent in-memory player catalog so the board can keep rendering drafted player metadata after each player is removed from `availablePlayers`.
 
 **Cell states:**
-- Empty (future pick): faint border, no content
-- Bot pick: player name, position badge, team name, positional color
-- User pick: same as bot pick, highlighted border
+- Empty (future pick): faint border, waiting state copy
+- Filled pick: player name, position badge, drafting team name, and NFL team when available
 - Current pick (bot in progress): pulsing skeleton
+- Current pick (user turn): same waiting state copy as other unfilled future slots; no skeleton
 
-The grid scrolls horizontally for rounds beyond the viewport. The user's row is pinned visually (distinct background) so it stays scannable across all rounds.
+The grid scrolls horizontally for rounds beyond the viewport. The user's row is visually highlighted with a distinct background, and the team-name column remains sticky so the row stays scannable across all rounds.
 
 Pick position in a round is derived from the snake order: odd rounds left-to-right, even rounds right-to-left. The header row shows round numbers; the left column shows team names.
+
+**Edge Case Probe:**
+- `pick_made` arrives before the first `state_sync` (empty catalog) -> `getDraftedPlayerSummary` falls back to the raw `playerId` as the name and `NA` as the position badge so the cell degrades without crashing
+- Player exists in `picks` but is absent from all `available_players` payloads -> the same fallback path keeps the cell visible instead of hiding the pick
+- Reconnect `state_sync` omits already drafted players from `available_players` -> `playerCatalog` is merged rather than replaced so prior drafted-player metadata still renders
+- Team has no pick in a given round (for example after a pick-slot trade) -> the board renders an empty `<td>` for that team/round intersection without throwing
 
 ## Available Players List
 

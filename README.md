@@ -46,6 +46,7 @@ Open the Vite URL shown in the terminal to begin.
 1. **Configure your league** — set team count, roster slots, scoring, and your draft position on the config screen.
 2. **Start a mock draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically.
    - On the API-backed draft flow, bot turns continue server-side after every successful user pick with a randomized `3–5s` delay between bot selections.
+   - If your league settings place a bot on the opening slot, the server now auto-starts those opening bot turns immediately after draft creation so the board advances to your first turn without extra input.
 3. **Use the advisor (optional)** — on any pick, choose:
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.
@@ -67,16 +68,19 @@ The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs
 
 ## UI Scaffold
 
-Issues `#13`, `#15`, and `#54` establish the current frontend shell under `/src/ui`:
+Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under `/src/ui`:
 
 - `Config Screen` renders on first load as a real league configuration form
 - `src/ui/context/DraftContext.tsx` owns the HTTP draft lifecycle and exposes `useDraftContext()` for all draft data and actions
 - `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
-- Successful draft creation transitions the UI into the drafting view and shows a `Connecting…` SSE badge until the first stream event arrives
+- Successful draft creation transitions the UI into the drafting view and shows the live `Draft Board` immediately
+- The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
+- `pick_made` SSE events update the already-rendered board in place without a re-fetch
+- The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh
 - `New Draft` remains the only manual shell control; transition into History now comes from `draft_complete` SSE
-- Live browser verification of draft creation remains blocked until the HTTP draft route is implemented; current verification for this slice is mocked at the UI test layer
+- Human live-browser verification of the board fill behavior remains required before merge per issue `#17`
 
 Current UI commands:
 
@@ -86,7 +90,7 @@ Current UI commands:
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
-| `npm run test:ui` | Run the UI tests for config submission, draft context, and SSE lifecycle transitions |
+| `npm run test:ui` | Run the UI tests for config submission, draft board rendering, draft context, and SSE lifecycle transitions |
 
 Static build commands:
 

@@ -170,7 +170,7 @@ describe('UI app scaffold', () => {
     );
     expect(
       screen.getByRole('heading', {
-        name: /draft shell/i,
+        name: /draft board/i,
       }),
     ).toBeInTheDocument();
   });
@@ -336,7 +336,7 @@ describe('UI app scaffold', () => {
 
     expect(
       await screen.findByRole('heading', {
-        name: /draft shell/i,
+        name: /draft board/i,
       }),
     ).toBeInTheDocument();
   });

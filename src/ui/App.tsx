@@ -16,6 +16,7 @@ import {
   useDraftContext,
 } from './context/DraftContext.js';
 import { DraftConfigScreen, configDefaults, sanitizeDraftConfig, type ConfigFormState } from './components/DraftConfigScreen.js';
+import { DraftBoard } from './components/DraftBoard.js';
 
 // @spec DFF-UI-002
 // @spec DFF-UI-003
@@ -125,12 +126,7 @@ function DraftApp() {
         ) : null}
 
         {view === 'drafting' ? (
-          <ViewShell
-            eyebrow={draftState?.draftId ? `Draft ${draftState.draftId}` : 'Drafting'}
-            title="Draft Shell"
-            description="This shell reserves the drafting surface for the board, player list, advisor panel, and trade modal."
-            statusBadge={draftState?.sseStatus === 'connecting' ? 'Connecting…' : null}
-          />
+          draftState ? <DraftBoard draftState={draftState} /> : null
         ) : null}
 
         {view === 'history' ? (

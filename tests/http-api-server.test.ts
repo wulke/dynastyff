@@ -1,4 +1,5 @@
 // @spec DFF-ENGINE-001
+// @spec DFF-ENGINE-002b
 // @spec DFF-ENGINE-003
 // @spec DFF-ENGINE-020
 // @spec DFF-ENGINE-021
@@ -148,9 +149,26 @@ async function invokeRoute({
   };
 }
 
-async function invokeDraftRoute(databasePath: string, body: Record<string, unknown>) {
+async function invokeDraftRoute(
+  databasePath: string,
+  body: Record<string, unknown>,
+  options: {
+    botChain?: ReturnType<typeof createBotChainCoordinator> | {
+      trigger: (draftId: string) => void;
+      waitForIdle: (draftId: string) => Promise<void>;
+      resolvePendingTrade: (draftId: string, status: 'accepted' | 'declined' | 'force_declined') => boolean;
+    };
+  } = {},
+) {
   return invokeRoute({
-    route: createDraftRoute({ databasePath }),
+    route: createDraftRoute({
+      databasePath,
+      botChain: options.botChain ?? {
+        trigger: () => undefined,
+        waitForIdle: async () => undefined,
+        resolvePendingTrade: () => false,
+      },
+    }),
     body,
   });
 }
@@ -297,6 +315,84 @@ test('POST /drafts returns 201 and the created draft id for a valid camelCase co
   });
 
   fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+});
+
+// @spec DFF-ENGINE-002b
+// @spec DFF-ENGINE-030
+test('POST /drafts auto-starts the bot chain when the first open slot belongs to a bot', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-autostart-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    db.prepare(
+      `INSERT INTO players (
+        id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+      ) VALUES (?, ?, 'WR', 'BUF', 25, 0, ?, ?)`,
+    ).run('player-1', 'Player One', 7000, '2026-05-22T18:00:00.000Z');
+    db.prepare(
+      `INSERT INTO players (
+        id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+      ) VALUES (?, ?, 'WR', 'BUF', 25, 0, ?, ?)`,
+    ).run('player-2', 'Player Two', 6900, '2026-05-22T18:00:00.000Z');
+    db.prepare(
+      `INSERT INTO players (
+        id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+      ) VALUES (?, ?, 'WR', 'BUF', 25, 0, ?, ?)`,
+    ).run('player-3', 'Player Three', 6800, '2026-05-22T18:00:00.000Z');
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      now: () => '2026-05-22T19:00:00.000Z',
+      random: () => 0,
+      sleep: async () => undefined,
+    });
+
+    const response = await invokeDraftRoute(
+      databasePath,
+      createDraftRequestBody({
+        teamCount: 8,
+        rounds: 10,
+        pickPosition: 3,
+      }),
+      { botChain },
+    );
+
+    assert.equal(response.statusCode, 201);
+    const body = response.json as { draftId: string };
+    await botChain.waitForIdle(body.draftId);
+
+    const persistedPicks = db
+      .prepare(
+        `SELECT pick_number, player_id
+         FROM picks
+         WHERE draft_id = ?
+         ORDER BY pick_number`,
+      )
+      .all(body.draftId) as Array<{ pick_number: number; player_id: string }>;
+
+    assert.deepEqual(persistedPicks, [
+      { pick_number: 1, player_id: 'player-1' },
+      { pick_number: 2, player_id: 'player-2' },
+    ]);
+
+    const currentOpenPick = db
+      .prepare(
+        `SELECT draft_order.pick_number
+         FROM draft_order
+         LEFT JOIN picks ON picks.draft_order_id = draft_order.id
+         WHERE draft_order.draft_id = ? AND picks.id IS NULL
+         ORDER BY draft_order.pick_number
+         LIMIT 1`,
+      )
+      .get(body.draftId) as { pick_number: number } | undefined;
+
+    assert.equal(currentOpenPick?.pick_number, 3);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
 });
 
 test('POST /drafts returns 400 with a descriptive error and does not create a draft when a required field is missing', async () => {

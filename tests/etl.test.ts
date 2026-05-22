@@ -882,7 +882,12 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
 // @spec DFF-ETL-090
 // @spec DFF-DATA-011
 // @spec DFF-DATA-012
-test('runEtl aggregates pick values across sources and updates existing year-round rows in place', async () => {
+// @spec DFF-SPKV-002
+// @spec DFF-SPKV-003
+// @spec DFF-SPKV-004
+// @spec DFF-SPKV-031
+// @spec DFF-SPKV-032
+test('runEtl aggregates pick values across sources and updates existing round-level rows in place using pick_in_round = 0', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
 
   try {
@@ -891,10 +896,11 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
         id,
         year,
         round,
+        pick_in_round,
         dynasty_value,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?)`,
-    ).run('pick-2027-1', 2027, 1, 1234, '2026-05-18T09:00:00.000Z');
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('pick-2027-1', 2027, 1, 0, 1234, '2026-05-18T09:00:00.000Z');
 
     const exitCode = await runEtl({
       databasePath: dbPath,
@@ -938,15 +944,17 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
           id,
           year,
           round,
+          pick_in_round,
           dynasty_value,
           updated_at
          FROM pick_values
-         ORDER BY year, round`,
+         ORDER BY year, round, pick_in_round`,
       )
       .all() as Array<{
         id: string;
         year: number;
         round: number;
+        pick_in_round: number;
         dynasty_value: number;
         updated_at: string;
       }>;
@@ -957,10 +965,11 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
           source,
           year,
           round,
+          pick_in_round,
           raw_value
          FROM pick_value_snapshots
          WHERE run_id = ?
-         ORDER BY source, year, round`,
+         ORDER BY source, year, round, pick_in_round`,
       )
       .all(runId);
 
@@ -970,6 +979,7 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
         id: 'pick-2027-1',
         year: 2027,
         round: 1,
+        pick_in_round: 0,
         dynasty_value: 6666,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
@@ -977,6 +987,7 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
         id: rows[1]?.id,
         year: 2028,
         round: 1,
+        pick_in_round: 0,
         dynasty_value: 9999,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
@@ -984,17 +995,18 @@ test('runEtl aggregates pick values across sources and updates existing year-rou
         id: rows[2]?.id,
         year: 2029,
         round: 1,
+        pick_in_round: 0,
         dynasty_value: 0,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
     ]);
     assert.equal(new Set(rows.map((row) => row.id)).size, 3);
     assert.deepEqual(snapshots, [
-      { source: 'fantasycalc', year: 2027, round: 1, raw_value: 100 },
-      { source: 'fantasycalc', year: 2028, round: 1, raw_value: 300 },
-      { source: 'ktc', year: 2027, round: 1, raw_value: 500 },
-      { source: 'rosteraudit', year: 2027, round: 1, raw_value: 600 },
-      { source: 'rosteraudit', year: 2029, round: 1, raw_value: 200 },
+      { source: 'fantasycalc', year: 2027, round: 1, pick_in_round: 0, raw_value: 100 },
+      { source: 'fantasycalc', year: 2028, round: 1, pick_in_round: 0, raw_value: 300 },
+      { source: 'ktc', year: 2027, round: 1, pick_in_round: 0, raw_value: 500 },
+      { source: 'rosteraudit', year: 2027, round: 1, pick_in_round: 0, raw_value: 600 },
+      { source: 'rosteraudit', year: 2029, round: 1, pick_in_round: 0, raw_value: 200 },
     ]);
   } finally {
     cleanup();

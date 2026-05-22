@@ -125,18 +125,57 @@ test('players includes the documented ETL columns and constraints', () => {
 });
 
 // @spec DFF-DATA-010
-test('pick_values enforces uniqueness on (year, round)', () => {
+// @spec DFF-SPKV-001
+// @spec DFF-SPKV-002
+// @spec DFF-SPKV-003
+test('pick_values stores pick_in_round with a default sentinel and enforces uniqueness on (year, round, pick_in_round)', () => {
   withDatabase((db) => {
+    const columns = db.prepare("PRAGMA table_info('pick_values')").all() as Array<{
+      name: string;
+      type: string;
+      dflt_value: string | null;
+      notnull: number;
+    }>;
+    const columnMap = new Map(columns.map((column) => [column.name, column]));
+
+    assert.equal(columnMap.get('pick_in_round')?.type, 'INTEGER');
+    assert.equal(columnMap.get('pick_in_round')?.notnull, 1);
+    assert.equal(columnMap.get('pick_in_round')?.dflt_value, '0');
+
     db.prepare(
       'INSERT INTO pick_values (id, year, round, dynasty_value, updated_at) VALUES (?, ?, ?, ?, ?)',
     ).run('pick-1', 2027, 1, 6500, '2026-05-18T00:00:00.000Z');
 
+    const insertedRoundLevelRow = db
+      .prepare('SELECT pick_in_round FROM pick_values WHERE id = ?')
+      .get('pick-1') as { pick_in_round: number };
+
+    assert.equal(insertedRoundLevelRow.pick_in_round, 0);
+
+    db.prepare(
+      `INSERT INTO pick_values (
+        id,
+        year,
+        round,
+        pick_in_round,
+        dynasty_value,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('pick-2', 2027, 1, 4, 7000, '2026-05-18T01:00:00.000Z');
+
     assert.throws(
       () =>
         db.prepare(
-          'INSERT INTO pick_values (id, year, round, dynasty_value, updated_at) VALUES (?, ?, ?, ?, ?)',
-        ).run('pick-2', 2027, 1, 7000, '2026-05-18T01:00:00.000Z'),
-      /UNIQUE constraint failed: pick_values.year, pick_values.round/,
+          `INSERT INTO pick_values (
+            id,
+            year,
+            round,
+            pick_in_round,
+            dynasty_value,
+            updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?)`,
+        ).run('pick-3', 2027, 1, 4, 7100, '2026-05-18T02:00:00.000Z'),
+      /UNIQUE constraint failed: pick_values.year, pick_values.round, pick_values.pick_in_round/,
     );
   });
 });
@@ -164,6 +203,8 @@ test('db:init can build a fresh database file in one command path', () => {
 // @spec DFF-HIST-012
 // @spec DFF-HIST-021
 // @spec DFF-HIST-022
+// @spec DFF-SPKV-002
+// @spec DFF-SPKV-004
 test('history tables enforce documented source enums and unique keys', () => {
   withDatabase((db) => {
     db.prepare(
@@ -216,14 +257,38 @@ test('history tables enforce documented source enums and unique keys', () => {
       ) VALUES (?, ?, ?, ?, ?, ?)`,
     ).run('pick-snapshot-1', 'run-1', 2027, 1, 'ktc', 4500);
 
+    const columns = db.prepare("PRAGMA table_info('pick_value_snapshots')").all() as Array<{
+      name: string;
+      type: string;
+      dflt_value: string | null;
+      notnull: number;
+    }>;
+    const columnMap = new Map(columns.map((column) => [column.name, column]));
+
+    assert.equal(columnMap.get('pick_in_round')?.type, 'INTEGER');
+    assert.equal(columnMap.get('pick_in_round')?.notnull, 1);
+    assert.equal(columnMap.get('pick_in_round')?.dflt_value, '0');
+
+    const insertedRoundLevelSnapshot = db
+      .prepare('SELECT pick_in_round FROM pick_value_snapshots WHERE id = ?')
+      .get('pick-snapshot-1') as { pick_in_round: number };
+
+    assert.equal(insertedRoundLevelSnapshot.pick_in_round, 0);
+
+    db.prepare(
+      `INSERT INTO pick_value_snapshots (
+        id, run_id, year, round, pick_in_round, source, raw_value
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run('pick-snapshot-2', 'run-1', 2027, 1, 4, 'ktc', 4300);
+
     assert.throws(
       () =>
         db.prepare(
           `INSERT INTO pick_value_snapshots (
-            id, run_id, year, round, source, raw_value
-          ) VALUES (?, ?, ?, ?, ?, ?)`,
-        ).run('pick-snapshot-2', 'run-1', 2027, 1, 'ktc', 4300),
-      /UNIQUE constraint failed: pick_value_snapshots.run_id, pick_value_snapshots.year, pick_value_snapshots.round, pick_value_snapshots.source/,
+            id, run_id, year, round, pick_in_round, source, raw_value
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).run('pick-snapshot-3', 'run-1', 2027, 1, 4, 'ktc', 4200),
+      /UNIQUE constraint failed: pick_value_snapshots.run_id, pick_value_snapshots.year, pick_value_snapshots.round, pick_value_snapshots.pick_in_round, pick_value_snapshots.source/,
     );
 
     assert.throws(
@@ -232,7 +297,7 @@ test('history tables enforce documented source enums and unique keys', () => {
           `INSERT INTO pick_value_snapshots (
             id, run_id, year, round, source, raw_value
           ) VALUES (?, ?, ?, ?, ?, ?)`,
-        ).run('pick-snapshot-3', 'run-1', 2027, 1, 'bad-source', 4200),
+        ).run('pick-snapshot-4', 'run-1', 2027, 1, 'bad-source', 4100),
       /CHECK constraint failed/,
     );
   });

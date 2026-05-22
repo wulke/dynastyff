@@ -30,7 +30,7 @@ type FantasyCalcApiEntry = {
 // @spec DFF-ETL-090
 function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, 'players' | 'pickValues'> {
   const players: RawPlayer[] = [];
-  const pickValues: RawPickValue[] = [];
+  const pickAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();
 
   for (const entry of entries) {
     const p = entry.player ?? {};
@@ -50,11 +50,15 @@ function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, '
       const parsedPick = parsePickAssetName(name);
 
       if (parsedPick) {
-        pickValues.push({
-          year: parsedPick.year,
-          round: parsedPick.round,
-          rawValue,
-        });
+        const key = `${parsedPick.year}-${parsedPick.round}`;
+        const acc = pickAccumulator.get(key);
+
+        if (acc) {
+          acc.sum += rawValue;
+          acc.count += 1;
+        } else {
+          pickAccumulator.set(key, { sum: rawValue, count: 1, year: parsedPick.year, round: parsedPick.round });
+        }
       }
 
       continue;
@@ -75,9 +79,18 @@ function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, '
       });
   }
 
+  const pickValues: RawPickValue[] = Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({
+    year,
+    round,
+    rawValue: sum / count,
+  }));
+
   return { players, pickValues };
 }
 
+// @spec DFF-ETL-010
+// @spec DFF-ETL-012
+// @spec DFF-ETL-090
 export async function scrapeFantasyCalc(): Promise<ScraperResult> {
   const fixturePath = process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
 

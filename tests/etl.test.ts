@@ -466,21 +466,70 @@ test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', asy
         },
       ],
       pickValues: [
+        // (789 + 654) / 2 = 721.5 — averaged like KTC
         {
           year: 2027,
           round: 1,
-          rawValue: 789,
-        },
-        {
-          year: 2027,
-          round: 1,
-          rawValue: 654,
+          rawValue: 721.5,
         },
       ],
     });
   } finally {
     delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
     fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ETL-090
+// @spec DFF-ETL-041
+test('runEtl emits one pick snapshot per source when FantasyCalc fixture has tier and plain picks for the same (year, round)', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fc-picks-'));
+  const fcFixturePath = path.join(tempDir, 'fc-picks.json');
+
+  // Tier pick (800) and plain pick (400) for the same (2027, 1) — scraper must average to 600
+  fs.writeFileSync(
+    fcFixturePath,
+    JSON.stringify([
+      { value: 800, player: { name: '2027 Early 1st', position: 'PICK', team: '', age: null, rookie: false } },
+      { value: 400, player: { name: '2027 1st', position: 'PICK', team: '', age: null, rookie: false } },
+      { value: 456, player: { name: 'Bravo WR', position: 'WR', team: 'CIN', age: 23, rookie: false } },
+    ]),
+  );
+
+  process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH = fcFixturePath;
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () =>
+        makeKtcResult(
+          [{ name: 'Bravo WR', position: 'WR', nflTeam: 'CIN', age: 23, isRookie: false, rawValue: 1000, adp: 10 }],
+          [{ year: 2027, round: 1, rawValue: 1000 }],
+        ),
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+      now: () => '2026-05-22T10:00:00.000Z',
+    });
+
+    const pickRow = db
+      .prepare('SELECT dynasty_value FROM pick_values WHERE year = 2027 AND round = 1')
+      .get() as { dynasty_value: number };
+    const snapshots = db
+      .prepare('SELECT source, raw_value FROM pick_value_snapshots ORDER BY source, raw_value')
+      .all() as Array<{ source: string; raw_value: number }>;
+
+    assert.equal(exitCode, 0);
+    // FC averaged its two entries (800 + 400) / 2 = 600 — only one snapshot per source
+    assert.deepEqual(snapshots, [
+      { source: 'fantasycalc', raw_value: 600 },
+      { source: 'ktc', raw_value: 1000 },
+    ]);
+    // Both sources normalize independently (single-value per source → 9999 each), mean = 9999
+    assert.equal(pickRow.dynasty_value, 9999);
+  } finally {
+    delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    cleanup();
   }
 });
 

@@ -17,6 +17,7 @@ import {
 } from './context/DraftContext.js';
 import { DraftConfigScreen, configDefaults, sanitizeDraftConfig, type ConfigFormState } from './components/DraftConfigScreen.js';
 import { DraftBoard } from './components/DraftBoard.js';
+import { PickFeedPanel } from './components/PickFeedPanel.js';
 import { HistoryView } from './components/HistoryView.js';
 
 // @spec DFF-UI-002
@@ -116,7 +117,7 @@ function DraftApp() {
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_35%),linear-gradient(180deg,_#1c1917_0%,_#0c0a09_100%)] px-6 py-12 text-stone-100">
-      <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-6xl items-center justify-center">
+      <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-7xl items-start justify-center">
         {view === 'config' ? (
           <DraftConfigScreen
             config={draftConfig}
@@ -126,8 +127,15 @@ function DraftApp() {
           />
         ) : null}
 
-        {view === 'drafting' ? (
-          draftState ? <DraftBoard draftState={draftState} /> : null
+        {view === 'drafting' && draftState ? (
+          <div className="flex w-full flex-col gap-6 lg:flex-row">
+            <div className="min-w-0 flex-1">
+              <DraftBoard draftState={draftState} />
+            </div>
+            <div className="w-full shrink-0 lg:w-80">
+              <PickFeedPanel draftState={draftState} />
+            </div>
+          </div>
         ) : null}
 
         {/* @spec DFF-UI-060 */}

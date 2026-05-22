@@ -49,47 +49,47 @@ If `snapshot.json` was exported more than 30 days before the current date (as de
 
 ## In-Memory Draft Engine
 
-**DFF-STATIC-020** `[ ]`
+**DFF-STATIC-020** `[x]` → #52
 The system shall implement `src/draft/engine.ts` as an isomorphic module with no imports from Node-only modules (`node:*`, `better-sqlite3`, `drizzle-orm`).
 
-**DFF-STATIC-021** `[ ]`
+**DFF-STATIC-021** `[x]` → #52
 `createDraft(config, players, pickValues)` shall return a complete `InMemoryDraftState` with: a generated `draftId`, status `in_progress`, `teams` array (one flagged `isUser = true` at `userPickPosition`), a full snake `draftOrder` array, empty `picks`, `rosterPlayers`, `userQueue`, and `teamPickAssets` covering all teams across the configured future `(year, round)` matrix.
 
-**DFF-STATIC-022** `[ ]`
+**DFF-STATIC-022** `[x]` → #52
 Bot teams created by `createDraft` shall each be assigned a random archetype drawn uniformly from: `win_now`, `punt`, `rb_heavy`, `qb_early`, `bpa`, `balanced`.
 
-**DFF-STATIC-023** `[ ]`
+**DFF-STATIC-023** `[x]` → #52
 `submitPick(state, playerId)` shall validate that the player has not already been picked in the current draft; if the player is already picked, it shall throw an error and not mutate state.
 
-**DFF-STATIC-024** `[ ]`
+**DFF-STATIC-024** `[x]` → #52
 `submitPick` shall record the pick as an append-only entry in `state.picks` and add a corresponding `rosterPlayers` entry assigning ownership to the picking team.
 
-**DFF-STATIC-025** `[ ]`
+**DFF-STATIC-025** `[x]` → #52
 `submitPick` shall remove any matching `userQueue` entry for the picked player.
 
-**DFF-STATIC-026** `[ ]`
+**DFF-STATIC-026** `[x]` → #52
 When `submitPick` is called on the final pick slot, the returned state shall have `status` set to `completed`.
 
-**DFF-STATIC-027** `[ ]`
+**DFF-STATIC-027** `[x]` → #52
 `currentTeam(state)` shall return `null` when `state.status` is `completed` or when no open `draftOrder` slot remains.
 
-**DFF-STATIC-028** `[ ]`
+**DFF-STATIC-028** `[x]` → #52
 `availablePlayers(state, allPlayers)` shall return all players whose `id` does not appear in `state.picks`, sorted by `dynastyValue` descending.
 
 ---
 
 ## Bot Simulator
 
-**DFF-STATIC-030** `[ ]`
+**DFF-STATIC-030** `[x]` → #52
 The system shall implement `src/draft/bot.ts` as an isomorphic module exporting `selectBotPick(available, team, roster, noise): string`.
 
-**DFF-STATIC-031** `[ ]`
+**DFF-STATIC-031** `[x]` → #52
 `selectBotPick` shall score each available player as `dynastyValue × valueWeight × needMultiplier + noise × Math.random()` where `valueWeight` and `needMultiplier` are determined by the team's archetype per the weights defined in the LLD.
 
-**DFF-STATIC-032** `[ ]`
+**DFF-STATIC-032** `[x]` → #52
 `selectBotPick` shall return the `id` of the highest-scoring available player.
 
-**DFF-STATIC-033** `[ ]`
+**DFF-STATIC-033** `[x]` → #52
 `selectBotPick` shall throw an `InvariantError` if `available` is empty.
 
 **DFF-STATIC-034** `[ ]`

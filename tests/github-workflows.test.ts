@@ -7,6 +7,7 @@
 // @spec DFF-STATIC-051
 // @spec DFF-STATIC-052
 // @spec DFF-STATIC-053
+// @spec DFF-STATIC-054
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -65,6 +66,7 @@ test('etl-snapshot workflow commits only snapshot diffs with the github-actions 
 // @spec DFF-STATIC-051
 // @spec DFF-STATIC-052
 // @spec DFF-STATIC-053
+// @spec DFF-STATIC-054
 test('pages workflow deploys the static bundle to GitHub Pages on pushes to main', () => {
   const workflow = readWorkflow('.github/workflows/pages.yml');
 

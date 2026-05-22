@@ -11,6 +11,8 @@
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-092
+// @spec DFF-UI-093
+// @spec DFF-UI-092
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -464,6 +466,39 @@ describe('draft board UI', () => {
     expect(firstTeamHeader!.className).toContain('sticky');
   });
 
+  // @spec DFF-UI-093
+  test('column mode applies amber tint to the user team column header', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitDraftState();
+
+    // Switch to column mode
+    await user.click(screen.getByTestId('layout-toggle'));
+
+    // Find the user team column header (team-2 = 'You')
+    const teamHeaderCells = screen.getAllByRole('columnheader');
+    const userTeamHeader = teamHeaderCells.find((cell) => cell.textContent?.includes('You'));
+    expect(userTeamHeader).toBeDefined();
+    expect(userTeamHeader!.className).toContain('bg-amber-300/10');
+
+    // Non-user team should not have amber tint
+    const nonUserTeamHeader = teamHeaderCells.find((cell) => cell.textContent?.includes('Bob'));
+    expect(nonUserTeamHeader).toBeDefined();
+    expect(nonUserTeamHeader!.className).toContain('bg-stone-950');
+    expect(nonUserTeamHeader!.className).not.toContain('amber');
+  });
+
   // @spec DFF-UI-092
   test('position badges are color-coded by position (QB=amber, RB=blue, WR=emerald, TE=purple, PICK=yellow, RDP=yellow, other=stone)', async () => {
     const user = userEvent.setup();
@@ -523,34 +558,6 @@ describe('draft board UI', () => {
           adp: 10,
         },
       ],
-    });
-
-    // Make picks for each slot
-    act(() => {
-      MockEventSource.instances[0]?.emit('pick_made', {
-        pick_number: 1,
-        team_id: 'team-1',
-        player_id: 'player-1',
-        is_bot: true,
-      });
-    });
-
-    act(() => {
-      MockEventSource.instances[0]?.emit('pick_made', {
-        pick_number: 2,
-        team_id: 'team-2',
-        player_id: 'player-2',
-        is_bot: true,
-      });
-    });
-
-    act(() => {
-      MockEventSource.instances[0]?.emit('pick_made', {
-        pick_number: 3,
-        team_id: 'team-3',
-        player_id: 'player-3',
-        is_bot: true,
-      });
     });
 
     // Make picks for each slot

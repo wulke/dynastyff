@@ -15,6 +15,11 @@ type RawPickSubmissionRequestBody = {
   playerId?: unknown;
 };
 
+type RawQueueSubmissionRequestBody = {
+  playerId?: unknown;
+  rank?: unknown;
+};
+
 type DraftRequestRosterSlots = {
   QB: number;
   RB: number;
@@ -45,6 +50,7 @@ export type CreateDraftConfig = {
 
 export class DraftConfigValidationError extends Error {}
 export class PickSubmissionValidationError extends Error {}
+export class QueueSubmissionValidationError extends Error {}
 
 export function parseCreateDraftConfig(input: unknown): CreateDraftConfig {
   if (!isRecord(input)) {
@@ -100,6 +106,34 @@ export function parsePickSubmission(input: unknown): { playerId: string } {
 
   return {
     playerId: body.playerId,
+  };
+}
+
+// @spec DFF-DATA-093
+export function parseQueueSubmission(input: unknown): { playerId: string; rank: number } {
+  if (!isRecord(input)) {
+    throw new QueueSubmissionValidationError(
+      'Invalid queue submission: request body must be a JSON object.',
+    );
+  }
+
+  const body = input as RawQueueSubmissionRequestBody;
+
+  if (typeof body.playerId !== 'string' || body.playerId.trim() === '') {
+    throw new QueueSubmissionValidationError('Invalid queue submission: playerId is required.');
+  }
+
+  if (body.rank === undefined) {
+    throw new QueueSubmissionValidationError('Invalid queue submission: rank is required.');
+  }
+
+  if (typeof body.rank !== 'number' || !Number.isInteger(body.rank) || body.rank < 1) {
+    throw new QueueSubmissionValidationError('Invalid queue submission: rank must be a positive integer.');
+  }
+
+  return {
+    playerId: body.playerId,
+    rank: body.rank,
   };
 }
 

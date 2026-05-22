@@ -4,6 +4,7 @@
 // @spec DFF-STATIC-070
 // @spec DFF-STATIC-071
 // @spec DFF-STATIC-072
+// @spec DFF-STATIC-036
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -66,7 +67,10 @@ async function completeStaticDraft() {
     }
 
     if (turn === 0) {
-      expect(screen.getByText(/player 001/i)).toBeInTheDocument();
+      const recentPicksSection = screen.getByRole('heading', { name: /recent picks/i }).closest('section');
+      expect(recentPicksSection).not.toBeNull();
+      expect(within(recentPicksSection!).getByText(/player 001/i)).toBeInTheDocument();
+      expect(within(recentPicksSection!).queryByText(/player-001/i)).not.toBeInTheDocument();
     }
 
     const playerButtons = screen.getAllByRole('button');

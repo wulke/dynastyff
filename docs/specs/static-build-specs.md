@@ -101,6 +101,9 @@ The static build's bot loop shall halt and yield control to the user when `curre
 **DFF-STATIC-036** `[x]` → #56
 During an active static draft, the system shall render an in-browser Draft Room showing the current turn indicator, the available undrafted player list, and a recent-picks list using player names rather than raw player IDs.
 
+**DFF-STATIC-037** `[x]` → #56
+If the static bot loop encounters an invariant failure while selecting or submitting a bot pick, the system shall halt the bot loop and display an error toast indicating the draft cannot continue.
+
 ---
 
 ## GitHub Actions: ETL Snapshot Workflow

@@ -102,6 +102,8 @@ availablePlayers(state: InMemoryDraftState, allPlayers: Player[]): Player[]
 
 The bot loop lives in the static build's React context (`src/ui-static/InMemoryDraftContext.tsx`). After each pick it checks whether the next slot belongs to a bot and, if so, calls `selectBotPick` with a 1.5–3s async delay before calling `submitPick` again. The loop halts when `currentTeam` returns `null` (draft complete) or when the current slot is the user's turn.
 
+If `selectBotPick` or `submitPick` throws an `InvariantError` during the bot loop, the context stops the chain immediately and surfaces a toast indicating the draft cannot continue.
+
 ```ts
 async function runBotChain(state: InMemoryDraftState, players: Player[]): Promise<InMemoryDraftState>
 ```

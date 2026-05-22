@@ -4,6 +4,7 @@
 // @spec DFF-STATIC-070
 // @spec DFF-STATIC-071
 // @spec DFF-STATIC-073
+// @spec DFF-STATIC-037
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -80,6 +81,11 @@ const BOT_FIRST_CONFIG: DraftConfig = {
   ...USER_FIRST_CONFIG,
   name: 'Bot First',
   userPickPosition: 2,
+};
+
+const ONE_PLAYER_SNAPSHOT: Snapshot = {
+  ...TEST_SNAPSHOT,
+  players: [TEST_SNAPSHOT.players[0]!],
 };
 
 // @spec DFF-STATIC-063
@@ -247,6 +253,36 @@ describe('InMemoryDraftContextProvider', () => {
 
       expect(screen.getByLabelText(/draft status/i)).toHaveTextContent('idle');
       expect(screen.getByLabelText(/pick count/i)).toHaveTextContent('0');
+    });
+  });
+
+  // @spec DFF-STATIC-037
+  test('shows a toast and halts the bot loop when no valid bot pick can be selected', async () => {
+    vi.useFakeTimers();
+
+    await withMockedDraftEnvironment(async () => {
+      render(
+        <InMemoryDraftContextProvider snapshot={ONE_PLAYER_SNAPSHOT}>
+          <ContextHarness />
+        </InMemoryDraftContextProvider>,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /start user first/i }));
+      fireEvent.click(screen.getByRole('button', { name: /submit alpha/i }));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_001);
+      });
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/bot pick failed\. this draft cannot continue\./i);
+      expect(screen.getByLabelText(/draft status/i)).toHaveTextContent('in_progress');
+      expect(screen.getByLabelText(/pick count/i)).toHaveTextContent('1');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      expect(screen.getByLabelText(/pick count/i)).toHaveTextContent('1');
     });
   });
 });

@@ -7,6 +7,7 @@
 // @spec DFF-ENGINE-060
 // @spec DFF-ENGINE-062
 // @spec DFF-ENGINE-063
+// @spec DFF-DATA-093
 import express, {
   type ErrorRequestHandler,
   type Express,
@@ -18,13 +19,23 @@ import express, {
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
 import { draftOrder, drafts, picks, players, teams } from '../db/schema.js';
-import { createDraft, getDraftHistory, getDraftState, recordPick } from '../draft/service.js';
+import {
+  createDraft,
+  deleteDraftQueueEntry,
+  getDraftHistory,
+  getDraftQueue,
+  getDraftState,
+  recordPick,
+  upsertDraftQueueEntry,
+} from '../draft/service.js';
 import { getDraftStateSyncPayload, subscribeToDraftStream, type DraftStreamEvent } from '../draft/stream.js';
 import {
   DraftConfigValidationError,
   PickSubmissionValidationError,
+  QueueSubmissionValidationError,
   parseCreateDraftConfig,
   parsePickSubmission,
+  parseQueueSubmission,
 } from './config.js';
 
 type CreateDraftServerOptions = {
@@ -38,6 +49,9 @@ export function createDraftApp({ databasePath }: CreateDraftServerOptions): Expr
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath }));
   app.post('/drafts/:id/pick', createDraftPickRoute({ databasePath }));
+  app.post('/drafts/:id/queue', createDraftQueuePostRoute({ databasePath }));
+  app.get('/drafts/:id/queue', createDraftQueueGetRoute({ databasePath }));
+  app.delete('/drafts/:id/queue/:player_id', createDraftQueueDeleteRoute({ databasePath }));
   app.get('/drafts/:id/state', createDraftStateRoute({ databasePath }));
   app.get('/drafts/:id/stream', createDraftStreamRoute({ databasePath }));
   app.use(notFoundHandler);
@@ -94,6 +108,108 @@ export function createDraftPickRoute({ databasePath }: CreateDraftServerOptions)
         draftOrderId: validation.draftOrderId,
         playerId,
       });
+
+      response.status(200).json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+// @spec DFF-DATA-093
+export function createDraftQueuePostRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
+
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const { playerId, rank } = parseQueueSubmission(request.body);
+      const result = upsertDraftQueueEntry({
+        databasePath,
+        draftId,
+        playerId,
+        rank,
+      });
+
+      if (result.status === 'draft_not_found') {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      if (result.status === 'player_not_found') {
+        response.status(400).json({ error: 'Invalid queue submission: player does not exist.' });
+        return;
+      }
+
+      response.status(200).json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+// @spec DFF-DATA-093
+export function createDraftQueueGetRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
+
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const queue = getDraftQueue({ databasePath, draftId });
+
+      if (!queue) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      response.status(200).json(queue);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+// @spec DFF-DATA-093
+export function createDraftQueueDeleteRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
+
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const playerId = readPlayerIdParam(request);
+
+      if (!playerId) {
+        response.status(400).json({ error: 'Invalid queue submission: playerId is required.' });
+        return;
+      }
+
+      const result = deleteDraftQueueEntry({
+        databasePath,
+        draftId,
+        playerId,
+      });
+
+      if (result.status === 'draft_not_found') {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      if (result.status === 'queue_entry_not_found') {
+        response.status(404).json({ error: 'Queue entry not found.' });
+        return;
+      }
 
       response.status(200).json({ ok: true });
     } catch (error) {
@@ -197,6 +313,12 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
       return;
     }
 
+    // @spec DFF-DATA-093
+    if (error instanceof QueueSubmissionValidationError) {
+      response.status(400).json({ error: error.message });
+      return;
+    }
+
     if (isJsonBodyParseError(error)) {
       response.status(400).json({ error: 'Invalid draft config: request body must be valid JSON.' });
       return;
@@ -218,6 +340,16 @@ function writeSseEvent(
 function readDraftIdParam(request: Request): string | null {
   const draftId = request.params.id;
   return typeof draftId === 'string' ? draftId : null;
+}
+
+function readPlayerIdParam(request: Request): string | null {
+  const playerId = request.params.player_id;
+
+  if (typeof playerId !== 'string' || playerId.trim() === '') {
+    return null;
+  }
+
+  return playerId;
 }
 
 type UserPickValidationResult =

@@ -93,6 +93,9 @@ Current draft API surface:
 |---|---|
 | `POST /drafts` | Create a new draft |
 | `POST /drafts/:id/pick` | Submit the user's pick with HTTP-layer validation for turn order and player availability |
+| `POST /drafts/:id/queue` | Add a player to the user's queue or update that player's rank |
+| `DELETE /drafts/:id/queue/:player_id` | Remove one player from the user's queue |
+| `GET /drafts/:id/queue` | Read the user's queue ordered by ascending rank |
 | `GET /drafts/:id/stream` | Subscribe to live draft SSE updates |
 | `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration, including available players |
 | `GET /drafts` | List persisted drafts for history / resume flows |

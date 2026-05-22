@@ -30,7 +30,7 @@
 // @spec DFF-HIST-061
 import { randomUUID } from 'node:crypto';
 
-import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte } from 'drizzle-orm';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
 import { createDrizzleDb } from '../db/client.js';
 import {
@@ -39,6 +39,7 @@ import {
   draftStatuses,
   etlRuns,
   picks,
+  players,
   rosterPlayers,
   scoringFormats,
   teamArchetypes,
@@ -111,6 +112,25 @@ type GetDraftStateOptions = {
 
 type GetDraftHistoryOptions = {
   databasePath: string;
+};
+
+type GetDraftQueueOptions = {
+  databasePath: string;
+  draftId: string;
+};
+
+type UpsertDraftQueueEntryOptions = {
+  databasePath: string;
+  draftId: string;
+  playerId: string;
+  rank: number;
+  idGenerator?: () => string;
+};
+
+type DeleteDraftQueueEntryOptions = {
+  databasePath: string;
+  draftId: string;
+  playerId: string;
 };
 
 const botTeamNames = [
@@ -209,6 +229,21 @@ export type DraftHistoryEntry = {
   team_count: number;
   rounds: number;
 };
+
+export type DraftQueueEntry = {
+  playerId: string;
+  rank: number;
+};
+
+export type UpsertDraftQueueEntryResult =
+  | { status: 'ok' }
+  | { status: 'draft_not_found' }
+  | { status: 'player_not_found' };
+
+export type DeleteDraftQueueEntryResult =
+  | { status: 'ok' }
+  | { status: 'draft_not_found' }
+  | { status: 'queue_entry_not_found' };
 
 export function createDraft({
   databasePath,
@@ -641,6 +676,194 @@ export function getDraftHistory({ databasePath }: GetDraftHistoryOptions): Draft
       .from(drafts)
       .orderBy(desc(drafts.createdAt), desc(drafts.id))
       .all() as DraftHistoryEntry[];
+  } finally {
+    sqlite.close();
+  }
+}
+
+// @spec DFF-DATA-093
+export function getDraftQueue({
+  databasePath,
+  draftId,
+}: GetDraftQueueOptions): DraftQueueEntry[] | null {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    const draft = db
+      .select({ id: drafts.id })
+      .from(drafts)
+      .where(eq(drafts.id, draftId))
+      .get();
+
+    if (!draft) {
+      return null;
+    }
+
+    return db
+      .select({
+        playerId: userQueue.playerId,
+        rank: userQueue.rank,
+      })
+      .from(userQueue)
+      .where(eq(userQueue.draftId, draftId))
+      .orderBy(asc(userQueue.rank))
+      .all() as DraftQueueEntry[];
+  } finally {
+    sqlite.close();
+  }
+}
+
+// @spec DFF-DATA-091
+// @spec DFF-DATA-093
+export function upsertDraftQueueEntry({
+  databasePath,
+  draftId,
+  playerId,
+  rank,
+  idGenerator = defaultIdGenerator,
+}: UpsertDraftQueueEntryOptions): UpsertDraftQueueEntryResult {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    return db.transaction((tx) => {
+      const draft = tx
+        .select({ id: drafts.id })
+        .from(drafts)
+        .where(eq(drafts.id, draftId))
+        .get();
+
+      if (!draft) {
+        return { status: 'draft_not_found' } as const;
+      }
+
+      const player = tx
+        .select({ id: players.id })
+        .from(players)
+        .where(eq(players.id, playerId))
+        .get();
+
+      if (!player) {
+        return { status: 'player_not_found' } as const;
+      }
+
+      const existingEntry = tx
+        .select({ id: userQueue.id, rank: userQueue.rank })
+        .from(userQueue)
+        .where(and(eq(userQueue.draftId, draftId), eq(userQueue.playerId, playerId)))
+        .get();
+
+      if (existingEntry) {
+        if (rank < existingEntry.rank) {
+          const entriesToShift = tx
+            .select({ id: userQueue.id, rank: userQueue.rank })
+            .from(userQueue)
+            .where(
+              and(
+                eq(userQueue.draftId, draftId),
+                gte(userQueue.rank, rank),
+                lt(userQueue.rank, existingEntry.rank),
+              ),
+            )
+            .orderBy(desc(userQueue.rank))
+            .all();
+
+          for (const entry of entriesToShift) {
+            tx.update(userQueue)
+              .set({ rank: entry.rank + 1 })
+              .where(eq(userQueue.id, entry.id))
+              .run();
+          }
+        } else if (rank > existingEntry.rank) {
+          const entriesToShift = tx
+            .select({ id: userQueue.id, rank: userQueue.rank })
+            .from(userQueue)
+            .where(
+              and(
+                eq(userQueue.draftId, draftId),
+                gt(userQueue.rank, existingEntry.rank),
+                lte(userQueue.rank, rank),
+              ),
+            )
+            .orderBy(asc(userQueue.rank))
+            .all();
+
+          for (const entry of entriesToShift) {
+            tx.update(userQueue)
+              .set({ rank: entry.rank - 1 })
+              .where(eq(userQueue.id, entry.id))
+              .run();
+          }
+        }
+
+        if (rank !== existingEntry.rank) {
+          tx.update(userQueue)
+            .set({ rank })
+            .where(eq(userQueue.id, existingEntry.id))
+            .run();
+        }
+      } else {
+        const entriesToShift = tx
+          .select({ id: userQueue.id, rank: userQueue.rank })
+          .from(userQueue)
+          .where(and(eq(userQueue.draftId, draftId), gte(userQueue.rank, rank)))
+          .orderBy(desc(userQueue.rank))
+          .all();
+
+        for (const entry of entriesToShift) {
+          tx.update(userQueue)
+            .set({ rank: entry.rank + 1 })
+            .where(eq(userQueue.id, entry.id))
+            .run();
+        }
+
+        tx.insert(userQueue)
+          .values({
+            id: idGenerator(),
+            draftId,
+            playerId,
+            rank,
+          })
+          .run();
+      }
+
+      return { status: 'ok' } as const;
+    });
+  } finally {
+    sqlite.close();
+  }
+}
+
+// @spec DFF-DATA-093
+export function deleteDraftQueueEntry({
+  databasePath,
+  draftId,
+  playerId,
+}: DeleteDraftQueueEntryOptions): DeleteDraftQueueEntryResult {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    return db.transaction((tx) => {
+      const draft = tx
+        .select({ id: drafts.id })
+        .from(drafts)
+        .where(eq(drafts.id, draftId))
+        .get();
+
+      if (!draft) {
+        return { status: 'draft_not_found' } as const;
+      }
+
+      const deleted = tx
+        .delete(userQueue)
+        .where(and(eq(userQueue.draftId, draftId), eq(userQueue.playerId, playerId)))
+        .run();
+
+      if (deleted.changes === 0) {
+        return { status: 'queue_entry_not_found' } as const;
+      }
+
+      return { status: 'ok' } as const;
+    });
   } finally {
     sqlite.close();
   }

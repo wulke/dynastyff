@@ -98,6 +98,14 @@ Static draft runtime modules:
 
 - `src/draft/engine.ts` provides the pure in-memory draft state machine used by the browser-only build
 - `src/draft/bot.ts` provides pure bot-pick selection logic shared by the static draft flow
+- `src/ui-static/InMemoryDraftContext.tsx` runs the static draft lifecycle entirely in browser memory, including delayed bot turns and session-only completed-draft history
+
+Current static app behavior:
+
+- `src/ui-static/App.tsx` now supports the full `config → drafting → history` flow without an Express server running
+- Bot turns in the static build resolve locally with a visible `1.5–3s` delay before each pick
+- Completed static drafts are shown in reverse chronological order for the current browser session only
+- Refreshing the page clears static history by design; no `localStorage` or other browser storage APIs are used
 
 GitHub Actions deployment:
 

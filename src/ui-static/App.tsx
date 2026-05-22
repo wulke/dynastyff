@@ -5,7 +5,9 @@
 import { useEffect, useState } from 'react';
 
 import { DraftConfigScreen, configDefaults, type ConfigFormState } from '../ui/components/DraftConfigScreen.js';
+import { useDraftContext } from '../ui/context/DraftContext.js';
 import type { Snapshot } from '../ui/types.js';
+import { InMemoryDraftContextProvider } from './InMemoryDraftContext.js';
 
 type SnapshotLoadState =
   | { status: 'loading' }
@@ -39,6 +41,194 @@ function FullScreenMessage({ title, detail }: { title: string; detail: string })
   );
 }
 
+// @spec DFF-STATIC-063
+// @spec DFF-STATIC-036
+// @spec DFF-STATIC-034
+// @spec DFF-STATIC-035
+function DraftRoom({ snapshot }: { snapshot: Snapshot }) {
+  const { draftState, submitPick } = useDraftContext();
+
+  if (!draftState) {
+    return null;
+  }
+
+  const currentTeam = draftState.currentPickNumber
+    ? draftState.draftOrder[draftState.currentPickNumber - 1]
+      ? draftState.teams.find((team) => team.id === draftState.draftOrder[draftState.currentPickNumber - 1]!.teamId) ?? null
+      : null
+    : null;
+  const isUserTurn = Boolean(currentTeam?.isUser);
+
+  return (
+    <section className="w-full rounded-[2rem] border border-stone-800 bg-stone-900/90 p-8 shadow-2xl shadow-black/20">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">In-Browser Draft</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-50">Draft Room</h1>
+          <p className="mt-3 text-sm text-stone-300">
+            Draft {draftState.draftId} · Pick {draftState.currentPickNumber ?? draftState.picks.length} of{' '}
+            {draftState.draftOrder.length}
+          </p>
+        </div>
+        <div className="rounded-full border border-stone-700 px-4 py-2 text-sm text-stone-200">
+          {isUserTurn ? 'Your turn' : 'Bot is picking…'}
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <section className="rounded-[1.5rem] border border-stone-800 bg-stone-950/60 p-5">
+          <h2 className="text-lg font-semibold text-stone-50">Available Players</h2>
+          <ul className="mt-4 space-y-3">
+            {draftState.availablePlayers.slice(0, 12).map((player) => (
+              <li key={player.id}>
+                <button
+                  type="button"
+                  onClick={() => submitPick(player.id)}
+                  disabled={!isUserTurn}
+                  className="flex w-full items-center justify-between rounded-2xl border border-stone-800 bg-stone-950/80 px-4 py-3 text-left transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="font-medium text-stone-100">{player.name}</span>
+                  <span className="text-sm text-stone-400">
+                    {player.position} · {player.dynastyValue}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="rounded-[1.5rem] border border-stone-800 bg-stone-950/60 p-5">
+          <h2 className="text-lg font-semibold text-stone-50">Recent Picks</h2>
+          <ul className="mt-4 space-y-3">
+            {draftState.picks.slice(-10).reverse().map((pick) => {
+              const draftedPlayer = snapshot.players.find((entry) => entry.id === pick.playerId) ?? null;
+              const team = draftState.teams.find((entry) => entry.id === pick.teamId);
+
+              return (
+                <li key={pick.pickNumber} className="rounded-2xl border border-stone-800 px-4 py-3">
+                  <p className="text-sm font-medium text-stone-100">
+                    #{pick.pickNumber} · {team?.name ?? pick.teamId}
+                  </p>
+                  <p className="mt-1 text-sm text-stone-400">{draftedPlayer?.name ?? pick.playerId}</p>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+// @spec DFF-STATIC-070
+// @spec DFF-STATIC-071
+// @spec DFF-STATIC-072
+function SessionHistoryView({ onNewDraft }: { onNewDraft: () => void }) {
+  const { sessionHistory } = useDraftContext();
+
+  return (
+    <section className="w-full rounded-[2rem] border border-stone-800 bg-stone-900/90 p-8 shadow-2xl shadow-black/20">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Completed Drafts</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-50">Session History</h1>
+          <p className="mt-3 text-sm text-stone-300">Drafts are kept only for the current browser session.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onNewDraft}
+          className="rounded-full bg-amber-300 px-5 py-2.5 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
+        >
+          New Draft
+        </button>
+      </div>
+
+      <ol aria-label="Completed drafts" className="mt-8 space-y-4">
+        {[...sessionHistory].reverse().map((draft) => (
+          <li key={draft.draftId} className="rounded-[1.5rem] border border-stone-800 bg-stone-950/60 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-lg font-semibold text-stone-50">{draft.draftId}</p>
+              <p className="text-sm text-stone-400">
+                {new Date(draft.completedAt).toLocaleString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </p>
+            </div>
+            <p className="mt-3 text-sm text-stone-300">
+              {draft.picks.length} picks · {draft.teams.length} teams
+            </p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+// @spec DFF-STATIC-063
+function StaticDraftApp({ snapshot }: { snapshot: Snapshot }) {
+  const { draftState, newDraft, startDraft } = useDraftContext();
+  const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
+  const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
+  const view = !draftState ? 'config' : draftState.status === 'completed' ? 'history' : 'drafting';
+
+  async function handleStartDraft() {
+    if (isSubmittingDraft) {
+      return;
+    }
+
+    setIsSubmittingDraft(true);
+
+    try {
+      startDraft(draftConfig);
+    } finally {
+      setIsSubmittingDraft(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-stone-950 px-6 py-10 text-stone-50">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        {view === 'config' ? (
+          <DraftConfigScreen
+            config={draftConfig}
+            isSubmitting={isSubmittingDraft}
+            onConfigChange={setDraftConfig}
+            onStartDraft={handleStartDraft}
+            supportingContent={
+              <dl className="grid gap-4 text-sm text-stone-300 md:grid-cols-3">
+                <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
+                  <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Players</dt>
+                  <dd className="mt-2 text-2xl font-semibold text-stone-50">{snapshot.players.length}</dd>
+                </div>
+                <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
+                  <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Pick Values</dt>
+                  <dd className="mt-2 text-2xl font-semibold text-stone-50">{snapshot.pickValues.length}</dd>
+                </div>
+                <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
+                  <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Exported</dt>
+                  <dd className="mt-2 text-lg font-semibold text-stone-50">
+                    {new Date(snapshot.exportedAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </dd>
+                </div>
+              </dl>
+            }
+          />
+        ) : null}
+        {view === 'drafting' ? <DraftRoom snapshot={snapshot} /> : null}
+        {view === 'history' ? <SessionHistoryView onNewDraft={() => newDraft()} /> : null}
+      </div>
+    </main>
+  );
+}
+
 // @spec DFF-STATIC-013
 // @spec DFF-STATIC-014
 // @spec DFF-STATIC-015
@@ -46,7 +236,6 @@ function FullScreenMessage({ title, detail }: { title: string; detail: string })
 export function App() {
   const [snapshotState, setSnapshotState] = useState<SnapshotLoadState>({ status: 'loading' });
   const [isStaleBannerDismissed, setIsStaleBannerDismissed] = useState(false);
-  const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,61 +292,26 @@ export function App() {
   const staleSnapshot = isSnapshotStale(snapshotState.snapshot.exportedAt);
 
   return (
-    <main className="min-h-screen bg-stone-950 px-6 py-10 text-stone-50">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        {staleSnapshot && !isStaleBannerDismissed ? (
-          <section
-            className="flex flex-col gap-4 rounded-[1.5rem] border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-50 md:flex-row md:items-center md:justify-between"
-            role="status"
+    <>
+      {staleSnapshot && !isStaleBannerDismissed ? (
+        <section
+          className="mx-auto mt-6 flex w-[calc(100%-3rem)] max-w-6xl flex-col gap-4 rounded-[1.5rem] border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-50 md:flex-row md:items-center md:justify-between"
+          role="status"
+        >
+          <p>Player data is over 30 days old</p>
+          <button
+            type="button"
+            aria-label="Dismiss stale data warning"
+            onClick={() => setIsStaleBannerDismissed(true)}
+            className="rounded-full border border-amber-300/50 px-4 py-2 text-sm font-medium text-amber-50 transition hover:bg-amber-200/10"
           >
-            <p>Player data is over 30 days old</p>
-            <button
-              type="button"
-              aria-label="Dismiss stale data warning"
-              onClick={() => setIsStaleBannerDismissed(true)}
-              className="rounded-full border border-amber-300/50 px-4 py-2 text-sm font-medium text-amber-50 transition hover:bg-amber-200/10"
-            >
-              Dismiss
-            </button>
-          </section>
-        ) : null}
-        <DraftConfigScreen
-          config={draftConfig}
-          isSubmitting={false}
-          isSubmitDisabled
-          startButtonLabel="Draft Flow Coming Next"
-          footerBadgeLabel="Static snapshot scaffold"
-          description="Snapshot data is loaded. The in-browser draft flow will be wired in the next static-build slices."
-          onConfigChange={setDraftConfig}
-          onStartDraft={async () => {}}
-          supportingContent={
-            <dl className="grid gap-4 text-sm text-stone-300 md:grid-cols-3">
-              <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
-                <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Players</dt>
-                <dd className="mt-2 text-2xl font-semibold text-stone-50">
-                  {snapshotState.snapshot.players.length}
-                </dd>
-              </div>
-              <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
-                <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Pick Values</dt>
-                <dd className="mt-2 text-2xl font-semibold text-stone-50">
-                  {snapshotState.snapshot.pickValues.length}
-                </dd>
-              </div>
-              <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
-                <dt className="text-xs uppercase tracking-[0.25em] text-stone-500">Exported</dt>
-                <dd className="mt-2 text-lg font-semibold text-stone-50">
-                  {new Date(snapshotState.snapshot.exportedAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </dd>
-              </div>
-            </dl>
-          }
-        />
-      </div>
-    </main>
+            Dismiss
+          </button>
+        </section>
+      ) : null}
+      <InMemoryDraftContextProvider snapshot={snapshotState.snapshot}>
+        <StaticDraftApp snapshot={snapshotState.snapshot} />
+      </InMemoryDraftContextProvider>
+    </>
   );
 }

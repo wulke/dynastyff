@@ -102,6 +102,8 @@ availablePlayers(state: InMemoryDraftState, allPlayers: Player[]): Player[]
 
 The bot loop lives in the static build's React context (`src/ui-static/InMemoryDraftContext.tsx`). After each pick it checks whether the next slot belongs to a bot and, if so, calls `selectBotPick` with a 1.5–3s async delay before calling `submitPick` again. The loop halts when `currentTeam` returns `null` (draft complete) or when the current slot is the user's turn.
 
+If `selectBotPick` or `submitPick` throws an `InvariantError` during the bot loop, the context stops the chain immediately and surfaces a toast indicating the draft cannot continue.
+
 ```ts
 async function runBotChain(state: InMemoryDraftState, players: Player[]): Promise<InMemoryDraftState>
 ```
@@ -227,6 +229,8 @@ The static app wires an `InMemoryDraftContext` implementation (manages in-memory
 
 Components reference `useDraftContext()` and are unaware of which implementation is active.
 
+In the current static slice, `src/ui-static/App.tsx` reuses the shared `DraftConfigScreen` from `src/ui/components/` and provides static-only drafting/history shells around the shared context contract. This keeps the config workflow identical across deploy targets while letting the static build own the in-browser bot loop and session-only history state.
+
 ## Session History
 
 In the static build, draft history is in-memory only — it does not survive a page refresh. `InMemoryDraftContext` maintains a `sessionHistory: CompletedDraft[]` array. When `currentTeam` returns `null` (all picks exhausted), the engine transitions the draft to `completed`, and the context appends a `CompletedDraft` snapshot to `sessionHistory` before transitioning the view state to `history`.
@@ -235,14 +239,18 @@ In the static build, draft history is in-memory only — it does not survive a p
 type CompletedDraft = {
   draftId: string;
   completedAt: string;
-  config: DraftConfig;
+  draftOrder: DraftSlot[];
   picks: Pick[];
   teams: Team[];
   rosterPlayers: RosterEntry[];
+  teamPickAssets: TeamPickAsset[];
+  trades: TradeRecord[];
 };
 ```
 
 The history view renders `sessionHistory` in reverse chronological order. Only the current session's drafts are visible.
+
+`newDraft()` clears only the active draft state. Snapshot data and `sessionHistory` remain in memory so the user can run another mock and compare it against prior completions in the same tab session.
 
 ## File Layout
 

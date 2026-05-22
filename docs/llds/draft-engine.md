@@ -44,6 +44,9 @@ create → in_progress → [pick loop] → completed
 | GET | `/drafts/:id/stream` | SSE stream for real-time events |
 | GET | `/drafts/:id/state` | Full current draft state snapshot |
 | POST | `/drafts/:id/pick` | Submit user pick (player_id) |
+| POST | `/drafts/:id/queue` | Add a player to the user's queue or update its rank |
+| DELETE | `/drafts/:id/queue/:player_id` | Remove one player from the user's queue |
+| GET | `/drafts/:id/queue` | Return the user's queue ordered by ascending rank |
 | POST | `/drafts/:id/trade-response` | Accept, decline, or force-decline a pending trade |
 | GET | `/drafts` | List all persisted drafts for history / resume flows |
 | GET | `/drafts/:id/summary` | Post-draft summary for history view |
@@ -187,6 +190,41 @@ Returns every persisted draft, ordered by `created_at` descending, with:
 Behavior:
 - When no drafts exist, the route returns an empty array
 - If any unexpected database error occurs, the route forwards the exception to the shared Express error handler and returns HTTP `500`
+
+### Queue Routes
+
+Queue management exposes the persisted `user_queue` rows directly instead of maintaining a separate in-memory watchlist projection.
+
+#### POST /drafts/:id/queue
+
+Request body:
+
+```json
+{
+  "playerId": "player-123",
+  "rank": 1
+}
+```
+
+Behavior:
+- Returns HTTP `404` when `draft_id` does not exist
+- Returns HTTP `400` when `playerId` is missing/blank or `rank` is missing/invalid
+- Inserts a new queue row when the player is not already queued
+- Updates the existing row's `rank` when the player is already queued
+
+#### DELETE /drafts/:id/queue/:player_id
+
+Behavior:
+- Returns HTTP `404` when `draft_id` does not exist
+- Returns HTTP `400` when `player_id` is missing/blank
+- Deletes the matching queue row when present
+- Returns HTTP `404` when the player is not present in the draft's queue
+
+#### GET /drafts/:id/queue
+
+Behavior:
+- Returns HTTP `404` when `draft_id` does not exist
+- Returns the queue as `[{ playerId, rank }]` ordered by ascending `rank`
 
 ## Trade Resolution
 

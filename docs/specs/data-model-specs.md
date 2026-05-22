@@ -136,7 +136,7 @@ The system shall maintain exactly one row per player per draft in `user_queue`; 
 **DFF-DATA-092** `[x]`
 When a queued player is drafted (by any team), the system shall remove that player's row from `user_queue`.
 
-**DFF-DATA-093** `[ ]`
+**DFF-DATA-093** `[x]` → #60
 The system shall expose queue management via: POST /drafts/:id/queue (add or update), DELETE /drafts/:id/queue/:player_id (remove), and GET /drafts/:id/queue (retrieve ordered list).
 
 ---

@@ -1013,6 +1013,101 @@ test('runEtl aggregates pick values across sources and updates existing round-le
   }
 });
 
+// @spec DFF-SPKV-014
+// @spec DFF-SPKV-031
+// @spec DFF-SPKV-032
+test('runEtl stores startup pick slot rows separately from round-level future pick rows', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () =>
+        makeKtcResult(
+          [
+            {
+              name: 'Alpha QB',
+              position: 'QB',
+              nflTeam: 'BUF',
+              age: 24,
+              isRookie: false,
+              rawValue: 100,
+              adp: 10,
+            },
+          ],
+          [
+            { year: 2027, round: 1, rawValue: 500 },
+            { year: 2026, round: 1, pickInRound: 4, rawValue: 800 },
+          ],
+        ),
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [],
+        pickValues: [
+          { year: 2027, round: 1, rawValue: 100 },
+          { year: 2026, round: 1, pickInRound: 4, rawValue: 200 },
+        ],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [],
+        pickValues: [],
+      }),
+      now: () => '2026-05-20T07:00:00.000Z',
+    });
+
+    const rows = db
+      .prepare(
+        `SELECT
+          year,
+          round,
+          pick_in_round,
+          dynasty_value
+         FROM pick_values
+         ORDER BY year, round, pick_in_round`,
+      )
+      .all() as Array<{
+        year: number;
+        round: number;
+        pick_in_round: number;
+        dynasty_value: number;
+      }>;
+
+    const snapshots = db
+      .prepare(
+        `SELECT
+          year,
+          round,
+          pick_in_round,
+          source,
+          raw_value
+         FROM pick_value_snapshots
+         ORDER BY year, round, pick_in_round, source`,
+      )
+      .all() as Array<{
+        year: number;
+        round: number;
+        pick_in_round: number;
+        source: string;
+        raw_value: number;
+      }>;
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(rows, [
+      { year: 2026, round: 1, pick_in_round: 4, dynasty_value: 9999 },
+      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 0 },
+    ]);
+    assert.deepEqual(snapshots, [
+      { year: 2026, round: 1, pick_in_round: 4, source: 'fantasycalc', raw_value: 200 },
+      { year: 2026, round: 1, pick_in_round: 4, source: 'ktc', raw_value: 800 },
+      { year: 2027, round: 1, pick_in_round: 0, source: 'fantasycalc', raw_value: 100 },
+      { year: 2027, round: 1, pick_in_round: 0, source: 'ktc', raw_value: 500 },
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
 test('runEtl updates an existing player matched by name and position', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
 

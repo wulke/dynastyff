@@ -36,8 +36,11 @@ The ETL pipeline shall assign the current calendar year (at the time of the ETL 
 **DFF-SPKV-013** `[ ]`
 When a scraper encounters a pick asset name beginning with `"Startup"` that does not match the `R.PP` pattern, the system shall log a warning and exclude that row from `pickValues`; it shall not be treated as a player row.
 
-**DFF-SPKV-014** `[ ]`
+**DFF-SPKV-014** `[x]` → #69
 The scraper contract `RawPickValue` type shall be extended to include an optional `pickInRound` field: `{ year: number; round: number; rawValue: number; pickInRound?: number }`. When `pickInRound` is absent or zero, the row is treated as a round-level future pick. When `pickInRound >= 1`, the row is treated as an exact startup pick slot.
+
+**DFF-SPKV-015** `[x]` → #69
+The static snapshot export shall include only `pick_values` rows where `pick_in_round = 0`; startup pick slot rows with `pick_in_round >= 1` shall be excluded from the exported `pickValues` array.
 
 ---
 
@@ -56,10 +59,10 @@ The system shall aggregate `dynasty_value` for each `(year, round, pick_in_round
 **DFF-SPKV-030** `[ ]`
 When upserting startup pick values, the system shall use `(year, round, pick_in_round)` as the match key. An existing row matching all three fields shall be updated; a non-matching key shall result in a new insert.
 
-**DFF-SPKV-031** `[ ]`
+**DFF-SPKV-031** `[x]` → #69
 When upserting future pick values (round-level), the system shall continue to use `(year, round, pick_in_round = 0)` as the match key, preserving backward compatibility with existing ETL behavior.
 
-**DFF-SPKV-032** `[ ]`
+**DFF-SPKV-032** `[x]` → #69
 When writing to `pick_value_snapshots`, the system shall populate `pick_in_round` from the source row: `>= 1` for startup picks, `0` for round-level future picks.
 
 ---

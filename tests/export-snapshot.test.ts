@@ -62,6 +62,7 @@ test('package.json exposes npm run export:snapshot as a standalone entry point',
 
 // @spec DFF-STATIC-010
 // @spec DFF-STATIC-011
+// @spec DFF-SPKV-015
 test('export-snapshot writes the documented snapshot shape from players and pick_values', () => {
   const { db, dbPath, tempDir, cleanup } = createTempDatabase();
   const outputPath = path.join(tempDir, 'snapshot.json');
@@ -103,15 +104,21 @@ test('export-snapshot writes the documented snapshot shape from players and pick
 
     db.prepare(
       `INSERT INTO pick_values (
-        id, year, round, dynasty_value, updated_at
-      ) VALUES (?, ?, ?, ?, ?)`,
-    ).run('pick-1', 2027, 1, 6400, '2026-05-21T00:00:00.000Z');
+        id, year, round, pick_in_round, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('pick-1', 2027, 1, 0, 6400, '2026-05-21T00:00:00.000Z');
 
     db.prepare(
       `INSERT INTO pick_values (
-        id, year, round, dynasty_value, updated_at
-      ) VALUES (?, ?, ?, ?, ?)`,
-    ).run('pick-2', 2028, 2, 4200, '2026-05-21T00:00:00.000Z');
+        id, year, round, pick_in_round, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('pick-2', 2028, 2, 0, 4200, '2026-05-21T00:00:00.000Z');
+
+    db.prepare(
+      `INSERT INTO pick_values (
+        id, year, round, pick_in_round, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('startup-pick-1', 2026, 1, 4, 9100, '2026-05-21T00:00:00.000Z');
 
     const result = runExportSnapshot(dbPath, outputPath);
 
@@ -156,6 +163,62 @@ test('export-snapshot writes the documented snapshot shape from players and pick
         year: 2028,
         round: 2,
         dynastyValue: 4200,
+      },
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-STATIC-011
+// @spec DFF-SPKV-015
+test('export-snapshot excludes startup pick slot rows from the exported pickValues array', () => {
+  const { db, dbPath, tempDir, cleanup } = createTempDatabase();
+  const outputPath = path.join(tempDir, 'snapshot.json');
+
+  try {
+    db.prepare(
+      `INSERT INTO players (
+        id, name, position, nfl_team, age, is_rookie, dynasty_value, value_ktc, adp, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'player-1',
+      'Alpha QB',
+      'QB',
+      'BUF',
+      24.5,
+      0,
+      8123,
+      9000,
+      12.4,
+      '2026-05-21T00:00:00.000Z',
+    );
+
+    db.prepare(
+      `INSERT INTO pick_values (
+        id, year, round, pick_in_round, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('pick-1', 2027, 1, 0, 6400, '2026-05-21T00:00:00.000Z');
+
+    db.prepare(
+      `INSERT INTO pick_values (
+        id, year, round, pick_in_round, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('startup-pick-1', 2026, 1, 4, 9100, '2026-05-21T00:00:00.000Z');
+
+    const result = runExportSnapshot(dbPath, outputPath);
+
+    assert.equal(result.status, 0, result.stderr);
+
+    const snapshot = JSON.parse(fs.readFileSync(outputPath, 'utf8')) as {
+      pickValues: Array<Record<string, unknown>>;
+    };
+
+    assert.deepEqual(snapshot.pickValues, [
+      {
+        year: 2027,
+        round: 1,
+        dynastyValue: 6400,
       },
     ]);
   } finally {

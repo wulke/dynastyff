@@ -77,6 +77,7 @@ function loadPlayers(sqlite: Database.Database): SnapshotPlayer[] {
 }
 
 // @spec DFF-STATIC-011
+// @spec DFF-SPKV-015
 function loadPickValues(sqlite: Database.Database): SnapshotPickValue[] {
   return sqlite
     .prepare(

@@ -1016,7 +1016,6 @@ test('POST /drafts/:id/queue returns 400 when rank is invalid', async () => {
   }
 });
 
-// @spec DFF-DATA-091
 // @spec DFF-DATA-093
 test('POST /drafts/:id/queue returns 404 for an unknown draft id', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-queue-post-missing-draft-');

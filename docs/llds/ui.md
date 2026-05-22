@@ -230,9 +230,9 @@ Deferred to issue `#16`:
 
 ## Draft History View
 
-Rendered after `draft_complete`. Reachable by navigating back from the config screen via `GET /drafts` (list) → select a draft.
+Rendered automatically after `draft_complete` SSE event. Uses the `draftState` data accumulated during the draft via SSE events (picks, trades, rosters).
 
-Three tabs toggled by pill buttons at the top:
+Three tabs toggled by pill buttons at the top, implemented in `src/ui/components/HistoryView.tsx`:
 
 **Pick Log tab:**
 - Chronological list of all picks: round, pick number, team name, player name, position, dynasty value at draft time

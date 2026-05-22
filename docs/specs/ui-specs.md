@@ -146,22 +146,22 @@ When the user responds to the trade modal, the system shall POST /drafts/:id/tra
 
 ## Draft History View
 
-**DFF-UI-060** `[ ]` → #21
+**DFF-UI-060** `[x]` → #21
 The History view shall display three tabs toggled by pill buttons: Pick Log, Roster View, and Trade Log.
 
-**DFF-UI-061** `[ ]` → #21
+**DFF-UI-061** `[x]` → #21
 The Pick Log tab shall list all picks in chronological order, showing: round, pick number, team name, player name, position badge, and dynasty value at draft time.
 
-**DFF-UI-062** `[ ]` → #21
+**DFF-UI-062** `[x]` → #21
 The Roster View tab shall render one card per team with players grouped by position (QB, RB, WR, TE), showing each player's name, round drafted, and dynasty value.
 
-**DFF-UI-063** `[ ]` → #21
+**DFF-UI-063** `[x]` → #21
 The user's team card in the Roster View shall be visually highlighted.
 
-**DFF-UI-064** `[ ]` → #21
+**DFF-UI-064** `[x]` → #21
 The Trade Log tab shall list all trades in chronological order, showing: round, initiating team, receiving team, assets exchanged, and outcome (accepted / declined / force_declined).
 
-**DFF-UI-065** `[ ]` → #21
+**DFF-UI-065** `[x]` → #21
 The History view shall include a "New Draft" button that transitions the app to the Config screen.
 
 ---

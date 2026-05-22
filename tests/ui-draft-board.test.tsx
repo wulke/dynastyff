@@ -6,6 +6,13 @@
 // @spec DFF-UI-024b
 // @spec DFF-UI-025
 // @spec DFF-UI-026
+// @spec DFF-UI-088
+// @spec DFF-UI-089
+// @spec DFF-UI-090
+// @spec DFF-UI-091
+// @spec DFF-UI-092
+// @spec DFF-UI-093
+// @spec DFF-UI-092
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -170,6 +177,7 @@ beforeEach(() => {
   MockEventSource.instances = [];
   vi.stubGlobal('fetch', fetchMock);
   vi.stubGlobal('EventSource', MockEventSource as unknown as typeof EventSource);
+  localStorage.clear();
 });
 
 afterEach(() => {
@@ -355,6 +363,379 @@ describe('draft board UI', () => {
 
     expect(screen.queryByTestId('draft-slot-skeleton')).not.toBeInTheDocument();
     expect(within(screen.getByTestId('draft-slot-2')).getByText(/waiting for selection/i)).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-088
+  // @spec DFF-UI-089
+  test('renders a layout toggle button in the draft board header that switches between row and column mode', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitDraftState();
+
+    // Toggle button exists in the header
+    const toggle = screen.getByTestId('layout-toggle');
+    expect(toggle).toBeInTheDocument();
+
+    // Default is row mode: teams as rows, rounds as columns
+    expect(screen.getByRole('columnheader', { name: /team/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /round 1/i })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /bob/i })).toBeInTheDocument();
+
+    // Click toggle to switch to column mode
+    await user.click(toggle);
+
+    // Column mode: rounds as rows, teams as columns
+    expect(screen.getByRole('columnheader', { name: /bob/i })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /round 1/i })).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-088
+  // @spec DFF-UI-089
+  test('layout mode persists to localStorage and is restored on page load', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    // Set localStorage to column mode before render
+    localStorage.setItem('draftBoardLayout', 'column');
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitDraftState();
+
+    // Should start in column mode
+    expect(screen.getByRole('rowheader', { name: /round 1/i })).toBeInTheDocument();
+
+    // Switch to row mode
+    await user.click(screen.getByTestId('layout-toggle'));
+    expect(localStorage.getItem('draftBoardLayout')).toBe('row');
+
+    // Switch back to column mode
+    await user.click(screen.getByTestId('layout-toggle'));
+    expect(localStorage.getItem('draftBoardLayout')).toBe('column');
+  });
+
+  // @spec DFF-UI-088
+  // @spec DFF-UI-090
+  // @spec DFF-UI-091
+  test('column mode renders rounds as rows and teams as columns with sticky team-name header row', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitDraftState();
+
+    // Switch to column mode
+    await user.click(screen.getByTestId('layout-toggle'));
+
+    // Column mode: scroll container should allow vertical scroll
+    const scroller = screen.getByTestId('draft-board-scroller');
+    expect(scroller.className).toContain('overflow-y-auto');
+
+    // Team name header should be sticky in column mode
+    const teamHeaderCells = screen.getAllByRole('columnheader');
+    const firstTeamHeader = teamHeaderCells.find((cell) => cell.textContent?.includes('Bob'));
+    expect(firstTeamHeader).toBeDefined();
+    expect(firstTeamHeader!.className).toContain('sticky');
+  });
+
+  // @spec DFF-UI-093
+  test('column mode applies amber tint to the user team column header', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitDraftState();
+
+    // Switch to column mode
+    await user.click(screen.getByTestId('layout-toggle'));
+
+    // Find the user team column header (team-2 = 'You')
+    const teamHeaderCells = screen.getAllByRole('columnheader');
+    const userTeamHeader = teamHeaderCells.find((cell) => cell.textContent?.includes('You'));
+    expect(userTeamHeader).toBeDefined();
+    expect(userTeamHeader!.className).toContain('bg-amber-300/10');
+
+    // Non-user team should not have amber tint
+    const nonUserTeamHeader = teamHeaderCells.find((cell) => cell.textContent?.includes('Bob'));
+    expect(nonUserTeamHeader).toBeDefined();
+    expect(nonUserTeamHeader!.className).toContain('bg-stone-950');
+    expect(nonUserTeamHeader!.className).not.toContain('amber');
+  });
+
+  // @spec DFF-UI-092
+  test('position badges are color-coded by position (QB=amber, RB=blue, WR=emerald, TE=purple, PICK=yellow, RDP=yellow, other=stone)', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync({
+      current_pick_number: 1,
+      available_players: [
+        {
+          id: 'player-1',
+          name: 'Josh Allen',
+          position: 'QB',
+          nfl_team: 'BUF',
+          age: 30,
+          is_rookie: false,
+          dynasty_value: 9999,
+          adp: 1,
+        },
+        {
+          id: 'player-2',
+          name: 'Bijan Robinson',
+          position: 'RB',
+          nfl_team: 'ATL',
+          age: 23,
+          is_rookie: false,
+          dynasty_value: 9500,
+          adp: 3,
+        },
+        {
+          id: 'player-3',
+          name: 'Justin Jefferson',
+          position: 'WR',
+          nfl_team: 'MIN',
+          age: 26,
+          is_rookie: false,
+          dynasty_value: 9800,
+          adp: 2,
+        },
+        {
+          id: 'player-4',
+          name: 'Brock Bowers',
+          position: 'TE',
+          nfl_team: 'LV',
+          age: 22,
+          is_rookie: true,
+          dynasty_value: 8800,
+          adp: 10,
+        },
+      ],
+    });
+
+    // Make picks for each slot
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 1,
+        team_id: 'team-1',
+        player_id: 'player-1',
+        is_bot: true,
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 2,
+        team_id: 'team-2',
+        player_id: 'player-2',
+        is_bot: true,
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 3,
+        team_id: 'team-3',
+        player_id: 'player-3',
+        is_bot: true,
+      });
+    });
+
+    // Verify QB badge has amber color classes
+    const qbBadge = within(screen.getByTestId('draft-slot-1')).getByText('QB');
+    expect(qbBadge.className).toContain('amber');
+    expect(qbBadge.className).not.toContain('emerald');
+
+    // Verify RB badge has blue color classes
+    const rbBadge = within(screen.getByTestId('draft-slot-2')).getByText('RB');
+    expect(rbBadge.className).toContain('blue');
+    expect(rbBadge.className).not.toContain('emerald');
+
+    // Verify WR badge has emerald color classes
+    const wrBadge = within(screen.getByTestId('draft-slot-3')).getByText('WR');
+    expect(wrBadge.className).toContain('emerald');
+
+    // Verify TE badge has purple color classes
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 4,
+        team_id: 'team-1',
+        player_id: 'player-4',
+        is_bot: true,
+      });
+    });
+
+    const teBadge = within(screen.getByTestId('draft-slot-4')).getByText('TE');
+    expect(teBadge.className).toContain('purple');
+  });
+
+  // @spec DFF-UI-092
+  test('position badges use yellow for PICK/RDP and stone for unknown positions', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync({
+      current_pick_number: 1,
+      available_players: [
+        {
+          id: 'player-pick',
+          name: 'Startup Pick',
+          position: 'PICK',
+          nfl_team: null,
+          age: null,
+          is_rookie: false,
+          dynasty_value: 5000,
+          adp: null,
+        },
+        {
+          id: 'player-rdp',
+          name: 'Rookie Pick',
+          position: 'RDP',
+          nfl_team: null,
+          age: null,
+          is_rookie: false,
+          dynasty_value: 4000,
+          adp: null,
+        },
+        {
+          id: 'player-unknown',
+          name: 'Unknown',
+          position: 'K',
+          nfl_team: null,
+          age: null,
+          is_rookie: false,
+          dynasty_value: 1000,
+          adp: null,
+        },
+      ],
+    });
+
+    // Pick the first two players so slots fill in
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 1,
+        team_id: 'team-1',
+        player_id: 'player-pick',
+        is_bot: true,
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 2,
+        team_id: 'team-2',
+        player_id: 'player-rdp',
+        is_bot: true,
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 3,
+        team_id: 'team-3',
+        player_id: 'player-unknown',
+        is_bot: true,
+      });
+    });
+
+    // Verify PICK badge has yellow color classes
+    const pickBadge = within(screen.getByTestId('draft-slot-1')).getByText('PICK');
+    expect(pickBadge.className).toContain('yellow');
+
+    // Verify RDP badge has yellow color classes
+    const rdpBadge = within(screen.getByTestId('draft-slot-2')).getByText('RDP');
+    expect(rdpBadge.className).toContain('yellow');
+
+    // Verify unknown position (K) badge has stone color classes
+    const unknownBadge = within(screen.getByTestId('draft-slot-3')).getByText('K');
+    expect(unknownBadge.className).toContain('stone');
+    expect(unknownBadge.className).not.toContain('amber');
+    expect(unknownBadge.className).not.toContain('blue');
+    expect(unknownBadge.className).not.toContain('emerald');
+    expect(unknownBadge.className).not.toContain('purple');
+    expect(unknownBadge.className).not.toContain('yellow');
+  });
+
+  // @spec DFF-UI-089
+  test('invalid localStorage value defaults to row mode', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    // Set localStorage to a corrupted value
+    localStorage.setItem('draftBoardLayout', 'garbage');
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitDraftState();
+
+    // Should start in row mode despite corrupted localStorage
+    expect(screen.getByRole('columnheader', { name: /team/i })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /bob/i })).toBeInTheDocument();
   });
 
   // @spec DFF-UI-020

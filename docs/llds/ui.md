@@ -125,7 +125,7 @@ The grid is fixed at draft creation (`round_count × team_count` cells). Cells f
 **Layout modes** (toggled via an icon-only button in the draft board header; preference persisted to localStorage; default: row mode):
 
 - **Row mode** — rounds are columns, teams are rows. The header row shows round numbers; the left column shows team names and remains sticky during horizontal scroll. The user's row is visually highlighted.
-- **Column mode** — teams are columns, rounds are rows. The header row shows team names and remains sticky during vertical scroll; the left column shows round numbers.
+- **Column mode** — teams are columns, rounds are rows. The header row shows team names and remains sticky during vertical scroll; the left column shows round numbers. The user's team column header is visually distinguished with an amber tint.
 
 **Cell states:**
 - Empty (future pick): faint border, waiting state copy

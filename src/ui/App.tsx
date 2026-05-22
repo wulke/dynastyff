@@ -127,6 +127,7 @@ function DraftApp() {
           />
         ) : null}
 
+        {/* @spec DFF-UI-100 */}
         {view === 'drafting' && draftState ? (
           <div className="flex w-full flex-col gap-6 lg:flex-row">
             <div className="min-w-0 flex-1">

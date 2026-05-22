@@ -157,10 +157,14 @@ A scrolling real-time feed panel rendered alongside the draft board, driven by `
 - Shows an empty-state message ("No picks yet") when `draftState.picks` is empty
 - Foundation for the Pick Log tab in the History View (#21) — shares the same rendering patterns
 
+**Decisions:**
+- `getPositionBadgeClass` is intentionally duplicated inline rather than extracted to a shared module. The function is small (~20 lines of Tailwind class strings) and its behavior is identical across DraftBoard, PickFeedPanel, and HistoryView. A future color change affecting all three surfaces should update all three call sites. If the function grows additional behavior (e.g., tooltips, icons), extract to `src/ui/components/positionBadge.ts`.
+
 **Edge Case Probe:**
 - Player ID is absent from `playerCatalog` → entry displays the raw `playerId` as the name and `NA` as the position badge
 - Draft has zero picks → panel shows empty state without crashing
 - Same player is picked twice (impossible in valid state but handles gracefully) → duplicate entries render, since each `pick_made` produces a unique pick record
+- Pick number is absent from `draftOrder` (should not happen in practice but handle defensively) → entry renders an em dash (`—`) in place of "Rd N, Pick M" instead of showing "Rd 0, Pick 0"
 
 ## Available Players List
 

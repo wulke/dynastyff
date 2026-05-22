@@ -241,17 +241,17 @@ Every position badge on the Draft Board shall be color-coded by position: QB=amb
 
 ## Pick Feed Panel
 
-**DFF-UI-100** `[ ]` → #82
+**DFF-UI-100** `[x]` → #82
 The Pick Feed panel shall be rendered alongside the Draft Board during the drafting view. It shall have a fixed maximum height and scroll independently of the Draft Board.
 
-**DFF-UI-101** `[ ]` → #82
+**DFF-UI-101** `[x]` → #82
 On initial load, the Pick Feed panel shall hydrate from the picks already present in `draftState.picks`, sorted in reverse-chronological order (most recent pick at the top).
 
-**DFF-UI-102** `[ ]` → #82
+**DFF-UI-102** `[x]` → #82
 When a `pick_made` SSE event is processed by the reducer, the newly added pick shall appear as an entry prepended to the top of the Pick Feed panel in real time, without a page reload or re-fetch.
 
-**DFF-UI-103** `[ ]` → #82
+**DFF-UI-103** `[x]` → #82
 Each Pick Feed entry shall display: player name, a color-coded position badge, the drafting team name, the round number, and the pick-in-round formatted as `"Rd N, Pick M"`.
 
-**DFF-UI-104** `[ ]` → #82
+**DFF-UI-104** `[x]` → #82
 When `draftState.picks` is empty, the Pick Feed panel shall render an empty-state message saying "No picks yet" without crashing.

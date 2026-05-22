@@ -317,6 +317,43 @@ describe('pick feed panel', () => {
     expect(within(pickFeed).getByText('NA')).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-103
+  test('renders em dash for round/pick when pick number is absent from draftOrder', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    // Emit a state_sync where draft_order does NOT include pick_number 1
+    emitStateSync({
+      current_pick_number: 1,
+      draft_order: [
+        { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+      ],
+    });
+
+    // Emit a pick_made for pick 1 which has no corresponding draft_order entry
+    emitPickMade(1, 'team-1', 'player-1');
+
+    const pickFeed = screen.getByTestId('pick-feed-panel');
+    const entry = within(pickFeed).getByTestId('pick-feed-entry-1');
+
+    // Entry should show the player name but em dash for round/pick
+    expect(within(entry).getByText('Josh Allen')).toBeInTheDocument();
+    expect(within(entry).getByText('—')).toBeInTheDocument();
+    expect(within(entry).queryByText(/rd 0/i)).not.toBeInTheDocument();
+  });
+
   // @spec DFF-UI-100
   test('pick feed panel renders alongside the draft board without replacing it', async () => {
     const user = userEvent.setup();

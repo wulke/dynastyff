@@ -10,7 +10,7 @@ type PickFeedPanelProps = {
   draftState: DraftState;
 };
 
-// @spec DFF-UI-092
+// @spec DFF-UI-103
 function getPositionBadgeClass(position: string): string {
   const base = 'inline-block rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em]';
 
@@ -67,15 +67,9 @@ export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
   }
 
   // @spec DFF-UI-103
-  function getPickRound(pickNumber: number): number {
+  function getPickSlot(pickNumber: number): { round: number; pickInRound: number } | null {
     const slot = draftState.draftOrder.find((s) => s.pickNumber === pickNumber);
-    return slot?.round ?? 0;
-  }
-
-  // @spec DFF-UI-103
-  function getPickInRound(pickNumber: number): number {
-    const slot = draftState.draftOrder.find((s) => s.pickNumber === pickNumber);
-    return slot?.pickInRound ?? 0;
+    return slot ? { round: slot.round, pickInRound: slot.pickInRound } : null;
   }
 
   // @spec DFF-UI-100
@@ -108,8 +102,7 @@ export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
             const playerName = getPlayerName(pick.playerId);
             const position = getPlayerPosition(pick.playerId);
             const teamName = getTeamName(pick.teamId);
-            const round = getPickRound(pick.pickNumber);
-            const pickInRound = getPickInRound(pick.pickNumber);
+            const pickSlot = getPickSlot(pick.pickNumber);
 
             return (
               <div
@@ -124,7 +117,7 @@ export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
                 <div className="flex items-center gap-3 text-right">
                   <p className="text-sm text-stone-400">{teamName}</p>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                    Rd {round}, Pick {pickInRound}
+                    {pickSlot ? `Rd ${pickSlot.round}, Pick ${pickSlot.pickInRound}` : '—'}
                   </p>
                 </div>
               </div>

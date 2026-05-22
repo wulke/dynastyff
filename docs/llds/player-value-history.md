@@ -38,10 +38,11 @@ Unique constraint on `(run_id, player_id, source)`.
 | run_id | TEXT | FK → etl_runs.id |
 | year | INTEGER | e.g. 2026, 2027, 2028 |
 | round | INTEGER | 1-based round |
+| pick_in_round | INTEGER | `0` for round-level future picks; `>= 1` for exact startup slots |
 | source | TEXT | Same values as `player_value_snapshots.source` |
 | raw_value | INTEGER | Source's native scale (pre-normalization) |
 
-Unique constraint on `(run_id, year, round, source)`.
+Unique constraint on `(run_id, year, round, pick_in_round, source)`.
 
 ### `drafts` (change)
 
@@ -55,7 +56,7 @@ Add nullable column `etl_run_id TEXT` — FK → `etl_runs.id`. Points to the ET
 2. Run scrapers with existing concurrency and partial failure logic (unchanged).
 3. For each source that succeeds, execute within a single database transaction:
    a. Write one `player_value_snapshots` row per matched player (raw value, run_id, player_id, source).
-   b. Write one `pick_value_snapshots` row per pick value entry (raw value, run_id, year, round, source).
+   b. Write one `pick_value_snapshots` row per pick value entry (raw value, run_id, year, round, pick_in_round, source).
    c. Upsert into `players` and `pick_values` (existing behavior).
    - If any write in (a), (b), or (c) fails, roll back the entire transaction for this source. Treat source as failed; log a warning. Other sources are unaffected.
 4. After all sources complete, update `etl_run.sources_succeeded` and `etl_run.completed_at`.

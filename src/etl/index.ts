@@ -74,8 +74,8 @@ type EtlStatements = {
   updateDynastydaddyPlayer: Database.Statement;
   updateRosterauditPlayer: Database.Statement;
   insertPlayerSnapshot: Database.Statement;
-  selectPickValueId: Database.Statement<[number, number], PickValueIdRow | undefined>;
-  selectRunPickSnapshots: Database.Statement<[string, number, number], PickValueSnapshotRow>;
+  selectPickValueId: Database.Statement<[number, number, number], PickValueIdRow | undefined>;
+  selectRunPickSnapshots: Database.Statement<[string, number, number, number], PickValueSnapshotRow>;
   insertPickValue: Database.Statement;
   updatePickValue: Database.Statement;
   insertPickSnapshot: Database.Statement;
@@ -180,19 +180,19 @@ function createStatements(sqlite: Database.Database): EtlStatements {
     selectPickValueId: sqlite.prepare(
       `SELECT id
        FROM pick_values
-       WHERE year = ? AND round = ?`,
+       WHERE year = ? AND round = ? AND pick_in_round = ?`,
     ),
     selectRunPickSnapshots: sqlite.prepare(
       `SELECT
          source,
          raw_value AS rawValue
        FROM pick_value_snapshots
-       WHERE run_id = ? AND year = ? AND round = ?`,
+       WHERE run_id = ? AND year = ? AND round = ? AND pick_in_round = ?`,
     ),
     insertPickValue: sqlite.prepare(
       `INSERT INTO pick_values (
-        id, year, round, dynasty_value, updated_at
-      ) VALUES (?, ?, ?, ?, ?)`,
+        id, year, round, pick_in_round, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
     ),
     updatePickValue: sqlite.prepare(
       `UPDATE pick_values
@@ -201,10 +201,17 @@ function createStatements(sqlite: Database.Database): EtlStatements {
     ),
     insertPickSnapshot: sqlite.prepare(
       `INSERT INTO pick_value_snapshots (
-        id, run_id, year, round, source, raw_value
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
+        id, run_id, year, round, pick_in_round, source, raw_value
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ),
   };
+}
+
+// @spec DFF-SPKV-002
+// @spec DFF-SPKV-031
+// @spec DFF-SPKV-032
+function resolvePickInRound(pickValue: Pick<NormalizedPickValue, 'pickInRound'>): number {
+  return pickValue.pickInRound ?? 0;
 }
 
 function getPlayerCandidates(
@@ -357,17 +364,20 @@ function buildPickValueNormalizationContexts(
 }
 
 // @spec DFF-ETL-041
+// @spec DFF-SPKV-031
 function computePickValueDynastyValue(
   statements: EtlStatements,
   runId: string,
   year: number,
   round: number,
+  pickInRound: number,
   normalizationContexts: Map<EtlSource, NormalizationContext>,
 ): number {
   const snapshots = statements.selectRunPickSnapshots.all(
     runId,
     year,
     round,
+    pickInRound,
   ) as PickValueSnapshotRow[];
   const normalizedValues = snapshots.flatMap((snapshot) => {
     const context = normalizationContexts.get(snapshot.source);
@@ -387,6 +397,8 @@ function computePickValueDynastyValue(
 // @spec DFF-ETL-041
 // @spec DFF-ETL-070
 // @spec DFF-ETL-071
+// @spec DFF-SPKV-031
+// @spec DFF-SPKV-032
 function writePickValue(
   statements: EtlStatements,
   runId: string,
@@ -395,11 +407,14 @@ function writePickValue(
   timestamp: string,
   normalizationContexts: Map<EtlSource, NormalizationContext>,
 ): void {
+  const pickInRound = resolvePickInRound(pickValue);
+
   statements.insertPickSnapshot.run(
     randomUUID(),
     runId,
     pickValue.year,
     pickValue.round,
+    pickInRound,
     source,
     pickValue.rawValue,
   );
@@ -409,9 +424,10 @@ function writePickValue(
     runId,
     pickValue.year,
     pickValue.round,
+    pickInRound,
     normalizationContexts,
   );
-  const existing = statements.selectPickValueId.get(pickValue.year, pickValue.round);
+  const existing = statements.selectPickValueId.get(pickValue.year, pickValue.round, pickInRound);
 
   if (existing) {
     statements.updatePickValue.run(dynastyValue, timestamp, existing.id);
@@ -420,6 +436,7 @@ function writePickValue(
       randomUUID(),
       pickValue.year,
       pickValue.round,
+      pickInRound,
       dynastyValue,
       timestamp,
     );

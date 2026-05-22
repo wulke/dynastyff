@@ -32,13 +32,13 @@ The system shall enforce a unique constraint on `(run_id, player_id, source)` in
 ## Schema — `pick_value_snapshots`
 
 **DFF-HIST-020** `[x]` → #31
-The system shall store raw pick values from each source in a `pick_value_snapshots` table with the following columns: id, run_id (FK → etl_runs.id), year, round, source, raw_value.
+The system shall store raw pick values from each source in a `pick_value_snapshots` table with the following columns: id, run_id (FK → etl_runs.id), year, round, pick_in_round, source, raw_value.
 
 **DFF-HIST-021** `[x]` → #31
 The system shall restrict `pick_value_snapshots.source` to the same values as `player_value_snapshots.source`.
 
 **DFF-HIST-022** `[x]` → #31
-The system shall enforce a unique constraint on `(run_id, year, round, source)` in `pick_value_snapshots`.
+The system shall enforce a unique constraint on `(run_id, year, round, pick_in_round, source)` in `pick_value_snapshots`.
 
 ---
 

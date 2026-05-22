@@ -85,6 +85,7 @@ function loadPickValues(sqlite: Database.Database): SnapshotPickValue[] {
          round,
          dynasty_value AS dynastyValue
        FROM pick_values
+       WHERE pick_in_round = 0
        ORDER BY year ASC, round ASC`,
     )
     .all() as PickValueRow[];

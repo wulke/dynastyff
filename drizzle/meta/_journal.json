@@ -8,6 +8,13 @@
       "when": 1779217737049,
       "tag": "0000_military_captain_flint",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1779470704872,
+      "tag": "0001_strong_nomad",
+      "breakpoints": true
     }
   ]
 }

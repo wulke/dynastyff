@@ -16,9 +16,11 @@ export type RawPlayer = {
   adp: number | null;
 };
 
+// @spec DFF-SPKV-002
 export type RawPickValue = {
   year: number;
   round: number;
+  pickInRound?: number;
   rawValue: number;
 };
 

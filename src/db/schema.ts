@@ -140,6 +140,8 @@ export const playerValueSnapshots = sqliteTable(
   ],
 );
 
+// @spec DFF-SPKV-002
+// @spec DFF-SPKV-004
 export const pickValueSnapshots = sqliteTable(
   'pick_value_snapshots',
   {
@@ -149,14 +151,16 @@ export const pickValueSnapshots = sqliteTable(
       .references(() => etlRuns.id, { onDelete: 'cascade' }),
     year: integer('year').notNull(),
     round: integer('round').notNull(),
+    pickInRound: integer('pick_in_round').notNull().default(0),
     source: text('source').notNull(),
     rawValue: integer('raw_value').notNull(),
   },
   (table) => [
-    uniqueIndex('pick_value_snapshots_run_year_round_source_unique').on(
+    uniqueIndex('pick_value_snapshots_run_year_round_pick_in_round_source_unique').on(
       table.runId,
       table.year,
       table.round,
+      table.pickInRound,
       table.source,
     ),
     index('pick_value_snapshots_run_id_idx').on(table.runId),
@@ -285,16 +289,26 @@ export const teamPickAssets = sqliteTable(
   ],
 );
 
+// @spec DFF-SPKV-001
+// @spec DFF-SPKV-002
+// @spec DFF-SPKV-003
 export const pickValues = sqliteTable(
   'pick_values',
   {
     id: text('id').primaryKey(),
     year: integer('year').notNull(),
     round: integer('round').notNull(),
+    pickInRound: integer('pick_in_round').notNull().default(0),
     dynastyValue: integer('dynasty_value').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
-  (table) => [uniqueIndex('pick_values_year_round_unique').on(table.year, table.round)],
+  (table) => [
+    uniqueIndex('pick_values_year_round_pick_in_round_unique').on(
+      table.year,
+      table.round,
+      table.pickInRound,
+    ),
+  ],
 );
 
 export const trades = sqliteTable(

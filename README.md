@@ -136,18 +136,18 @@ Current ETL scope:
 - Leaves DynastyDaddy disabled in the live ETL job for now due to scraper instability
 - Caps scraper concurrency at 2 in-flight scrapers
 - Filters players to `QB`, `RB`, `WR`, and `TE`
-- Returns a shared scraper contract: players `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values `{ year, round, rawValue }`
-- Parses KTC and FantasyCalc future pick assets such as `2027 Early 1st` into ETL pick values keyed by `(year, round)`
+- Returns a shared scraper contract: players `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values `{ year, round, pickInRound?, rawValue }`
+- Parses KTC and FantasyCalc future pick assets such as `2027 Early 1st` into ETL pick values keyed by `(year, round, pick_in_round)`, using `pick_in_round = 0` for round-level future picks
 - Creates an `etl_runs` record at ETL start and finalizes it with per-source success status on completion
 - Persists raw per-source player and pick snapshots into `player_value_snapshots` and `pick_value_snapshots`
 - Wraps each source's snapshot writes plus `players` / `pick_values` hot-path updates in a single transaction
 - Normalizes player values and pick values per source to `0-9999`
 - Matches non-KTC players onto KTC-backed canonical rows with normalized-name exact match, Dice fuzzy match, and `player-aliases.json` overrides
 - Aggregates player `dynasty_value` as the rounded mean of the non-NULL per-source normalized values
-- Aggregates each `pick_values` `(year, round)` row as the rounded mean of the current run's non-NULL per-source normalized pick values
+- Aggregates each `pick_values` `(year, round, pick_in_round)` row as the rounded mean of the current run's non-NULL per-source normalized pick values
 - Treats a missing `player-aliases.json` as an empty alias list and fails fast on malformed alias JSON
 - Upserts the local SQLite `players` and `pick_values` tables from the current ETL write path
-- Exposes `npm run export:snapshot`, which writes `data/snapshot.json` from the current `players` and `pick_values` tables for the static browser build
+- Exposes `npm run export:snapshot`, which writes `data/snapshot.json` from the current `players` table and round-level `pick_values` rows (`pick_in_round = 0`) for the static browser build
 - Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time
 - Reconstructs draft-scoped player `dynasty_value` reads from the pinned ETL run's `player_value_snapshots`, and falls back to `players` when a draft was created before any ETL run completed
 

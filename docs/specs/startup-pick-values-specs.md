@@ -8,16 +8,16 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ## Data Model
 
-**DFF-SPKV-001** `[ ]`
+**DFF-SPKV-001** `[x]` → #69
 The system shall add a `pick_in_round` INTEGER column to the `pick_values` table to identify exact startup draft pick slots.
 
-**DFF-SPKV-002** `[ ]`
+**DFF-SPKV-002** `[x]` → #69
 The system shall use `pick_in_round = 0` as a sentinel value meaning "round-level value, no specific slot assigned." All existing future pick rows shall be stored with `pick_in_round = 0`. Startup pick rows shall have `pick_in_round >= 1`.
 
-**DFF-SPKV-003** `[ ]`
+**DFF-SPKV-003** `[x]` → #69
 The system shall enforce a unique constraint on `(year, round, pick_in_round)` in the `pick_values` table, replacing the existing `(year, round)` constraint.
 
-**DFF-SPKV-004** `[ ]`
+**DFF-SPKV-004** `[x]` → #69
 The system shall add a `pick_in_round` INTEGER column to the `pick_value_snapshots` table, using the same sentinel-0 convention. The unique constraint on `pick_value_snapshots` shall be updated to `(run_id, year, round, pick_in_round, source)`.
 
 ---

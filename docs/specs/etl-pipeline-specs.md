@@ -122,7 +122,7 @@ When a `(year, round)` entry does not exist in `pick_values`, the system shall i
 ## Sub-Pick Normalization
 
 **DFF-ETL-090** `[x]` → #62
-When parsing pick asset names from a scraper source, the system shall use a regex to extract `year` (4-digit integer), `round` (ordinal: 1st→1, 2nd→2, 3rd→3, 4th→4), and optional `tier` (case-insensitive keyword: early, mid, late). Asset names that match year + round but contain no tier keyword shall be treated as plain picks with `tier: undefined`. Asset names that do not match year + round shall be treated as player assets.
+When parsing pick asset names from a scraper source, the system shall use a regex and return the extracted `year` (4-digit integer), `round` (ordinal: 1st→1, 2nd→2, 3rd→3, 4th→4), and optional `tier` (case-insensitive keyword: early, mid, late) to callers. Asset names that match year + round but contain no tier keyword shall be treated as plain picks with `tier: undefined`. Asset names that do not match year + round shall be treated as player assets.
 
 **DFF-ETL-091** `[ ]`
 After scraping, for each source the system shall group sub-pick rows by `(year, round)` and compute an averaged row with `rawValue` equal to the arithmetic mean of all available tier raw values for that group. The averaged row shall have `tier: undefined`. Averaging shall proceed with whatever tiers are present; a complete set is not required.

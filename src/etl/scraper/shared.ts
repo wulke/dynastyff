@@ -31,6 +31,12 @@ type FixturePayload = {
   pickValues?: ScrapedPickValueRow[];
 };
 
+export type ParsedPickAssetName = {
+  year: number;
+  round: number;
+  tier?: 'early' | 'mid' | 'late';
+};
+
 const pickAssetNamePattern =
   /^(?<year>\d{4})(?:\s+(?<tier>early|mid|late))?\s+(?<round>[1-4])(st|nd|rd|th)$/i;
 
@@ -92,7 +98,7 @@ export async function loadFixtureScraperResult(
 }
 
 // @spec DFF-ETL-090
-export function parsePickAssetName(name: string): Pick<RawPickValue, 'year' | 'round'> | null {
+export function parsePickAssetName(name: string): ParsedPickAssetName | null {
   const match = pickAssetNamePattern.exec(name.trim());
 
   if (!match?.groups) {
@@ -101,12 +107,17 @@ export function parsePickAssetName(name: string): Pick<RawPickValue, 'year' | 'r
 
   const year = Number(match.groups.year);
   const round = Number(match.groups.round);
+  const tier = match.groups.tier?.toLowerCase();
 
   if (!Number.isInteger(year) || !Number.isInteger(round)) {
     return null;
   }
 
-  return { year, round };
+  if (tier !== undefined && tier !== 'early' && tier !== 'mid' && tier !== 'late') {
+    return null;
+  }
+
+  return { year, round, tier };
 }
 
 type ExtractedPagePayload = {

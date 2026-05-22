@@ -41,7 +41,7 @@ import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
 import { extractKtcRowsFromPage, scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
 import { scrapeRosterAudit } from '../src/etl/scraper/rosteraudit.js';
-import { waitForScraperPageReady } from '../src/etl/scraper/shared.js';
+import { parsePickAssetName, waitForScraperPageReady } from '../src/etl/scraper/shared.js';
 import type { RawPlayer, ScraperResult } from '../src/etl/types.js';
 
 function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup: () => void } {
@@ -274,6 +274,21 @@ test('normalizePickValues assigns 9999 when all pick values share the same raw v
 });
 
 // @spec DFF-ETL-090
+test('parsePickAssetName returns year, round, and optional tier for supported pick names', () => {
+  assert.deepEqual(parsePickAssetName('2027 Early 1st'), {
+    year: 2027,
+    round: 1,
+    tier: 'early',
+  });
+  assert.deepEqual(parsePickAssetName('2027 1st'), {
+    year: 2027,
+    round: 1,
+    tier: undefined,
+  });
+  assert.equal(parsePickAssetName('Rookie Pick'), null);
+});
+
+// @spec DFF-ETL-090
 test('scrapeKtcPlayers fixture path splits PI rows into pick values while filtering unsupported player positions', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
   const fixturePath = path.join(tempDir, 'ktc.json');
@@ -308,6 +323,24 @@ test('scrapeKtcPlayers fixture path splits PI rows into pick values while filter
         rawValue: 321,
         adp: null,
       },
+      {
+        name: '2027 1st',
+        position: 'PI',
+        nflTeam: '',
+        age: null,
+        isRookie: false,
+        rawValue: 222,
+        adp: null,
+      },
+      {
+        name: 'Rookie Pick',
+        position: 'PI',
+        nflTeam: '',
+        age: null,
+        isRookie: false,
+        rawValue: 111,
+        adp: null,
+      },
     ]),
   );
 
@@ -334,6 +367,11 @@ test('scrapeKtcPlayers fixture path splits PI rows into pick values while filter
           year: 2027,
           round: 1,
           rawValue: 321,
+        },
+        {
+          year: 2027,
+          round: 1,
+          rawValue: 222,
         },
       ],
     });
@@ -371,6 +409,26 @@ test('FantasyCalc API-shape fixture parsing emits PI rows as pick values', async
           rookie: false,
         },
       },
+      {
+        value: 654,
+        player: {
+          name: '2027 1st',
+          position: 'PI',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+      {
+        value: 321,
+        player: {
+          name: 'Rookie Pick',
+          position: 'PI',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
     ]),
   );
 
@@ -397,6 +455,11 @@ test('FantasyCalc API-shape fixture parsing emits PI rows as pick values', async
           year: 2027,
           round: 1,
           rawValue: 789,
+        },
+        {
+          year: 2027,
+          round: 1,
+          rawValue: 654,
         },
       ],
     });

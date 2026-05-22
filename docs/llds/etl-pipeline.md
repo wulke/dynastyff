@@ -53,7 +53,7 @@ type RawPickValue = {
 
 Scrapers throw on unrecoverable failure (site unreachable, structure changed). Partial-failure handling is added in issue #6.
 DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` source list due to scraper instability.
-KTC and FantasyCalc separate future pick assets from player rows before applying the player position allowlist. Rows with source position `PI` are parsed from the asset name and emitted via `pickValues`.
+KTC and FantasyCalc separate future pick assets from player rows before applying the player position allowlist. Rows with source position `PI` are parsed from the asset name into `{ year, round, tier? }`; the current-state scraper output emits `year` and `round` via `pickValues` and ignores `tier` until the sub-pick normalization slice.
 
 ## Concurrency
 
@@ -71,7 +71,7 @@ The current ETL write path is source-aware and history-aware.
 DynastyDaddy remains implemented as a scraper module, but it is temporarily excluded from the live `npm run etl` job due to scraper instability.
 
 1. `runScrapers()` launches KTC, FantasyCalc, and RosterAudit with a maximum concurrency of 2.
-2. KTC and FantasyCalc parse asset names like `2027 Early 1st` with the ETL pick regex and emit current-state `pickValues` keyed by the extracted `(year, round)`.
+2. KTC and FantasyCalc parse asset names like `2027 Early 1st` with the ETL pick regex, returning `{ year, round, tier? }` from the shared parser and emitting current-state `pickValues` keyed by the extracted `(year, round)`.
 3. `runEtl()` inserts an `etl_runs` row at the start of execution with the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and `completed_at = NULL`.
 4. Each successful source is processed in its own database transaction:
    - normalize that source's player and pick values

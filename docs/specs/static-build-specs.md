@@ -15,10 +15,10 @@ The system shall expose an `npm run build:static` command that runs `vite build 
 The static Vite config shall set `base` to `/dynastyff/` so all asset URLs resolve correctly under the GitHub Pages subpath.
 
 **DFF-STATIC-003** `[x]` → #55
-The static build shall include no server-side imports (`express`, `better-sqlite3`, `drizzle-orm`, `node:crypto`) and shall fail the build if any are present.
+The static build shall include no server-side imports (`express`, `better-sqlite3`, `drizzle-orm`, `node:crypto`) and shall fail the build immediately if the static source graph references any of them.
 
 **DFF-STATIC-004** `[x]` → #55
-The static build shall exclude the advisor agent — no Anthropic SDK imports, no advisor UI components, and no API key configuration.
+The static build shall exclude the advisor agent — no Anthropic SDK imports, no advisor UI components, and no API key configuration — and CI shall fail if those advisor-only strings appear in the emitted static bundle.
 
 ---
 

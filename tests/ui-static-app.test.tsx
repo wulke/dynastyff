@@ -188,4 +188,45 @@ describe('static snapshot app', () => {
       expect(screen.queryByText(/player data is over 30 days old/i)).not.toBeInTheDocument();
     });
   });
+
+  // @spec DFF-STATIC-013
+  // @spec DFF-STATIC-016
+  test('does not show the stale-data banner when exportedAt is malformed', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-05-22T12:00:00.000Z').valueOf());
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          exportedAt: 'not-a-date',
+          players: [
+            {
+              id: 'player-1',
+              name: 'Alpha QB',
+              position: 'QB',
+              nflTeam: 'BUF',
+              age: 24,
+              isRookie: false,
+              dynastyValue: 9000,
+              adp: 10,
+            },
+          ],
+          pickValues: [],
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', {
+        name: /config screen/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/player data is over 30 days old/i)).not.toBeInTheDocument();
+  });
 });

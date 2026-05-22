@@ -443,17 +443,99 @@ describe('UI app scaffold', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /draft complete/i,
+        name: /you finished the draft/i,
       }),
     ).toBeInTheDocument();
     expect(
       within(screen.getByTestId('draft-completion-banner')).getByText(
-        /lakeview legends finished the board/i,
+        /congratulations, lakeview legends/i,
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
+    expect(screen.getByTestId('layout-toggle')).toBeDisabled();
     expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-005
+  test('falls back to "Your team" when the user team is missing from state', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', {
+        draft_id: 'draft-123',
+        status: 'in_progress',
+        current_pick_number: 24,
+        teams: [{ id: 'team-1', name: 'Bot Alpha', is_user: false, archetype: 'win_now' }],
+        draft_order: [{ pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' }],
+        picks: [],
+        roster_players: [],
+        team_pick_assets: [],
+        user_queue: [],
+        available_players: [],
+      });
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('draft_complete', {
+        draft_id: 'draft-123',
+        completed_at: '2026-05-21T18:00:00.000Z',
+      });
+    });
+
+    expect(
+      within(screen.getByTestId('draft-completion-banner')).getByText(
+        /congratulations, your team\./i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-003
+  // @spec DFF-UI-005
+  test('renders the completion banner even if draft_complete arrives before the first state_sync', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('draft_complete', {
+        draft_id: 'draft-123',
+        completed_at: '2026-05-21T18:00:00.000Z',
+      });
+    });
+
+    expect(
+      screen.getByRole('heading', {
+        name: /you finished the draft/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('draft-completion-banner')).getByText(
+        /congratulations, your team\./i,
+      ),
+    ).toBeInTheDocument();
   });
 
   // @spec DFF-UI-006

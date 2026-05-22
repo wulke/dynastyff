@@ -92,10 +92,10 @@ function DraftCompletionBanner({ teamName, onViewHistory }: DraftCompletionBanne
       data-testid="draft-completion-banner"
     >
       <section className="w-full max-w-xl rounded-[1.75rem] border border-amber-300/20 bg-stone-900/95 p-8 text-center shadow-2xl shadow-black/40">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Draft Complete</p>
-        <h2 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50">Draft complete</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Congratulations</p>
+        <h2 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50">You finished the draft</h2>
         <p className="mt-4 text-base leading-7 text-stone-300">
-          {teamName} finished the board. Review every pick, roster decision, and trade from the full draft history.
+          Congratulations, {teamName}. Review every pick, roster decision, and trade from the full draft history.
         </p>
         <button
           type="button"
@@ -175,7 +175,7 @@ function DraftApp() {
         {view === 'drafting' && draftState ? (
           <div className="flex w-full flex-col gap-6 lg:flex-row">
             <div className="relative min-w-0 flex-1">
-              <DraftBoard draftState={draftState} />
+              <DraftBoard draftState={draftState} isInteractionBlocked={showCompletionBanner} />
               {showCompletionBanner ? (
                 <DraftCompletionBanner
                   teamName={completionBannerTeamName}

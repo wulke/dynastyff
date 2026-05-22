@@ -6,6 +6,7 @@
 // @spec DFF-UI-024b
 // @spec DFF-UI-025
 // @spec DFF-UI-026
+// @spec DFF-UI-007
 // @spec DFF-UI-088
 // @spec DFF-UI-089
 // @spec DFF-UI-090
@@ -16,6 +17,7 @@ import type { DraftState } from '../context/DraftContext.js';
 
 type DraftBoardProps = {
   draftState: DraftState;
+  isInteractionBlocked?: boolean;
 };
 
 type DraftedPlayerSummary = {
@@ -245,11 +247,15 @@ function ColumnModeDraftBoard({ draftState }: DraftBoardProps) {
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-093
-export function DraftBoard({ draftState }: DraftBoardProps) {
+export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
   const [layout, setLayout] = useState<LayoutMode>(getStoredLayout);
 
   function toggleLayout() {
+    if (isInteractionBlocked) {
+      return;
+    }
+
     const nextLayout: LayoutMode = layout === 'row' ? 'column' : 'row';
     setLayout(nextLayout);
     persistLayout(nextLayout);
@@ -277,7 +283,8 @@ export function DraftBoard({ draftState }: DraftBoardProps) {
             type="button"
             data-testid="layout-toggle"
             onClick={toggleLayout}
-            className="rounded-full border border-stone-700 p-2.5 text-sm text-stone-400 transition hover:border-stone-500 hover:text-stone-200"
+            disabled={isInteractionBlocked}
+            className="rounded-full border border-stone-700 p-2.5 text-sm text-stone-400 transition hover:border-stone-500 hover:text-stone-200 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={layout === 'row' ? 'Switch to column layout' : 'Switch to row layout'}
             title={layout === 'row' ? 'Column layout' : 'Row layout'}
           >

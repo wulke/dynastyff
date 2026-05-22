@@ -243,7 +243,7 @@ describe('HTTP draft context', () => {
 
     expect(
       await screen.findByRole('heading', {
-        name: /draft complete/i,
+        name: /you finished the draft/i,
       }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();

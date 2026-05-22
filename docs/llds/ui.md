@@ -163,7 +163,7 @@ A blocking banner rendered only after the draft reaches `status: 'completed'`. I
 **Edge Case Probe:**
 - User team lookup fails (unexpected malformed state) -> banner falls back to `Your team`
 - `draft_complete` arrives before the first `state_sync` -> banner still renders from reducer state, even if the board has sparse metadata
-- User refreshes after completion -> `GET /drafts/:id/state` still restores `status: 'completed'`; the app may enter history directly on a fresh load because the banner is only required for the live draft-complete transition
+- Completed draft state is rehydrated after a reconnect or future refresh-restore path -> the completion banner renders again, because `View Full History` is client-local UI state and is not persisted
 
 ## Pick Feed Panel
 

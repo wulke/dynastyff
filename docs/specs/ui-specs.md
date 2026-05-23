@@ -108,31 +108,31 @@ When the user clicks a player row during their turn, the system shall POST /draf
 
 ## Advisor Panel
 
-**DFF-UI-040** `[ ]` → #20
+**DFF-UI-040** `[x]` → #20
 The Advisor panel shall be toggled open and closed by an "Advisor" button in the draft header.
 
-**DFF-UI-041** `[ ]` → #20
+**DFF-UI-041** `[x]` → #20
 The Advisor panel shall slide in from the right at approximately 380px width and shall not block interaction with the Draft Board beneath it.
 
-**DFF-UI-042** `[ ]` → #20
+**DFF-UI-042** `[x]` → #20
 The Advisor panel shall contain two tabs: "Advise Me" and "Grill Me". The user may switch between them at any time.
 
-**DFF-UI-043** `[ ]` → #20
+**DFF-UI-043** `[x]` → #20
 When the user clicks "Advise Me", the system shall POST /drafts/:id/advisor/advise and display an inline loading spinner while waiting for a response.
 
-**DFF-UI-044** `[ ]` → #20
+**DFF-UI-044** `[x]` → #20
 When an "Advise Me" response is received, the system shall render the structured recommendation with three sections: Recommendation, Key Factors, and Caveats.
 
-**DFF-UI-045** `[ ]` → #20
+**DFF-UI-045** `[x]` → #20
 When a `YOUR_TURN` action is dispatched, any stale "Advise Me" recommendation shall be cleared.
 
-**DFF-UI-046** `[ ]` → #20
+**DFF-UI-046** `[x]` → #20
 The "Grill Me" tab shall render a scrollable message history and a text input fixed at the bottom of the panel.
 
-**DFF-UI-047** `[ ]` → #20
+**DFF-UI-047** `[x]` → #20
 When the user submits a message in the "Grill Me" tab, the system shall POST /drafts/:id/advisor/chat and display a typing indicator (animated dots) while waiting for a response.
 
-**DFF-UI-048** `[ ]` → #20
+**DFF-UI-048** `[x]` → #20
 When the user commits a pick (ADVISOR_RESET dispatched), the system shall DELETE /drafts/:id/advisor/chat and clear the "Grill Me" message history.
 
 ---
@@ -199,7 +199,7 @@ For each SSE event type (`pick_made`, `your_turn`, `trade_offered`, `trade_resol
 **DFF-UI-080** `[ ]` → #18
 While GET /drafts/:id/state is in flight at draft start, the Available Players list shall render skeleton rows in place of player data.
 
-**DFF-UI-081** `[ ]` → #20
+**DFF-UI-081** `[x]` → #20
 While an advisor response is pending, the Advisor panel shall render an inline spinner; the rest of the UI shall remain interactive.
 
 **DFF-UI-082** `[x]` → #54
@@ -211,7 +211,7 @@ If SSE reconnect attempts are exhausted (backoff cap reached with no reconnect),
 **DFF-UI-084** `[ ]` → #18
 If POST /drafts/:id/pick returns an error, the system shall display a toast: "Pick failed — player may already be taken."
 
-**DFF-UI-085** `[ ]` → #20
+**DFF-UI-085** `[x]` → #20
 If an advisor API call returns an error, the system shall display a toast: "Advisor unavailable. Try again."
 
 **DFF-UI-086** `[x]` → #15

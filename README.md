@@ -50,6 +50,7 @@ Open the Vite URL shown in the terminal to begin.
 3. **Use the advisor (optional)** — on any pick, choose:
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.
+   Open the advisor from the **Advisor** button in the draft board header. The slide-out panel keeps the board interactive while it loads recommendations or chat replies.
 4. **Review history** — when a draft completes, the draft board stays visible behind a completion banner. Click **View Full History** to open the history view with three tabs:
    - **Pick Log** — chronological list of all picks with round, pick number, team, player name, position badge, and dynasty value at draft time.
    - **Roster View** — per-team cards with players grouped by position (QB, RB, WR, TE), showing round drafted and dynasty value. Your team card is highlighted.
@@ -81,8 +82,12 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
 - `pick_made` SSE events update the already-rendered board in place without a re-fetch
 - The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
+- The draft header now includes an `Advisor` toggle that opens a right-side slide-out panel without blocking the board
+- `Advise Me` posts to `/drafts/:id/advisor/advise`, shows an inline loading state, and renders Recommendation / Key Factors / Caveats sections
+- `Grill Me` posts to `/drafts/:id/advisor/chat`, preserves the current-pick conversation until reset, and clears server/client chat state on the next advisor reset
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh
+- Failed advisor requests surface the shared `Advisor unavailable. Try again.` toast
 - `draft_complete` SSE now renders a blocking completion banner over the live draft board so the final grid remains visible in the background
 - The completion banner shows your team name and a `View Full History` CTA that opens the full History view with Pick Log, Roster View, and Trade Log tabs
 - `New Draft` returns the user to the config screen
@@ -96,7 +101,7 @@ Current UI commands:
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
-| `npm run test:ui` | Run the UI tests for config submission, draft board rendering, draft context, SSE lifecycle transitions, and draft history view |
+| `npm run test:ui` | Run the UI tests for config submission, draft board rendering, advisor panel flows, draft context, SSE lifecycle transitions, and draft history view |
 
 Static build commands:
 
@@ -206,6 +211,7 @@ src/
     index.html           # Vite HTML entry
     styles.css           # Tailwind entry stylesheet
     components/
+      AdvisorPanel.tsx   # Slide-out advisor UI for advise-me and grill-me modes
       DraftBoard.tsx     # Draft board grid with snake-order slot rendering
       DraftConfigScreen.tsx # League configuration form
       HistoryView.tsx    # Post-draft history view with Pick Log, Roster View, and Trade Log tabs

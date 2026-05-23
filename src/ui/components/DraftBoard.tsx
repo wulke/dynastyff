@@ -18,6 +18,8 @@ import type { DraftState } from '../context/DraftContext.js';
 type DraftBoardProps = {
   draftState: DraftState;
   isInteractionBlocked?: boolean;
+  isAdvisorOpen?: boolean;
+  onToggleAdvisor?: () => void;
 };
 
 type DraftedPlayerSummary = {
@@ -247,7 +249,12 @@ function ColumnModeDraftBoard({ draftState }: DraftBoardProps) {
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-093
-export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBoardProps) {
+export function DraftBoard({
+  draftState,
+  isInteractionBlocked = false,
+  isAdvisorOpen = false,
+  onToggleAdvisor,
+}: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
   const [layout, setLayout] = useState<LayoutMode>(getStoredLayout);
 
@@ -279,6 +286,18 @@ export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBo
               Connecting…
             </span>
           ) : null}
+          <button
+            type="button"
+            onClick={onToggleAdvisor}
+            disabled={isInteractionBlocked}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              isAdvisorOpen
+                ? 'border-amber-300/40 bg-amber-300/10 text-amber-100'
+                : 'border-stone-700 text-stone-300 hover:border-stone-500 hover:text-stone-100'
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            Advisor
+          </button>
           <button
             type="button"
             data-testid="layout-toggle"

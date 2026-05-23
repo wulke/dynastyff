@@ -62,6 +62,8 @@ function buildDraftState(
     draftId: engineState.draftId,
     status: engineState.status,
     currentPickNumber: engineState.status === 'completed' ? null : engineState.picks.length + 1,
+    advisorResetVersion: 0,
+    yourTurnVersion: 0,
     teams: engineState.teams,
     draftOrder: engineState.draftOrder,
     picks: engineState.picks,
@@ -289,6 +291,7 @@ export function InMemoryDraftContextProvider({
     submitPick,
     updateQueue,
     newDraft,
+    showToast: setDraftError,
   };
 
   return (

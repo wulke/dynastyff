@@ -55,14 +55,14 @@ Issue `#13` establishes the initial frontend shell under `/src/ui`, issue `#15` 
 - Tailwind CSS provides the shell styling and layout primitives
 - A Radix UI primitive is wired into the shared shell so the initial scaffold proves the dependency path works before later feature slices add dialogs, tabs, and other interactive primitives
 
-At this stage, the config view is functional, the drafting view now renders the live draft board, and the history view remains a light shell:
+At this stage, the config view is functional, the drafting view renders the live draft board plus the advisor slide-out and pick feed, and the history view is fully navigable:
 
 - Config screen: league settings form + `Start Draft` calls `startDraft()` on `HttpDraftContext`
 - Draft board: renders immediately after draft creation, keeps the live SSE status badge, and hydrates the grid in place from `state_sync` / `pick_made` events
 - Draft completion banner: renders over the Draft Board when `draft_complete` arrives, keeps the board visible behind the overlay, and exposes `View Full History`
 - History shell: becomes visible only after the user clicks `View Full History`, then exposes `New Draft`
 
-The player list, advisor panel, trade modal, and full history views remain deferred to later issues, but draft creation, live board updates, and draft completion transitions are now driven through the shared context and SSE stream.
+The available player list and trade modal remain deferred to later issues, but draft creation, live board updates, advisor interactions, pick feed updates, and draft completion transitions are now driven through the shared context and SSE stream.
 
 ## Component Hierarchy
 

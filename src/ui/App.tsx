@@ -22,6 +22,7 @@ import { DraftConfigScreen, configDefaults, sanitizeDraftConfig, type ConfigForm
 import { DraftBoard } from './components/DraftBoard.js';
 import { PickFeedPanel } from './components/PickFeedPanel.js';
 import { HistoryView } from './components/HistoryView.js';
+import { AdvisorPanel } from './components/AdvisorPanel.js';
 
 type DraftCompletionBannerProps = {
   teamName: string;
@@ -136,6 +137,7 @@ function DraftApp() {
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
   const view = !draftState ? 'config' : showHistory ? 'history' : 'drafting';
   const completionBannerTeamName = draftState?.teams.find((team) => team.isUser)?.name ?? 'Your team';
   const showCompletionBanner = draftState?.status === 'completed' && !showHistory;
@@ -151,6 +153,7 @@ function DraftApp() {
     setDraftConfig(safeConfig);
     setIsSubmittingDraft(true);
     setShowHistory(false);
+    setIsAdvisorOpen(false);
 
     try {
       await startDraft(safeConfig);
@@ -175,7 +178,15 @@ function DraftApp() {
         {view === 'drafting' && draftState ? (
           <div className="flex w-full flex-col gap-6 lg:flex-row">
             <div className="relative min-w-0 flex-1">
-              <DraftBoard draftState={draftState} isInteractionBlocked={showCompletionBanner} />
+              <DraftBoard
+                draftState={draftState}
+                isInteractionBlocked={showCompletionBanner}
+                isAdvisorOpen={isAdvisorOpen}
+                onToggleAdvisor={() => {
+                  setIsAdvisorOpen((currentValue) => !currentValue);
+                }}
+              />
+              <AdvisorPanel draftId={draftState.draftId ?? ''} isOpen={isAdvisorOpen} />
               {showCompletionBanner ? (
                 <DraftCompletionBanner
                   teamName={completionBannerTeamName}
@@ -200,6 +211,7 @@ function DraftApp() {
               setShowHistory(false);
               setDraftConfig(configDefaults);
               newDraft();
+              setIsAdvisorOpen(false);
             }}
           />
         ) : null}

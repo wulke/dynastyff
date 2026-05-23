@@ -94,6 +94,8 @@ export type DraftState = {
   draftId: string | null;
   status: 'idle' | 'in_progress' | 'completed';
   currentPickNumber: number | null;
+  advisorResetVersion: number;
+  yourTurnVersion: number;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
   playerCatalog: Record<string, AvailablePlayer>;
@@ -127,6 +129,7 @@ export interface DraftContextValue {
   submitPick(playerId: string): void;
   updateQueue(queue: QueueEntry[]): void;
   newDraft(): void;
+  showToast(message: string): void;
 }
 
 type HttpDraftContextState = {
@@ -220,6 +223,7 @@ type DraftAction =
   | { type: 'STATE_SYNC'; payload: StateSyncPayload }
   | { type: 'PICK_MADE'; payload: PickMadePayload }
   | { type: 'YOUR_TURN'; payload: YourTurnPayload }
+  | { type: 'ADVISOR_RESET' }
   | { type: 'TRADE_OFFERED'; payload: TradeOfferedPayload }
   | { type: 'TRADE_RESOLVED'; payload: TradeResolvedPayload }
   | { type: 'DRAFT_COMPLETE'; payload: DraftCompletePayload }
@@ -252,6 +256,8 @@ function createEmptyDraftState(draftId: string): DraftState {
     draftId,
     status: 'in_progress',
     currentPickNumber: null,
+    advisorResetVersion: 0,
+    yourTurnVersion: 0,
     teams: [],
     draftOrder: [],
     playerCatalog: {},
@@ -291,6 +297,8 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
     draftId: payload.draft_id,
     status: payload.status,
     currentPickNumber: payload.current_pick_number,
+    advisorResetVersion: existingState?.advisorResetVersion ?? 0,
+    yourTurnVersion: existingState?.yourTurnVersion ?? 0,
     teams: payload.teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -418,6 +426,20 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         draftState: {
           ...state.draftState,
           currentPickNumber: action.payload.pick_number,
+          advisorResetVersion: state.draftState.advisorResetVersion + 1,
+          yourTurnVersion: state.draftState.yourTurnVersion + 1,
+        },
+      };
+    case 'ADVISOR_RESET':
+      if (!state.draftState) {
+        return state;
+      }
+
+      return {
+        ...state,
+        draftState: {
+          ...state.draftState,
+          advisorResetVersion: state.draftState.advisorResetVersion + 1,
         },
       };
     case 'TRADE_OFFERED':
@@ -742,6 +764,10 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     setToastMessage(GENERIC_DISCONNECT_ERROR);
   });
 
+  function showToast(message: string) {
+    setToastMessage(message);
+  }
+
   useEffect(() => {
     if (!toastMessage) {
       return undefined;
@@ -830,6 +856,8 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
       if (!response.ok) {
         throw new Error(GENERIC_PICK_ERROR);
       }
+
+      dispatch({ type: 'ADVISOR_RESET' });
     } catch {
       setToastMessage(GENERIC_PICK_ERROR);
     }
@@ -874,6 +902,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
         submitPick,
         updateQueue,
         newDraft,
+        showToast,
       }}
     >
       {toastMessage ? <DraftToast message={toastMessage} /> : null}

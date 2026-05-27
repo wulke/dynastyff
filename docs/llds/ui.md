@@ -231,8 +231,11 @@ Rendered alongside the draft board during the user's turn. Hidden during bot tur
 - Name search: free-text input, filters the list client-side
 - Each row: player name, position badge, NFL team, age, dynasty value
 - Clicking a player row submits `POST /drafts/:id/pick` and dispatches `ADVISOR_RESET`
+- While `GET /drafts/:id/state` is hydrating the draft room, the panel renders skeleton rows instead of player data
+- During bot turns, rows are disabled and a "Bot is picking…" message replaces the interactive list
+- If `POST /drafts/:id/pick` fails, a global toast surfaces "Pick failed — player may already be taken."
 
-The full available player list is loaded once from `GET /drafts/:id/state` at draft start. As `pick_made` events arrive, the reducer removes picked players from `availablePlayers` client-side — no re-fetch needed.
+The full available player list is loaded once from `GET /drafts/:id/state` at draft start or resume. Draft creation transitions into the draft room immediately, then an HTTP hydration request fills in the initial board/list state while SSE stays connected in parallel. As `pick_made` events arrive, the reducer removes picked players from `availablePlayers` client-side — no re-fetch needed.
 
 ## Advisor Slide-Out Panel
 

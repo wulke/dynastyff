@@ -8,6 +8,7 @@ Drives specs: `docs/specs/ui-specs.md`
 
 ## Responsibilities
 
+- Render the Drafts List page as the app entry point when persisted drafts exist
 - Render the League Config screen and persist saved configs to SQLite via the backend
 - Render the Draft Board grid and keep it in sync with SSE events
 - Render the Available Players list with position filter and name search
@@ -33,13 +34,21 @@ Drives specs: `docs/specs/ui-specs.md`
 There is no router. A single top-level enum drives which view is rendered:
 
 ```
-config → drafting → history
-           │        ▲
-           │        │
-           └── (advisor panel + completion banner overlay drafting view)
+drafts-list → config → drafting → history
+   │            │           │        ▲
+   │            │           │        │
+   │            │           └── (completion banner) ──┘
+   │            │
+   └────────────┘
 ```
 
+Startup:
+- On app load, fetch `GET /drafts`. If drafts exist → `drafts-list`. If none exist or the fetch fails → `config`.
+
 Transitions:
+- `drafts-list → config`: user clicks "New Draft"
+- `drafts-list → drafting`: user clicks "Resume" on an in-progress draft; loads draft state and connects SSE
+- `drafts-list → history`: user clicks "Review" on any draft; loads draft state directly to history view
 - `config → drafting`: user submits config and a draft is created (`POST /drafts`)
 - `drafting (board) → drafting (completed banner)`: `draft_complete` SSE event received
 - `drafting (completed banner) → history`: user clicks `View Full History`
@@ -57,18 +66,18 @@ Issue `#13` establishes the initial frontend shell under `/src/ui`, issue `#15` 
 
 At this stage, the config view is functional, the drafting view now renders the live draft board, and the history view remains a light shell:
 
+- Drafts list: fetched from `GET /drafts` on mount; shows all persisted drafts with Resume/Review CTAs
 - Config screen: league settings form + `Start Draft` calls `startDraft()` on `HttpDraftContext`
 - Draft board: renders immediately after draft creation, keeps the live SSE status badge, and hydrates the grid in place from `state_sync` / `pick_made` events
 - Draft completion banner: renders over the Draft Board when `draft_complete` arrives, keeps the board visible behind the overlay, and exposes `View Full History`
 - History shell: becomes visible only after the user clicks `View Full History`, then exposes `New Draft`
-
-The player list, advisor panel, trade modal, and full history views remain deferred to later issues, but draft creation, live board updates, and draft completion transitions are now driven through the shared context and SSE stream.
 
 ## Component Hierarchy
 
 ```
 <App>                          ← holds view shell
   <HttpDraftContextProvider>   ← owns POST/queue/pick calls, SSE, toast state
+  <DraftsListPage />           ← view: drafts-list
   <ConfigScreen />             ← view: config
   <DraftView>                  ← view: drafting
     <DraftBoard />             ← grid: rounds × teams
@@ -124,6 +133,32 @@ type DraftState = {
 | `TRADE_RESOLVED` | `trade_resolved` SSE event |
 | `DRAFT_COMPLETE` | `draft_complete` SSE event |
 | `SSE_STATUS` | `useDraftStream` hook |
+
+## Drafts List Page
+
+Rendered as the app entry point when persisted drafts exist. Fetches `GET /drafts` on mount. Shows a table of all drafts with actions.
+
+**Features:**
+- Table columns: draft ID (truncated), status badge, date created, team count, rounds, scoring format
+- "Resume" button on in-progress drafts: calls `loadDraft(draftId)` on the context, then navigates to drafting view
+- "Review" button on all drafts: calls `loadDraft(draftId)` on the context, then navigates to history view
+- "New Draft" button: clears draft state and navigates to config screen
+- Loading state: skeleton rows while `GET /drafts` is in flight
+- Empty state for `GET /drafts` returning `[]` → redirects to config screen
+- Error state: shows error toast and falls back to config screen
+
+**Data source:** `GET /drafts` returns `DraftHistoryEntry[]` with `id`, `created_at`, `completed_at`, `status`, `team_count`, `rounds`, `scoring_format`.
+
+**Integration:**
+- `loadDraft(draftId)` is a new method on `HttpDraftContext` that fetches `GET /drafts/:id/state` and dispatches `STATE_SYNC` to hydrate the reducer
+- `showError(message)` is exposed through `DraftContextValue` so `App.tsx` can surface a global toast when the initial `GET /drafts` bootstrap request fails before any draft is active
+- SSE stream starts automatically for in-progress drafts; for completed drafts, SSE sends `state_sync` + `draft_complete` which the existing hook handles
+
+**Edge Case Probe:**
+- `GET /drafts` returns 500 or rejects → show toast, fall back to config screen
+- User clicks Resume on a draft that another call has already completed → state loads via `GET /drafts/:id/state`, SSE stream sends current state
+- Date formatting with non-ISO timestamp → `new Date()` fallback shows `Invalid Date` only if the raw value is truly unparseable
+
 ## Draft Board Grid
 
 The grid is fixed at draft creation (`round_count × team_count` cells). Cells fill in as `pick_made` events arrive, using a persistent in-memory player catalog so the board can keep rendering drafted player metadata after each player is removed from `availablePlayers`.

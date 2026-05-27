@@ -106,6 +106,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+async function renderAppToConfig() {
+  render(<App />);
+  await screen.findByRole('heading', { name: /config screen/i });
+}
+
 function DraftContextHarness() {
   const { startDraft, submitPick, updateQueue, newDraft } = useDraftContext();
 
@@ -173,7 +178,7 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -204,7 +209,7 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -291,7 +296,6 @@ describe('HTTP draft context', () => {
   test(
     'reconnects with exponential backoff capped at 30 seconds and shows a disconnect toast when retries are exhausted',
     async () => {
-    vi.useFakeTimers();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-reconnect-123' }), {
         status: 201,
@@ -301,12 +305,14 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
       await Promise.resolve();
     });
+
+    vi.useFakeTimers();
 
     const reconnectDelays = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000];
 
@@ -344,7 +350,6 @@ describe('HTTP draft context', () => {
   test(
     'handles malformed SSE payloads by disconnecting and reconnecting instead of throwing',
     async () => {
-    vi.useFakeTimers();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-malformed-123' }), {
         status: 201,
@@ -354,12 +359,14 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
       await Promise.resolve();
     });
+
+    vi.useFakeTimers();
 
     const initialStream = MockEventSource.instances[0];
     expect(initialStream).toBeDefined();

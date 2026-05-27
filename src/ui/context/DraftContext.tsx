@@ -124,6 +124,8 @@ export interface DraftContextValue {
   draftState: DraftState | null;
   sessionHistory: CompletedDraft[];
   startDraft(config: DraftConfig): void;
+  loadDraft(draftId: string): Promise<boolean>;
+  showError(message: string): void;
   submitPick(playerId: string): void;
   updateQueue(queue: QueueEntry[]): void;
   newDraft(): void;
@@ -224,7 +226,8 @@ type DraftAction =
   | { type: 'TRADE_RESOLVED'; payload: TradeResolvedPayload }
   | { type: 'DRAFT_COMPLETE'; payload: DraftCompletePayload }
   | { type: 'SSE_STATUS'; status: SseStatus }
-  | { type: 'NEW_DRAFT' };
+  | { type: 'NEW_DRAFT' }
+  | { type: 'LOAD_DRAFT'; payload: StateSyncPayload };
 
 type ToastProps = {
   message: string;
@@ -236,6 +239,7 @@ type DraftCreateResponse = {
 
 const DRAFT_CONTEXT_ERROR = 'Draft context is unavailable.';
 const GENERIC_DRAFT_CREATE_ERROR = 'Draft creation failed. Check your config and try again.';
+const GENERIC_DRAFT_LOAD_ERROR = 'Failed to load draft state.';
 const GENERIC_PICK_ERROR = 'Pick failed — player may already be taken.';
 const GENERIC_DISCONNECT_ERROR = 'Lost connection to draft server. Refresh to reconnect.';
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000] as const;
@@ -507,6 +511,13 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
           sseStatus: action.status,
         },
       };
+    case 'LOAD_DRAFT':
+      // @spec DFF-UI-113
+      // @spec DFF-UI-114
+      return {
+        ...state,
+        draftState: toDraftStateFromSync(action.payload, null),
+      };
     case 'NEW_DRAFT':
       return {
         ...state,
@@ -754,6 +765,11 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     return () => window.clearTimeout(timeoutId);
   }, [toastMessage]);
 
+  // @spec DFF-UI-117
+  function showError(message: string) {
+    setToastMessage(message);
+  }
+
   // @spec DFF-UI-014
   // @spec DFF-UI-015
   async function startDraft(config: DraftConfig) {
@@ -857,6 +873,25 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
   }
 
+  // @spec DFF-UI-113
+  // @spec DFF-UI-114
+  async function loadDraft(draftId: string) {
+    try {
+      const response = await fetch(`/drafts/${draftId}/state`);
+
+      if (!response.ok) {
+        throw new Error(GENERIC_DRAFT_LOAD_ERROR);
+      }
+
+      const payload = await response.json();
+      dispatch({ type: 'LOAD_DRAFT', payload });
+      return true;
+    } catch {
+      setToastMessage(GENERIC_DRAFT_LOAD_ERROR);
+      return false;
+    }
+  }
+
   // @spec DFF-STATIC-060
   // @spec DFF-STATIC-062
   function newDraft() {
@@ -871,6 +906,8 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
         draftState: state.draftState,
         sessionHistory: state.sessionHistory,
         startDraft,
+        loadDraft,
+        showError,
         submitPick,
         updateQueue,
         newDraft,

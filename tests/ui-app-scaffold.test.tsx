@@ -77,11 +77,23 @@ function createDeferred<T>() {
 
 // @spec DFF-UI-014
 // @spec DFF-UI-015
+function setupEmptyDraftsFetch() {
+  // Default: GET /drafts returns empty array so the app shows the config screen.
+  // Individual tests override this with their own mockResolvedValue/mockResolvedValueOnce.
+  fetchMock.mockResolvedValue(
+    new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
   MockEventSource.instances = [];
   vi.stubGlobal('fetch', fetchMock);
   vi.stubGlobal('EventSource', MockEventSource as unknown as typeof EventSource);
+  setupEmptyDraftsFetch();
 });
 
 // @spec DFF-UI-014
@@ -92,17 +104,17 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+async function renderAppToConfig() {
+  render(<App />);
+  await screen.findByRole('heading', { name: /config screen/i });
+}
+
 describe('UI app scaffold', () => {
   // @spec DFF-UI-001
   // @spec DFF-UI-010
-  test('renders the config screen with the expected default draft fields', () => {
-    render(<App />);
+  test('renders the config screen with the expected default draft fields', async () => {
+    await renderAppToConfig();
 
-    expect(
-      screen.getByRole('heading', {
-        name: /config screen/i,
-      }),
-    ).toBeInTheDocument();
     expect(screen.getByLabelText(/config name/i)).toHaveValue('');
     expect(screen.getByLabelText(/team count/i)).toHaveValue(12);
     expect(screen.getByLabelText(/^rounds$/i)).toHaveValue(20);
@@ -131,7 +143,7 @@ describe('UI app scaffold', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.type(screen.getByLabelText(/config name/i), 'Startup Lab');
     await user.clear(screen.getByLabelText(/team count/i));
@@ -183,7 +195,7 @@ describe('UI app scaffold', () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -202,7 +214,7 @@ describe('UI app scaffold', () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(new Response('Pick position must be between 1 and 12.', { status: 422 }));
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -219,7 +231,7 @@ describe('UI app scaffold', () => {
     const user = userEvent.setup();
     fetchMock.mockRejectedValue(new Error('socket hang up'));
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -236,10 +248,10 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   // @spec DFF-UI-087
   test('auto-dismisses the error toast after 6 seconds', async () => {
-    vi.useFakeTimers();
     fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
 
-    render(<App />);
+    await renderAppToConfig();
+    vi.useFakeTimers();
 
     fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
     await act(async () => {
@@ -267,7 +279,7 @@ describe('UI app scaffold', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -294,7 +306,7 @@ describe('UI app scaffold', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -313,20 +325,27 @@ describe('UI app scaffold', () => {
   test('ignores a second submit while draft creation is already in flight', async () => {
     const deferredResponse = createDeferred<Response>();
     const user = userEvent.setup();
-    fetchMock.mockImplementation(() => deferredResponse.promise);
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockImplementation(() => deferredResponse.promise);
 
-    render(<App />);
+    await renderAppToConfig();
 
     const startDraftButton = screen.getByRole('button', { name: /start draft/i });
     await user.click(startDraftButton);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(screen.getByRole('button', { name: /starting draft…/i })).toBeDisabled();
 
     const pendingButton = screen.getByRole('button', { name: /starting draft…/i });
     await user.click(pendingButton);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     deferredResponse.resolve(
       new Response(JSON.stringify({ draftId: 'draft-123' }), {
@@ -357,7 +376,7 @@ describe('UI app scaffold', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.clear(screen.getByLabelText(/team count/i));
     await user.type(screen.getByLabelText(/team count/i), '18');
@@ -409,7 +428,7 @@ describe('UI app scaffold', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -469,7 +488,7 @@ describe('UI app scaffold', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -515,7 +534,7 @@ describe('UI app scaffold', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -551,7 +570,7 @@ describe('UI app scaffold', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 

@@ -281,11 +281,25 @@ export function InMemoryDraftContextProvider({
     setDraftState(null);
   }
 
+  // @spec DFF-UI-113
+  // @spec DFF-UI-114
+  async function loadDraft(_draftId: string) {
+    // Static build does not support loading persisted drafts
+    return false;
+  }
+
+  // @spec DFF-UI-117
+  function showError(_message: string) {
+    // Static build does not expose the shared HTTP toast surface
+  }
+
   const value: DraftContextValue = {
     snapshot,
     draftState,
     sessionHistory,
     startDraft,
+    loadDraft,
+    showError,
     submitPick,
     updateQueue,
     newDraft,

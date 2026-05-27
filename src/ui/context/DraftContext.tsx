@@ -825,6 +825,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
 
   // @spec DFF-UI-014
   // @spec DFF-UI-015
+  // @spec DFF-UI-119
   async function startDraft(config: DraftConfig) {
     if (startDraftInFlightRef.current) {
       return;

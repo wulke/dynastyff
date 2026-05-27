@@ -307,6 +307,61 @@ describe('available players list', () => {
     expect(within(panel).queryByText('Bijan Robinson')).not.toBeInTheDocument();
   });
 
+  // @spec DFF-UI-034
+  // @spec DFF-UI-080
+  test('preserves server-truth available players when pick_made arrives before hydration completes', async () => {
+    const user = userEvent.setup();
+    const deferredState = createDeferredResponse();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url === '/drafts' && !init?.method) {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+      }
+
+      if (url === '/drafts' && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/state') {
+        return deferredState.promise;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    expect(await screen.findByTestId('available-players-loading')).toBeInTheDocument();
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 2,
+        team_id: 'team-2',
+        player_id: 'player-rb-1',
+        is_bot: false,
+      });
+    });
+
+    deferredState.resolve(
+      new Response(JSON.stringify(createDraftState()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const panel = await screen.findByTestId('available-players-panel');
+    expect(within(panel).getByText('Bijan Robinson')).toBeInTheDocument();
+    expect(within(panel).getByText('CeeDee Lamb')).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-035
   // @spec DFF-UI-036
   test('shows the bot turn state with disabled rows, then posts a pick when the user is on the clock', async () => {

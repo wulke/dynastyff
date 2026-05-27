@@ -321,6 +321,54 @@ test('falls back to config screen when GET /drafts fails', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load drafts.');
 });
 
+// @spec DFF-UI-117
+test('falls back to config screen and shows a toast when GET /drafts returns a non-ok response', async () => {
+  fetchMock.mockResolvedValue(new Response('', { status: 500 }));
+
+  render(<App />);
+
+  expect(await screen.findByRole('heading', { name: /config screen/i })).toBeInTheDocument();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load drafts.');
+});
+
+// @spec DFF-UI-113
+test('resume stays on the drafts list and shows a toast when loadDraft fails', async () => {
+  createDraftsFetchResponse();
+
+  render(<App />);
+
+  await screen.findByRole('heading', { name: /drafts list/i });
+
+  fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
+
+  await userEvent.setup().click(
+    within(screen.getByTestId('draft-row-draft-in-progress-1')).getByRole('button', { name: /resume/i }),
+  );
+
+  expect(screen.getByRole('heading', { name: /drafts list/i })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /draft board/i })).not.toBeInTheDocument();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load draft state.');
+});
+
+// @spec DFF-UI-114
+test('review stays on the drafts list and shows a toast when loadDraft fails', async () => {
+  createDraftsFetchResponse();
+
+  render(<App />);
+
+  await screen.findByRole('heading', { name: /drafts list/i });
+
+  fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
+
+  await userEvent.setup().click(
+    within(screen.getByTestId('draft-row-draft-completed-1')).getByRole('button', { name: /review/i }),
+  );
+
+  expect(screen.getByRole('heading', { name: /drafts list/i })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load draft state.');
+});
+
 // @spec DFF-UI-112
 test('drafts list table displays draft data correctly with status badges and formatted dates', async () => {
   fetchMock.mockResolvedValue(

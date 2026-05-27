@@ -512,6 +512,8 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         },
       };
     case 'LOAD_DRAFT':
+      // @spec DFF-UI-113
+      // @spec DFF-UI-114
       return {
         ...state,
         draftState: toDraftStateFromSync(action.payload, null),
@@ -763,6 +765,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     return () => window.clearTimeout(timeoutId);
   }, [toastMessage]);
 
+  // @spec DFF-UI-117
   function showError(message: string) {
     setToastMessage(message);
   }
@@ -870,8 +873,8 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
   }
 
-  // @spec DFF-STATIC-060
-  // @spec DFF-STATIC-062
+  // @spec DFF-UI-113
+  // @spec DFF-UI-114
   async function loadDraft(draftId: string) {
     try {
       const response = await fetch(`/drafts/${draftId}/state`);

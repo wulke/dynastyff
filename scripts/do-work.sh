@@ -4,8 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT="${1:-claude}"
 ISSUE_NUMBER=""
+HANDOFF_FILE=""
 
-# Parse --issue flag
+# Parse --issue and --handoff flags
 args=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -19,6 +20,16 @@ while [[ $# -gt 0 ]]; do
       ISSUE_NUMBER="$2"
       shift 2
       ;;
+    --handoff=*)
+      HANDOFF_FILE="${1#--handoff=}"
+      [[ -z "$HANDOFF_FILE" ]] && { echo "Error: --handoff= requires a path." >&2; exit 1; }
+      shift
+      ;;
+    --handoff)
+      [[ -z "${2:-}" ]] && { echo "Error: --handoff requires a path." >&2; exit 1; }
+      HANDOFF_FILE="$2"
+      shift 2
+      ;;
     *)
       args+=("$1")
       shift
@@ -26,6 +37,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 AGENT="${args[0]:-claude}"
+
+if [[ -n "$HANDOFF_FILE" ]]; then
+  [[ ! -f "$HANDOFF_FILE" ]] && { echo "Error: Handoff file not found: $HANDOFF_FILE" >&2; exit 1; }
+  [[ ! -r "$HANDOFF_FILE" ]] && { echo "Error: Handoff file is not readable: $HANDOFF_FILE" >&2; exit 1; }
+fi
 
 # Returns "in-progress" if the issue has that label, exits on other blocking conditions.
 validate_issue() {
@@ -145,8 +161,6 @@ fi
 echo "Working on #$(echo "$selected" | jq -r '.number'): $(echo "$selected" | jq -r '.title')"
 
 commits=$(git log -n 5 --format="[%H] %ad%n%B---" --date=short 2>/dev/null || echo "No commits found")
-issues_json="${issues_json:-$(gh issue list --state open --json number,title,labels,body --limit 100)}"
-all_issues=$(echo "$issues_json" | jq -r '.[] | "Issue #\(.number): \(.title)\nLabels: \(.labels | map(.name) | join(", "))\n\(.body)\n---"')
 prompt=$(cat "$SCRIPT_DIR/prompt.md")
 
 context="$prompt
@@ -154,13 +168,17 @@ context="$prompt
 ## Recent Commits (last 5)
 $commits
 
-## All Open Issues
-$all_issues
-
 ## Your Task
 Work on and close issue #$(echo "$selected" | jq -r '.number'): $(echo "$selected" | jq -r '.title')
 
 $(echo "$selected" | jq -r '.body')"
+
+if [[ -n "$HANDOFF_FILE" ]]; then
+  context="$context
+
+## Handoff Notes
+$(cat "$HANDOFF_FILE")"
+fi
 
 # If picking up an in-progress PR, append resume context
 if [[ "${validation_result:-}" == "in-progress" ]]; then

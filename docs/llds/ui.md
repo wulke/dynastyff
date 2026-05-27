@@ -105,6 +105,7 @@ A single `DraftContext` (React Context + useReducer) holds all draft state. `Htt
 type DraftState = {
   draftId: string | null;
   status: 'idle' | 'in_progress' | 'completed';
+  isHydrating: boolean;
   currentPickNumber: number | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
@@ -223,7 +224,7 @@ A scrolling real-time feed panel rendered alongside the draft board, driven by `
 
 ## Available Players List
 
-Rendered alongside the draft board during the user's turn. Hidden during bot turns (replaced by a "Bot is picking…" state).
+Rendered alongside the draft board during the user's turn. During bot turns, the panel stays visible, shows a "Bot is picking…" state, and disables player rows.
 
 **Features:**
 - Sorted by `dynasty_value` descending by default
@@ -236,6 +237,10 @@ Rendered alongside the draft board during the user's turn. Hidden during bot tur
 - If `POST /drafts/:id/pick` fails, a global toast surfaces "Pick failed — player may already be taken."
 
 The full available player list is loaded once from `GET /drafts/:id/state` at draft start or resume. Draft creation transitions into the draft room immediately, then an HTTP hydration request fills in the initial board/list state while SSE stays connected in parallel. As `pick_made` events arrive, the reducer removes picked players from `availablePlayers` client-side — no re-fetch needed.
+
+**Edge Case Probe:**
+- `GET /drafts/:id/state` fails after `POST /drafts` succeeds -> show the global draft-load error toast and dispatch `NEW_DRAFT` so the user returns to the config screen instead of remaining stuck in skeleton state
+- `pick_made` arrives before the HTTP hydration finishes -> reducer removes nothing from the empty initial list, then the follow-up hydrated state replaces `availablePlayers` with the server-truth snapshot without crashing
 
 ## Advisor Slide-Out Panel
 

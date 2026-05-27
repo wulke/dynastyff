@@ -274,7 +274,7 @@ function createEmptyDraftState(draftId: string): DraftState {
   };
 }
 
-// @spec DFF-UI-031
+// @spec DFF-UI-030
 function sortAvailablePlayers(players: AvailablePlayer[]): AvailablePlayer[] {
   return [...players].sort((left, right) => right.dynastyValue - left.dynastyValue);
 }
@@ -508,6 +508,7 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
             ? state.sessionHistory
             : [...state.sessionHistory, toCompletedDraft(state.draftState, action.payload.completed_at)],
       };
+    // @spec DFF-UI-036
     case 'ADVISOR_RESET':
       return state;
     case 'SSE_STATUS':
@@ -831,6 +832,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
 
     startDraftInFlightRef.current = true;
     setToastMessage(null);
+    let draftCreated = false;
 
     try {
       const response = await fetch('/drafts', {
@@ -870,8 +872,13 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
       const payload = await readJsonResponse(response);
       const draftId = parseDraftCreateResponse(payload);
       dispatch({ type: 'DRAFT_CREATED', draftId });
+      draftCreated = true;
       await hydrateDraftState(draftId, dispatch, 'STATE_SYNC');
     } catch (error) {
+      if (draftCreated && error instanceof Error && error.message === GENERIC_DRAFT_LOAD_ERROR) {
+        dispatch({ type: 'NEW_DRAFT' });
+      }
+
       setToastMessage(
         error instanceof DraftCreateUiError
           ? error.message

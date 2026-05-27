@@ -83,7 +83,7 @@ The Draft Board shall scroll horizontally to accommodate rounds beyond the initi
 
 ## Available Players List
 
-**DFF-UI-030** `[ ]` → #18
+**DFF-UI-030** `[x]` → #18
 The Available Players list shall render all players not yet picked, sorted by `dynasty_value` descending.
 
 **DFF-UI-031** `[x]` → #18
@@ -210,6 +210,9 @@ If SSE reconnect attempts are exhausted (backoff cap reached with no reconnect),
 
 **DFF-UI-084** `[x]` → #18
 If POST /drafts/:id/pick returns an error, the system shall display a toast: "Pick failed — player may already be taken."
+
+**DFF-UI-119** `[x]` → #18
+If GET /drafts/:id/state fails after a successful draft-creation response, the system shall display an error toast and return to the Config screen instead of remaining stuck in the Available Players loading state.
 
 **DFF-UI-085** `[ ]` → #20
 If an advisor API call returns an error, the system shall display a toast: "Advisor unavailable. Try again."

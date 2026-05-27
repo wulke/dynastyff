@@ -43,6 +43,7 @@ function getPositionBadgeClass(position: string): string {
   return `${base} border-stone-400/30 bg-stone-400/10 text-stone-400`;
 }
 
+// @spec DFF-UI-035
 function isUsersTurn(draftState: DraftState): boolean {
   if (draftState.currentPickNumber === null) {
     return false;
@@ -56,6 +57,7 @@ function isUsersTurn(draftState: DraftState): boolean {
   return Boolean(currentTeam?.isUser);
 }
 
+// @spec DFF-UI-031
 function matchesPositionFilter(position: string, filter: PositionFilter): boolean {
   if (filter === 'ALL') {
     return true;
@@ -108,6 +110,13 @@ function AvailablePlayersLoadingState() {
   );
 }
 
+// @spec DFF-UI-031
+// @spec DFF-UI-032
+// @spec DFF-UI-033
+// @spec DFF-UI-034
+// @spec DFF-UI-035
+// @spec DFF-UI-036
+// @spec DFF-UI-080
 export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps) {
   const { submitPick } = useDraftContext();
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');

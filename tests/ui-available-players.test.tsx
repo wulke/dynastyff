@@ -431,4 +431,40 @@ describe('available players list', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Pick failed — player may already be taken.');
   });
+
+  // @spec DFF-UI-080
+  // @spec DFF-UI-119
+  test('returns to config with an error toast when initial draft-state hydration fails after draft creation', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url === '/drafts' && !init?.method) {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+      }
+
+      if (url === '/drafts' && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/state') {
+        return Promise.resolve(new Response(null, { status: 500 }));
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load draft state.');
+    expect(await screen.findByRole('heading', { name: /config screen/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('available-players-loading')).not.toBeInTheDocument();
+  });
 });

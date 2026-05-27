@@ -33,6 +33,7 @@ type DraftCompletionBannerProps = {
   onViewHistory: () => void;
 };
 
+// @spec DFF-UI-116
 function DraftsListLoadingState() {
   return (
     <section

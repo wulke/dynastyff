@@ -185,6 +185,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function renderAppToConfig() {
+  render(<App />);
+  await screen.findByRole('heading', { name: /config screen/i });
+}
+
 describe('draft board UI', () => {
   // @spec DFF-UI-020
   // @spec DFF-UI-021
@@ -202,7 +207,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -241,7 +246,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -255,7 +260,7 @@ describe('draft board UI', () => {
       });
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     const pickedCell = screen.getByTestId('draft-slot-1');
     expect(within(pickedCell).getByText('Josh Allen')).toBeInTheDocument();
@@ -277,7 +282,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync({ available_players: [] });
@@ -309,7 +314,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -356,7 +361,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync({ current_pick_number: 2 });
@@ -378,7 +383,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -416,7 +421,7 @@ describe('draft board UI', () => {
     // Set localStorage to column mode before render
     localStorage.setItem('draftBoardLayout', 'column');
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -447,7 +452,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -478,7 +483,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -511,7 +516,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync({
@@ -628,7 +633,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync({
@@ -728,7 +733,7 @@ describe('draft board UI', () => {
     // Set localStorage to a corrupted value
     localStorage.setItem('draftBoardLayout', 'garbage');
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -751,7 +756,7 @@ describe('draft board UI', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync({

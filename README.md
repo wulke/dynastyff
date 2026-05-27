@@ -41,9 +41,12 @@ The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so bo
 
 Open the Vite URL shown in the terminal to begin.
 
+When saved drafts already exist, the UI now opens on a Drafts List page first. From there you can resume an in-progress draft, review any completed draft, or start a new draft. If the initial drafts lookup fails, the app falls back to the config screen and shows an error toast.
+
 ## Usage
 
 1. **Configure your league** — set team count, roster slots, scoring, and your draft position on the config screen.
+   - If prior drafts exist, use the Drafts List page first to resume or review them, or click **New Draft** to open the config form.
 2. **Start a mock draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically.
    - On the API-backed draft flow, bot turns continue server-side after every successful user pick with a randomized `3–5s` delay between bot selections.
    - If your league settings place a bot on the opening slot, the server now auto-starts those opening bot turns immediately after draft creation so the board advances to your first turn without extra input.
@@ -86,6 +89,7 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - `draft_complete` SSE now renders a blocking completion banner over the live draft board so the final grid remains visible in the background
 - The completion banner shows your team name and a `View Full History` CTA that opens the full History view with Pick Log, Roster View, and Trade Log tabs
 - `New Draft` returns the user to the config screen
+- The app now checks `GET /drafts` on load and routes to the Drafts List page when persisted drafts exist; the list shows Resume only for in-progress drafts, Review for every draft, a table loading skeleton during the bootstrap fetch, and an error toast on bootstrap failure
 - Human live-browser verification of the board fill behavior remains required before merge per issue `#17`
 
 Current UI commands:

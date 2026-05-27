@@ -281,11 +281,22 @@ export function InMemoryDraftContextProvider({
     setDraftState(null);
   }
 
+  async function loadDraft(_draftId: string) {
+    // Static build does not support loading persisted drafts
+    return false;
+  }
+
+  function showError(_message: string) {
+    // Static build does not expose the shared HTTP toast surface
+  }
+
   const value: DraftContextValue = {
     snapshot,
     draftState,
     sessionHistory,
     startDraft,
+    loadDraft,
+    showError,
     submitPick,
     updateQueue,
     newDraft,

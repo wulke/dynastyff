@@ -106,6 +106,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+async function renderAppToConfig() {
+  render(<App />);
+  await screen.findByRole('heading', { name: /config screen/i });
+}
+
 function DraftContextHarness() {
   const { startDraft, submitPick, updateQueue, newDraft } = useDraftContext();
 
@@ -173,7 +178,7 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -204,7 +209,7 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -301,7 +306,7 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
@@ -354,7 +359,7 @@ describe('HTTP draft context', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /start draft/i }));

@@ -155,6 +155,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function renderAppToConfig() {
+  render(<App />);
+  await screen.findByRole('heading', { name: /config screen/i });
+}
+
 describe('pick feed panel', () => {
   // @spec DFF-UI-100
   // @spec DFF-UI-104
@@ -169,7 +174,7 @@ describe('pick feed panel', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync();
@@ -199,7 +204,7 @@ describe('pick feed panel', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -252,7 +257,7 @@ describe('pick feed panel', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync();
@@ -305,7 +310,7 @@ describe('pick feed panel', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync({ available_players: [] });
@@ -329,7 +334,7 @@ describe('pick feed panel', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -366,7 +371,7 @@ describe('pick feed panel', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync();
@@ -404,7 +409,7 @@ describe('pick feed panel', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync();

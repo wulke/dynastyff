@@ -12,13 +12,18 @@
 // @spec DFF-STATIC-061
 // @spec DFF-STATIC-062
 // @spec DFF-UI-082
-import { useState } from 'react';
+// @spec DFF-UI-110
+// @spec DFF-UI-111
+// @spec DFF-UI-116
+// @spec DFF-UI-115
+import { useState, useEffect, useRef } from 'react';
 import * as Separator from '@radix-ui/react-separator';
 import {
   HttpDraftContextProvider,
   useDraftContext,
 } from './context/DraftContext.js';
 import { DraftConfigScreen, configDefaults, sanitizeDraftConfig, type ConfigFormState } from './components/DraftConfigScreen.js';
+import { DraftsListPage } from './components/DraftsListPage.js';
 import { DraftBoard } from './components/DraftBoard.js';
 import { PickFeedPanel } from './components/PickFeedPanel.js';
 import { HistoryView } from './components/HistoryView.js';
@@ -27,6 +32,47 @@ type DraftCompletionBannerProps = {
   teamName: string;
   onViewHistory: () => void;
 };
+
+function DraftsListLoadingState() {
+  return (
+    <section
+      className="w-full max-w-5xl rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20"
+      aria-label="Loading drafts"
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Drafts</p>
+      <div className="mt-4">
+        <h1 className="text-4xl font-semibold tracking-tight text-stone-50">Loading drafts</h1>
+        <p className="mt-2 text-base text-stone-400">Checking saved drafts before choosing the next view.</p>
+      </div>
+      <Separator.Root
+        decorative
+        orientation="horizontal"
+        className="my-8 h-px w-full bg-gradient-to-r from-transparent via-stone-700 to-transparent"
+      />
+      <div aria-hidden="true" className="overflow-hidden rounded-[1.5rem] border border-stone-800">
+        <div className="grid grid-cols-[1.4fr_0.9fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-0 border-b border-stone-800 bg-stone-950/50 px-4 py-3">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <div key={`drafts-loading-header-${index}`} className="h-3 w-16 animate-pulse rounded bg-stone-800" />
+          ))}
+        </div>
+        {Array.from({ length: 4 }).map((_, rowIndex) => (
+          <div
+            key={`drafts-loading-row-${rowIndex}`}
+            className="grid grid-cols-[1.4fr_0.9fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] items-center gap-4 border-b border-stone-800/80 px-4 py-4 last:border-b-0"
+          >
+            <div className="h-4 w-24 animate-pulse rounded bg-stone-800" />
+            <div className="h-6 w-24 animate-pulse rounded-full bg-stone-800" />
+            <div className="h-4 w-28 animate-pulse rounded bg-stone-800" />
+            <div className="h-4 w-10 animate-pulse rounded bg-stone-800" />
+            <div className="h-4 w-10 animate-pulse rounded bg-stone-800" />
+            <div className="h-4 w-16 animate-pulse rounded bg-stone-800" />
+            <div className="ml-auto h-8 w-28 animate-pulse rounded-full bg-stone-800" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 // @spec DFF-UI-002
 // @spec DFF-UI-003
@@ -129,14 +175,65 @@ export function App() {
   );
 }
 
+type DraftListEntry = {
+  id: string;
+  created_at: string;
+  completed_at: string | null;
+  status: 'in_progress' | 'completed';
+  scoring_format: string;
+  team_count: number;
+  rounds: number;
+};
+
 function DraftApp() {
   // @spec DFF-STATIC-061
   // @spec DFF-STATIC-062
-  const { draftState, newDraft, startDraft } = useDraftContext();
+  const { draftState, newDraft, showError, startDraft } = useDraftContext();
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const view = !draftState ? 'config' : showHistory ? 'history' : 'drafting';
+  const [showDraftsList, setShowDraftsList] = useState(false);
+  const [draftsList, setDraftsList] = useState<DraftListEntry[]>([]);
+  const [showDraftsListLoading, setShowDraftsListLoading] = useState(true);
+  const showErrorRef = useRef(showError);
+
+  useEffect(() => {
+    showErrorRef.current = showError;
+  }, [showError]);
+
+  // @spec DFF-UI-110
+  // @spec DFF-UI-111
+  // @spec DFF-UI-117
+  // @spec DFF-UI-118
+  // On mount, check if any drafts exist. If so, show the drafts list page.
+  // Uses response.clone() so the original Response body is not consumed,
+  // which allows the same mock Response to be re-read by subsequent calls
+  // (e.g. POST /drafts) when using mockResolvedValue in tests.
+  useEffect(() => {
+    Promise.resolve(fetch('/drafts'))
+      .then(async (response) => {
+        if (!response || typeof response.ok !== 'boolean' || !response.ok) {
+          showErrorRef.current('Failed to load drafts.');
+          setShowDraftsListLoading(false);
+          return;
+        }
+
+        // Clone to avoid consuming the original response body
+        const data = await response.clone().json().catch(() => []);
+
+        if (Array.isArray(data) && data.length > 0) {
+          setDraftsList(data as DraftListEntry[]);
+          setShowDraftsList(true);
+        }
+
+        setShowDraftsListLoading(false);
+      })
+      .catch(() => {
+        showErrorRef.current('Failed to load drafts.');
+        setShowDraftsListLoading(false);
+      });
+  }, []);
+  const view = showDraftsList ? 'drafts-list' : !draftState ? 'config' : showHistory ? 'history' : 'drafting';
   const completionBannerTeamName = draftState?.teams.find((team) => team.isUser)?.name ?? 'Your team';
   const showCompletionBanner = draftState?.status === 'completed' && !showHistory;
 
@@ -151,6 +248,7 @@ function DraftApp() {
     setDraftConfig(safeConfig);
     setIsSubmittingDraft(true);
     setShowHistory(false);
+    setShowDraftsList(false);
 
     try {
       await startDraft(safeConfig);
@@ -162,7 +260,28 @@ function DraftApp() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_35%),linear-gradient(180deg,_#1c1917_0%,_#0c0a09_100%)] px-6 py-12 text-stone-100">
       <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-7xl items-start justify-center">
-        {view === 'config' ? (
+        {/* @spec DFF-UI-116 */}
+        {showDraftsListLoading ? <DraftsListLoadingState /> : null}
+
+        {/* @spec DFF-UI-110 */}
+        {!showDraftsListLoading && view === 'drafts-list' ? (
+          <DraftsListPage
+            drafts={draftsList}
+            onNavigateToConfig={() => {
+              setShowDraftsList(false);
+            }}
+            onNavigateToDrafting={() => {
+              setShowDraftsList(false);
+              setShowHistory(false);
+            }}
+            onNavigateToHistory={() => {
+              setShowDraftsList(false);
+              setShowHistory(true);
+            }}
+          />
+        ) : null}
+
+        {!showDraftsListLoading && view === 'config' ? (
           <DraftConfigScreen
             config={draftConfig}
             isSubmitting={isSubmittingDraft}
@@ -172,7 +291,7 @@ function DraftApp() {
         ) : null}
 
         {/* @spec DFF-UI-100 */}
-        {view === 'drafting' && draftState ? (
+        {!showDraftsListLoading && view === 'drafting' && draftState ? (
           <div className="flex w-full flex-col gap-6 lg:flex-row">
             <div className="relative min-w-0 flex-1">
               <DraftBoard draftState={draftState} isInteractionBlocked={showCompletionBanner} />
@@ -193,11 +312,12 @@ function DraftApp() {
 
         {/* @spec DFF-UI-060 */}
         {/* @spec DFF-UI-065 */}
-        {view === 'history' && draftState ? (
+        {!showDraftsListLoading && view === 'history' && draftState ? (
           <HistoryView
             draftState={draftState}
             onNewDraft={() => {
               setShowHistory(false);
+              setShowDraftsList(false);
               setDraftConfig(configDefaults);
               newDraft();
             }}

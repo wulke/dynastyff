@@ -169,6 +169,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function renderAppToConfig() {
+  render(<App />);
+  await screen.findByRole('heading', { name: /config screen/i });
+}
+
 describe('draft history view', () => {
   // @spec DFF-UI-060
   // @spec DFF-UI-065
@@ -181,7 +186,7 @@ describe('draft history view', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
@@ -208,7 +213,7 @@ describe('draft history view', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
@@ -258,7 +263,7 @@ describe('draft history view', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
@@ -316,7 +321,7 @@ describe('draft history view', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
@@ -359,7 +364,7 @@ describe('draft history view', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
@@ -385,7 +390,7 @@ describe('draft history view', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
@@ -411,7 +416,7 @@ describe('draft history view', () => {
       }),
     );
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 

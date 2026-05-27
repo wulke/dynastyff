@@ -264,3 +264,34 @@ Each Pick Feed entry shall display: player name, a color-coded position badge, t
 
 **DFF-UI-104** `[x]` → #82
 When `draftState.picks` is empty, the Pick Feed panel shall render an empty-state message saying "No picks yet" without crashing.
+
+---
+
+## Drafts List Page
+
+**DFF-UI-110** `[x]` → #80
+When the application loads and drafts exist in the GET /drafts response, the system shall render the Drafts List page instead of the Config screen.
+
+**DFF-UI-111** `[x]` → #80
+When the application loads and no drafts exist in the GET /drafts response, the system shall render the Config screen.
+
+**DFF-UI-112** `[x]` → #80
+The Drafts List page shall display a table with columns: draft identifier, status (In Progress / Completed), date created, team count, rounds, and scoring format.
+
+**DFF-UI-113** `[x]` → #80
+The Drafts List page shall display a Resume button only for in-progress drafts. When clicked, the system shall navigate to the Drafting view for that draft.
+
+**DFF-UI-114** `[x]` → #80
+The Drafts List page shall display a Review button for all drafts. When clicked, the system shall navigate to the Draft History view for that draft.
+
+**DFF-UI-115** `[x]` → #80
+The Drafts List page shall display a "New Draft" button. When clicked, the system shall navigate to the Config screen.
+
+**DFF-UI-116** `[x]` → #80
+When the Drafts List page is loading draft data, the system shall display a loading state instead of rendering the table.
+
+**DFF-UI-117** `[x]` → #80
+When the GET /drafts request fails, the system shall display an error toast and fall back to the Config screen.
+
+**DFF-UI-118** `[x]` → #80
+When the GET /drafts request returns an empty array, the system shall render the Config screen.

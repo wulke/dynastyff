@@ -61,6 +61,7 @@ function buildDraftState(
   return {
     draftId: engineState.draftId,
     status: engineState.status,
+    isHydrating: false,
     currentPickNumber: engineState.status === 'completed' ? null : engineState.picks.length + 1,
     teams: engineState.teams,
     draftOrder: engineState.draftOrder,

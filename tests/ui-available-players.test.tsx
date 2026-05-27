@@ -240,7 +240,7 @@ describe('available players list', () => {
 
     expect(within(rows[0]).getByText('WR')).toBeInTheDocument();
     expect(within(rows[0]).getByText('DAL')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('27')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('Age 27')).toBeInTheDocument();
     expect(within(rows[0]).getByText('9800')).toBeInTheDocument();
 
     await user.click(within(panel).getByRole('button', { name: 'RB' }));

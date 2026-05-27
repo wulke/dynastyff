@@ -86,22 +86,22 @@ The Draft Board shall scroll horizontally to accommodate rounds beyond the initi
 **DFF-UI-030** `[ ]` → #18
 The Available Players list shall render all players not yet picked, sorted by `dynasty_value` descending.
 
-**DFF-UI-031** `[ ]` → #18
+**DFF-UI-031** `[x]` → #18
 The Available Players list shall include position filter buttons: ALL, QB, RB, WR, TE, and Picks. Selecting a filter shall immediately narrow the displayed list.
 
-**DFF-UI-032** `[ ]` → #18
+**DFF-UI-032** `[x]` → #18
 The Available Players list shall include a name search input. Entering text shall filter the list client-side on player name, case-insensitively.
 
-**DFF-UI-033** `[ ]` → #18
+**DFF-UI-033** `[x]` → #18
 Each player row shall display: player name, position badge, NFL team, age, and dynasty value.
 
-**DFF-UI-034** `[ ]` → #18
+**DFF-UI-034** `[x]` → #18
 When a `pick_made` SSE event is received, the picked player shall be removed from the Available Players list client-side.
 
-**DFF-UI-035** `[ ]` → #18
+**DFF-UI-035** `[x]` → #18
 When it is not the user's turn, the Available Players list shall display a "Bot is picking…" state and player rows shall not be interactive.
 
-**DFF-UI-036** `[ ]` → #18
+**DFF-UI-036** `[x]` → #18
 When the user clicks a player row during their turn, the system shall POST /drafts/:id/pick with that player's id and dispatch ADVISOR_RESET.
 
 ---
@@ -196,7 +196,7 @@ For each SSE event type (`pick_made`, `your_turn`, `trade_offered`, `trade_resol
 
 ## Error and Loading States
 
-**DFF-UI-080** `[ ]` → #18
+**DFF-UI-080** `[x]` → #18
 While GET /drafts/:id/state is in flight at draft start, the Available Players list shall render skeleton rows in place of player data.
 
 **DFF-UI-081** `[ ]` → #20
@@ -208,7 +208,7 @@ The draft header shall display an SSE connection status badge showing "Connectin
 **DFF-UI-083** `[x]` → #54
 If SSE reconnect attempts are exhausted (backoff cap reached with no reconnect), the system shall display an error toast: "Lost connection to draft server. Refresh to reconnect."
 
-**DFF-UI-084** `[ ]` → #18
+**DFF-UI-084** `[x]` → #18
 If POST /drafts/:id/pick returns an error, the system shall display a toast: "Pick failed — player may already be taken."
 
 **DFF-UI-085** `[ ]` → #20

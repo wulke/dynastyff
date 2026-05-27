@@ -57,7 +57,7 @@ type TeamPickAsset = {
   round: number;
 };
 
-type AvailablePlayer = {
+export type AvailablePlayer = {
   id: string;
   name: string;
   position: string;
@@ -93,6 +93,7 @@ type SseStatus = 'connecting' | 'connected' | 'disconnected';
 export type DraftState = {
   draftId: string | null;
   status: 'idle' | 'in_progress' | 'completed';
+  isHydrating: boolean;
   currentPickNumber: number | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
@@ -225,6 +226,7 @@ type DraftAction =
   | { type: 'TRADE_OFFERED'; payload: TradeOfferedPayload }
   | { type: 'TRADE_RESOLVED'; payload: TradeResolvedPayload }
   | { type: 'DRAFT_COMPLETE'; payload: DraftCompletePayload }
+  | { type: 'ADVISOR_RESET' }
   | { type: 'SSE_STATUS'; status: SseStatus }
   | { type: 'NEW_DRAFT' }
   | { type: 'LOAD_DRAFT'; payload: StateSyncPayload };
@@ -255,6 +257,7 @@ function createEmptyDraftState(draftId: string): DraftState {
   return {
     draftId,
     status: 'in_progress',
+    isHydrating: true,
     currentPickNumber: null,
     teams: [],
     draftOrder: [],
@@ -271,11 +274,16 @@ function createEmptyDraftState(draftId: string): DraftState {
   };
 }
 
+// @spec DFF-UI-031
+function sortAvailablePlayers(players: AvailablePlayer[]): AvailablePlayer[] {
+  return [...players].sort((left, right) => right.dynastyValue - left.dynastyValue);
+}
+
 // @spec DFF-STATIC-060
 // @spec DFF-STATIC-062
 // @spec DFF-UI-071
 function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftState | null): DraftState {
-  const syncedPlayers = payload.available_players.map((player) => ({
+  const syncedPlayers = sortAvailablePlayers(payload.available_players.map((player) => ({
     id: player.id,
     name: player.name,
     position: player.position,
@@ -284,7 +292,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
     isRookie: player.is_rookie,
     dynastyValue: player.dynasty_value,
     adp: player.adp,
-  }));
+  })));
 
   const playerCatalog = {
     ...(existingState?.playerCatalog ?? {}),
@@ -294,6 +302,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
   return {
     draftId: payload.draft_id,
     status: payload.status,
+    isHydrating: false,
     currentPickNumber: payload.current_pick_number,
     teams: payload.teams.map((team) => ({
       id: team.id,
@@ -499,6 +508,8 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
             ? state.sessionHistory
             : [...state.sessionHistory, toCompletedDraft(state.draftState, action.payload.completed_at)],
       };
+    case 'ADVISOR_RESET':
+      return state;
     case 'SSE_STATUS':
       if (!state.draftState) {
         return state;
@@ -516,7 +527,7 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
       // @spec DFF-UI-114
       return {
         ...state,
-        draftState: toDraftStateFromSync(action.payload, null),
+        draftState: toDraftStateFromSync(action.payload, state.draftState),
       };
     case 'NEW_DRAFT':
       return {
@@ -550,6 +561,47 @@ async function readJsonResponse(response: Response): Promise<unknown> {
   } catch {
     throw new DraftCreateUiError(GENERIC_DRAFT_CREATE_ERROR);
   }
+}
+
+// @spec DFF-UI-080
+function isStateSyncPayload(payload: unknown): payload is StateSyncPayload {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const candidate = payload as Partial<StateSyncPayload>;
+  return (
+    typeof candidate.draft_id === 'string' &&
+    Array.isArray(candidate.teams) &&
+    Array.isArray(candidate.draft_order) &&
+    Array.isArray(candidate.picks) &&
+    Array.isArray(candidate.roster_players) &&
+    Array.isArray(candidate.team_pick_assets) &&
+    Array.isArray(candidate.user_queue) &&
+    Array.isArray(candidate.available_players)
+  );
+}
+
+// @spec DFF-UI-080
+async function hydrateDraftState(
+  draftId: string,
+  dispatch: Dispatch<DraftAction>,
+  actionType: 'STATE_SYNC' | 'LOAD_DRAFT',
+): Promise<boolean> {
+  const response = await fetch(`/drafts/${draftId}/state`);
+
+  if (!response.ok) {
+    throw new Error(GENERIC_DRAFT_LOAD_ERROR);
+  }
+
+  const payload = await response.json();
+
+  if (!isStateSyncPayload(payload)) {
+    throw new Error(GENERIC_DRAFT_LOAD_ERROR);
+  }
+
+  dispatch({ type: actionType, payload });
+  return true;
 }
 
 // @spec DFF-UI-083
@@ -816,9 +868,17 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
       }
 
       const payload = await readJsonResponse(response);
-      dispatch({ type: 'DRAFT_CREATED', draftId: parseDraftCreateResponse(payload) });
+      const draftId = parseDraftCreateResponse(payload);
+      dispatch({ type: 'DRAFT_CREATED', draftId });
+      await hydrateDraftState(draftId, dispatch, 'STATE_SYNC');
     } catch (error) {
-      setToastMessage(error instanceof DraftCreateUiError ? error.message : GENERIC_DRAFT_CREATE_ERROR);
+      setToastMessage(
+        error instanceof DraftCreateUiError
+          ? error.message
+          : error instanceof Error && error.message === GENERIC_DRAFT_LOAD_ERROR
+            ? GENERIC_DRAFT_LOAD_ERROR
+            : GENERIC_DRAFT_CREATE_ERROR,
+      );
     } finally {
       startDraftInFlightRef.current = false;
     }
@@ -835,6 +895,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
 
     try {
+      dispatch({ type: 'ADVISOR_RESET' });
       const response = await fetch(`/drafts/${draftId}/pick`, {
         method: 'POST',
         headers: {
@@ -877,15 +938,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
   // @spec DFF-UI-114
   async function loadDraft(draftId: string) {
     try {
-      const response = await fetch(`/drafts/${draftId}/state`);
-
-      if (!response.ok) {
-        throw new Error(GENERIC_DRAFT_LOAD_ERROR);
-      }
-
-      const payload = await response.json();
-      dispatch({ type: 'LOAD_DRAFT', payload });
-      return true;
+      return await hydrateDraftState(draftId, dispatch, 'LOAD_DRAFT');
     } catch {
       setToastMessage(GENERIC_DRAFT_LOAD_ERROR);
       return false;

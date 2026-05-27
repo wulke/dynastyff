@@ -302,8 +302,10 @@ export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBo
               </svg>
             )}
           </button>
-          <div className="rounded-full border border-stone-700 px-4 py-2 text-sm text-stone-200">
-            {draftState.currentPickNumber
+        <div className="rounded-full border border-stone-700 px-4 py-2 text-sm text-stone-200">
+            {draftState.isHydrating
+              ? 'Loading draft…'
+              : draftState.currentPickNumber
               ? draftState.teams.find(
                   (team) =>
                     team.id ===

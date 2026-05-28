@@ -75,6 +75,52 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+function createDraftingState(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    draft_id: 'draft-123',
+    status: 'in_progress',
+    current_pick_number: 2,
+    teams: [
+      { id: 'team-1', name: 'Bot Alpha', is_user: false, archetype: 'win_now' },
+      { id: 'team-2', name: 'Lakeview Legends', is_user: true, archetype: null },
+      { id: 'team-3', name: 'Bot Gamma', is_user: false, archetype: 'balanced' },
+    ],
+    draft_order: [
+      { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+      { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+      { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+      { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+      { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
+      { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
+    ],
+    picks: [
+      {
+        pick_number: 1,
+        team_id: 'team-1',
+        player_id: 'player-picked',
+        picked_at: '2026-05-27T10:00:00.000Z',
+      },
+    ],
+    roster_players: [],
+    team_pick_assets: [],
+    user_queue: [],
+    available_players: [
+      {
+        id: 'player-1',
+        name: 'Josh Allen',
+        position: 'QB',
+        nfl_team: 'BUF',
+        age: 30,
+        is_rookie: false,
+        dynasty_value: 9999,
+        adp: 1,
+      },
+    ],
+    trades: [],
+    ...overrides,
+  };
+}
+
 // @spec DFF-UI-014
 // @spec DFF-UI-015
 function setupEmptyDraftsFetch() {
@@ -188,6 +234,76 @@ describe('UI app scaffold', () => {
         name: /draft board/i,
       }),
     ).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-130
+  // @spec DFF-UI-131
+  // @spec DFF-UI-138
+  // @spec DFF-UI-139
+  test('renders the drafting status bar and three weighted columns with a single turn-status surface', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', createDraftingState());
+    });
+
+    const statusBar = await screen.findByTestId('draft-status-bar');
+    expect(statusBar).toHaveTextContent('Pick 2 of 6');
+    expect(statusBar).toHaveTextContent('Your turn');
+
+    const layout = screen.getByTestId('drafting-layout');
+    expect(layout.className).toContain('xl:grid');
+    expect(layout.className).toContain('xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]');
+
+    const draftBoardColumn = screen.getByTestId('draft-board-column');
+    const availablePlayersColumn = screen.getByTestId('available-players-column');
+    const pickFeedColumn = screen.getByTestId('pick-feed-column');
+    expect(within(draftBoardColumn).getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
+    expect(within(availablePlayersColumn).getByRole('heading', { name: /available players/i })).toBeInTheDocument();
+    expect(within(pickFeedColumn).getByRole('heading', { name: /pick feed/i })).toBeInTheDocument();
+
+    expect(screen.getByText(/^Your turn$/i)).toBe(statusBar.querySelector('[data-testid="draft-status-turn"]'));
+    expect(screen.queryByText(/bot is picking…/i)).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-138
+  test('shows the active bot team name in the drafting status bar when it is not the user turn', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit(
+        'state_sync',
+        createDraftingState({
+          current_pick_number: 3,
+        }),
+      );
+    });
+
+    const statusBar = await screen.findByTestId('draft-status-bar');
+    expect(statusBar).toHaveTextContent('Pick 3 of 6');
+    expect(within(statusBar).getByText('Bot Gamma')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-015

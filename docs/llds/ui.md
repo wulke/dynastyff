@@ -223,6 +223,26 @@ A scrolling real-time feed panel rendered alongside the draft board, driven by `
 - Same player is picked twice (impossible in valid state but handles gracefully) → duplicate entries render, since each `pick_made` produces a unique pick record
 - Pick number is absent from `draftOrder` (should not happen in practice but handle defensively) → entry renders an em dash (`—`) in place of "Rd N, Pick M" instead of showing "Rd 0, Pick 0"
 
+## 3-Column Drafting Layout And Status Bar
+
+The drafting room is scaffolded as a three-column workspace at `xl` breakpoints and above. The board remains the primary surface on the left, with Available Players in the center and Pick Feed on the right.
+
+**Layout:**
+- At `1280px+`, render the drafting view as three columns in a single row: Draft Board, Available Players, Pick Feed
+- Use weighted track widths of `2fr / 1.5fr / 1fr`
+- Below `xl`, stack the drafting surfaces vertically in their existing mobile-friendly order
+
+**Status bar:**
+- Render a persistent status bar above the columns while the draft is open
+- Display the current pick as `Pick N of Total`
+- Display turn ownership as `Your turn` when the current slot belongs to the user, otherwise show the current bot team name
+- Treat the status bar as the only turn-status surface in the drafting room; remove the old header badges from Draft Board and Available Players
+
+**Edge Case Probe:**
+- `currentPickNumber` is `null` after the draft ends -> status bar falls back to the completed pick count and `Draft complete`
+- Current draft slot is missing from `draftOrder` -> status bar still renders the pick progress and falls back to `Draft room active`
+- Current team lookup fails for a non-user slot -> status bar falls back to `Draft room active` instead of rendering an empty label
+
 ## Available Players And Targets Panels
 
 Rendered alongside the draft board during the user's turn. During bot turns, both panels stay visible, show a shared "Bot is picking…" disabled state, and disable player rows.

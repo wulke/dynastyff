@@ -323,3 +323,64 @@ When the GET /drafts request fails, the system shall display an error toast and 
 
 **DFF-UI-118** `[x]` → #80
 When the GET /drafts request returns an empty array, the system shall render the Config screen.
+
+---
+
+## 3-Column Drafting Layout
+
+**DFF-UI-130** `[x]`
+The drafting view shall render three columns in a row at viewport widths of 1280px and above: Draft Board (left), Available Players (center), Pick Feed (right).
+
+**DFF-UI-131** `[x]`
+The default column widths shall be weighted: Draft Board `2fr`, Available Players `1.5fr`, Pick Feed `1fr`. All three columns shall render at their default widths on load.
+
+**DFF-UI-132** `[ ]`
+Each column header shall include an expand button. When clicked, the column shall expand to occupy the available viewport width and the other two columns shall collapse to narrow icon strips.
+
+**DFF-UI-133** `[ ]`
+Only one column may be expanded at a time. Expanding a column shall automatically collapse any previously expanded column to a strip.
+
+**DFF-UI-134** `[ ]`
+A collapsed column strip shall display an identifying icon and a rotated panel label (e.g. "Draft Board", "Available Players", "Pick Feed").
+
+**DFF-UI-135** `[ ]`
+Clicking a collapsed strip shall expand that column. If another column is currently expanded, it shall collapse to a strip.
+
+**DFF-UI-136** `[ ]`
+The expanded/collapsed state shall not be persisted to localStorage. On every page load all three columns shall render at their default weighted widths.
+
+**DFF-UI-137** `[ ]`
+Column width transitions shall be animated with a CSS transition of approximately 200ms.
+
+---
+
+## Drafting Status Bar
+
+**DFF-UI-138** `[x]`
+A persistent status bar shall be rendered above the three columns during the drafting view. It shall display: the current pick number out of total picks, and whose turn it is ("Your turn" or the current bot team name).
+
+**DFF-UI-139** `[x]`
+The turn-status badge ("Your turn" / "Bot is picking…") shall be removed from the Draft Board header and the Available Players panel header. The status bar shall be the single location for turn status in the drafting view.
+
+---
+
+## Available Players / Targets Tabs
+
+**DFF-UI-140** `[ ]`
+The Available Players column shall render two tabs: "Available" and "Targets". The active tab shall be visually distinguished with the amber accent style used elsewhere in the UI.
+
+**DFF-UI-141** `[ ]`
+The "Available" tab shall render the existing Available Players list content: position filters, name search input, and the scrollable player rows.
+
+**DFF-UI-142** `[ ]`
+The "Targets" tab shall render the existing Targets panel content: queued players in ascending rank order, with the empty state message "No targets added yet" when the queue is empty.
+
+**DFF-UI-143** `[ ]`
+The Targets panel shall no longer be rendered as a side-by-side inner grid within the Available Players panel. Its content shall only be accessible via the "Targets" tab within the Available Players column.
+
+---
+
+## Pick Feed Column
+
+**DFF-UI-144** `[ ]`
+The Pick Feed panel shall fill the full height of its column. The fixed `max-h-[28rem]` constraint shall be removed; the feed shall scroll independently within the available column height.

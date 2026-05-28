@@ -409,11 +409,10 @@ describe('available players list', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     const playersPanel = await screen.findByTestId('available-players-panel');
+    expect(within(playersPanel).getByText('CeeDee Lamb')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const targetsPanel = await screen.findByTestId('targets-panel');
 
-    expect(playersPanel).toBeInTheDocument();
-    expect(within(playersPanel).getByText('CeeDee Lamb')).toBeInTheDocument();
     expect(within(targetsPanel).getByText('No targets added yet')).toBeInTheDocument();
     expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load draft queue.');
   });

@@ -84,8 +84,8 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
 - `pick_made` SSE events update the already-rendered board in place without a re-fetch
 - The drafting room now renders three columns at wide viewports: `Draft Board`, `Available Players`, and `Pick Feed`, with weighted widths and a persistent status bar that shows current pick progress plus whose turn it is
-- The `Available Players` column stays sorted by dynasty value and includes client-side position filters, live name search, draft-start skeleton rows, a two-step pick confirmation card, bot-turn disabled rows, and pick-submission error toasts
-- A `Targets` panel hydrates from `GET /drafts/:id/queue`, shows queued players in ascending rank order with position badges and dynasty values, removes picked targets on live `pick_made` events, and shares the same confirmation flow plus bot-turn disabled state
+- The `Available Players` column now uses `Available` / `Targets` tabs: the default `Available` view keeps the dynasty-sorted list, client-side position filters, live name search, draft-start skeleton rows, a two-step pick confirmation card, bot-turn disabled rows, and pick-submission error toasts
+- The `Targets` tab hydrates from `GET /drafts/:id/queue`, shows queued players in ascending rank order with position badges and dynasty values, removes picked targets on live `pick_made` events, and shares the same confirmation flow plus bot-turn disabled state
 - The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh

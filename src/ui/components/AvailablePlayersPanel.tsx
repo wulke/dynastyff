@@ -137,6 +137,7 @@ function AvailablePlayersLoadingState() {
 // @spec DFF-UI-036
 // @spec DFF-UI-080
 // @spec DFF-UI-120
+// @spec DFF-UI-122
 // @spec DFF-UI-123
 // @spec DFF-UI-125
 // @spec DFF-UI-126

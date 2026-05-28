@@ -124,6 +124,7 @@ function emitStateSync(overrides: Partial<Record<string, unknown>> = {}) {
           adp: 2,
         },
       ],
+      drafted_players: [],
       trades: [],
       ...overrides,
     });
@@ -242,6 +243,76 @@ describe('pick feed panel', () => {
     const lastEntry = feedEntries[2];
     expect(lastEntry).toHaveAttribute('data-testid', 'pick-feed-entry-1');
     expect(within(lastEntry).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-101
+  // @spec DFF-UI-103
+  test('hydrates historical pick names from drafted player metadata when resume state has no available players left', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    emitStateSync({
+      current_pick_number: 4,
+      picks: [
+        { pick_number: 1, team_id: 'team-1', player_id: 'player-1', picked_at: '2026-05-22T18:00:00.000Z' },
+        { pick_number: 2, team_id: 'team-2', player_id: 'player-2', picked_at: '2026-05-22T18:01:00.000Z' },
+        { pick_number: 3, team_id: 'team-3', player_id: 'player-3', picked_at: '2026-05-22T18:02:00.000Z' },
+      ],
+      roster_players: [
+        { team_id: 'team-1', player_id: 'player-1' },
+        { team_id: 'team-2', player_id: 'player-2' },
+        { team_id: 'team-3', player_id: 'player-3' },
+      ],
+      available_players: [],
+      drafted_players: [
+        {
+          id: 'player-1',
+          name: 'Josh Allen',
+          position: 'QB',
+          nfl_team: 'BUF',
+          age: 30,
+          is_rookie: false,
+          dynasty_value: 9999,
+          adp: 1,
+        },
+        {
+          id: 'player-2',
+          name: 'Bijan Robinson',
+          position: 'RB',
+          nfl_team: 'ATL',
+          age: 23,
+          is_rookie: false,
+          dynasty_value: 9500,
+          adp: 3,
+        },
+        {
+          id: 'player-3',
+          name: 'Justin Jefferson',
+          position: 'WR',
+          nfl_team: 'MIN',
+          age: 26,
+          is_rookie: false,
+          dynasty_value: 9800,
+          adp: 2,
+        },
+      ],
+    });
+
+    const pickFeed = screen.getByTestId('pick-feed-panel');
+    expect(within(pickFeed).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.2 - Bijan Robinson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-102

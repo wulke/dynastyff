@@ -208,6 +208,7 @@ A scrolling real-time feed panel rendered alongside the draft board, driven by `
 
 **Features:**
 - Hydrates from `draftState.picks` on initial load, sorted by `pickNumber` descending so the most recent pick appears at the top
+- On draft resume or reconnect, the client catalog must be rehydrated with metadata for already drafted players as well as remaining available players so historical feed entries still resolve to player names
 - Each new `pick_made` event adds the pick to `draftState.picks` via the reducer; the feed re-renders with the new entry at the top
 - Each entry renders as a dense single-line string in the form `Round.Pick - Player Name` (for example, `1.1 - Bijan Robinson`)
 - Compact list styling is preferred over card treatment: minimal padding, minimal decoration, and a simple vertical scroll region

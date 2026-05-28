@@ -2007,6 +2007,7 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
       team_pick_assets: Array<{ team_id: string; year: number; round: number }>;
       user_queue: Array<{ player_id: string; rank: number }>;
       available_players: Array<{ id: string; dynasty_value: number }>;
+      drafted_players: Array<{ id: string; name: string; position: string }>;
       trades: Array<{
         id: string;
         round: number;
@@ -2055,6 +2056,13 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
       })),
       [{ id: 'player-queued', dynasty_value: 5000 }],
     );
+    assert.deepEqual(body.drafted_players, [
+      {
+        id: 'player-picked',
+        name: 'Picked Player',
+        position: 'WR',
+      },
+    ]);
     assert.deepEqual(body.trades, [
       {
         id: 'trade-row-id',
@@ -2260,6 +2268,7 @@ test('GET /drafts returns all persisted drafts with history metadata', async () 
       created_at: string;
       completed_at: string | null;
       status: string;
+      scoring_format: string;
       team_count: number;
       rounds: number;
     }>;
@@ -2270,6 +2279,7 @@ test('GET /drafts returns all persisted drafts with history metadata', async () 
         created_at: '2026-05-18T19:00:00.000Z',
         completed_at: null,
         status: 'in_progress',
+        scoring_format: 'half_ppr',
         team_count: 4,
         rounds: 3,
       },
@@ -2278,6 +2288,7 @@ test('GET /drafts returns all persisted drafts with history metadata', async () 
         created_at: '2026-05-18T18:00:00.000Z',
         completed_at: completedAt,
         status: 'completed',
+        scoring_format: 'standard',
         team_count: 2,
         rounds: 2,
       },

@@ -3,6 +3,7 @@
 // @spec DFF-UI-102
 // @spec DFF-UI-103
 // @spec DFF-UI-104
+// @spec DFF-UI-144
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -164,7 +165,8 @@ async function renderAppToConfig() {
 describe('pick feed panel', () => {
   // @spec DFF-UI-100
   // @spec DFF-UI-104
-  test('renders a pick feed panel alongside the draft board with fixed height and empty state', async () => {
+  // @spec DFF-UI-144
+  test('renders a pick feed panel alongside the draft board with full-column scroll behavior and empty state', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
@@ -182,11 +184,16 @@ describe('pick feed panel', () => {
 
     // Pick feed panel should be rendered alongside the draft board
     const pickFeed = screen.getByTestId('pick-feed-panel');
+    expect(screen.getByTestId('pick-feed-column').className).toContain('flex');
     expect(pickFeed).toBeInTheDocument();
+    expect(pickFeed.className).toContain('h-full');
+    expect(pickFeed.className).toContain('flex-col');
 
-    // Panel should have a fixed max height and independent scroll
+    // Panel should fill its column and retain independent scroll without a fixed max height
     const scrollContainer = within(pickFeed).getByTestId('pick-feed-scroll-container');
-    expect(scrollContainer.className).toContain('max-h');
+    expect(scrollContainer.className).not.toContain('max-h-[28rem]');
+    expect(scrollContainer.className).toContain('flex-1');
+    expect(scrollContainer.className).toContain('min-h-0');
     expect(scrollContainer.className).toContain('overflow-y-auto');
 
     // Empty state should show when no picks exist

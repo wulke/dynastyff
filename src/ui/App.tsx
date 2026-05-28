@@ -378,7 +378,8 @@ function DraftApp() {
               <div data-testid="available-players-column" className="min-w-0">
                 <AvailablePlayersPanel draftState={draftState} />
               </div>
-              <div data-testid="pick-feed-column" className="min-w-0">
+              {/* @spec DFF-UI-144 */}
+              <div data-testid="pick-feed-column" className="flex min-w-0">
                 <PickFeedPanel draftState={draftState} />
               </div>
             </div>

@@ -3,6 +3,7 @@
 // @spec DFF-UI-102
 // @spec DFF-UI-103
 // @spec DFF-UI-104
+// @spec DFF-UI-144
 import { useMemo } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 
@@ -30,6 +31,7 @@ function getPickLabel(draftState: DraftState, pickNumber: number): string {
 // @spec DFF-UI-103
 // @spec DFF-UI-101
 // @spec DFF-UI-102
+// @spec DFF-UI-144
 export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
   // @spec DFF-UI-101
   const feedEntries = useMemo(
@@ -42,10 +44,11 @@ export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
   // @spec DFF-UI-102
   // @spec DFF-UI-103
   // @spec DFF-UI-104
+  // @spec DFF-UI-144
   return (
     <section
       data-testid="pick-feed-panel"
-      className="w-full rounded-[1.75rem] border border-stone-800 bg-stone-900/90 p-4 shadow-2xl shadow-black/20"
+      className="flex h-full w-full min-h-0 flex-col rounded-[1.75rem] border border-stone-800 bg-stone-900/90 p-4 shadow-2xl shadow-black/20"
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-stone-400">Pick Feed</h2>
@@ -54,7 +57,7 @@ export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
         </span>
       </div>
 
-      <div className="mt-3 max-h-[28rem] overflow-y-auto" data-testid="pick-feed-scroll-container">
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto" data-testid="pick-feed-scroll-container">
         {feedEntries.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <p className="text-sm text-stone-600">No picks yet</p>

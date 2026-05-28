@@ -908,6 +908,9 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
 
 // @spec DFF-ETL-050
 // @spec DFF-ETL-051
+// @spec DFF-ETL-041
+// @spec DFF-ETL-070
+// @spec DFF-ETL-071
 test('runEtl logs a warning and continues when one scraper fails', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
   const warnings: string[] = [];
@@ -931,11 +934,17 @@ test('runEtl logs a warning and continues when one scraper fails', async () => {
             rawValue: 100,
             adp: 12.5,
           },
-        ]),
+        ],
+        [{ year: 2027, round: 1, rawValue: 500 }],
+      ),
       scrapeFantasycalc: async () => {
         throw new Error('fantasycalc exploded');
       },
-      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [],
+        pickValues: [{ year: 2028, round: 1, rawValue: 200 }],
+      }),
       now: () => '2026-05-28T10:00:00.000Z',
     });
 
@@ -946,6 +955,18 @@ test('runEtl logs a warning and continues when one scraper fails', async () => {
          FROM etl_runs`,
       )
       .get() as { completed_at: string | null; sources_succeeded: string };
+    const pickValues = db
+      .prepare(
+        `SELECT year, round, pick_in_round, dynasty_value
+         FROM pick_values
+         ORDER BY year, round, pick_in_round`,
+      )
+      .all() as Array<{
+        year: number;
+        round: number;
+        pick_in_round: number;
+        dynasty_value: number;
+      }>;
 
     assert.equal(exitCode, 0);
     assert.equal(playerCount.count, 1);
@@ -953,11 +974,144 @@ test('runEtl logs a warning and continues when one scraper fails', async () => {
       completed_at: '2026-05-28T10:00:00.000Z',
       sources_succeeded: '["ktc","rosteraudit"]',
     });
+    assert.deepEqual(pickValues, [
+      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 9999 },
+      { year: 2028, round: 1, pick_in_round: 0, dynasty_value: 9999 },
+    ]);
     assert.ok(
       warnings.includes(
         '[ETL] WARN: fantasycalc scraper failed — fantasycalc exploded. Excluding from this run.',
       ),
     );
+  } finally {
+    console.warn = originalWarn;
+    cleanup();
+  }
+});
+
+// @spec DFF-ETL-050
+// @spec DFF-ETL-051
+// @spec DFF-ETL-053
+// @spec DFF-ETL-041
+// @spec DFF-ETL-070
+// @spec DFF-ETL-071
+test('runEtl continues when KTC fails and updates matching non-KTC rows plus pick values', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    db.prepare(
+      `INSERT INTO players (
+        id,
+        name,
+        position,
+        nfl_team,
+        age,
+        is_rookie,
+        dynasty_value,
+        value_ktc,
+        value_fantasycalc,
+        value_dynastydaddy,
+        value_rosteraudit,
+        adp,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'player-ktc-failed',
+      'Existing Player',
+      'WR',
+      'SEA',
+      27,
+      0,
+      1234,
+      1234,
+      4321,
+      null,
+      null,
+      55.5,
+      '2026-05-18T10:00:00.000Z',
+    );
+
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => {
+        throw new Error('ktc exploded');
+      },
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [
+          {
+            name: 'Existing Player',
+            position: 'WR',
+            nflTeam: 'SEA',
+            age: 26,
+            isRookie: false,
+            rawValue: 700,
+            adp: 11.2,
+          },
+        ],
+        pickValues: [{ year: 2027, round: 1, rawValue: 400 }],
+      }),
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+      now: () => '2026-05-28T10:30:00.000Z',
+    });
+
+    const etlRun = db
+      .prepare(
+        `SELECT completed_at, sources_succeeded
+         FROM etl_runs`,
+      )
+      .get() as { completed_at: string | null; sources_succeeded: string };
+    const player = db
+      .prepare(
+        `SELECT
+          id,
+          dynasty_value,
+          value_ktc,
+          value_fantasycalc,
+          value_rosteraudit,
+          adp,
+          updated_at
+        FROM players
+        WHERE id = ?`,
+      )
+      .get('player-ktc-failed');
+    const pickValues = db
+      .prepare(
+        `SELECT year, round, pick_in_round, dynasty_value
+         FROM pick_values
+         ORDER BY year, round, pick_in_round`,
+      )
+      .all() as Array<{
+        year: number;
+        round: number;
+        pick_in_round: number;
+        dynasty_value: number;
+      }>;
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(etlRun, {
+      completed_at: '2026-05-28T10:30:00.000Z',
+      sources_succeeded: '["fantasycalc","rosteraudit"]',
+    });
+    assert.deepEqual(player, {
+      id: 'player-ktc-failed',
+      dynasty_value: 5617,
+      value_ktc: 1234,
+      value_fantasycalc: 9999,
+      value_rosteraudit: null,
+      adp: 11.2,
+      updated_at: '2026-05-28T10:30:00.000Z',
+    });
+    assert.deepEqual(pickValues, [
+      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 9999 },
+    ]);
+    assert.ok(warnings.includes('[ETL] WARN: ktc scraper failed — ktc exploded. Excluding from this run.'));
   } finally {
     console.warn = originalWarn;
     cleanup();

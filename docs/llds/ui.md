@@ -212,6 +212,7 @@ A scrolling real-time feed panel rendered alongside the draft board, driven by `
 - Each new `pick_made` event adds the pick to `draftState.picks` via the reducer; the feed re-renders with the new entry at the top
 - Each entry renders as a dense single-line string in the form `Round.Pick - Player Name` (for example, `1.1 - Bijan Robinson`)
 - Compact list styling is preferred over card treatment: minimal padding, minimal decoration, and a simple vertical scroll region
+- Within the three-column drafting layout, the panel must stretch to the full height of the Pick Feed column; the old fixed `max-h-[28rem]` workaround is removed and scrolling is handled by an inner full-height overflow region
 - Shows an empty-state message ("No picks yet") when `draftState.picks` is empty
 - Foundation for the Pick Log tab in the History View (#21), but with a more compressed presentation tailored to live draft review
 

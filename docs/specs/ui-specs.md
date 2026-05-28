@@ -86,8 +86,8 @@ The Draft Board shall scroll horizontally to accommodate rounds beyond the initi
 **DFF-UI-030** `[x]` → #18
 The Available Players list shall render all players not yet picked, sorted by `dynasty_value` descending.
 
-**DFF-UI-031** `[x]` → #18
-The Available Players list shall include position filter buttons: ALL, QB, RB, WR, TE, and Picks. Selecting a filter shall immediately narrow the displayed list.
+**DFF-UI-031** `[ ]` → #18
+The Available Players list shall include a single compact position-filter control with options for ALL, QB, RB, WR, TE, and Picks. Changing the selected option shall immediately narrow the displayed list.
 
 **DFF-UI-032** `[x]` → #18
 The Available Players list shall include a name search input. Entering text shall filter the list client-side on player name, case-insensitively.
@@ -98,8 +98,8 @@ Each player row shall display: player name, position badge, NFL team, age, and d
 **DFF-UI-034** `[x]` → #18
 When a `pick_made` SSE event is received, the picked player shall be removed from the Available Players list client-side.
 
-**DFF-UI-035** `[x]` → #18
-When it is not the user's turn, the Available Players list shall display a "Bot is picking…" state and player rows shall not be interactive.
+**DFF-UI-035** `[ ]` → #18
+When it is not the user's turn, the Available Players list shall remain visible, the player rows shall not be interactive, and turn ownership shall continue to be communicated by the shared drafting status bar.
 
 **DFF-UI-036** `[x]` → #18
 When the user clicks a player row during their turn, the system shall select that player and render a confirmation card before POST /drafts/:id/pick is submitted.
@@ -278,8 +278,8 @@ Every position badge on the Draft Board shall be color-coded by position: QB=amb
 
 ## Pick Feed Panel
 
-**DFF-UI-100** `[x]` → #82
-The Pick Feed panel shall be rendered alongside the Draft Board during the drafting view. It shall have a fixed maximum height and scroll independently of the Draft Board.
+**DFF-UI-100** `[ ]` → #82
+The Pick Feed panel shall be rendered alongside the Draft Board during the drafting view as a compact, scrollable running list of completed picks.
 
 **DFF-UI-101** `[x]` → #82
 On initial load, the Pick Feed panel shall hydrate from the picks already present in `draftState.picks`, sorted in reverse-chronological order (most recent pick at the top).
@@ -287,8 +287,8 @@ On initial load, the Pick Feed panel shall hydrate from the picks already presen
 **DFF-UI-102** `[x]` → #82
 When a `pick_made` SSE event is processed by the reducer, the newly added pick shall appear as an entry prepended to the top of the Pick Feed panel in real time, without a page reload or re-fetch.
 
-**DFF-UI-103** `[x]` → #82
-Each Pick Feed entry shall display: player name, a color-coded position badge, the drafting team name, the round number, and the pick-in-round formatted as `"Rd N, Pick M"`.
+**DFF-UI-103** `[ ]` → #82
+Each Pick Feed entry shall display a concise line in the format `"Round.Pick - Player Name"` (for example, `"1.1 - Bijan Robinson"`). If the pick number cannot be resolved to a draft-order slot, the entry shall render an em dash (`—`) in place of the `Round.Pick` prefix.
 
 **DFF-UI-104** `[x]` → #82
 When `draftState.picks` is empty, the Pick Feed panel shall render an empty-state message saying "No picks yet" without crashing.

@@ -196,7 +196,7 @@ describe('available players list', () => {
   // @spec DFF-UI-032
   // @spec DFF-UI-033
   // @spec DFF-UI-080
-  test('hydrates from GET /drafts/:id/state with loading skeletons, sorted rows, position filters, and live name search', async () => {
+  test('hydrates from GET /drafts/:id/state with loading skeletons, sorted rows, a compact position filter control, and live name search', async () => {
     const user = userEvent.setup();
     const deferredState = createDeferredResponse();
 
@@ -259,15 +259,20 @@ describe('available players list', () => {
     expect(within(rows[0]).getByText('Age 27')).toBeInTheDocument();
     expect(within(rows[0]).getByText('9800')).toBeInTheDocument();
 
-    await user.click(within(panel).getByRole('button', { name: 'RB' }));
+    const positionFilter = within(panel).getByRole('combobox', { name: /position filter/i });
+    const filterOptions = within(positionFilter).getAllByRole('option');
+
+    expect(filterOptions.map((option) => option.textContent)).toEqual(['ALL', 'QB', 'RB', 'WR', 'TE', 'Picks']);
+
+    await user.selectOptions(positionFilter, 'RB');
     expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
     expect(within(panel).getByText('Bijan Robinson')).toBeInTheDocument();
 
-    await user.click(within(panel).getByRole('button', { name: 'Picks' }));
+    await user.selectOptions(positionFilter, 'Picks');
     expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
     expect(within(panel).getByText('2027 1st')).toBeInTheDocument();
 
-    await user.click(within(panel).getByRole('button', { name: 'ALL' }));
+    await user.selectOptions(positionFilter, 'ALL');
     await user.type(within(panel).getByRole('searchbox', { name: /search players/i }), 'bow');
     expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
     expect(within(panel).getByText('Brock Bowers')).toBeInTheDocument();

@@ -424,6 +424,14 @@ describe('HTTP draft context', () => {
           },
         ),
       )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
       .mockResolvedValueOnce(new Response('taken', { status: 400 }));
 
     render(
@@ -436,7 +444,7 @@ describe('HTTP draft context', () => {
     await user.click(screen.getByRole('button', { name: /submit pick/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      4,
       '/drafts/draft-pick-123/pick',
       expect.objectContaining({
         method: 'POST',
@@ -481,6 +489,14 @@ describe('HTTP draft context', () => {
           },
         ),
       )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     render(
@@ -493,7 +509,7 @@ describe('HTTP draft context', () => {
     await user.click(screen.getByRole('button', { name: /update queue/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      4,
       '/drafts/draft-queue-123/queue',
       expect.objectContaining({
         method: 'POST',

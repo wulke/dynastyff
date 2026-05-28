@@ -26,6 +26,7 @@ import { DraftConfigScreen, configDefaults, sanitizeDraftConfig, type ConfigForm
 import { DraftsListPage } from './components/DraftsListPage.js';
 import { DraftBoard } from './components/DraftBoard.js';
 import { PickFeedPanel } from './components/PickFeedPanel.js';
+import { AvailablePlayersPanel } from './components/AvailablePlayersPanel.js';
 import { HistoryView } from './components/HistoryView.js';
 
 type DraftCompletionBannerProps = {
@@ -305,7 +306,8 @@ function DraftApp() {
                 />
               ) : null}
             </div>
-            <div className="w-full shrink-0 lg:w-80">
+            <div className="flex w-full shrink-0 flex-col gap-6 lg:w-96">
+              <AvailablePlayersPanel draftState={draftState} />
               <PickFeedPanel draftState={draftState} />
             </div>
           </div>

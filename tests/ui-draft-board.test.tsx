@@ -237,19 +237,80 @@ describe('draft board UI', () => {
   // @spec DFF-UI-025
   test('fills the correct board cell on pick_made without re-fetching and clears the bot skeleton when the next pick is the user turn', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url === '/drafts' && !init?.method) {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+      }
+
+      if (url === '/drafts' && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+            status: 201,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-board-123/state') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              draft_id: 'draft-board-123',
+              status: 'in_progress',
+              current_pick_number: 1,
+              teams: [
+                { id: 'team-1', name: 'Bob', is_user: false, archetype: 'win_now' },
+                { id: 'team-2', name: 'You', is_user: true, archetype: null },
+                { id: 'team-3', name: 'Sue', is_user: false, archetype: 'productive_struggle' },
+              ],
+              draft_order: [
+                { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+                { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+                { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+                { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+                { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
+                { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
+              ],
+              picks: [],
+              roster_players: [],
+              team_pick_assets: [],
+              user_queue: [],
+              available_players: [
+                {
+                  id: 'player-1',
+                  name: 'Josh Allen',
+                  position: 'QB',
+                  nfl_team: 'BUF',
+                  age: 30,
+                  is_rookie: false,
+                  dynasty_value: 9999,
+                  adp: 1,
+                },
+              ],
+              trades: [],
+            }),
+            {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            },
+          ),
+        );
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
 
     await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
+    const fetchCountBeforePick = fetchMock.mock.calls.length;
 
     act(() => {
       MockEventSource.instances[0]?.emit('pick_made', {
@@ -260,7 +321,7 @@ describe('draft board UI', () => {
       });
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(fetchCountBeforePick);
 
     const pickedCell = screen.getByTestId('draft-slot-1');
     expect(within(pickedCell).getByText('Josh Allen')).toBeInTheDocument();

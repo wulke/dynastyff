@@ -80,9 +80,10 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - `Config Screen` renders on first load as a real league configuration form
 - `src/ui/context/DraftContext.tsx` owns the HTTP draft lifecycle and exposes `useDraftContext()` for all draft data and actions
 - `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
-- Successful draft creation transitions the UI into the drafting view and shows the live `Draft Board` immediately
+- Successful draft creation transitions the UI into the drafting view immediately, then hydrates `GET /drafts/:id/state` in parallel with SSE so sidebar data can load in place
 - The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
 - `pick_made` SSE events update the already-rendered board in place without a re-fetch
+- The drafting sidebar now includes an `Available Players` panel sorted by dynasty value with client-side position filters, live name search, draft-start skeleton rows, bot-turn disabled rows, and pick-submission error toasts
 - The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh

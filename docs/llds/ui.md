@@ -236,6 +236,7 @@ The drafting room is scaffolded as a three-column workspace at `xl` breakpoints 
 - When a column is expanded, it becomes the single wide panel and the other two columns collapse into narrow vertical strips
 - Each collapsed strip renders a panel icon plus a rotated panel label so the destination remains identifiable
 - Clicking a collapsed strip expands that panel and collapses whichever panel was previously expanded
+- Clicking the expand control for a panel that is already expanded is an intentional no-op; the room does not offer an in-place control to return to the default weighted layout
 - Only one panel may be expanded at a time
 - Width changes animate with an approximately `200ms` transition on the drafting layout container
 
@@ -251,6 +252,7 @@ The drafting room is scaffolded as a three-column workspace at `xl` breakpoints 
 - Current team lookup fails for a non-user slot -> status bar falls back to `Draft room active` instead of rendering an empty label
 - User refreshes while a panel is expanded -> the layout resets to the default weighted three-column arrangement
 - User expands one panel and then clicks a collapsed strip -> the newly clicked strip becomes the only expanded panel
+- User clicks the expand control for the panel that is already expanded -> the expanded state remains unchanged
 
 ## Available Players And Targets Panels
 

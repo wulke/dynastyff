@@ -335,7 +335,7 @@ The drafting view shall render three columns in a row at viewport widths of 1280
 The default column widths shall be weighted: Draft Board `2fr`, Available Players `1.5fr`, Pick Feed `1fr`. All three columns shall render at their default widths on load.
 
 **DFF-UI-132** `[x]` → #99
-Each column header shall include an expand button. When clicked, the column shall expand to occupy the available viewport width and the other two columns shall collapse to narrow icon strips.
+Each column header shall include an expand button. When clicked, the column shall expand to occupy the available viewport width and the other two columns shall collapse to narrow icon strips. Clicking the expand button for the already-expanded column shall leave that column expanded.
 
 **DFF-UI-133** `[x]` → #99
 Only one column may be expanded at a time. Expanding a column shall automatically collapse any previously expanded column to a strip.

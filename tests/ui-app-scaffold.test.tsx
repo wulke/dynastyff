@@ -285,16 +285,37 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-137
   test('supports single-column expansion with collapsed strips and a 200ms layout transition', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    const localStorageSetItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
 
-    await renderAppToConfig();
+      if (url === '/drafts' && !init?.method) {
+        return Promise.resolve(
+          new Response(JSON.stringify([]), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }),
+        );
+      }
+
+      if (url === '/drafts' && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ draftId: 'draft-123' }), {
+            status: 201,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }),
+        );
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const firstRender = render(<App />);
+    await screen.findByRole('heading', { name: /config screen/i });
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     act(() => {
@@ -310,7 +331,8 @@ describe('UI app scaffold', () => {
     expect(screen.getByRole('button', { name: /expand available players/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /expand pick feed/i })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /expand available players/i }));
+    const expandAvailablePlayersButton = screen.getByRole('button', { name: /expand available players/i });
+    await user.click(expandAvailablePlayersButton);
 
     expect(layout).toHaveAttribute('data-expanded-column', 'available-players');
     expect(screen.getByTestId('draft-board-collapsed-strip')).toHaveTextContent('Draft Board');
@@ -318,6 +340,8 @@ describe('UI app scaffold', () => {
     expect(screen.queryByRole('heading', { name: /^draft board$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /^pick feed$/i })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^available players$/i })).toBeInTheDocument();
+    await user.click(expandAvailablePlayersButton);
+    expect(layout).toHaveAttribute('data-expanded-column', 'available-players');
 
     await user.click(screen.getByTestId('pick-feed-collapsed-strip'));
 
@@ -326,6 +350,20 @@ describe('UI app scaffold', () => {
     expect(screen.getByTestId('available-players-collapsed-strip')).toHaveTextContent('Available Players');
     expect(screen.queryByRole('heading', { name: /^available players$/i })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^pick feed$/i })).toBeInTheDocument();
+    expect(localStorageSetItemSpy).not.toHaveBeenCalled();
+
+    firstRender.unmount();
+    render(<App />);
+    await screen.findByRole('heading', { name: /config screen/i });
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[1]?.emit('state_sync', createDraftingState());
+    });
+
+    const remountedLayout = await screen.findByTestId('drafting-layout');
+    expect(remountedLayout).toHaveAttribute('data-expanded-column', 'none');
+    expect(remountedLayout.className).toContain('xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]');
   });
 
   // @spec DFF-UI-138

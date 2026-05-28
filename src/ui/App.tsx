@@ -435,6 +435,7 @@ function DraftApp() {
     setIsSubmittingDraft(true);
     setShowHistory(false);
     setShowDraftsList(false);
+    // @spec DFF-UI-136
     setExpandedColumn(null);
 
     try {

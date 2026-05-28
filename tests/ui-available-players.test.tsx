@@ -644,6 +644,7 @@ describe('available players list', () => {
   // @spec DFF-UI-036
   // @spec DFF-UI-123
   // @spec DFF-UI-126
+  // @spec DFF-UI-139
   test('shows disabled rows during bot turns, then uses the shared confirmation flow for available players and targets on the user turn', async () => {
     const user = userEvent.setup();
 

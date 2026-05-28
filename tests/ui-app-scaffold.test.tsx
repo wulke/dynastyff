@@ -306,6 +306,110 @@ describe('UI app scaffold', () => {
     expect(within(statusBar).getByText('Bot Gamma')).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-138
+  test('shows the final pick count and draft complete status when the draft is completed', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit(
+        'state_sync',
+        createDraftingState({
+          status: 'completed',
+          current_pick_number: null,
+          picks: [
+            { pick_number: 1, team_id: 'team-1', player_id: 'player-picked-1', picked_at: '2026-05-27T10:00:00.000Z' },
+            { pick_number: 2, team_id: 'team-2', player_id: 'player-picked-2', picked_at: '2026-05-27T10:01:00.000Z' },
+            { pick_number: 3, team_id: 'team-3', player_id: 'player-picked-3', picked_at: '2026-05-27T10:02:00.000Z' },
+            { pick_number: 4, team_id: 'team-3', player_id: 'player-picked-4', picked_at: '2026-05-27T10:03:00.000Z' },
+            { pick_number: 5, team_id: 'team-2', player_id: 'player-picked-5', picked_at: '2026-05-27T10:04:00.000Z' },
+            { pick_number: 6, team_id: 'team-1', player_id: 'player-picked-6', picked_at: '2026-05-27T10:05:00.000Z' },
+          ],
+        }),
+      );
+    });
+
+    const statusBar = await screen.findByTestId('draft-status-bar');
+    expect(statusBar).toHaveTextContent('Pick 6 of 6');
+    expect(within(statusBar).getByText('Draft complete')).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-138
+  test('falls back to draft room active when the current pick number has no matching draft-order slot', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit(
+        'state_sync',
+        createDraftingState({
+          current_pick_number: 7,
+        }),
+      );
+    });
+
+    const statusBar = await screen.findByTestId('draft-status-bar');
+    expect(statusBar).toHaveTextContent('Pick 7 of 6');
+    expect(within(statusBar).getByText('Draft room active')).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-138
+  test('falls back to draft room active when the current slot team cannot be resolved', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit(
+        'state_sync',
+        createDraftingState({
+          current_pick_number: 3,
+          draft_order: [
+            { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+            { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+            { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'missing-team' },
+            { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+            { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
+            { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
+          ],
+        }),
+      );
+    });
+
+    const statusBar = await screen.findByTestId('draft-status-bar');
+    expect(statusBar).toHaveTextContent('Pick 3 of 6');
+    expect(within(statusBar).getByText('Draft room active')).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-015
   test('shows an error toast and remains on config when draft creation fails', async () => {
     const user = userEvent.setup();

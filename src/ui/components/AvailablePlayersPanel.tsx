@@ -323,7 +323,7 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
                     data-player-id={player.id}
                     disabled={!userTurn}
                     onClick={() => setSelectedPlayerId(player.id)}
-                    className="flex w-full items-center justify-between gap-4 rounded-xl border border-stone-800 bg-stone-900/70 px-4 py-2.5 text-left transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-stone-800"
+                    className="flex w-full items-center justify-between gap-4 rounded-xl border border-stone-800 bg-stone-950/55 px-4 py-2.5 text-left transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-stone-800"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-stone-50">{player.name}</p>

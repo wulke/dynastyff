@@ -124,6 +124,7 @@ function emitStateSync(overrides: Partial<Record<string, unknown>> = {}) {
           adp: 2,
         },
       ],
+      drafted_players: [],
       trades: [],
       ...overrides,
     });
@@ -226,9 +227,9 @@ describe('pick feed panel', () => {
     const pickFeed = screen.getByTestId('pick-feed-panel');
 
     // All three picks should be rendered
-    expect(within(pickFeed).getByText('Josh Allen')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('Bijan Robinson')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('Justin Jefferson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.2 - Bijan Robinson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
 
     // Most recent pick (pick 3, Justin Jefferson) should be at the top
     const feedEntries = within(pickFeed).getAllByTestId(/^pick-feed-entry-/);
@@ -237,16 +238,86 @@ describe('pick feed panel', () => {
     // feeds are rendered most-recent-first: pick 3, pick 2, pick 1
     const firstEntry = feedEntries[0];
     expect(firstEntry).toHaveAttribute('data-testid', 'pick-feed-entry-3');
-    expect(within(firstEntry).getByText('Justin Jefferson')).toBeInTheDocument();
+    expect(within(firstEntry).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
 
     const lastEntry = feedEntries[2];
     expect(lastEntry).toHaveAttribute('data-testid', 'pick-feed-entry-1');
-    expect(within(lastEntry).getByText('Josh Allen')).toBeInTheDocument();
+    expect(within(lastEntry).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-101
+  // @spec DFF-UI-103
+  test('hydrates historical pick names from drafted player metadata when resume state has no available players left', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    emitStateSync({
+      current_pick_number: 4,
+      picks: [
+        { pick_number: 1, team_id: 'team-1', player_id: 'player-1', picked_at: '2026-05-22T18:00:00.000Z' },
+        { pick_number: 2, team_id: 'team-2', player_id: 'player-2', picked_at: '2026-05-22T18:01:00.000Z' },
+        { pick_number: 3, team_id: 'team-3', player_id: 'player-3', picked_at: '2026-05-22T18:02:00.000Z' },
+      ],
+      roster_players: [
+        { team_id: 'team-1', player_id: 'player-1' },
+        { team_id: 'team-2', player_id: 'player-2' },
+        { team_id: 'team-3', player_id: 'player-3' },
+      ],
+      available_players: [],
+      drafted_players: [
+        {
+          id: 'player-1',
+          name: 'Josh Allen',
+          position: 'QB',
+          nfl_team: 'BUF',
+          age: 30,
+          is_rookie: false,
+          dynasty_value: 9999,
+          adp: 1,
+        },
+        {
+          id: 'player-2',
+          name: 'Bijan Robinson',
+          position: 'RB',
+          nfl_team: 'ATL',
+          age: 23,
+          is_rookie: false,
+          dynasty_value: 9500,
+          adp: 3,
+        },
+        {
+          id: 'player-3',
+          name: 'Justin Jefferson',
+          position: 'WR',
+          nfl_team: 'MIN',
+          age: 26,
+          is_rookie: false,
+          dynasty_value: 9800,
+          adp: 2,
+        },
+      ],
+    });
+
+    const pickFeed = screen.getByTestId('pick-feed-panel');
+    expect(within(pickFeed).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.2 - Bijan Robinson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-102
   // @spec DFF-UI-103
-  test('prepends a new entry on pick_made SSE event with player name, position badge, team name, round, and pick-in-round', async () => {
+  test('prepends a new entry on pick_made SSE event as a concise round-pick line', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
@@ -274,10 +345,10 @@ describe('pick feed panel', () => {
     expect(feedEntries1).toHaveLength(1);
 
     const entry1 = feedEntries1[0];
-    expect(within(entry1).getByText('Josh Allen')).toBeInTheDocument();
-    expect(within(entry1).getByText('QB')).toBeInTheDocument();
-    expect(within(entry1).getByText('Bob')).toBeInTheDocument();
-    expect(within(entry1).getByText('Rd 1, Pick 1')).toBeInTheDocument();
+    expect(within(entry1).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+    expect(within(entry1).queryByText('QB')).not.toBeInTheDocument();
+    expect(within(entry1).queryByText('Bob')).not.toBeInTheDocument();
+    expect(within(entry1).queryByText('Rd 1, Pick 1')).not.toBeInTheDocument();
 
     // Emit a second pick
     emitPickMade(2, 'team-2', 'player-2');
@@ -288,18 +359,18 @@ describe('pick feed panel', () => {
 
     // Most recent (pick 2) at top
     expect(feedEntries2[0]).toHaveAttribute('data-testid', 'pick-feed-entry-2');
-    expect(within(feedEntries2[0]).getByText('Bijan Robinson')).toBeInTheDocument();
-    expect(within(feedEntries2[0]).getByText('RB')).toBeInTheDocument();
-    expect(within(feedEntries2[0]).getByText('You')).toBeInTheDocument();
-    expect(within(feedEntries2[0]).getByText('Rd 1, Pick 2')).toBeInTheDocument();
+    expect(within(feedEntries2[0]).getByText('1.2 - Bijan Robinson')).toBeInTheDocument();
+    expect(within(feedEntries2[0]).queryByText('RB')).not.toBeInTheDocument();
+    expect(within(feedEntries2[0]).queryByText('You')).not.toBeInTheDocument();
+    expect(within(feedEntries2[0]).queryByText('Rd 1, Pick 2')).not.toBeInTheDocument();
 
     // Older pick (pick 1) at bottom
     expect(feedEntries2[1]).toHaveAttribute('data-testid', 'pick-feed-entry-1');
-    expect(within(feedEntries2[1]).getByText('Josh Allen')).toBeInTheDocument();
+    expect(within(feedEntries2[1]).getByText('1.1 - Josh Allen')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-103
-  test('falls back to raw playerId and NA position badge when player absent from catalog', async () => {
+  test('falls back to raw playerId when player absent from catalog', async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
@@ -318,8 +389,8 @@ describe('pick feed panel', () => {
     emitPickMade(1, 'team-1', 'unknown-player-X');
 
     const pickFeed = screen.getByTestId('pick-feed-panel');
-    expect(within(pickFeed).getByText('unknown-player-X')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('NA')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.1 - unknown-player-X')).toBeInTheDocument();
+    expect(within(pickFeed).queryByText('NA')).not.toBeInTheDocument();
   });
 
   // @spec DFF-UI-103
@@ -354,8 +425,7 @@ describe('pick feed panel', () => {
     const entry = within(pickFeed).getByTestId('pick-feed-entry-1');
 
     // Entry should show the player name but em dash for round/pick
-    expect(within(entry).getByText('Josh Allen')).toBeInTheDocument();
-    expect(within(entry).getByText('—')).toBeInTheDocument();
+    expect(within(entry).getByText('— - Josh Allen')).toBeInTheDocument();
     expect(within(entry).queryByText(/rd 0/i)).not.toBeInTheDocument();
   });
 
@@ -393,7 +463,7 @@ describe('pick feed panel', () => {
     expect(within(pickFeed).getByTestId('pick-feed-entry-4')).toBeInTheDocument();
 
     // Each entry has the player name
-    const nameElements = within(pickFeed).getAllByText('Josh Allen');
+    const nameElements = within(pickFeed).getAllByText(/Josh Allen/);
     expect(nameElements).toHaveLength(2);
   });
 

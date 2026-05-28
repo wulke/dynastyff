@@ -87,7 +87,7 @@ The Draft Board shall scroll horizontally to accommodate rounds beyond the initi
 The Available Players list shall render all players not yet picked, sorted by `dynasty_value` descending.
 
 **DFF-UI-031** `[x]` → #18
-The Available Players list shall include position filter buttons: ALL, QB, RB, WR, TE, and Picks. Selecting a filter shall immediately narrow the displayed list.
+The Available Players list shall include a single compact position-filter control with options for ALL, QB, RB, WR, TE, and Picks. Changing the selected option shall immediately narrow the displayed list.
 
 **DFF-UI-032** `[x]` → #18
 The Available Players list shall include a name search input. Entering text shall filter the list client-side on player name, case-insensitively.
@@ -99,7 +99,7 @@ Each player row shall display: player name, position badge, NFL team, age, and d
 When a `pick_made` SSE event is received, the picked player shall be removed from the Available Players list client-side.
 
 **DFF-UI-035** `[x]` → #18
-When it is not the user's turn, the Available Players list shall display a "Bot is picking…" state and player rows shall not be interactive.
+When it is not the user's turn, the Available Players list shall remain visible, the player rows shall not be interactive, and turn ownership shall continue to be communicated by the shared drafting status bar.
 
 **DFF-UI-036** `[x]` → #18
 When the user clicks a player row during their turn, the system shall select that player and render a confirmation card before POST /drafts/:id/pick is submitted.
@@ -279,7 +279,7 @@ Every position badge on the Draft Board shall be color-coded by position: QB=amb
 ## Pick Feed Panel
 
 **DFF-UI-100** `[x]` → #82
-The Pick Feed panel shall be rendered alongside the Draft Board during the drafting view. It shall have a fixed maximum height and scroll independently of the Draft Board.
+The Pick Feed panel shall be rendered alongside the Draft Board during the drafting view as a compact, scrollable running list of completed picks.
 
 **DFF-UI-101** `[x]` → #82
 On initial load, the Pick Feed panel shall hydrate from the picks already present in `draftState.picks`, sorted in reverse-chronological order (most recent pick at the top).
@@ -288,7 +288,7 @@ On initial load, the Pick Feed panel shall hydrate from the picks already presen
 When a `pick_made` SSE event is processed by the reducer, the newly added pick shall appear as an entry prepended to the top of the Pick Feed panel in real time, without a page reload or re-fetch.
 
 **DFF-UI-103** `[x]` → #82
-Each Pick Feed entry shall display: player name, a color-coded position badge, the drafting team name, the round number, and the pick-in-round formatted as `"Rd N, Pick M"`.
+Each Pick Feed entry shall display a concise line in the format `"Round.Pick - Player Name"` (for example, `"1.1 - Bijan Robinson"`). If the pick number cannot be resolved to a draft-order slot, the entry shall render an em dash (`—`) in place of the `Round.Pick` prefix.
 
 **DFF-UI-104** `[x]` → #82
 When `draftState.picks` is empty, the Pick Feed panel shall render an empty-state message saying "No picks yet" without crashing.
@@ -323,3 +323,64 @@ When the GET /drafts request fails, the system shall display an error toast and 
 
 **DFF-UI-118** `[x]` → #80
 When the GET /drafts request returns an empty array, the system shall render the Config screen.
+
+---
+
+## 3-Column Drafting Layout
+
+**DFF-UI-130** `[x]`
+The drafting view shall render three columns in a row at viewport widths of 1280px and above: Draft Board (left), Available Players (center), Pick Feed (right).
+
+**DFF-UI-131** `[x]`
+The default column widths shall be weighted: Draft Board `2fr`, Available Players `1.5fr`, Pick Feed `1fr`. All three columns shall render at their default widths on load.
+
+**DFF-UI-132** `[ ]`
+Each column header shall include an expand button. When clicked, the column shall expand to occupy the available viewport width and the other two columns shall collapse to narrow icon strips.
+
+**DFF-UI-133** `[ ]`
+Only one column may be expanded at a time. Expanding a column shall automatically collapse any previously expanded column to a strip.
+
+**DFF-UI-134** `[ ]`
+A collapsed column strip shall display an identifying icon and a rotated panel label (e.g. "Draft Board", "Available Players", "Pick Feed").
+
+**DFF-UI-135** `[ ]`
+Clicking a collapsed strip shall expand that column. If another column is currently expanded, it shall collapse to a strip.
+
+**DFF-UI-136** `[ ]`
+The expanded/collapsed state shall not be persisted to localStorage. On every page load all three columns shall render at their default weighted widths.
+
+**DFF-UI-137** `[ ]`
+Column width transitions shall be animated with a CSS transition of approximately 200ms.
+
+---
+
+## Drafting Status Bar
+
+**DFF-UI-138** `[x]`
+A persistent status bar shall be rendered above the three columns during the drafting view. It shall display: the current pick number out of total picks, and whose turn it is ("Your turn" or the current bot team name).
+
+**DFF-UI-139** `[x]`
+The turn-status badge ("Your turn" / "Bot is picking…") shall be removed from the Draft Board header and the Available Players panel header. The status bar shall be the single location for turn status in the drafting view.
+
+---
+
+## Available Players / Targets Tabs
+
+**DFF-UI-140** `[ ]`
+The Available Players column shall render two tabs: "Available" and "Targets". The active tab shall be visually distinguished with the amber accent style used elsewhere in the UI.
+
+**DFF-UI-141** `[ ]`
+The "Available" tab shall render the existing Available Players list content: position filters, name search input, and the scrollable player rows.
+
+**DFF-UI-142** `[ ]`
+The "Targets" tab shall render the existing Targets panel content: queued players in ascending rank order, with the empty state message "No targets added yet" when the queue is empty.
+
+**DFF-UI-143** `[ ]`
+The Targets panel shall no longer be rendered as a side-by-side inner grid within the Available Players panel. Its content shall only be accessible via the "Targets" tab within the Available Players column.
+
+---
+
+## Pick Feed Column
+
+**DFF-UI-144** `[ ]`
+The Pick Feed panel shall fill the full height of its column. The fixed `max-h-[28rem]` constraint shall be removed; the feed shall scroll independently within the available column height.

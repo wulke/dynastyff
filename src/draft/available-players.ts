@@ -17,6 +17,37 @@ export type DraftAvailablePlayer = {
 };
 
 // @spec DFF-HIST-062
+export function getDraftedPlayersForDraft({
+  databasePath,
+  draftId,
+}: {
+  databasePath: string;
+  draftId: string;
+}): DraftAvailablePlayer[] {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    return db
+      .select({
+        id: players.id,
+        name: players.name,
+        position: players.position,
+        nfl_team: players.nflTeam,
+        age: players.age,
+        is_rookie: players.isRookie,
+        dynasty_value: players.dynastyValue,
+        adp: players.adp,
+      })
+      .from(players)
+      .innerJoin(picks, and(eq(players.id, picks.playerId), eq(picks.draftId, draftId)))
+      .orderBy(asc(picks.pickNumber))
+      .all() as DraftAvailablePlayer[];
+  } finally {
+    sqlite.close();
+  }
+}
+
+// @spec DFF-HIST-062
 export function getAvailablePlayersForDraft({
   databasePath,
   draftId,

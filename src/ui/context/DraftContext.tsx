@@ -183,6 +183,16 @@ type StateSyncPayload = {
     dynasty_value: number;
     adp: number | null;
   }>;
+  drafted_players?: Array<{
+    id: string;
+    name: string;
+    position: string;
+    nfl_team: string | null;
+    age: number | null;
+    is_rookie: boolean;
+    dynasty_value: number;
+    adp: number | null;
+  }>;
 };
 
 type PickMadePayload = {
@@ -282,11 +292,18 @@ function sortAvailablePlayers(players: AvailablePlayer[]): AvailablePlayer[] {
   return [...players].sort((left, right) => right.dynastyValue - left.dynastyValue);
 }
 
-// @spec DFF-STATIC-060
-// @spec DFF-STATIC-062
 // @spec DFF-UI-071
-function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftState | null): DraftState {
-  const syncedPlayers = sortAvailablePlayers(payload.available_players.map((player) => ({
+function toUiPlayer(player: {
+  id: string;
+  name: string;
+  position: string;
+  nfl_team: string | null;
+  age: number | null;
+  is_rookie: boolean;
+  dynasty_value: number;
+  adp: number | null;
+}): AvailablePlayer {
+  return {
     id: player.id,
     name: player.name,
     position: player.position,
@@ -295,10 +312,19 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
     isRookie: player.is_rookie,
     dynastyValue: player.dynasty_value,
     adp: player.adp,
-  })));
+  };
+}
+
+// @spec DFF-STATIC-060
+// @spec DFF-STATIC-062
+// @spec DFF-UI-071
+function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftState | null): DraftState {
+  const syncedPlayers = sortAvailablePlayers(payload.available_players.map(toUiPlayer));
+  const draftedPlayers = (payload.drafted_players ?? []).map(toUiPlayer);
 
   const playerCatalog = {
     ...(existingState?.playerCatalog ?? {}),
+    ...Object.fromEntries(draftedPlayers.map((player) => [player.id, player])),
     ...Object.fromEntries(syncedPlayers.map((player) => [player.id, player])),
   };
 

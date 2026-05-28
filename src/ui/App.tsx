@@ -16,11 +16,16 @@
 // @spec DFF-UI-111
 // @spec DFF-UI-116
 // @spec DFF-UI-115
+// @spec DFF-UI-130
+// @spec DFF-UI-131
+// @spec DFF-UI-138
+// @spec DFF-UI-139
 import { useState, useEffect, useRef } from 'react';
 import * as Separator from '@radix-ui/react-separator';
 import {
   HttpDraftContextProvider,
   useDraftContext,
+  type DraftState,
 } from './context/DraftContext.js';
 import { DraftConfigScreen, configDefaults, sanitizeDraftConfig, type ConfigFormState } from './components/DraftConfigScreen.js';
 import { DraftsListPage } from './components/DraftsListPage.js';
@@ -32,6 +37,11 @@ import { HistoryView } from './components/HistoryView.js';
 type DraftCompletionBannerProps = {
   teamName: string;
   onViewHistory: () => void;
+};
+
+type DraftStatusSummary = {
+  currentPickLabel: string;
+  turnLabel: string;
 };
 
 // @spec DFF-UI-116
@@ -154,6 +164,56 @@ function DraftCompletionBanner({ teamName, onViewHistory }: DraftCompletionBanne
         </button>
       </section>
     </div>
+  );
+}
+
+// @spec DFF-UI-138
+function getDraftStatusSummary(draftState: DraftState): DraftStatusSummary {
+  const currentPick = draftState.currentPickNumber ?? draftState.picks.length;
+  const totalPicks = draftState.draftOrder.length;
+
+  if (draftState.status === 'completed') {
+    return {
+      currentPickLabel: `Pick ${currentPick} of ${totalPicks}`,
+      turnLabel: 'Draft complete',
+    };
+  }
+
+  const currentSlot = draftState.currentPickNumber
+    ? draftState.draftOrder.find((slot) => slot.pickNumber === draftState.currentPickNumber) ?? null
+    : null;
+  const currentTeam = currentSlot
+    ? draftState.teams.find((team) => team.id === currentSlot.teamId) ?? null
+    : null;
+
+  return {
+    currentPickLabel: `Pick ${currentPick} of ${totalPicks}`,
+    turnLabel: currentTeam?.isUser ? 'Your turn' : currentTeam?.name ?? 'Draft room active',
+  };
+}
+
+// @spec DFF-UI-138
+function DraftStatusBar({ draftState }: { draftState: DraftState }) {
+  const status = getDraftStatusSummary(draftState);
+
+  return (
+    <section
+      data-testid="draft-status-bar"
+      className="w-full rounded-[1.75rem] border border-stone-800 bg-stone-900/90 px-5 py-4 shadow-2xl shadow-black/20"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Draft Status</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-50">{status.currentPickLabel}</p>
+        </div>
+        <div
+          data-testid="draft-status-turn"
+          className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-200"
+        >
+          {status.turnLabel}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -293,22 +353,34 @@ function DraftApp() {
         ) : null}
 
         {/* @spec DFF-UI-100 */}
+        {/* @spec DFF-UI-130 */}
+        {/* @spec DFF-UI-131 */}
+        {/* @spec DFF-UI-138 */}
+        {/* @spec DFF-UI-139 */}
         {!showDraftsListLoading && view === 'drafting' && draftState ? (
-          <div className="flex w-full flex-col gap-6 lg:flex-row">
-            <div className="relative min-w-0 flex-1">
-              <DraftBoard draftState={draftState} isInteractionBlocked={showCompletionBanner} />
-              {showCompletionBanner ? (
-                <DraftCompletionBanner
-                  teamName={completionBannerTeamName}
-                  onViewHistory={() => {
-                    setShowHistory(true);
-                  }}
-                />
-              ) : null}
-            </div>
-            <div className="flex w-full shrink-0 flex-col gap-6 lg:w-96">
-              <AvailablePlayersPanel draftState={draftState} />
-              <PickFeedPanel draftState={draftState} />
+          <div className="flex w-full flex-col gap-6">
+            <DraftStatusBar draftState={draftState} />
+            <div
+              data-testid="drafting-layout"
+              className="grid w-full gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]"
+            >
+              <div data-testid="draft-board-column" className="relative min-w-0">
+                <DraftBoard draftState={draftState} isInteractionBlocked={showCompletionBanner} />
+                {showCompletionBanner ? (
+                  <DraftCompletionBanner
+                    teamName={completionBannerTeamName}
+                    onViewHistory={() => {
+                      setShowHistory(true);
+                    }}
+                  />
+                ) : null}
+              </div>
+              <div data-testid="available-players-column" className="min-w-0">
+                <AvailablePlayersPanel draftState={draftState} />
+              </div>
+              <div data-testid="pick-feed-column" className="min-w-0">
+                <PickFeedPanel draftState={draftState} />
+              </div>
             </div>
           </div>
         ) : null}

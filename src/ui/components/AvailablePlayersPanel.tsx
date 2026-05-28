@@ -12,6 +12,7 @@
 // @spec DFF-UI-124
 // @spec DFF-UI-125
 // @spec DFF-UI-126
+// @spec DFF-UI-139
 import { useState } from 'react';
 
 import { useDraftContext, type DraftState } from '../context/DraftContext.js';
@@ -92,28 +93,26 @@ function resolveQueuedPlayers(draftState: DraftState) {
 function AvailablePlayersLoadingState() {
   return (
     <section
-      className="rounded-[2rem] border border-stone-800 bg-stone-900/90 p-6 shadow-2xl shadow-black/20"
+      className="rounded-[1.75rem] border border-stone-800 bg-stone-900/90 p-5 shadow-2xl shadow-black/20"
       data-testid="available-players-loading"
       aria-label="Loading available players"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">On The Clock</p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-stone-50">Available Players</h2>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight text-stone-50">Available Players</h2>
         </div>
         <div className="h-8 w-24 animate-pulse rounded-full bg-stone-800" />
       </div>
-      <div className="mt-6 flex flex-wrap gap-2" aria-hidden="true">
-        {FILTERS.map((filter) => (
-          <div key={filter} className="h-9 w-14 animate-pulse rounded-full bg-stone-800" />
-        ))}
+      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(10rem,12rem)_minmax(0,1fr)]" aria-hidden="true">
+        <div className="h-10 animate-pulse rounded-xl bg-stone-800" />
+        <div className="h-10 animate-pulse rounded-xl bg-stone-800" />
       </div>
-      <div className="mt-4 h-11 animate-pulse rounded-2xl bg-stone-800" aria-hidden="true" />
-      <div className="mt-6 space-y-3" aria-hidden="true">
+      <div className="mt-5 space-y-2" aria-hidden="true">
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={`available-player-skeleton-${index}`}
-            className="rounded-[1.5rem] border border-stone-800 bg-stone-950/60 px-4 py-4"
+            className="rounded-xl border border-stone-800 bg-stone-950/60 px-4 py-3"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="space-y-2">
@@ -141,6 +140,7 @@ function AvailablePlayersLoadingState() {
 // @spec DFF-UI-123
 // @spec DFF-UI-125
 // @spec DFF-UI-126
+// @spec DFF-UI-139
 export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps) {
   const { submitPick } = useDraftContext();
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');
@@ -180,58 +180,52 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
   }
 
   return (
-    <section className="rounded-[2rem] border border-stone-800 bg-stone-900/90 p-6 shadow-2xl shadow-black/20">
+    <section className="rounded-[1.75rem] border border-stone-800 bg-stone-900/90 p-5 shadow-2xl shadow-black/20">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.85fr)]">
         <div
-          className="rounded-[1.75rem] border border-stone-800 bg-stone-900/60 p-4"
+          className="rounded-[1.5rem] border border-stone-800 bg-stone-900/60 p-4"
           data-testid="available-players-panel"
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">On The Clock</p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-stone-50">Available Players</h2>
-            </div>
-            <div className="rounded-full border border-stone-700 px-4 py-2 text-sm text-stone-200">
-              {userTurn ? 'Your turn' : 'Bot is picking…'}
-            </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">On The Clock</p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight text-stone-50">Available Players</h2>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {FILTERS.map((filter) => {
-              const isActive = filter === positionFilter;
+          <div className="mt-4 grid gap-3 md:grid-cols-[minmax(10rem,12rem)_minmax(0,1fr)]">
+            <label className="block">
+              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.25em] text-stone-500">
+                Position Filter
+              </span>
+              <select
+                value={positionFilter}
+                onChange={(event) => setPositionFilter(event.target.value as PositionFilter)}
+                aria-label="Position filter"
+                className="w-full rounded-xl border border-stone-700 bg-stone-950/80 px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-amber-300"
+              >
+                {FILTERS.map((filter) => (
+                  <option key={filter} value={filter}>
+                    {filter}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-              return (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setPositionFilter(filter)}
-                  className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] transition ${
-                    isActive
-                      ? 'border-amber-300 bg-amber-300 text-stone-950'
-                      : 'border-stone-700 text-stone-300 hover:border-stone-500 hover:text-stone-100'
-                  }`}
-                >
-                  {filter}
-                </button>
-              );
-            })}
+            <label className="block">
+              <span className="sr-only">Search players</span>
+              <input
+                type="search"
+                value={nameQuery}
+                onChange={(event) => setNameQuery(event.target.value)}
+                placeholder="Search players"
+                aria-label="Search players"
+                className="w-full rounded-xl border border-stone-700 bg-stone-950/80 px-4 py-2.5 text-sm text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-amber-300"
+              />
+            </label>
           </div>
 
-          <label className="mt-4 block">
-            <span className="sr-only">Search players</span>
-            <input
-              type="search"
-              value={nameQuery}
-              onChange={(event) => setNameQuery(event.target.value)}
-              placeholder="Search players"
-              aria-label="Search players"
-              className="w-full rounded-2xl border border-stone-700 bg-stone-950/80 px-4 py-3 text-sm text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-amber-300"
-            />
-          </label>
-
-          <div className="mt-6 space-y-3">
+          <div className="mt-5 space-y-2">
             {filteredPlayers.length === 0 ? (
-              <div className="rounded-[1.5rem] border border-dashed border-stone-700 px-4 py-8 text-center text-sm text-stone-500">
+              <div className="rounded-xl border border-dashed border-stone-700 px-4 py-8 text-center text-sm text-stone-500">
                 No players match the current filters.
               </div>
             ) : (
@@ -243,11 +237,11 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
                   data-player-id={player.id}
                   disabled={!userTurn}
                   onClick={() => setSelectedPlayerId(player.id)}
-                  className="flex w-full items-center justify-between gap-4 rounded-[1.5rem] border border-stone-800 bg-stone-950/70 px-4 py-4 text-left transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-stone-800"
+                  className="flex w-full items-center justify-between gap-4 rounded-xl border border-stone-800 bg-stone-950/55 px-4 py-3 text-left transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-stone-800"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-base font-semibold text-stone-50">{player.name}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-stone-50">{player.name}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       <span className={getPositionBadgeClass(player.position)}>{player.position}</span>
                       <span className="text-xs uppercase tracking-[0.25em] text-stone-500">
                         {player.nflTeam ?? 'FA'}
@@ -261,7 +255,7 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.25em] text-stone-500">
                       Dynasty
                     </p>
-                    <p className="mt-1 text-lg font-semibold text-amber-300">{player.dynastyValue}</p>
+                    <p className="mt-1 text-base font-semibold text-amber-300">{player.dynastyValue}</p>
                   </div>
                 </button>
               ))
@@ -270,22 +264,17 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
         </div>
 
         <section
-          className="rounded-[1.75rem] border border-stone-800 bg-stone-950/50 p-4"
+          className="rounded-[1.5rem] border border-stone-800 bg-stone-950/40 p-4"
           data-testid="targets-panel"
         >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Queue</p>
-              <h3 className="mt-2 text-xl font-semibold tracking-tight text-stone-50">Targets</h3>
-            </div>
-            <div className="rounded-full border border-stone-700 px-3 py-1 text-xs text-stone-300">
-              {userTurn ? 'Your turn' : 'Bot is picking…'}
-            </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Queue</p>
+            <h3 className="mt-2 text-lg font-semibold tracking-tight text-stone-50">Targets</h3>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-2">
             {queuedPlayers.length === 0 ? (
-              <div className="rounded-[1.25rem] border border-dashed border-stone-700 px-4 py-6 text-center text-sm text-stone-500">
+              <div className="rounded-xl border border-dashed border-stone-700 px-4 py-6 text-center text-sm text-stone-500">
                 No targets added yet
               </div>
             ) : (
@@ -297,11 +286,11 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
                   data-player-id={player.id}
                   disabled={!userTurn}
                   onClick={() => setSelectedPlayerId(player.id)}
-                  className="flex w-full items-center justify-between gap-4 rounded-[1.25rem] border border-stone-800 bg-stone-900/80 px-4 py-3 text-left transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-stone-800"
+                  className="flex w-full items-center justify-between gap-4 rounded-xl border border-stone-800 bg-stone-900/70 px-4 py-2.5 text-left transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-stone-800"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-stone-50">{player.name}</p>
-                    <div className="mt-2">
+                    <div className="mt-1.5">
                       <span className={getPositionBadgeClass(player.position)}>{player.position}</span>
                     </div>
                   </div>

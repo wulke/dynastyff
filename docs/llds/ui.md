@@ -208,30 +208,49 @@ A scrolling real-time feed panel rendered alongside the draft board, driven by `
 
 **Features:**
 - Hydrates from `draftState.picks` on initial load, sorted by `pickNumber` descending so the most recent pick appears at the top
+- On draft resume or reconnect, the client catalog must be rehydrated with metadata for already drafted players as well as remaining available players so historical feed entries still resolve to player names
 - Each new `pick_made` event adds the pick to `draftState.picks` via the reducer; the feed re-renders with the new entry at the top
-- Each entry displays: player name, position badge (color-coded via `getPositionBadgeClass`), drafting team name, round, and pick-in-round (e.g. "Rd 3, Pick 5")
-- Fixed-height panel with independent vertical scroll (overflow-y-auto)
+- Each entry renders as a dense single-line string in the form `Round.Pick - Player Name` (for example, `1.1 - Bijan Robinson`)
+- Compact list styling is preferred over card treatment: minimal padding, minimal decoration, and a simple vertical scroll region
 - Shows an empty-state message ("No picks yet") when `draftState.picks` is empty
-- Foundation for the Pick Log tab in the History View (#21) — shares the same rendering patterns
-
-**Decisions:**
-- `getPositionBadgeClass` is intentionally duplicated inline rather than extracted to a shared module. The function is small (~20 lines of Tailwind class strings) and its behavior is identical across DraftBoard, PickFeedPanel, and HistoryView. A future color change affecting all three surfaces should update all three call sites. If the function grows additional behavior (e.g., tooltips, icons), extract to `src/ui/components/positionBadge.ts`.
+- Foundation for the Pick Log tab in the History View (#21), but with a more compressed presentation tailored to live draft review
 
 **Edge Case Probe:**
-- Player ID is absent from `playerCatalog` → entry displays the raw `playerId` as the name and `NA` as the position badge
+- Player ID is absent from `playerCatalog` → entry displays the raw `playerId` as the name
 - Draft has zero picks → panel shows empty state without crashing
 - Same player is picked twice (impossible in valid state but handles gracefully) → duplicate entries render, since each `pick_made` produces a unique pick record
-- Pick number is absent from `draftOrder` (should not happen in practice but handle defensively) → entry renders an em dash (`—`) in place of "Rd N, Pick M" instead of showing "Rd 0, Pick 0"
+- Pick number is absent from `draftOrder` (should not happen in practice but handle defensively) → entry renders an em dash (`—`) in place of the `Round.Pick` prefix instead of showing incorrect coordinates
+
+## 3-Column Drafting Layout And Status Bar
+
+The drafting room is scaffolded as a three-column workspace at `xl` breakpoints and above. The board remains the primary surface on the left, with Available Players in the center and Pick Feed on the right.
+
+**Layout:**
+- At `1280px+`, render the drafting view as three columns in a single row: Draft Board, Available Players, Pick Feed
+- Use weighted track widths of `2fr / 1.5fr / 1fr`
+- Below `xl`, stack the drafting surfaces vertically in their existing mobile-friendly order
+
+**Status bar:**
+- Render a persistent status bar above the columns while the draft is open
+- Display the current pick as `Pick N of Total`
+- Display turn ownership as `Your turn` when the current slot belongs to the user, otherwise show the current bot team name
+- Treat the status bar as the only turn-status surface in the drafting room; remove the old header badges from Draft Board and Available Players
+
+**Edge Case Probe:**
+- `currentPickNumber` is `null` after the draft ends -> status bar falls back to the completed pick count and `Draft complete`
+- Current draft slot is missing from `draftOrder` -> status bar still renders the pick progress and falls back to `Draft room active`
+- Current team lookup fails for a non-user slot -> status bar falls back to `Draft room active` instead of rendering an empty label
 
 ## Available Players And Targets Panels
 
-Rendered alongside the draft board during the user's turn. During bot turns, both panels stay visible, show a shared "Bot is picking…" disabled state, and disable player rows.
+Rendered alongside the draft board during the user's turn. During bot turns, both panels stay visible and disable player rows while the shared drafting status bar communicates whose turn it is.
 
 **Available Players features:**
 - Sorted by `dynasty_value` descending by default
-- Position filter: ALL / QB / RB / WR / TE / Picks (pill buttons)
+- Position filter: a single compact control with options for ALL / QB / RB / WR / TE / Picks
 - Name search: free-text input, filters the list client-side
 - Each row: player name, position badge, NFL team, age, dynasty value
+- Overall presentation should favor density and legibility over large card padding or decorative framing
 
 **Targets panel features:**
 - Always visible beside the Available Players list while the draft room is open
@@ -239,6 +258,7 @@ Rendered alongside the draft board during the user's turn. During bot turns, bot
 - Displays queued players in ascending `rank` order
 - Each row shows player name, position badge, and dynasty value
 - Shows an empty state message: `No targets added yet`
+- Presentation should stay visually minimal so the queue reads as a compact review surface rather than a second feature card
 
 **Shared selection flow:**
 - Clicking an enabled row in either panel selects that player instead of submitting immediately

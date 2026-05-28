@@ -334,22 +334,22 @@ The drafting view shall render three columns in a row at viewport widths of 1280
 **DFF-UI-131** `[x]`
 The default column widths shall be weighted: Draft Board `2fr`, Available Players `1.5fr`, Pick Feed `1fr`. All three columns shall render at their default widths on load.
 
-**DFF-UI-132** `[ ]`
-Each column header shall include an expand button. When clicked, the column shall expand to occupy the available viewport width and the other two columns shall collapse to narrow icon strips.
+**DFF-UI-132** `[x]` → #99
+Each column header shall include an expand button. When clicked, the column shall expand to occupy the available viewport width and the other two columns shall collapse to narrow icon strips. Clicking the expand button for the already-expanded column shall leave that column expanded.
 
-**DFF-UI-133** `[ ]`
+**DFF-UI-133** `[x]` → #99
 Only one column may be expanded at a time. Expanding a column shall automatically collapse any previously expanded column to a strip.
 
-**DFF-UI-134** `[ ]`
+**DFF-UI-134** `[x]` → #99
 A collapsed column strip shall display an identifying icon and a rotated panel label (e.g. "Draft Board", "Available Players", "Pick Feed").
 
-**DFF-UI-135** `[ ]`
+**DFF-UI-135** `[x]` → #99
 Clicking a collapsed strip shall expand that column. If another column is currently expanded, it shall collapse to a strip.
 
-**DFF-UI-136** `[ ]`
+**DFF-UI-136** `[x]` → #99
 The expanded/collapsed state shall not be persisted to localStorage. On every page load all three columns shall render at their default weighted widths.
 
-**DFF-UI-137** `[ ]`
+**DFF-UI-137** `[x]` → #99
 Column width transitions shall be animated with a CSS transition of approximately 200ms.
 
 ---

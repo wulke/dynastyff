@@ -4,11 +4,13 @@
 // @spec DFF-UI-103
 // @spec DFF-UI-104
 // @spec DFF-UI-144
-import { useMemo } from 'react';
+// @spec DFF-UI-132
+import { useMemo, type ReactNode } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 
 type PickFeedPanelProps = {
   draftState: DraftState;
+  headerAction?: ReactNode;
 };
 
 // @spec DFF-UI-103
@@ -32,7 +34,8 @@ function getPickLabel(draftState: DraftState, pickNumber: number): string {
 // @spec DFF-UI-101
 // @spec DFF-UI-102
 // @spec DFF-UI-144
-export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
+// @spec DFF-UI-132
+export function PickFeedPanel({ draftState, headerAction = null }: PickFeedPanelProps) {
   // @spec DFF-UI-101
   const feedEntries = useMemo(
     () => [...draftState.picks].sort((left, right) => right.pickNumber - left.pickNumber),
@@ -52,9 +55,12 @@ export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-stone-400">Pick Feed</h2>
-        <span className="text-xs font-semibold uppercase tracking-[0.25em] text-stone-500">
-          {feedEntries.length} pick{feedEntries.length !== 1 ? 's' : ''}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-stone-500">
+            {feedEntries.length} pick{feedEntries.length !== 1 ? 's' : ''}
+          </span>
+          {headerAction}
+        </div>
       </div>
 
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto" data-testid="pick-feed-scroll-container">

@@ -738,6 +738,13 @@ describe('available players list', () => {
     const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
     expect(lambRow).toBeDisabled();
     await user.click(lambRow);
+    await user.click(screen.getByRole('button', { name: /^targets$/i }));
+    const disabledTargetsPanel = await screen.findByTestId('targets-panel');
+    expect(within(disabledTargetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
+    const bijanTargetRow = within(disabledTargetsPanel).getByRole('button', { name: /bijan robinson/i });
+    expect(bijanTargetRow).toBeDisabled();
+    await user.click(bijanTargetRow);
+    await user.click(screen.getByRole('button', { name: /^available$/i }));
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/drafts/draft-available-123/pick',
       expect.objectContaining({ method: 'POST' }),
@@ -751,7 +758,8 @@ describe('available players list', () => {
       });
     });
 
-    const enabledRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
+    const availablePanelOnUserTurn = await screen.findByTestId('available-players-panel');
+    const enabledRow = within(availablePanelOnUserTurn).getByRole('button', { name: /ceedee lamb/i });
     expect(enabledRow).toBeEnabled();
 
     await user.click(enabledRow);

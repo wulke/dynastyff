@@ -243,7 +243,7 @@ The drafting room is scaffolded as a three-column workspace at `xl` breakpoints 
 
 ## Available Players And Targets Panels
 
-Rendered alongside the draft board during the user's turn. During bot turns, both panels stay visible and disable player rows while the shared drafting status bar communicates whose turn it is.
+Rendered within the center drafting column alongside the draft board. During bot turns, both panel views stay accessible and disable player rows while the shared drafting status bar communicates whose turn it is.
 
 **Available Players features:**
 - Sorted by `dynasty_value` descending by default
@@ -253,12 +253,18 @@ Rendered alongside the draft board during the user's turn. During bot turns, bot
 - Overall presentation should favor density and legibility over large card padding or decorative framing
 
 **Targets panel features:**
-- Always visible beside the Available Players list while the draft room is open
+- Accessible from a `Targets` tab within the Available Players column while the draft room is open
 - Hydrates from `GET /drafts/:id/queue` after `GET /drafts/:id/state` succeeds at draft start or resume
 - Displays queued players in ascending `rank` order
 - Each row shows player name, position badge, and dynasty value
 - Shows an empty state message: `No targets added yet`
 - Presentation should stay visually minimal so the queue reads as a compact review surface rather than a second feature card
+
+**Tabbed container behavior:**
+- Render `Available` and `Targets` tab buttons at the top of the Available Players card
+- Default to the `Available` tab after hydration so the position filter, search input, and player list remain the primary view
+- Highlight the active tab with the amber accent treatment used elsewhere in the draft room
+- Render only one tab body at a time; remove the previous inner `xl:grid` split and `minmax(...)` side-by-side queue layout
 
 **Shared selection flow:**
 - Clicking an enabled row in either panel selects that player instead of submitting immediately

@@ -226,9 +226,9 @@ describe('pick feed panel', () => {
     const pickFeed = screen.getByTestId('pick-feed-panel');
 
     // All three picks should be rendered
-    expect(within(pickFeed).getByText('Josh Allen')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('Bijan Robinson')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('Justin Jefferson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.2 - Bijan Robinson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
 
     // Most recent pick (pick 3, Justin Jefferson) should be at the top
     const feedEntries = within(pickFeed).getAllByTestId(/^pick-feed-entry-/);
@@ -237,11 +237,11 @@ describe('pick feed panel', () => {
     // feeds are rendered most-recent-first: pick 3, pick 2, pick 1
     const firstEntry = feedEntries[0];
     expect(firstEntry).toHaveAttribute('data-testid', 'pick-feed-entry-3');
-    expect(within(firstEntry).getByText('Justin Jefferson')).toBeInTheDocument();
+    expect(within(firstEntry).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
 
     const lastEntry = feedEntries[2];
     expect(lastEntry).toHaveAttribute('data-testid', 'pick-feed-entry-1');
-    expect(within(lastEntry).getByText('Josh Allen')).toBeInTheDocument();
+    expect(within(lastEntry).getByText('1.1 - Josh Allen')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-102
@@ -295,7 +295,7 @@ describe('pick feed panel', () => {
 
     // Older pick (pick 1) at bottom
     expect(feedEntries2[1]).toHaveAttribute('data-testid', 'pick-feed-entry-1');
-    expect(within(feedEntries2[1]).getByText('Josh Allen')).toBeInTheDocument();
+    expect(within(feedEntries2[1]).getByText('1.1 - Josh Allen')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-103
@@ -392,7 +392,7 @@ describe('pick feed panel', () => {
     expect(within(pickFeed).getByTestId('pick-feed-entry-4')).toBeInTheDocument();
 
     // Each entry has the player name
-    const nameElements = within(pickFeed).getAllByText('Josh Allen');
+    const nameElements = within(pickFeed).getAllByText(/Josh Allen/);
     expect(nameElements).toHaveLength(2);
   });
 

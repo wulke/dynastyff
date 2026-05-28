@@ -2060,7 +2060,12 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
       {
         id: 'player-picked',
         name: 'Picked Player',
-        position: 'WR',
+        position: 'QB',
+        nfl_team: 'BUF',
+        age: 25,
+        is_rookie: false,
+        dynasty_value: 5000,
+        adp: null,
       },
     ]);
     assert.deepEqual(body.trades, [

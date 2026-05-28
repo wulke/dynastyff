@@ -31,7 +31,11 @@
 import { randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte } from 'drizzle-orm';
-import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
+import {
+  getAvailablePlayersForDraft,
+  getDraftedPlayersForDraft,
+  type DraftAvailablePlayer,
+} from './available-players.js';
 import { createDrizzleDb } from '../db/client.js';
 import {
   draftOrder,
@@ -211,6 +215,7 @@ export type DraftStateSnapshot = {
     rank: number;
   }>;
   available_players: DraftAvailablePlayer[];
+  drafted_players: DraftAvailablePlayer[];
   trades: Array<{
     id: string;
     round: number;
@@ -227,6 +232,7 @@ export type DraftHistoryEntry = {
   created_at: string;
   completed_at: string | null;
   status: DraftStatus;
+  scoring_format: ScoringFormat;
   team_count: number;
   rounds: number;
 };
@@ -636,6 +642,7 @@ export function getDraftState({
         .orderBy(asc(userQueue.rank))
         .all(),
       available_players: getAvailablePlayersForDraft({ databasePath, draftId }),
+      drafted_players: getDraftedPlayersForDraft({ databasePath, draftId }),
       trades: db
         .select({
           id: trades.id,
@@ -671,6 +678,7 @@ export function getDraftHistory({ databasePath }: GetDraftHistoryOptions): Draft
         created_at: drafts.createdAt,
         completed_at: drafts.completedAt,
         status: drafts.status,
+        scoring_format: drafts.scoringFormat,
         team_count: drafts.teamCount,
         rounds: drafts.rounds,
       })

@@ -83,43 +83,56 @@ class MockEventSource {
 // @spec DFF-UI-024
 // @spec DFF-UI-025
 // @spec DFF-UI-026
+function createDraftStatePayload(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    draft_id: 'draft-board-123',
+    status: 'in_progress',
+    current_pick_number: 1,
+    teams: [
+      { id: 'team-1', name: 'Bob', is_user: false, archetype: 'win_now' },
+      { id: 'team-2', name: 'You', is_user: true, archetype: null },
+      { id: 'team-3', name: 'Sue', is_user: false, archetype: 'productive_struggle' },
+    ],
+    draft_order: [
+      { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+      { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+      { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+      { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+      { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
+      { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
+    ],
+    picks: [],
+    roster_players: [],
+    team_pick_assets: [],
+    user_queue: [],
+    available_players: [
+      {
+        id: 'player-1',
+        name: 'Josh Allen',
+        position: 'QB',
+        nfl_team: 'BUF',
+        age: 30,
+        is_rookie: false,
+        dynasty_value: 9999,
+        adp: 1,
+      },
+    ],
+    drafted_players: [],
+    trades: [],
+    ...overrides,
+  };
+}
+
+// @spec DFF-UI-020
+// @spec DFF-UI-021
+// @spec DFF-UI-022
+// @spec DFF-UI-023
+// @spec DFF-UI-024
+// @spec DFF-UI-025
+// @spec DFF-UI-026
 function emitDraftState() {
   act(() => {
-    MockEventSource.instances[0]?.emit('state_sync', {
-      draft_id: 'draft-board-123',
-      status: 'in_progress',
-      current_pick_number: 1,
-      teams: [
-        { id: 'team-1', name: 'Bob', is_user: false, archetype: 'win_now' },
-        { id: 'team-2', name: 'You', is_user: true, archetype: null },
-        { id: 'team-3', name: 'Sue', is_user: false, archetype: 'productive_struggle' },
-      ],
-      draft_order: [
-        { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
-        { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
-        { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
-        { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
-        { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
-        { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
-      ],
-      picks: [],
-      roster_players: [],
-      team_pick_assets: [],
-      user_queue: [],
-      available_players: [
-        {
-          id: 'player-1',
-          name: 'Josh Allen',
-          position: 'QB',
-          nfl_team: 'BUF',
-          age: 30,
-          is_rookie: false,
-          dynasty_value: 9999,
-          adp: 1,
-        },
-      ],
-      trades: [],
-    });
+    MockEventSource.instances[0]?.emit('state_sync', createDraftStatePayload());
   });
 }
 
@@ -133,42 +146,59 @@ function emitDraftState() {
 // @spec DFF-UI-026
 function emitStateSync(overrides: Partial<Record<string, unknown>> = {}) {
   act(() => {
-    MockEventSource.instances[0]?.emit('state_sync', {
-      draft_id: 'draft-board-123',
-      status: 'in_progress',
-      current_pick_number: 1,
-      teams: [
-        { id: 'team-1', name: 'Bob', is_user: false, archetype: 'win_now' },
-        { id: 'team-2', name: 'You', is_user: true, archetype: null },
-        { id: 'team-3', name: 'Sue', is_user: false, archetype: 'productive_struggle' },
-      ],
-      draft_order: [
-        { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
-        { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
-        { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
-        { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
-        { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
-        { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
-      ],
-      picks: [],
-      roster_players: [],
-      team_pick_assets: [],
-      user_queue: [],
-      available_players: [
-        {
-          id: 'player-1',
-          name: 'Josh Allen',
-          position: 'QB',
-          nfl_team: 'BUF',
-          age: 30,
-          is_rookie: false,
-          dynasty_value: 9999,
-          adp: 1,
-        },
-      ],
-      trades: [],
-      ...overrides,
-    });
+    MockEventSource.instances[0]?.emit('state_sync', createDraftStatePayload(overrides));
+  });
+}
+
+function mockDraftStartFetches(stateOverrides: Partial<Record<string, unknown>> = {}) {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+
+    if (url === '/drafts' && !init?.method) {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/drafts' && init?.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/drafts/draft-board-123/state') {
+      return Promise.resolve(
+        new Response(JSON.stringify(createDraftStatePayload(stateOverrides)), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/drafts/draft-board-123/queue') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
   });
 }
 
@@ -198,14 +228,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-026
   test('renders the draft board grid with round headers, snake slots, a highlighted user row, a bot skeleton, and horizontal scroll', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -334,14 +357,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-025
   test('falls back to the raw player id and NA badge when a picked player is absent from the catalog', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -366,14 +382,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-025
   test('keeps drafted player metadata after reconnect when a later state_sync omits that player from available_players', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -413,14 +422,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-024b
   test('does not render a skeleton when the current pick belongs to the user team', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -435,14 +437,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-089
   test('renders a layout toggle button in the draft board header that switches between row and column mode', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -470,14 +465,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-089
   test('layout mode persists to localStorage and is restored on page load', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     // Set localStorage to column mode before render
     localStorage.setItem('draftBoardLayout', 'column');
@@ -504,14 +492,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-091
   test('column mode renders rounds as rows and teams as columns with sticky team-name header row', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -535,14 +516,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-093
   test('column mode applies amber tint to the user team column header', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -568,14 +542,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-092
   test('position badges are color-coded by position (QB=amber, RB=blue, WR=emerald, TE=purple, PICK=yellow, RDP=yellow, other=stone)', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -685,14 +652,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-092
   test('position badges use yellow for PICK/RDP and stone for unknown positions', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 
@@ -782,14 +742,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-089
   test('invalid localStorage value defaults to row mode', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     // Set localStorage to a corrupted value
     localStorage.setItem('draftBoardLayout', 'garbage');
@@ -808,14 +761,7 @@ describe('draft board UI', () => {
   // @spec DFF-UI-021
   test('renders an empty cell when a team has no slot in a round', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-board-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockDraftStartFetches();
 
     await renderAppToConfig();
 

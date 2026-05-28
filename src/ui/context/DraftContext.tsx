@@ -8,6 +8,7 @@
 // @spec DFF-UI-074
 // @spec DFF-UI-082
 // @spec DFF-UI-083
+// @spec DFF-UI-121
 import {
   createContext,
   useContext,
@@ -221,6 +222,7 @@ type DraftCompletePayload = {
 type DraftAction =
   | { type: 'DRAFT_CREATED'; draftId: string }
   | { type: 'STATE_SYNC'; payload: StateSyncPayload }
+  | { type: 'QUEUE_SYNC'; queue: QueueEntry[] }
   | { type: 'PICK_MADE'; payload: PickMadePayload }
   | { type: 'YOUR_TURN'; payload: YourTurnPayload }
   | { type: 'TRADE_OFFERED'; payload: TradeOfferedPayload }
@@ -244,6 +246,7 @@ const GENERIC_DRAFT_CREATE_ERROR = 'Draft creation failed. Check your config and
 const GENERIC_DRAFT_LOAD_ERROR = 'Failed to load draft state.';
 const GENERIC_PICK_ERROR = 'Pick failed — player may already be taken.';
 const GENERIC_DISCONNECT_ERROR = 'Lost connection to draft server. Refresh to reconnect.';
+const GENERIC_QUEUE_LOAD_ERROR = 'Failed to load draft queue.';
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000] as const;
 
 const DraftContext = createContext<DraftContextValue | null>(null);
@@ -366,6 +369,7 @@ function toCompletedDraft(state: DraftState, completedAt: string): CompletedDraf
 // @spec DFF-UI-073
 // @spec DFF-UI-074
 // @spec DFF-UI-025
+// @spec DFF-UI-124
 function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDraftContextState {
   switch (action.type) {
     case 'DRAFT_CREATED':
@@ -377,6 +381,18 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
       return {
         ...state,
         draftState: toDraftStateFromSync(action.payload, state.draftState),
+      };
+    case 'QUEUE_SYNC':
+      if (!state.draftState) {
+        return state;
+      }
+
+      return {
+        ...state,
+        draftState: {
+          ...state.draftState,
+          userQueue: [...action.queue].sort((left, right) => left.rank - right.rank),
+        },
       };
     case 'PICK_MADE': {
       if (!state.draftState) {
@@ -583,6 +599,22 @@ function isStateSyncPayload(payload: unknown): payload is StateSyncPayload {
   );
 }
 
+// @spec DFF-UI-121
+function isQueuePayload(payload: unknown): payload is QueueEntry[] {
+  if (!Array.isArray(payload)) {
+    return false;
+  }
+
+  return payload.every((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return false;
+    }
+
+    const candidate = entry as Partial<QueueEntry>;
+    return typeof candidate.playerId === 'string' && typeof candidate.rank === 'number';
+  });
+}
+
 // @spec DFF-UI-080
 async function hydrateDraftState(
   draftId: string,
@@ -603,6 +635,23 @@ async function hydrateDraftState(
 
   dispatch({ type: actionType, payload });
   return true;
+}
+
+// @spec DFF-UI-121
+async function hydrateDraftQueue(draftId: string, dispatch: Dispatch<DraftAction>): Promise<void> {
+  const response = await fetch(`/drafts/${draftId}/queue`);
+
+  if (!response.ok) {
+    throw new Error(GENERIC_QUEUE_LOAD_ERROR);
+  }
+
+  const payload = await response.json();
+
+  if (!isQueuePayload(payload)) {
+    throw new Error(GENERIC_QUEUE_LOAD_ERROR);
+  }
+
+  dispatch({ type: 'QUEUE_SYNC', queue: payload });
 }
 
 // @spec DFF-UI-083
@@ -875,6 +924,9 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
       dispatch({ type: 'DRAFT_CREATED', draftId });
       draftCreated = true;
       await hydrateDraftState(draftId, dispatch, 'STATE_SYNC');
+      await hydrateDraftQueue(draftId, dispatch).catch(() => {
+        setToastMessage(GENERIC_QUEUE_LOAD_ERROR);
+      });
     } catch (error) {
       if (draftCreated && error instanceof Error && error.message === GENERIC_DRAFT_LOAD_ERROR) {
         dispatch({ type: 'NEW_DRAFT' });
@@ -946,7 +998,11 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
   // @spec DFF-UI-114
   async function loadDraft(draftId: string) {
     try {
-      return await hydrateDraftState(draftId, dispatch, 'LOAD_DRAFT');
+      const didLoad = await hydrateDraftState(draftId, dispatch, 'LOAD_DRAFT');
+      await hydrateDraftQueue(draftId, dispatch).catch(() => {
+        setToastMessage(GENERIC_QUEUE_LOAD_ERROR);
+      });
+      return didLoad;
     } catch {
       setToastMessage(GENERIC_DRAFT_LOAD_ERROR);
       return false;

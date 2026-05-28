@@ -230,6 +230,14 @@ The drafting room is scaffolded as a three-column workspace at `xl` breakpoints 
 - At `1280px+`, render the drafting view as three columns in a single row: Draft Board, Available Players, Pick Feed
 - Use weighted track widths of `2fr / 1.5fr / 1fr`
 - Below `xl`, stack the drafting surfaces vertically in their existing mobile-friendly order
+- Each column header includes an expand control that targets its own panel
+- The default page-load state keeps all three panels visible at their weighted widths
+- Expand/collapse state remains component-local UI state and is never persisted to `localStorage`
+- When a column is expanded, it becomes the single wide panel and the other two columns collapse into narrow vertical strips
+- Each collapsed strip renders a panel icon plus a rotated panel label so the destination remains identifiable
+- Clicking a collapsed strip expands that panel and collapses whichever panel was previously expanded
+- Only one panel may be expanded at a time
+- Width changes animate with an approximately `200ms` transition on the drafting layout container
 
 **Status bar:**
 - Render a persistent status bar above the columns while the draft is open
@@ -241,6 +249,8 @@ The drafting room is scaffolded as a three-column workspace at `xl` breakpoints 
 - `currentPickNumber` is `null` after the draft ends -> status bar falls back to the completed pick count and `Draft complete`
 - Current draft slot is missing from `draftOrder` -> status bar still renders the pick progress and falls back to `Draft room active`
 - Current team lookup fails for a non-user slot -> status bar falls back to `Draft room active` instead of rendering an empty label
+- User refreshes while a panel is expanded -> the layout resets to the default weighted three-column arrangement
+- User expands one panel and then clicks a collapsed strip -> the newly clicked strip becomes the only expanded panel
 
 ## Available Players And Targets Panels
 

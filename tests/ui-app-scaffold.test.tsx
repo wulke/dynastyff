@@ -277,6 +277,57 @@ describe('UI app scaffold', () => {
     expect(screen.queryByText(/bot is picking…/i)).not.toBeInTheDocument();
   });
 
+  // @spec DFF-UI-132
+  // @spec DFF-UI-133
+  // @spec DFF-UI-134
+  // @spec DFF-UI-135
+  // @spec DFF-UI-136
+  // @spec DFF-UI-137
+  test('supports single-column expansion with collapsed strips and a 200ms layout transition', async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ draftId: 'draft-123' }), {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', createDraftingState());
+    });
+
+    const layout = await screen.findByTestId('drafting-layout');
+    expect(layout).toHaveAttribute('data-expanded-column', 'none');
+    expect(layout.className).toContain('xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]');
+    expect(layout.className).toContain('duration-200');
+
+    expect(screen.getByRole('button', { name: /expand draft board/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /expand available players/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /expand pick feed/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /expand available players/i }));
+
+    expect(layout).toHaveAttribute('data-expanded-column', 'available-players');
+    expect(screen.getByTestId('draft-board-collapsed-strip')).toHaveTextContent('Draft Board');
+    expect(screen.getByTestId('pick-feed-collapsed-strip')).toHaveTextContent('Pick Feed');
+    expect(screen.queryByRole('heading', { name: /^draft board$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^pick feed$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^available players$/i })).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('pick-feed-collapsed-strip'));
+
+    expect(layout).toHaveAttribute('data-expanded-column', 'pick-feed');
+    expect(screen.getByTestId('draft-board-collapsed-strip')).toHaveTextContent('Draft Board');
+    expect(screen.getByTestId('available-players-collapsed-strip')).toHaveTextContent('Available Players');
+    expect(screen.queryByRole('heading', { name: /^available players$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^pick feed$/i })).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-138
   test('shows the active bot team name in the drafting status bar when it is not the user turn', async () => {
     const user = userEvent.setup();

@@ -31,6 +31,29 @@ Immediately after creating the branch, claim the issue so no other agent picks i
 ## Pull Request
 When done: push your branch and open a PR that references the issue (e.g. `Closes #[number]`) and describes what changed and why. Do not merge.
 
+### Validation (required for every PR)
+
+A PR is **UI-related** if it modifies any file under `src/ui/`, any `.tsx` file, or any `.css` file.
+
+**For bug PRs only** — include a `Steps to Reproduce` block showing pre-fix behavior:
+```
+### Steps to Reproduce
+**Preconditions:** <e.g. app running locally, 12-team draft in progress>
+1. <action>
+2. <action>
+**Observed:** <what happens before the fix>
+```
+
+**For all PRs** — include a `Validation` checklist showing how the human can confirm the fix or feature works:
+```
+### Validation
+**Preconditions:** <e.g. app running locally, specific data state required>
+- [ ] <screen or component to navigate to (required for UI changes)> → <expected result>
+- [ ] <next step> → <expected result>
+```
+
+For UI changes, the checklist must name the specific screen or component (e.g. "Navigate to Available Players tab → confirm tabs render") and any data setup required (e.g. "start a 12-team draft first").
+
 ## Rules
 - Follow all instructions in `CLAUDE.md` and `AGENTS.md`.
 - All code entry points and tests must carry `@spec [ID]` comments on a per-function, per-test, or per-module basis.

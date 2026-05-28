@@ -156,10 +156,11 @@ Current ETL scope:
 - Filters players to `QB`, `RB`, `WR`, and `TE`
 - Returns a shared scraper contract: players `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values `{ year, round, pickInRound?, rawValue }`
 - Parses KTC and FantasyCalc future pick assets such as `2027 Early 1st` into ETL pick values keyed by `(year, round, pick_in_round)`, using `pick_in_round = 0` for round-level future picks
-- Creates an `etl_runs` record at ETL start and finalizes it with per-source success status on completion
+- If at least one scraper succeeds, creates an `etl_runs` record and finalizes it with per-source success status on completion
 - Persists raw per-source player and pick snapshots into `player_value_snapshots` and `pick_value_snapshots`
 - Wraps each source's snapshot writes plus `players` / `pick_values` hot-path updates in a single transaction
 - Normalizes player values and pick values per source to `0-9999`
+- Logs and excludes individual scraper failures without aborting the full run; if all active scrapers fail, exits non-zero before writing the database
 - Matches non-KTC players onto KTC-backed canonical rows with normalized-name exact match, Dice fuzzy match, and `player-aliases.json` overrides
 - Aggregates player `dynasty_value` as the rounded mean of the non-NULL per-source normalized values
 - Aggregates each `pick_values` `(year, round, pick_in_round)` row as the rounded mean of the current run's non-NULL per-source normalized pick values

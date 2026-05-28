@@ -61,6 +61,9 @@ const activeEtlSources = ['ktc', 'fantasycalc', 'rosteraudit'] as const satisfie
 type PlayerIdRow = { id: string };
 type PickValueIdRow = { id: string };
 type PickValueSnapshotRow = { source: EtlSource; rawValue: number };
+type ScraperRunOutcome =
+  | { source: EtlSource; ok: true; result: ScraperResult }
+  | { source: EtlSource; ok: false; error: unknown };
 
 type PlayerRow = PlayerMatchCandidate;
 
@@ -232,6 +235,7 @@ function matchExistingPlayer(
 // @spec DFF-ETL-040
 // @spec DFF-ETL-060
 // @spec DFF-ETL-061
+// @spec DFF-ETL-053
 function writeKtcPlayer(
   statements: EtlStatements,
   runId: string,
@@ -285,6 +289,7 @@ function writeKtcPlayer(
 // @spec DFF-ETL-023
 // @spec DFF-ETL-040
 // @spec DFF-ETL-060
+// @spec DFF-ETL-053
 function writeMatchedSourcePlayer(
   statements: EtlStatements,
   runId: string,
@@ -509,7 +514,7 @@ async function runTasksWithConcurrencyLimit<T>(
 }
 
 async function runScraper<T extends ScraperResult>(
-  source: string,
+  source: EtlSource,
   fn: () => Promise<T>,
 ): Promise<T> {
   console.log(`[ETL] [${source}] Scraping...`);
@@ -525,19 +530,60 @@ async function runScraper<T extends ScraperResult>(
 // @spec DFF-ETL-013
 // @spec DFF-ETL-090
 // @spec DFF-ETL-015
+// @spec DFF-ETL-050
 export async function runScrapers(options: RunScrapersOptions = {}): Promise<ScraperResult[]> {
   const scrapeKtc = options.scrapeKtc ?? scrapeKtcPlayers;
   const scrapeFantasycalc = options.scrapeFantasycalc ?? scrapeFantasyCalc;
   const scrapeRosteraudit = options.scrapeRosteraudit ?? scrapeRosterAudit;
 
-  return runTasksWithConcurrencyLimit(
+  const outcomes = await runTasksWithConcurrencyLimit(
     [
-      () => runScraper('ktc', scrapeKtc),
-      () => runScraper('fantasycalc', scrapeFantasycalc),
-      () => runScraper('rosteraudit', scrapeRosteraudit),
+      async (): Promise<ScraperRunOutcome> => {
+        try {
+          return { source: 'ktc', ok: true, result: await runScraper('ktc', scrapeKtc) };
+        } catch (error) {
+          return { source: 'ktc', ok: false, error };
+        }
+      },
+      async (): Promise<ScraperRunOutcome> => {
+        try {
+          return {
+            source: 'fantasycalc',
+            ok: true,
+            result: await runScraper('fantasycalc', scrapeFantasycalc),
+          };
+        } catch (error) {
+          return { source: 'fantasycalc', ok: false, error };
+        }
+      },
+      async (): Promise<ScraperRunOutcome> => {
+        try {
+          return {
+            source: 'rosteraudit',
+            ok: true,
+            result: await runScraper('rosteraudit', scrapeRosteraudit),
+          };
+        } catch (error) {
+          return { source: 'rosteraudit', ok: false, error };
+        }
+      },
     ],
     2,
   );
+
+  const results: ScraperResult[] = [];
+
+  for (const outcome of outcomes) {
+    if (outcome.ok) {
+      results.push(outcome.result);
+      continue;
+    }
+
+    const message = outcome.error instanceof Error ? outcome.error.message : String(outcome.error);
+    console.warn(`[ETL] WARN: ${outcome.source} scraper failed — ${message}. Excluding from this run.`);
+  }
+
+  return results;
 }
 
 // @spec DFF-HIST-002
@@ -547,6 +593,8 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
 // @spec DFF-HIST-050
 // @spec DFF-HIST-051
 // @spec DFF-HIST-052
+// @spec DFF-ETL-051
+// @spec DFF-ETL-052
 export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const timestamp = options.now?.() ?? new Date().toISOString();
   const sqlite = createDatabase(options.databasePath);
@@ -559,14 +607,20 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
     const statements = createStatements(sqlite);
 
     console.log('[ETL] Starting ETL run...');
+    const scraperResults = await runScrapers(options);
+
+    if (scraperResults.length === 0) {
+      console.error('[ETL] ERROR: all scrapers failed. No data was written.');
+      return 1;
+    }
+
     statements.insertRun.run(runId, timestamp, JSON.stringify(activeEtlSources), JSON.stringify([]));
 
-    const scraperResults = await runScrapers(options);
     const resultBySource = new Map(scraperResults.map((result) => [result.source, result]));
     const pickValueNormalizationContexts = new Map<EtlSource, NormalizationContext>();
     const ktcResult = resultBySource.get('ktc');
 
-    if (!ktcResult || ktcResult.players.length === 0) {
+    if (ktcResult && ktcResult.players.length === 0) {
       console.error('[ETL] ERROR: KTC returned no supported players.');
       return 1;
     }

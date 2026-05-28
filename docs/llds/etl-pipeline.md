@@ -73,7 +73,7 @@ DynastyDaddy remains implemented as a scraper module, but it is temporarily excl
 
 1. `runScrapers()` launches KTC, FantasyCalc, and RosterAudit with a maximum concurrency of 2.
 2. KTC and FantasyCalc parse asset names like `2027 Early 1st` with the ETL pick regex, returning `{ year, round, tier? }` from the shared parser, then average any tier variants for the same `(year, round)` into a single row and emit current-state `pickValues` keyed by `(year, round, pick_in_round = 0)`.
-3. `runEtl()` inserts an `etl_runs` row at the start of execution with the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and `completed_at = NULL`.
+3. `runEtl()` inserts an `etl_runs` row only after the scraper phase confirms that at least one active scraper succeeded; the row records the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and starts with `completed_at = NULL`.
 4. Each successful source is processed in its own database transaction:
    - normalize that source's player and pick values
    - write raw `player_value_snapshots` and `pick_value_snapshots`
@@ -145,7 +145,10 @@ Only source columns that successfully matched the canonical player row participa
 
 ## Partial Failure Behavior
 
-Partial-failure handling is specified for issue #6 and has not been implemented in this slice.
+- Each active scraper runs inside its own error boundary. If a scraper throws an unrecoverable error, ETL logs `[ETL] WARN: {source} scraper failed — {message}. Excluding from this run.` and continues with the remaining sources.
+- If at least one scraper succeeds, ETL proceeds with normalization, aggregation, and upsert using only the successful source payloads.
+- If all active scrapers fail, ETL exits with code `1` before inserting `etl_runs` or writing any hot-path tables or snapshot tables.
+- When ETL updates an existing player during a partial-failure run, per-source columns for failed scrapers remain unchanged; ETL does not overwrite those existing values with `NULL`.
 
 ## Edge Case Probe
 
@@ -165,7 +168,7 @@ All writes use Drizzle ORM against the shared SQLite database.
 **Players:**
 - Canonical rows are established by the highest-priority matched source: `KTC -> FantasyCalc -> DynastyDaddy -> RosterAudit`.
 - Existing row matching uses normalized-name exact match first, then same-position Dice fuzzy match, then alias override.
-- On KTC match: update canonical name, metadata, `value_ktc`, `dynasty_value`, `adp` when provided, and `updated_at`.
+- On KTC match: update canonical name, metadata, `value_ktc`, `dynasty_value`, `adp` when provided, and `updated_at`, while preserving existing non-KTC value columns for any sources excluded from the current run.
 - On non-KTC match: update the corresponding `value_*` column, update `adp` when provided, recompute `dynasty_value`, and update `updated_at`.
 - On unmatched KTC row: insert a new row with a generated UUID and `NULL` for all missing source columns.
 - On unmatched non-KTC row: log a warning and exclude that player's value from the hot `players` table for the run.

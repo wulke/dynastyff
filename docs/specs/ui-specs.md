@@ -101,8 +101,33 @@ When a `pick_made` SSE event is received, the picked player shall be removed fro
 **DFF-UI-035** `[x]` → #18
 When it is not the user's turn, the Available Players list shall display a "Bot is picking…" state and player rows shall not be interactive.
 
-**DFF-UI-036** `[x]` → #18
-When the user clicks a player row during their turn, the system shall POST /drafts/:id/pick with that player's id and dispatch ADVISOR_RESET.
+**DFF-UI-036** `[ ]` → #18
+When the user clicks a player row during their turn, the system shall select that player and render a confirmation card before POST /drafts/:id/pick is submitted.
+
+---
+
+## Targets Panel
+
+**DFF-UI-120** `[ ]` → #85
+During the user's turn, the system shall render a Targets panel alongside the Available Players list.
+
+**DFF-UI-121** `[ ]` → #85
+On draft-room hydration, the system shall fetch GET /drafts/:id/queue and display the queued players in ascending rank order.
+
+**DFF-UI-122** `[ ]` → #85
+Each Targets panel row shall display the player name, a color-coded position badge, and dynasty value.
+
+**DFF-UI-123** `[ ]` → #85
+When the user clicks a Targets panel row during their turn, the system shall select that player and render the same confirmation card flow used by the Available Players list.
+
+**DFF-UI-124** `[ ]` → #85
+When a `pick_made` SSE event is processed by the reducer, the picked player shall be removed from the Targets panel client-side.
+
+**DFF-UI-125** `[ ]` → #85
+When the user's queue is empty, the Targets panel shall render the message "No targets added yet".
+
+**DFF-UI-126** `[ ]` → #85
+When it is not the user's turn, the Targets panel shall remain visible and its player rows shall not be interactive.
 
 ---
 

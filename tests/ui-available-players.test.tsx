@@ -6,6 +6,13 @@
 // @spec DFF-UI-036
 // @spec DFF-UI-080
 // @spec DFF-UI-084
+// @spec DFF-UI-120
+// @spec DFF-UI-121
+// @spec DFF-UI-122
+// @spec DFF-UI-123
+// @spec DFF-UI-124
+// @spec DFF-UI-125
+// @spec DFF-UI-126
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -213,6 +220,15 @@ describe('available players list', () => {
         return deferredState.promise;
       }
 
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
@@ -257,6 +273,76 @@ describe('available players list', () => {
     expect(within(panel).getByText('Brock Bowers')).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-120
+  // @spec DFF-UI-121
+  // @spec DFF-UI-122
+  // @spec DFF-UI-125
+  test('hydrates the targets panel from GET /drafts/:id/queue in ascending rank order with an empty state fallback', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url === '/drafts' && !init?.method) {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+      }
+
+      if (url === '/drafts' && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/state') {
+        return Promise.resolve(
+          new Response(JSON.stringify(createDraftState()), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              { playerId: 'player-qb-1', rank: 2 },
+              { playerId: 'player-rb-1', rank: 1 },
+            ]),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    const panel = await screen.findByTestId('targets-panel');
+    const rows = within(panel).getAllByTestId(/^target-player-row-/);
+
+    expect(fetchMock).toHaveBeenCalledWith('/drafts/draft-available-123/queue');
+    expect(rows[0]).toHaveAttribute('data-player-id', 'player-rb-1');
+    expect(rows[1]).toHaveAttribute('data-player-id', 'player-qb-1');
+    expect(within(rows[0]).getByText('Bijan Robinson')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('RB')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('9700')).toBeInTheDocument();
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', createDraftState({ user_queue: [] }));
+    });
+
+    expect(within(panel).getByText('No targets added yet')).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-034
   test('removes the picked player from the list when a pick_made SSE event arrives', async () => {
     const user = userEvent.setup();
@@ -286,6 +372,15 @@ describe('available players list', () => {
         );
       }
 
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
@@ -305,6 +400,66 @@ describe('available players list', () => {
     });
 
     expect(within(panel).queryByText('Bijan Robinson')).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-124
+  test('removes the picked player from the targets panel when a pick_made SSE event arrives', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url === '/drafts' && !init?.method) {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+      }
+
+      if (url === '/drafts' && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/state') {
+        return Promise.resolve(
+          new Response(JSON.stringify(createDraftState()), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    const panel = await screen.findByTestId('targets-panel');
+    expect(within(panel).getByText('Bijan Robinson')).toBeInTheDocument();
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 2,
+        team_id: 'team-2',
+        player_id: 'player-rb-1',
+        is_bot: false,
+      });
+    });
+
+    expect(within(panel).queryByText('Bijan Robinson')).not.toBeInTheDocument();
+    expect(within(panel).getByText('No targets added yet')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-034
@@ -331,6 +486,15 @@ describe('available players list', () => {
 
       if (url === '/drafts/draft-available-123/state') {
         return deferredState.promise;
+      }
+
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
       }
 
       throw new Error(`Unexpected fetch: ${url}`);
@@ -364,7 +528,9 @@ describe('available players list', () => {
 
   // @spec DFF-UI-035
   // @spec DFF-UI-036
-  test('shows the bot turn state with disabled rows, then posts a pick when the user is on the clock', async () => {
+  // @spec DFF-UI-123
+  // @spec DFF-UI-126
+  test('shows disabled rows during bot turns, then uses the shared confirmation flow for available players and targets on the user turn', async () => {
     const user = userEvent.setup();
 
     fetchMock.mockImplementation((input, init) => {
@@ -399,6 +565,15 @@ describe('available players list', () => {
         );
       }
 
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
       if (url === '/drafts/draft-available-123/pick' && init?.method === 'POST') {
         return Promise.resolve(new Response(null, { status: 200 }));
       }
@@ -410,11 +585,16 @@ describe('available players list', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     const panel = await screen.findByTestId('available-players-panel');
+    const targetsPanel = await screen.findByTestId('targets-panel');
     expect(within(panel).getByText('Bot is picking…')).toBeInTheDocument();
+    expect(within(targetsPanel).getByText('Bot is picking…')).toBeInTheDocument();
 
     const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
+    const bijanTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
     expect(lambRow).toBeDisabled();
+    expect(bijanTargetRow).toBeDisabled();
     await user.click(lambRow);
+    await user.click(bijanTargetRow);
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/drafts/draft-available-123/pick',
       expect.objectContaining({ method: 'POST' }),
@@ -429,15 +609,37 @@ describe('available players list', () => {
     });
 
     const enabledRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
+    const enabledTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
     expect(enabledRow).toBeEnabled();
+    expect(enabledTargetRow).toBeEnabled();
 
     await user.click(enabledRow);
+    const confirmationCard = await screen.findByTestId('pick-confirmation-card');
+    expect(within(confirmationCard).getByText('CeeDee Lamb')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/drafts/draft-available-123/pick',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    await user.click(within(confirmationCard).getByRole('button', { name: /confirm pick/i }));
 
-    expect(fetchMock).toHaveBeenCalledWith(
+    await user.click(enabledTargetRow);
+    expect(within(await screen.findByTestId('pick-confirmation-card')).getByText('Bijan Robinson')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /confirm pick/i }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
       '/drafts/draft-available-123/pick',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ playerId: 'player-wr-1' }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      6,
+      '/drafts/draft-available-123/pick',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ playerId: 'player-rb-1' }),
       }),
     );
   });
@@ -471,6 +673,15 @@ describe('available players list', () => {
         );
       }
 
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
       if (url === '/drafts/draft-available-123/pick' && init?.method === 'POST') {
         return Promise.resolve(new Response(null, { status: 409 }));
       }
@@ -483,6 +694,7 @@ describe('available players list', () => {
 
     const panel = await screen.findByTestId('available-players-panel');
     await user.click(within(panel).getByRole('button', { name: /ceedee lamb/i }));
+    await user.click(await screen.findByRole('button', { name: /confirm pick/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Pick failed — player may already be taken.');
   });
@@ -510,6 +722,10 @@ describe('available players list', () => {
 
       if (url === '/drafts/draft-available-123/state') {
         return Promise.resolve(new Response(null, { status: 500 }));
+      }
+
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
       }
 
       throw new Error(`Unexpected fetch: ${url}`);

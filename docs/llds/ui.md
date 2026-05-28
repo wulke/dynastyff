@@ -11,7 +11,7 @@ Drives specs: `docs/specs/ui-specs.md`
 - Render the Drafts List page as the app entry point when persisted drafts exist
 - Render the League Config screen and persist saved configs to SQLite via the backend
 - Render the Draft Board grid and keep it in sync with SSE events
-- Render the Available Players list with position filter and name search
+- Render the Available Players list and Targets panel with shared pick-selection behavior
 - Open and close the Advisor slide-out panel, managing advise-me and grill-me interactions
 - Render the Draft History view with pick log, roster view, and trade log
 - Render the Pick Feed panel with real-time pick updates alongside the draft board
@@ -83,7 +83,7 @@ At this stage, the config view is functional, the drafting view now renders the 
     <DraftBoard />             ← grid: rounds × teams
     <DraftCompletionBanner />  ← modal-style overlay on completed drafts
     <PickFeedPanel />         ← real-time pick feed
-    <PlayerList />             ← available players, filter + search
+    <AvailablePlayersPanel />  ← available players + targets queue
     <AdvisorPanel />           ← slide-out, advise-me + grill-me
     <TradeModal />             ← blocking modal on trade_offered SSE
   </DraftView>
@@ -222,25 +222,37 @@ A scrolling real-time feed panel rendered alongside the draft board, driven by `
 - Same player is picked twice (impossible in valid state but handles gracefully) → duplicate entries render, since each `pick_made` produces a unique pick record
 - Pick number is absent from `draftOrder` (should not happen in practice but handle defensively) → entry renders an em dash (`—`) in place of "Rd N, Pick M" instead of showing "Rd 0, Pick 0"
 
-## Available Players List
+## Available Players And Targets Panels
 
-Rendered alongside the draft board during the user's turn. During bot turns, the panel stays visible, shows a "Bot is picking…" state, and disables player rows.
+Rendered alongside the draft board during the user's turn. During bot turns, both panels stay visible, show a shared "Bot is picking…" disabled state, and disable player rows.
 
-**Features:**
+**Available Players features:**
 - Sorted by `dynasty_value` descending by default
 - Position filter: ALL / QB / RB / WR / TE / Picks (pill buttons)
 - Name search: free-text input, filters the list client-side
 - Each row: player name, position badge, NFL team, age, dynasty value
-- Clicking a player row submits `POST /drafts/:id/pick` and dispatches `ADVISOR_RESET`
-- While `GET /drafts/:id/state` is hydrating the draft room, the panel renders skeleton rows instead of player data
-- During bot turns, rows are disabled and a "Bot is picking…" message replaces the interactive list
-- If `POST /drafts/:id/pick` fails, a global toast surfaces "Pick failed — player may already be taken."
 
-The full available player list is loaded once from `GET /drafts/:id/state` at draft start or resume. Draft creation transitions into the draft room immediately, then an HTTP hydration request fills in the initial board/list state while SSE stays connected in parallel. As `pick_made` events arrive, the reducer removes picked players from `availablePlayers` client-side — no re-fetch needed.
+**Targets panel features:**
+- Always visible beside the Available Players list while the draft room is open
+- Hydrates from `GET /drafts/:id/queue` after `GET /drafts/:id/state` succeeds at draft start or resume
+- Displays queued players in ascending `rank` order
+- Each row shows player name, position badge, and dynasty value
+- Shows an empty state message: `No targets added yet`
+
+**Shared selection flow:**
+- Clicking an enabled row in either panel selects that player instead of submitting immediately
+- A confirmation card renders beneath the panels for the selected player
+- Confirming the card submits `POST /drafts/:id/pick` and dispatches `ADVISOR_RESET`
+- Clearing or replacing the selection updates the same confirmation card state no matter which panel the row came from
+- If `POST /drafts/:id/pick` fails, a global toast surfaces `Pick failed — player may already be taken.`
+
+The full available player list is loaded from `GET /drafts/:id/state` at draft start or resume. Queue ranks are hydrated from `GET /drafts/:id/queue` immediately after state hydration succeeds, using `availablePlayers` / `playerCatalog` to resolve target display metadata client-side. As `pick_made` events arrive, the reducer removes picked players from both `availablePlayers` and `userQueue` client-side — no re-fetch needed.
 
 **Edge Case Probe:**
 - `GET /drafts/:id/state` fails after `POST /drafts` succeeds -> show the global draft-load error toast and dispatch `NEW_DRAFT` so the user returns to the config screen instead of remaining stuck in skeleton state
+- `GET /drafts/:id/queue` fails after draft state hydration succeeds -> keep the draft room open, surface a queue-load toast, and leave the Targets panel empty instead of blocking the rest of the room
 - `pick_made` arrives before the HTTP hydration finishes -> reducer removes nothing from the empty initial list, then the follow-up hydrated state replaces `availablePlayers` with the server-truth snapshot without crashing
+- A queued player is absent from the hydrated `availablePlayers` list (for example stale queue state) -> omit that target row rather than rendering broken metadata
 
 ## Advisor Slide-Out Panel
 

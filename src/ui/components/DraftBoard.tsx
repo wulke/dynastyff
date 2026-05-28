@@ -12,6 +12,7 @@
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-092
+// @spec DFF-UI-139
 import { useState } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 
@@ -247,6 +248,7 @@ function ColumnModeDraftBoard({ draftState }: DraftBoardProps) {
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-093
+// @spec DFF-UI-139
 export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
   const [layout, setLayout] = useState<LayoutMode>(getStoredLayout);
@@ -269,9 +271,7 @@ export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBo
             Draft {draftState.draftId}
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-50">Draft Board</h1>
-          <p className="mt-3 text-sm text-stone-300">
-            Pick {draftState.currentPickNumber ?? draftState.picks.length} of {draftState.draftOrder.length}
-          </p>
+          <p className="mt-3 text-sm text-stone-300">Live board for every round, team, and completed pick.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {draftState.sseStatus === 'connecting' ? (
@@ -302,19 +302,6 @@ export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBo
               </svg>
             )}
           </button>
-        <div className="rounded-full border border-stone-700 px-4 py-2 text-sm text-stone-200">
-            {draftState.isHydrating
-              ? 'Loading draft…'
-              : draftState.currentPickNumber
-              ? draftState.teams.find(
-                  (team) =>
-                    team.id ===
-                    (draftState.draftOrder.find((slot) => slot.pickNumber === draftState.currentPickNumber)?.teamId ?? ''),
-                )?.isUser
-                ? 'Your turn'
-                : 'Bot is picking…'
-              : 'Draft complete'}
-          </div>
         </div>
       </div>
 

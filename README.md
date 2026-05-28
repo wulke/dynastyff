@@ -80,10 +80,11 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - `Config Screen` renders on first load as a real league configuration form
 - `src/ui/context/DraftContext.tsx` owns the HTTP draft lifecycle and exposes `useDraftContext()` for all draft data and actions
 - `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
-- Successful draft creation transitions the UI into the drafting view immediately, then hydrates `GET /drafts/:id/state` in parallel with SSE so sidebar data can load in place
+- Successful draft creation transitions the UI into the drafting view immediately, then hydrates `GET /drafts/:id/state` in parallel with SSE so the three-column draft room can load in place
 - The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
 - `pick_made` SSE events update the already-rendered board in place without a re-fetch
-- The drafting sidebar now includes an `Available Players` panel sorted by dynasty value with client-side position filters, live name search, draft-start skeleton rows, a two-step pick confirmation card, bot-turn disabled rows, and pick-submission error toasts
+- The drafting room now renders three columns at wide viewports: `Draft Board`, `Available Players`, and `Pick Feed`, with weighted widths and a persistent status bar that shows current pick progress plus whose turn it is
+- The `Available Players` column stays sorted by dynasty value and includes client-side position filters, live name search, draft-start skeleton rows, a two-step pick confirmation card, bot-turn disabled rows, and pick-submission error toasts
 - A `Targets` panel hydrates from `GET /drafts/:id/queue`, shows queued players in ascending rank order with position badges and dynasty values, removes picked targets on live `pick_made` events, and shares the same confirmation flow plus bot-turn disabled state
 - The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen

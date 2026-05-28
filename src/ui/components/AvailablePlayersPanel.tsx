@@ -12,6 +12,7 @@
 // @spec DFF-UI-124
 // @spec DFF-UI-125
 // @spec DFF-UI-126
+// @spec DFF-UI-139
 import { useState } from 'react';
 
 import { useDraftContext, type DraftState } from '../context/DraftContext.js';
@@ -141,6 +142,7 @@ function AvailablePlayersLoadingState() {
 // @spec DFF-UI-123
 // @spec DFF-UI-125
 // @spec DFF-UI-126
+// @spec DFF-UI-139
 export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps) {
   const { submitPick } = useDraftContext();
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');
@@ -190,9 +192,6 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">On The Clock</p>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-stone-50">Available Players</h2>
-            </div>
-            <div className="rounded-full border border-stone-700 px-4 py-2 text-sm text-stone-200">
-              {userTurn ? 'Your turn' : 'Bot is picking…'}
             </div>
           </div>
 
@@ -277,9 +276,6 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Queue</p>
               <h3 className="mt-2 text-xl font-semibold tracking-tight text-stone-50">Targets</h3>
-            </div>
-            <div className="rounded-full border border-stone-700 px-3 py-1 text-xs text-stone-300">
-              {userTurn ? 'Your turn' : 'Bot is picking…'}
             </div>
           </div>
 

@@ -700,8 +700,10 @@ describe('available players list', () => {
 
     const panel = await screen.findByTestId('available-players-panel');
     const targetsPanel = await screen.findByTestId('targets-panel');
-    expect(within(panel).getByText('Bot is picking…')).toBeInTheDocument();
-    expect(within(targetsPanel).getByText('Bot is picking…')).toBeInTheDocument();
+    const statusBar = await screen.findByTestId('draft-status-bar');
+    expect(within(statusBar).getByText('Bob')).toBeInTheDocument();
+    expect(within(panel).queryByText('Bot is picking…')).not.toBeInTheDocument();
+    expect(within(targetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
 
     const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
     const bijanTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });

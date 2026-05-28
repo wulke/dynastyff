@@ -157,6 +157,65 @@ function simulateCompleteDraft() {
   });
 }
 
+function setupDraftHistoryFetches(draftId = 'history-draft-1') {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+
+    if (url === '/drafts' && !init?.method) {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
+    if (url === '/drafts' && init?.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ draftId }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
+    if (url === `/drafts/${draftId}/state`) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            draft_id: draftId,
+            status: 'in_progress',
+            current_pick_number: 1,
+            teams: [],
+            draft_order: [],
+            picks: [],
+            roster_players: [],
+            team_pick_assets: [],
+            user_queue: [],
+            available_players: [],
+            trades: [],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    }
+
+    if (url === `/drafts/${draftId}/queue`) {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
   MockEventSource.instances = [];
@@ -179,12 +238,7 @@ describe('draft history view', () => {
   // @spec DFF-UI-065
   test('renders history view after draft_complete with three tab pills and a New Draft button', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
     await renderAppToConfig();
 
@@ -206,12 +260,7 @@ describe('draft history view', () => {
   // @spec DFF-UI-061
   test('pick log tab shows all picks in chronological order with round, pick number, team, player, position, and value', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
     await renderAppToConfig();
 
@@ -256,12 +305,7 @@ describe('draft history view', () => {
   // @spec DFF-UI-063
   test('roster view tab shows one card per team with players grouped by position and user team highlighted', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
     await renderAppToConfig();
 
@@ -314,12 +358,7 @@ describe('draft history view', () => {
   // @spec DFF-UI-064
   test('trade log tab shows trades with teams, assets exchanged, and outcome', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
     await renderAppToConfig();
 
@@ -357,12 +396,7 @@ describe('draft history view', () => {
   // @spec DFF-UI-065
   test('new draft button transitions back to config screen', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
     await renderAppToConfig();
 
@@ -383,12 +417,7 @@ describe('draft history view', () => {
   // @spec DFF-UI-061
   test('pick log tab is the default active tab', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
     await renderAppToConfig();
 
@@ -409,12 +438,7 @@ describe('draft history view', () => {
   // @spec DFF-UI-064
   test('renders empty-state messages in all three tabs when no data exists', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-empty-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches('history-empty-1');
 
     await renderAppToConfig();
 

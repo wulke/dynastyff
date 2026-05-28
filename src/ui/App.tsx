@@ -18,9 +18,15 @@
 // @spec DFF-UI-115
 // @spec DFF-UI-130
 // @spec DFF-UI-131
+// @spec DFF-UI-132
+// @spec DFF-UI-133
+// @spec DFF-UI-134
+// @spec DFF-UI-135
+// @spec DFF-UI-136
+// @spec DFF-UI-137
 // @spec DFF-UI-138
 // @spec DFF-UI-139
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import * as Separator from '@radix-ui/react-separator';
 import {
   HttpDraftContextProvider,
@@ -43,6 +49,123 @@ type DraftStatusSummary = {
   currentPickLabel: string;
   turnLabel: string;
 };
+
+type DraftColumnId = 'draft-board' | 'available-players' | 'pick-feed';
+
+type DraftColumnDefinition = {
+  id: DraftColumnId;
+  label: string;
+  testId: string;
+  renderIcon: () => ReactNode;
+};
+
+const DRAFT_COLUMNS: DraftColumnDefinition[] = [
+  {
+    id: 'draft-board',
+    label: 'Draft Board',
+    testId: 'draft-board-column',
+    renderIcon: () => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect width="18" height="18" x="3" y="3" rx="2" />
+        <path d="M3 9h18M9 21V9" />
+      </svg>
+    ),
+  },
+  {
+    id: 'available-players',
+    label: 'Available Players',
+    testId: 'available-players-column',
+    renderIcon: () => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M19 8v6M22 11h-6" />
+      </svg>
+    ),
+  },
+  {
+    id: 'pick-feed',
+    label: 'Pick Feed',
+    testId: 'pick-feed-column',
+    renderIcon: () => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 20V10" />
+        <path d="m18 20-6-6-6 6" />
+        <path d="M6 4h12" />
+      </svg>
+    ),
+  },
+];
+
+// @spec DFF-UI-131
+// @spec DFF-UI-133
+// @spec DFF-UI-137
+function getDraftingLayoutClass(expandedColumn: DraftColumnId | null): string {
+  if (expandedColumn === 'draft-board') {
+    return 'grid w-full gap-6 transition-[grid-template-columns] duration-200 ease-out xl:grid-cols-[minmax(0,4fr)_minmax(4.5rem,0.45fr)_minmax(4.5rem,0.45fr)]';
+  }
+
+  if (expandedColumn === 'available-players') {
+    return 'grid w-full gap-6 transition-[grid-template-columns] duration-200 ease-out xl:grid-cols-[minmax(4.5rem,0.45fr)_minmax(0,4fr)_minmax(4.5rem,0.45fr)]';
+  }
+
+  if (expandedColumn === 'pick-feed') {
+    return 'grid w-full gap-6 transition-[grid-template-columns] duration-200 ease-out xl:grid-cols-[minmax(4.5rem,0.45fr)_minmax(4.5rem,0.45fr)_minmax(0,4fr)]';
+  }
+
+  return 'grid w-full gap-6 transition-[grid-template-columns] duration-200 ease-out xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]';
+}
+
+// @spec DFF-UI-132
+function getExpandButtonLabel(columnLabel: string): string {
+  return `Expand ${columnLabel}`;
+}
+
+// @spec DFF-UI-132
+function ExpandColumnButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={getExpandButtonLabel(label)}
+      onClick={onClick}
+      className="rounded-full border border-stone-700 p-2.5 text-stone-400 transition hover:border-stone-500 hover:text-stone-100"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M15 3h6v6" />
+        <path d="M9 21H3v-6" />
+        <path d="m21 3-7 7" />
+        <path d="m3 21 7-7" />
+      </svg>
+    </button>
+  );
+}
+
+// @spec DFF-UI-134
+// @spec DFF-UI-135
+function CollapsedColumnStrip({
+  column,
+  onExpand,
+}: {
+  column: DraftColumnDefinition;
+  onExpand: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={`${column.id}-collapsed-strip`}
+      aria-label={getExpandButtonLabel(column.label)}
+      onClick={onExpand}
+      className="flex h-full min-h-[20rem] w-full items-center justify-center rounded-[1.75rem] border border-stone-800 bg-stone-900/90 px-3 py-5 text-stone-300 shadow-2xl shadow-black/20 transition duration-200 hover:border-stone-700 hover:text-stone-100"
+    >
+      <span className="flex flex-col items-center gap-4">
+        <span className="rounded-full border border-stone-700 p-2 text-stone-400">{column.renderIcon()}</span>
+        <span className="[writing-mode:vertical-rl] rotate-180 text-xs font-semibold uppercase tracking-[0.3em]">
+          {column.label}
+        </span>
+      </span>
+    </button>
+  );
+}
 
 // @spec DFF-UI-116
 function DraftsListLoadingState() {
@@ -257,6 +380,7 @@ function DraftApp() {
   const [showDraftsList, setShowDraftsList] = useState(false);
   const [draftsList, setDraftsList] = useState<DraftListEntry[]>([]);
   const [showDraftsListLoading, setShowDraftsListLoading] = useState(true);
+  const [expandedColumn, setExpandedColumn] = useState<DraftColumnId | null>(null);
   const showErrorRef = useRef(showError);
 
   useEffect(() => {
@@ -311,6 +435,7 @@ function DraftApp() {
     setIsSubmittingDraft(true);
     setShowHistory(false);
     setShowDraftsList(false);
+    setExpandedColumn(null);
 
     try {
       await startDraft(safeConfig);
@@ -355,6 +480,12 @@ function DraftApp() {
         {/* @spec DFF-UI-100 */}
         {/* @spec DFF-UI-130 */}
         {/* @spec DFF-UI-131 */}
+        {/* @spec DFF-UI-132 */}
+        {/* @spec DFF-UI-133 */}
+        {/* @spec DFF-UI-134 */}
+        {/* @spec DFF-UI-135 */}
+        {/* @spec DFF-UI-136 */}
+        {/* @spec DFF-UI-137 */}
         {/* @spec DFF-UI-138 */}
         {/* @spec DFF-UI-139 */}
         {!showDraftsListLoading && view === 'drafting' && draftState ? (
@@ -362,26 +493,52 @@ function DraftApp() {
             <DraftStatusBar draftState={draftState} />
             <div
               data-testid="drafting-layout"
-              className="grid w-full gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]"
+              data-expanded-column={expandedColumn ?? 'none'}
+              className={getDraftingLayoutClass(expandedColumn)}
             >
-              <div data-testid="draft-board-column" className="relative min-w-0">
-                <DraftBoard draftState={draftState} isInteractionBlocked={showCompletionBanner} />
-                {showCompletionBanner ? (
-                  <DraftCompletionBanner
-                    teamName={completionBannerTeamName}
-                    onViewHistory={() => {
-                      setShowHistory(true);
-                    }}
-                  />
-                ) : null}
-              </div>
-              <div data-testid="available-players-column" className="min-w-0">
-                <AvailablePlayersPanel draftState={draftState} />
-              </div>
-              {/* @spec DFF-UI-144 */}
-              <div data-testid="pick-feed-column" className="flex min-w-0">
-                <PickFeedPanel draftState={draftState} />
-              </div>
+              {DRAFT_COLUMNS.map((column) => {
+                const isCollapsed = expandedColumn !== null && expandedColumn !== column.id;
+
+                return (
+                  <div
+                    key={column.id}
+                    data-testid={column.testId}
+                    className={`min-w-0 transition-all duration-200 ${column.id === 'draft-board' ? 'relative' : ''} ${
+                      column.id === 'pick-feed' && !isCollapsed ? 'flex' : ''
+                    }`}
+                  >
+                    {isCollapsed ? (
+                      <CollapsedColumnStrip column={column} onExpand={() => setExpandedColumn(column.id)} />
+                    ) : column.id === 'draft-board' ? (
+                      <>
+                        <DraftBoard
+                          draftState={draftState}
+                          isInteractionBlocked={showCompletionBanner}
+                          headerAction={<ExpandColumnButton label={column.label} onClick={() => setExpandedColumn(column.id)} />}
+                        />
+                        {showCompletionBanner ? (
+                          <DraftCompletionBanner
+                            teamName={completionBannerTeamName}
+                            onViewHistory={() => {
+                              setShowHistory(true);
+                            }}
+                          />
+                        ) : null}
+                      </>
+                    ) : column.id === 'available-players' ? (
+                      <AvailablePlayersPanel
+                        draftState={draftState}
+                        headerAction={<ExpandColumnButton label={column.label} onClick={() => setExpandedColumn(column.id)} />}
+                      />
+                    ) : (
+                      <PickFeedPanel
+                        draftState={draftState}
+                        headerAction={<ExpandColumnButton label={column.label} onClick={() => setExpandedColumn(column.id)} />}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : null}

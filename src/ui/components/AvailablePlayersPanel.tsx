@@ -17,12 +17,14 @@
 // @spec DFF-UI-141
 // @spec DFF-UI-142
 // @spec DFF-UI-143
-import { useState } from 'react';
+// @spec DFF-UI-132
+import { useState, type ReactNode } from 'react';
 
 import { useDraftContext, type DraftState } from '../context/DraftContext.js';
 
 type AvailablePlayersPanelProps = {
   draftState: DraftState;
+  headerAction?: ReactNode;
 };
 
 type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'Picks';
@@ -162,7 +164,8 @@ function AvailablePlayersLoadingState() {
 // @spec DFF-UI-141
 // @spec DFF-UI-142
 // @spec DFF-UI-143
-export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps) {
+// @spec DFF-UI-132
+export function AvailablePlayersPanel({ draftState, headerAction = null }: AvailablePlayersPanelProps) {
   const { submitPick } = useDraftContext();
   const [activeTab, setActiveTab] = useState<AvailablePlayersTab>('available');
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');
@@ -215,6 +218,7 @@ export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps
           </div>
 
           <div className="flex flex-wrap items-center gap-2" aria-label="Available players views">
+            {headerAction}
             <button
               type="button"
               aria-pressed={activeTab === 'available'}

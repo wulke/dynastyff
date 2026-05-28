@@ -12,13 +12,15 @@
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-092
+// @spec DFF-UI-132
 // @spec DFF-UI-139
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 
 type DraftBoardProps = {
   draftState: DraftState;
   isInteractionBlocked?: boolean;
+  headerAction?: ReactNode;
 };
 
 type DraftedPlayerSummary = {
@@ -249,7 +251,8 @@ function ColumnModeDraftBoard({ draftState }: DraftBoardProps) {
 // @spec DFF-UI-091
 // @spec DFF-UI-093
 // @spec DFF-UI-139
-export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBoardProps) {
+// @spec DFF-UI-132
+export function DraftBoard({ draftState, isInteractionBlocked = false, headerAction = null }: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
   const [layout, setLayout] = useState<LayoutMode>(getStoredLayout);
 
@@ -279,6 +282,7 @@ export function DraftBoard({ draftState, isInteractionBlocked = false }: DraftBo
               Connecting…
             </span>
           ) : null}
+          {headerAction}
           <button
             type="button"
             data-testid="layout-toggle"

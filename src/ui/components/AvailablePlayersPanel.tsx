@@ -136,6 +136,10 @@ function AvailablePlayersLoadingState() {
 // @spec DFF-UI-035
 // @spec DFF-UI-036
 // @spec DFF-UI-080
+// @spec DFF-UI-120
+// @spec DFF-UI-123
+// @spec DFF-UI-125
+// @spec DFF-UI-126
 export function AvailablePlayersPanel({ draftState }: AvailablePlayersPanelProps) {
   const { submitPick } = useDraftContext();
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');

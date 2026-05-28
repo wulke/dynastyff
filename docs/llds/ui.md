@@ -128,6 +128,7 @@ type DraftState = {
 |---|---|
 | `DRAFT_CREATED` | `POST /drafts` response |
 | `STATE_SYNC` | Initial SSE hydration event |
+| `QUEUE_SYNC` | `hydrateDraftQueue` HTTP response |
 | `PICK_MADE` | `pick_made` SSE event |
 | `YOUR_TURN` | `your_turn` SSE event |
 | `TRADE_OFFERED` | `trade_offered` SSE event |

@@ -343,6 +343,120 @@ describe('available players list', () => {
     expect(within(panel).getByText('No targets added yet')).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-121
+  // @spec DFF-UI-125
+  test('keeps the draft room usable and shows an empty targets panel when queue hydration fails', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url === '/drafts' && !init?.method) {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+      }
+
+      if (url === '/drafts' && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/state') {
+        return Promise.resolve(
+          new Response(JSON.stringify(createDraftState()), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(new Response(null, { status: 500 }));
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    const playersPanel = await screen.findByTestId('available-players-panel');
+    const targetsPanel = await screen.findByTestId('targets-panel');
+
+    expect(playersPanel).toBeInTheDocument();
+    expect(within(playersPanel).getByText('CeeDee Lamb')).toBeInTheDocument();
+    expect(within(targetsPanel).getByText('No targets added yet')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load draft queue.');
+  });
+
+  // @spec DFF-UI-121
+  // @spec DFF-UI-125
+  test('omits stale queued players that are absent from available players and the player catalog', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url === '/drafts' && !init?.method) {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+      }
+
+      if (url === '/drafts' && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
+            status: 201,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/state') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(
+              createDraftState({
+                picks: [
+                  {
+                    pick_number: 1,
+                    team_id: 'team-1',
+                    player_id: 'player-picked',
+                    picked_at: '2026-05-27T10:00:00.000Z',
+                  },
+                ],
+              }),
+            ),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        );
+      }
+
+      if (url === '/drafts/draft-available-123/queue') {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ playerId: 'player-missing', rank: 1 }]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    const panel = await screen.findByTestId('targets-panel');
+    expect(within(panel).queryAllByTestId(/^target-player-row-/)).toHaveLength(0);
+    expect(within(panel).getByText('No targets added yet')).toBeInTheDocument();
+    expect(within(panel).queryByText('player-missing')).not.toBeInTheDocument();
+  });
+
   // @spec DFF-UI-034
   test('removes the picked player from the list when a pick_made SSE event arrives', async () => {
     const user = userEvent.setup();

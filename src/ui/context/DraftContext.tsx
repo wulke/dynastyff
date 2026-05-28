@@ -369,6 +369,7 @@ function toCompletedDraft(state: DraftState, completedAt: string): CompletedDraf
 // @spec DFF-UI-073
 // @spec DFF-UI-074
 // @spec DFF-UI-025
+// @spec DFF-UI-124
 function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDraftContextState {
   switch (action.type) {
     case 'DRAFT_CREATED':

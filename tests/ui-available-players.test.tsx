@@ -13,6 +13,10 @@
 // @spec DFF-UI-124
 // @spec DFF-UI-125
 // @spec DFF-UI-126
+// @spec DFF-UI-140
+// @spec DFF-UI-141
+// @spec DFF-UI-142
+// @spec DFF-UI-143
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -196,6 +200,9 @@ describe('available players list', () => {
   // @spec DFF-UI-032
   // @spec DFF-UI-033
   // @spec DFF-UI-080
+  // @spec DFF-UI-140
+  // @spec DFF-UI-141
+  // @spec DFF-UI-143
   test('hydrates from GET /drafts/:id/state with loading skeletons, sorted rows, a compact position filter control, and live name search', async () => {
     const user = userEvent.setup();
     const deferredState = createDeferredResponse();
@@ -246,7 +253,15 @@ describe('available players list', () => {
     );
 
     const panel = await screen.findByTestId('available-players-panel');
+    const availableTab = screen.getByRole('button', { name: /^available$/i });
+    const targetsTab = screen.getByRole('button', { name: /^targets$/i });
     const rows = within(panel).getAllByTestId(/^available-player-row-/);
+
+    expect(availableTab).toHaveAttribute('aria-pressed', 'true');
+    expect(targetsTab).toHaveAttribute('aria-pressed', 'false');
+    expect(targetsTab.className).toContain('border-stone-800');
+    expect(availableTab.className).toContain('border-amber-300/40');
+    expect(screen.queryByTestId('targets-panel')).not.toBeInTheDocument();
 
     expect(rows[0]).toHaveAttribute('data-player-id', 'player-wr-1');
     expect(rows[1]).toHaveAttribute('data-player-id', 'player-rb-1');
@@ -282,6 +297,9 @@ describe('available players list', () => {
   // @spec DFF-UI-121
   // @spec DFF-UI-122
   // @spec DFF-UI-125
+  // @spec DFF-UI-140
+  // @spec DFF-UI-142
+  // @spec DFF-UI-143
   test('hydrates the targets panel from GET /drafts/:id/queue in ascending rank order with an empty state fallback', async () => {
     const user = userEvent.setup();
 
@@ -331,6 +349,7 @@ describe('available players list', () => {
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
+    await user.click(await screen.findByRole('button', { name: /^targets$/i }));
     const panel = await screen.findByTestId('targets-panel');
     const rows = within(panel).getAllByTestId(/^target-player-row-/);
 
@@ -350,6 +369,7 @@ describe('available players list', () => {
 
   // @spec DFF-UI-121
   // @spec DFF-UI-125
+  // @spec DFF-UI-142
   test('keeps the draft room usable and shows an empty targets panel when queue hydration fails', async () => {
     const user = userEvent.setup();
 
@@ -389,6 +409,7 @@ describe('available players list', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     const playersPanel = await screen.findByTestId('available-players-panel');
+    await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const targetsPanel = await screen.findByTestId('targets-panel');
 
     expect(playersPanel).toBeInTheDocument();
@@ -399,6 +420,7 @@ describe('available players list', () => {
 
   // @spec DFF-UI-121
   // @spec DFF-UI-125
+  // @spec DFF-UI-142
   test('omits stale queued players that are absent from available players and the player catalog', async () => {
     const user = userEvent.setup();
 
@@ -456,6 +478,7 @@ describe('available players list', () => {
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
+    await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const panel = await screen.findByTestId('targets-panel');
     expect(within(panel).queryAllByTestId(/^target-player-row-/)).toHaveLength(0);
     expect(within(panel).getByText('No targets added yet')).toBeInTheDocument();
@@ -522,6 +545,7 @@ describe('available players list', () => {
   });
 
   // @spec DFF-UI-124
+  // @spec DFF-UI-142
   test('removes the picked player from the targets panel when a pick_made SSE event arrives', async () => {
     const user = userEvent.setup();
 
@@ -565,6 +589,7 @@ describe('available players list', () => {
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
+    await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const panel = await screen.findByTestId('targets-panel');
     expect(within(panel).getByText('Bijan Robinson')).toBeInTheDocument();
 
@@ -650,6 +675,8 @@ describe('available players list', () => {
   // @spec DFF-UI-123
   // @spec DFF-UI-126
   // @spec DFF-UI-139
+  // @spec DFF-UI-140
+  // @spec DFF-UI-142
   test('shows disabled rows during bot turns, then uses the shared confirmation flow for available players and targets on the user turn', async () => {
     const user = userEvent.setup();
 
@@ -705,18 +732,13 @@ describe('available players list', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     const panel = await screen.findByTestId('available-players-panel');
-    const targetsPanel = await screen.findByTestId('targets-panel');
     const statusBar = await screen.findByTestId('draft-status-bar');
     expect(within(statusBar).getByText('Bob')).toBeInTheDocument();
     expect(within(panel).queryByText('Bot is picking…')).not.toBeInTheDocument();
-    expect(within(targetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
 
     const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
-    const bijanTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
     expect(lambRow).toBeDisabled();
-    expect(bijanTargetRow).toBeDisabled();
     await user.click(lambRow);
-    await user.click(bijanTargetRow);
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/drafts/draft-available-123/pick',
       expect.objectContaining({ method: 'POST' }),
@@ -731,9 +753,7 @@ describe('available players list', () => {
     });
 
     const enabledRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
-    const enabledTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
     expect(enabledRow).toBeEnabled();
-    expect(enabledTargetRow).toBeEnabled();
 
     await user.click(enabledRow);
     const confirmationCard = await screen.findByTestId('pick-confirmation-card');
@@ -744,6 +764,11 @@ describe('available players list', () => {
     );
     await user.click(within(confirmationCard).getByRole('button', { name: /confirm pick/i }));
 
+    await user.click(screen.getByRole('button', { name: /^targets$/i }));
+    const targetsPanel = await screen.findByTestId('targets-panel');
+    expect(within(targetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
+    const enabledTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
+    expect(enabledTargetRow).toBeEnabled();
     await user.click(enabledTargetRow);
     expect(within(await screen.findByTestId('pick-confirmation-card')).getByText('Bijan Robinson')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /confirm pick/i }));

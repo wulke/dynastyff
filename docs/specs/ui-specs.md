@@ -366,16 +366,16 @@ The turn-status badge ("Your turn" / "Bot is picking…") shall be removed from 
 
 ## Available Players / Targets Tabs
 
-**DFF-UI-140** `[ ]`
+**DFF-UI-140** `[x]` → #97
 The Available Players column shall render two tabs: "Available" and "Targets". The active tab shall be visually distinguished with the amber accent style used elsewhere in the UI.
 
-**DFF-UI-141** `[ ]`
+**DFF-UI-141** `[x]` → #97
 The "Available" tab shall render the existing Available Players list content: position filters, name search input, and the scrollable player rows.
 
-**DFF-UI-142** `[ ]`
+**DFF-UI-142** `[x]` → #97
 The "Targets" tab shall render the existing Targets panel content: queued players in ascending rank order, with the empty state message "No targets added yet" when the queue is empty.
 
-**DFF-UI-143** `[ ]`
+**DFF-UI-143** `[x]` → #97
 The Targets panel shall no longer be rendered as a side-by-side inner grid within the Available Players panel. Its content shall only be accessible via the "Targets" tab within the Available Players column.
 
 ---

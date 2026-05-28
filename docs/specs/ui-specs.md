@@ -382,5 +382,5 @@ The Targets panel shall no longer be rendered as a side-by-side inner grid withi
 
 ## Pick Feed Column
 
-**DFF-UI-144** `[ ]`
+**DFF-UI-144** `[x]`
 The Pick Feed panel shall fill the full height of its column. The fixed `max-h-[28rem]` constraint shall be removed; the feed shall scroll independently within the available column height.

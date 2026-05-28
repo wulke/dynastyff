@@ -184,6 +184,7 @@ describe('pick feed panel', () => {
 
     // Pick feed panel should be rendered alongside the draft board
     const pickFeed = screen.getByTestId('pick-feed-panel');
+    expect(screen.getByTestId('pick-feed-column').className).toContain('flex');
     expect(pickFeed).toBeInTheDocument();
     expect(pickFeed.className).toContain('h-full');
     expect(pickFeed.className).toContain('flex-col');

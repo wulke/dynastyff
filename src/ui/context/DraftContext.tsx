@@ -292,6 +292,7 @@ function sortAvailablePlayers(players: AvailablePlayer[]): AvailablePlayer[] {
   return [...players].sort((left, right) => right.dynastyValue - left.dynastyValue);
 }
 
+// @spec DFF-UI-071
 function toUiPlayer(player: {
   id: string;
   name: string;

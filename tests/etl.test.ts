@@ -41,7 +41,7 @@ import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
 import { extractKtcRowsFromPage, scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
 import { scrapeRosterAudit } from '../src/etl/scraper/rosteraudit.js';
-import { parsePickAssetName, waitForScraperPageReady } from '../src/etl/scraper/shared.js';
+import { parsePickAssetName, parseStartupPickName, waitForScraperPageReady } from '../src/etl/scraper/shared.js';
 import type { RawPlayer, ScraperResult } from '../src/etl/types.js';
 
 function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup: () => void } {
@@ -330,6 +330,88 @@ test('parsePickAssetName returns year, round, and optional tier for supported pi
   assert.equal(parsePickAssetName('Rookie Pick'), null);
 });
 
+// @spec DFF-SPKV-010
+test('parseStartupPickName returns round and pickInRound for Startup R.PP names', () => {
+  assert.deepEqual(parseStartupPickName('Startup 1.04'), {
+    round: 1,
+    pickInRound: 4,
+  });
+  assert.deepEqual(parseStartupPickName('startup 3.11'), {
+    round: 3,
+    pickInRound: 11,
+  });
+  assert.deepEqual(parseStartupPickName('STARTUP 12.1'), {
+    round: 12,
+    pickInRound: 1,
+  });
+  assert.equal(parseStartupPickName('Startup 1'), null);
+  assert.equal(parseStartupPickName('Startup X.04'), null);
+});
+
+// @spec DFF-SPKV-010
+// @spec DFF-SPKV-012
+// @spec DFF-SPKV-013
+test('scrapeKtcPlayers fixture path emits startup pick rows and warns on malformed Startup names', async () => {
+  const currentYear = new Date().getFullYear();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fixturePath = path.join(tempDir, 'ktc-startup.json');
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  fs.writeFileSync(
+    fixturePath,
+    JSON.stringify([
+      {
+        name: 'Alpha QB',
+        position: 'QB',
+        nflTeam: 'BUF',
+        age: 24,
+        isRookie: false,
+        rawValue: 100,
+        adp: 12.5,
+      },
+      {
+        name: 'Startup 1.04',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 900,
+        adp: null,
+      },
+      {
+        name: 'Startup 1.XX',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 999,
+        adp: null,
+      },
+    ]),
+  );
+
+  process.env.DYNASTYFF_KTC_FIXTURE_PATH = fixturePath;
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    const result = await scrapeKtcPlayers();
+
+    assert.deepEqual(result.pickValues, [
+      { year: currentYear, round: 1, pickInRound: 4, rawValue: 900 },
+    ]);
+    assert.deepEqual(warnings, [
+      '[ETL] WARN: ktc returned malformed startup pick asset "Startup 1.XX". Excluding from pick values.',
+    ]);
+  } finally {
+    console.warn = originalWarn;
+    delete process.env.DYNASTYFF_KTC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 // @spec DFF-ETL-090
 // @spec DFF-ETL-091
 test('scrapeKtcPlayers fixture path splits RDP rows into pick values, averages tier variants, and filters unsupported positions', async () => {
@@ -439,6 +521,64 @@ test('scrapeKtcPlayers fixture path splits RDP rows into pick values, averages t
   }
 });
 
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+test('FantasyCalc API-shape fixture parsing emits current-year exact PICK rows as startup pick values', async () => {
+  const currentYear = new Date().getFullYear();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fixturePath = path.join(tempDir, 'fantasycalc-startup-api.json');
+
+  fs.writeFileSync(
+    fixturePath,
+    JSON.stringify([
+      {
+        value: 456,
+        player: {
+          name: 'Bravo WR',
+          position: 'WR',
+          team: 'CIN',
+          age: 23,
+          rookie: false,
+        },
+      },
+      {
+        value: 789,
+        player: {
+          name: `${currentYear} Pick 1.04`,
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+      {
+        value: 654,
+        player: {
+          name: `${currentYear + 1} 1st`,
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+    ]),
+  );
+
+  process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH = fixturePath;
+
+  try {
+    const result = await scrapeFantasyCalc();
+
+    assert.deepEqual(result.pickValues, [
+      { year: currentYear, round: 1, pickInRound: 4, rawValue: 789 },
+      { year: currentYear + 1, round: 1, rawValue: 654 },
+    ]);
+  } finally {
+    delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 // @spec DFF-ETL-090
 // @spec DFF-ETL-091
 test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', async () => {
@@ -520,6 +660,60 @@ test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', asy
     });
   } finally {
     delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+test('RosterAudit API-shape fixture parsing emits exact current-year pick rows as startup pick values', async () => {
+  const currentYear = new Date().getFullYear();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fixturePath = path.join(tempDir, 'rosteraudit-startup-api.json');
+
+  fs.writeFileSync(
+    fixturePath,
+    JSON.stringify([
+      {
+        type: 'player',
+        name: 'Bravo WR',
+        position: 'WR',
+        team: 'CIN',
+        age: 23,
+        value: 456,
+      },
+      {
+        type: 'pick',
+        name: `${currentYear} Pick 1.04`,
+        pick_season: currentYear,
+        pick_round: 1,
+        pick_slot: '04',
+        is_exact: true,
+        value: 789,
+      },
+      {
+        type: 'pick',
+        name: `${currentYear + 1} Early 1st`,
+        pick_season: currentYear + 1,
+        pick_round: 1,
+        pick_slot: null,
+        is_exact: false,
+        value: 654,
+      },
+    ]),
+  );
+
+  process.env.DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH = fixturePath;
+
+  try {
+    const result = await scrapeRosterAudit();
+
+    assert.deepEqual(result.pickValues, [
+      { year: currentYear, round: 1, pickInRound: 4, rawValue: 789 },
+      { year: currentYear + 1, round: 1, rawValue: 654 },
+    ]);
+  } finally {
+    delete process.env.DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH;
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
@@ -1257,6 +1451,9 @@ test('runEtl aggregates pick values across sources and updates existing round-le
 });
 
 // @spec DFF-SPKV-014
+// @spec DFF-SPKV-020
+// @spec DFF-SPKV-021
+// @spec DFF-SPKV-030
 // @spec DFF-SPKV-031
 // @spec DFF-SPKV-032
 test('runEtl stores startup pick slot rows separately from round-level future pick rows', async () => {

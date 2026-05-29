@@ -114,7 +114,7 @@ If `player-aliases.json` exists but contains malformed JSON, ETL fails before an
 
 ## Startup Pick Parsing
 
-KTC and RosterAudit publish startup draft pick values using the naming format `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`). A new `parseStartupPickName` function (in `shared.ts`) extracts `round` and `pick_in_round` from this format:
+KTC publishes startup draft pick values using the naming format `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`). A new `parseStartupPickName` function (in `shared.ts`) extracts `round` and `pick_in_round` from this format:
 
 ```
 Regex: /^startup\s+(?<round>\d+)\.(?<pickInRound>\d+)$/i
@@ -122,7 +122,7 @@ Regex: /^startup\s+(?<round>\d+)\.(?<pickInRound>\d+)$/i
 
 Rows matching this pattern are emitted as `RawPickValue` entries with `year = current calendar year`, `round`, `pick_in_round`, and `rawValue`. They are not averaged across tier variants (startup slots have no tier concept) and do not go through the existing `parsePickAssetName` future-pick path.
 
-FantasyCalc's startup pick naming format is to be determined by inspecting the live source at implementation time. Once identified, the same `parseStartupPickName` regex or an equivalent shall be applied.
+FantasyCalc and RosterAudit exact startup slots are verified against the live source as of 2026-05-28. Both currently publish exact current-year slots using names like `"2026 Pick 1.04"` alongside round-level future assets like `"2026 1st"` and `"2027 Early 1st"`. Their scrapers shall treat current-year exact-slot names as startup picks, extracting the same `{ round, pick_in_round }` shape and assigning `year = current calendar year` at ETL run time.
 
 ## Normalization
 
@@ -157,7 +157,8 @@ Only source columns that successfully matched the canonical player row participa
 - KTC returns no supported players -> exit before any source writes; leave the `etl_runs` row incomplete so draft pinning ignores it
 - KTC or FantasyCalc returns an `RDP`/`PICK` row whose name matches `YYYY [tier] Nth` -> store it as a pick value row for the extracted `(year, round)` pair instead of dropping it as an unsupported player position
 - KTC or FantasyCalc returns an `RDP`/`PICK` row whose name does not match the ETL pick regex -> treat it as a non-pick asset and exclude it from `pickValues`
-- KTC or RosterAudit returns a row beginning with `"Startup"` whose name does not match `Startup R.PP` -> log a warning and exclude from `pickValues`; do not treat as a player row
+- KTC returns a row beginning with `"Startup"` whose name does not match `Startup R.PP` -> log a warning and exclude from `pickValues`; do not treat as a player row
+- FantasyCalc or RosterAudit returns a current-year exact-pick row that does not match `YYYY Pick R.PP` -> exclude it from `pickValues`; do not collapse it into a round-level future pick
 - ETL run contains no startup pick rows for the current year -> continue normally; log a warning so operators know to re-run ETL before starting a draft
 - DynastyDaddy runtime instability -> keep the scraper module in the codebase, but exclude it from the live `npm run etl` source list until re-enabled
 

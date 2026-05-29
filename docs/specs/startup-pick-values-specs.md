@@ -25,10 +25,10 @@ The system shall add a `pick_in_round` INTEGER column to the `pick_value_snapsho
 ## ETL — Scraping
 
 **DFF-SPKV-010** `[ ]`
-The KTC and RosterAudit scrapers shall parse startup pick asset names matching the pattern `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`) and extract `round` (left of the dot) and `pick_in_round` (right of the dot, zero-padded or plain integer). The regex shall be case-insensitive on the `Startup` prefix.
+The KTC scraper shall parse startup pick asset names matching the pattern `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`) and extract `round` (left of the dot) and `pick_in_round` (right of the dot, zero-padded or plain integer). The regex shall be case-insensitive on the `Startup` prefix.
 
 **DFF-SPKV-011** `[ ]`
-The FantasyCalc scraper shall parse startup pick values if the source publishes them. The format shall be determined at implementation time by inspecting the live source; the parsed result shall produce the same `{ round, pickInRound }` shape regardless of source naming convention.
+The FantasyCalc and RosterAudit scrapers shall parse startup pick values when the source publishes exact current-year slots. As verified against the live sources on 2026-05-28, both currently publish names like `"2026 Pick 1.04"`. The parsed result shall produce the same `{ round, pickInRound }` shape regardless of source naming convention.
 
 **DFF-SPKV-012** `[ ]`
 The ETL pipeline shall assign the current calendar year (at the time of the ETL run) as the `year` field for all parsed startup pick values.

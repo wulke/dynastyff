@@ -2,6 +2,8 @@
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
 // @spec DFF-ETL-090
+// @spec DFF-SPKV-010
+// @spec DFF-SPKV-014
 import fs from 'node:fs/promises';
 
 import type { Page } from 'playwright';
@@ -23,6 +25,7 @@ type ScrapedPlayerRow = {
 type ScrapedPickValueRow = {
   year: number;
   round: number;
+  pickInRound?: number;
   rawValue: number;
 };
 
@@ -37,8 +40,14 @@ export type ParsedPickAssetName = {
   tier?: 'early' | 'mid' | 'late';
 };
 
+export type ParsedStartupPickName = {
+  round: number;
+  pickInRound: number;
+};
+
 const pickAssetNamePattern =
   /^(?<year>\d{4})(?:\s+(?<tier>early|mid|late))?\s+(?<round>[1-4])(st|nd|rd|th)$/i;
+const startupPickAssetNamePattern = /^startup\s+(?<round>\d+)\.(?<pickInRound>\d+)$/i;
 
 function normalizePlayers(rows: readonly ScrapedPlayerRow[]): RawPlayer[] {
   return rows.flatMap((row) => {
@@ -72,10 +81,16 @@ function normalizePickValues(rows: readonly ScrapedPickValueRow[]): RawPickValue
       return [];
     }
 
+    const pickInRound =
+      typeof row.pickInRound === 'number' && Number.isFinite(row.pickInRound) && row.pickInRound >= 1
+        ? Math.trunc(row.pickInRound)
+        : undefined;
+
     return [
       {
         year: Math.trunc(row.year),
         round: Math.trunc(row.round),
+        ...(pickInRound === undefined ? {} : { pickInRound }),
         rawValue: row.rawValue,
       },
     ];
@@ -118,6 +133,24 @@ export function parsePickAssetName(name: string): ParsedPickAssetName | null {
   }
 
   return { year, round, tier };
+}
+
+// @spec DFF-SPKV-010
+export function parseStartupPickName(name: string): ParsedStartupPickName | null {
+  const match = startupPickAssetNamePattern.exec(name.trim());
+
+  if (!match?.groups) {
+    return null;
+  }
+
+  const round = Number(match.groups.round);
+  const pickInRound = Number(match.groups.pickInRound);
+
+  if (!Number.isInteger(round) || !Number.isInteger(pickInRound) || round < 1 || pickInRound < 1) {
+    return null;
+  }
+
+  return { round, pickInRound };
 }
 
 type ExtractedPagePayload = {

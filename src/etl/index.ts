@@ -219,7 +219,7 @@ function resolvePickInRound(pickValue: Pick<NormalizedPickValue, 'pickInRound'>)
 
 // @spec DFF-SPKV-035
 function getCurrentCalendarYear(timestamp: string): number {
-  return new Date(timestamp).getUTCFullYear();
+  return new Date(timestamp).getFullYear();
 }
 
 // @spec DFF-SPKV-035

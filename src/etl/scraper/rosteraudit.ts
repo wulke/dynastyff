@@ -125,6 +125,8 @@ function parsePickValue(entry: RosterAuditApiEntry, currentYear: number): RawPic
   return { year, round, rawValue };
 }
 
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
 function parseEntries(
   entries: RosterAuditApiEntry[],
   currentYear = new Date().getFullYear(),

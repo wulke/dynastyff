@@ -165,7 +165,7 @@ When the user commits a pick (ADVISOR_RESET dispatched), the system shall DELETE
 ## Trade Modal
 
 **DFF-UI-050** `[ ]` → #19
-When a `trade_offered` SSE event is received, the system shall open a blocking modal that prevents interaction with the Draft Board until the user responds.
+When a `trade_offered` SSE event is received, the system shall open a blocking modal that prevents interaction with the drafting workspace until the user responds.
 
 **DFF-UI-051** `[ ]` → #19
 For user-targeted trades (`is_bot_to_bot: false`), the trade modal shall display assets offered and assets requested, with "Accept" and "Decline" buttons.
@@ -175,6 +175,12 @@ For bot-to-bot trades (`is_bot_to_bot: true`), the trade modal shall display the
 
 **DFF-UI-053** `[ ]` → #19
 When the user responds to the trade modal, the system shall POST /drafts/:id/trade-response with the appropriate status and close the modal.
+
+**DFF-UI-054** `[ ]` → #19
+When the user clicks "OK" for a bot-to-bot trade, the system shall POST /drafts/:id/trade-response with status `accepted`.
+
+**DFF-UI-055** `[ ]` → #19
+When the user clicks "Force Decline" for a bot-to-bot trade, the system shall POST /drafts/:id/trade-response with status `force_declined`.
 
 ---
 

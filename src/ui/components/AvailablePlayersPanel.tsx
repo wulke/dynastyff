@@ -166,6 +166,7 @@ function AvailablePlayersLoadingState() {
 // @spec DFF-UI-142
 // @spec DFF-UI-143
 // @spec DFF-UI-132
+// @spec DFF-UI-050
 export function AvailablePlayersPanel({
   draftState,
   isInteractionBlocked = false,

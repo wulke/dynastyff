@@ -4,7 +4,7 @@
 // @spec DFF-UI-053
 // @spec DFF-UI-054
 // @spec DFF-UI-055
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -194,13 +194,10 @@ async function renderDraftRoom() {
 }
 
 // @spec DFF-UI-050
-// @spec DFF-UI-051
-test('opens a blocking modal for a user-targeted trade and prevents draft-room interaction beneath it', async () => {
-  const user = await renderDraftRoom();
-
+function emitUserTrade(tradeId = 'trade-user-1') {
   act(() => {
     MockEventSource.instances[0]?.emit('trade_offered', {
-      trade_id: 'trade-user-1',
+      trade_id: tradeId,
       initiating_team_id: 'team-1',
       receiving_team_id: 'team-2',
       assets_sent: [{ type: 'player', player_id: 'player-1' }],
@@ -208,6 +205,13 @@ test('opens a blocking modal for a user-targeted trade and prevents draft-room i
       is_bot_to_bot: false,
     });
   });
+}
+
+// @spec DFF-UI-050
+// @spec DFF-UI-051
+test('opens a blocking modal for a user-targeted trade and prevents draft-room interaction beneath it', async () => {
+  await renderDraftRoom();
+  emitUserTrade();
 
   expect(screen.getByRole('dialog')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /accept/i })).toBeInTheDocument();
@@ -220,17 +224,7 @@ test('opens a blocking modal for a user-targeted trade and prevents draft-room i
 // @spec DFF-UI-053
 test('accepting a user-targeted trade posts accepted and closes the modal', async () => {
   const user = await renderDraftRoom();
-
-  act(() => {
-    MockEventSource.instances[0]?.emit('trade_offered', {
-      trade_id: 'trade-user-accept',
-      initiating_team_id: 'team-1',
-      receiving_team_id: 'team-2',
-      assets_sent: [{ type: 'player', player_id: 'player-1' }],
-      assets_received: [{ type: 'player', player_id: 'player-2' }],
-      is_bot_to_bot: false,
-    });
-  });
+  emitUserTrade('trade-user-accept');
 
   await user.click(screen.getByRole('button', { name: /accept/i }));
 
@@ -243,6 +237,26 @@ test('accepting a user-targeted trade posts accepted and closes the modal', asyn
       },
       body: JSON.stringify({ status: 'accepted' }),
     }),
+  );
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+// @spec DFF-UI-053
+test('declining a user-targeted trade posts declined and closes the modal', async () => {
+  const user = await renderDraftRoom();
+  emitUserTrade('trade-user-decline');
+
+  await user.click(screen.getByRole('button', { name: /decline/i }));
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    '/drafts/draft-trade-123/trade-response',
+    expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'declined' }),
+      }),
   );
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
@@ -276,6 +290,115 @@ test('bot-to-bot trade modal renders OK and Force Decline actions and maps OK to
   );
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
+
+// @spec DFF-UI-053
+test('keeps the trade modal open and shows an error toast when trade-response returns non-ok', async () => {
+  const user = await renderDraftRoom();
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts/draft-trade-123/trade-response' && method === 'POST') {
+      return Promise.resolve(new Response(JSON.stringify({ error: 'boom' }), { status: 500 }));
+    }
+
+    return setupTradeModalDefaultResponse(url, method);
+  });
+  emitUserTrade('trade-user-failure');
+
+  await user.click(screen.getByRole('button', { name: /accept/i }));
+
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(screen.getByRole('alert', { hidden: true })).toHaveTextContent(/trade response failed\. try again\./i);
+});
+
+// @spec DFF-UI-050
+test('does not dismiss the trade modal on escape key or outside click', async () => {
+  await renderDraftRoom();
+  emitUserTrade('trade-user-block-dismiss');
+
+  const dialog = screen.getByRole('dialog');
+  const overlay = screen.getByTestId('trade-modal-overlay');
+
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+  fireEvent.pointerDown(overlay);
+  fireEvent.click(overlay);
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+});
+
+// @spec DFF-UI-050
+test('renders the latest trade when a second trade_offered event arrives before the first resolves', async () => {
+  await renderDraftRoom();
+  emitUserTrade('trade-user-first');
+
+  expect(screen.getByText(/josh allen \(qb\)/i)).toBeInTheDocument();
+
+  act(() => {
+    MockEventSource.instances[0]?.emit('trade_offered', {
+      trade_id: 'trade-user-second',
+      initiating_team_id: 'team-3',
+      receiving_team_id: 'team-2',
+      assets_sent: [{ type: 'future_pick', year: 2028, round: 2 }],
+      assets_received: [{ type: 'player', player_id: 'player-1' }],
+      is_bot_to_bot: false,
+    });
+  });
+
+  expect(screen.getByText(/bot gamma sends/i)).toBeInTheDocument();
+  expect(screen.getByText(/2028 round 2/i)).toBeInTheDocument();
+  expect(screen.queryByText(/bot alpha sends/i)).not.toBeInTheDocument();
+});
+
+function setupTradeModalDefaultResponse(url: string, method: string): Promise<Response> {
+  if (url === '/drafts' && method === 'GET') {
+    return Promise.resolve(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }
+
+  if (url === '/drafts' && method === 'POST') {
+    return Promise.resolve(
+      new Response(JSON.stringify({ draftId: 'draft-trade-123' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }
+
+  if (url === '/drafts/draft-trade-123/state' && method === 'GET') {
+    return Promise.resolve(
+      new Response(JSON.stringify(createDraftingState()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }
+
+  if (url === '/drafts/draft-trade-123/queue' && method === 'GET') {
+    return Promise.resolve(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }
+
+  if (url === '/drafts/draft-trade-123/trade-response' && method === 'POST') {
+    return Promise.resolve(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }
+
+  throw new Error(`Unexpected fetch: ${method} ${url}`);
+}
 
 // @spec DFF-UI-052
 // @spec DFF-UI-055

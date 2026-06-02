@@ -217,6 +217,21 @@ function resolvePickInRound(pickValue: Pick<NormalizedPickValue, 'pickInRound'>)
   return pickValue.pickInRound ?? 0;
 }
 
+// @spec DFF-SPKV-035
+function getCurrentCalendarYear(timestamp: string): number {
+  return new Date(timestamp).getFullYear();
+}
+
+// @spec DFF-SPKV-035
+function hasCurrentYearStartupPickValues(
+  results: readonly ScraperResult[],
+  currentYear: number,
+): boolean {
+  return results.some((result) =>
+    result.pickValues.some((pickValue) => pickValue.year === currentYear && (pickValue.pickInRound ?? 0) >= 1),
+  );
+}
+
 function getPlayerCandidates(
   statements: EtlStatements,
   position: string,
@@ -597,6 +612,7 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
 // @spec DFF-ETL-052
 export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const timestamp = options.now?.() ?? new Date().toISOString();
+  const currentYear = getCurrentCalendarYear(timestamp);
   const sqlite = createDatabase(options.databasePath);
   const runId = randomUUID();
 
@@ -654,6 +670,13 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
     }
 
     statements.updateRunCompletion.run(timestamp, JSON.stringify(sourcesSucceeded), runId);
+
+    const successfulResults = scraperResults.filter((result) => sourcesSucceeded.includes(result.source));
+    if (!hasCurrentYearStartupPickValues(successfulResults, currentYear)) {
+      console.warn(
+        `[ETL] WARN: no startup pick values were written for ${currentYear}. Re-run ETL before starting a draft.`,
+      );
+    }
 
     console.log('[ETL] Done.');
     return 0;

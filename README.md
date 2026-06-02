@@ -159,6 +159,9 @@ Current ETL scope:
 - Filters players to `QB`, `RB`, `WR`, and `TE`
 - Returns a shared scraper contract: players `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values `{ year, round, pickInRound?, rawValue }`
 - Parses KTC and FantasyCalc future pick assets such as `2027 Early 1st` into ETL pick values keyed by `(year, round, pick_in_round)`, using `pick_in_round = 0` for round-level future picks
+- Parses KTC startup slots named `Startup R.PP` and FantasyCalc / RosterAudit exact current-year slots named `YYYY Pick R.PP` into startup pick values with `pick_in_round >= 1`
+- Assigns startup pick rows to the ETL run's current calendar year, logs and excludes malformed `Startup ...` KTC assets, and keeps startup plus future picks in the same per-source normalization pool
+- Warns when an ETL run completes without any current-year startup pick rows so operators know to re-run ETL before starting a draft
 - If at least one scraper succeeds, creates an `etl_runs` record and finalizes it with per-source success status on completion
 - Persists raw per-source player and pick snapshots into `player_value_snapshots` and `pick_value_snapshots`
 - Wraps each source's snapshot writes plus `players` / `pick_values` hot-path updates in a single transaction

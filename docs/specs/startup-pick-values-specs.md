@@ -24,16 +24,16 @@ The system shall add a `pick_in_round` INTEGER column to the `pick_value_snapsho
 
 ## ETL — Scraping
 
-**DFF-SPKV-010** `[ ]`
-The KTC and RosterAudit scrapers shall parse startup pick asset names matching the pattern `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`) and extract `round` (left of the dot) and `pick_in_round` (right of the dot, zero-padded or plain integer). The regex shall be case-insensitive on the `Startup` prefix.
+**DFF-SPKV-010** `[x]` → #70
+The KTC scraper shall parse startup pick asset names matching the pattern `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`) and extract `round` (left of the dot) and `pick_in_round` (right of the dot, zero-padded or plain integer). The regex shall be case-insensitive on the `Startup` prefix.
 
-**DFF-SPKV-011** `[ ]`
-The FantasyCalc scraper shall parse startup pick values if the source publishes them. The format shall be determined at implementation time by inspecting the live source; the parsed result shall produce the same `{ round, pickInRound }` shape regardless of source naming convention.
+**DFF-SPKV-011** `[x]` → #70
+The FantasyCalc and RosterAudit scrapers shall parse startup pick values when the source publishes exact current-year slots. As verified against the live sources on 2026-05-28, both currently publish names like `"2026 Pick 1.04"`. The parsed result shall produce the same `{ round, pickInRound }` shape regardless of source naming convention.
 
-**DFF-SPKV-012** `[ ]`
+**DFF-SPKV-012** `[x]` → #70
 The ETL pipeline shall assign the current calendar year (at the time of the ETL run) as the `year` field for all parsed startup pick values.
 
-**DFF-SPKV-013** `[ ]`
+**DFF-SPKV-013** `[x]` → #70
 When a scraper encounters a pick asset name beginning with `"Startup"` that does not match the `R.PP` pattern, the system shall log a warning and exclude that row from `pickValues`; it shall not be treated as a player row.
 
 **DFF-SPKV-014** `[x]` → #69
@@ -46,17 +46,17 @@ The static snapshot export shall include only `pick_values` rows where `pick_in_
 
 ## ETL — Normalization & Aggregation
 
-**DFF-SPKV-020** `[ ]`
+**DFF-SPKV-020** `[x]` → #70
 The system shall normalize startup pick values in the same per-source min-max pool as future pick values. All pick rows — future and startup — for a given source shall be scaled together on the 0–9999 range in a single normalization pass.
 
-**DFF-SPKV-021** `[ ]`
+**DFF-SPKV-021** `[x]` → #70
 The system shall aggregate `dynasty_value` for each `(year, round, pick_in_round)` entry as the rounded mean of all non-NULL normalized per-source values for that exact key, consistent with the existing future pick aggregation logic.
 
 ---
 
 ## ETL — Upsert
 
-**DFF-SPKV-030** `[ ]`
+**DFF-SPKV-030** `[x]` → #70
 When upserting startup pick values, the system shall use `(year, round, pick_in_round)` as the match key. An existing row matching all three fields shall be updated; a non-matching key shall result in a new insert.
 
 **DFF-SPKV-031** `[x]` → #69
@@ -64,6 +64,9 @@ When upserting future pick values (round-level), the system shall continue to us
 
 **DFF-SPKV-032** `[x]` → #69
 When writing to `pick_value_snapshots`, the system shall populate `pick_in_round` from the source row: `>= 1` for startup picks, `0` for round-level future picks.
+
+**DFF-SPKV-035** `[x]` → #70
+When an ETL run completes without any startup pick rows for the current calendar year from the successfully written sources, the system shall log a warning and continue normally so operators know to re-run ETL before starting a draft.
 
 ---
 

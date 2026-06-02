@@ -37,6 +37,11 @@
 // @spec DFF-DATA-092
 // @spec DFF-HIST-060
 // @spec DFF-HIST-061
+// @spec DFF-SPKV-040
+// @spec DFF-SPKV-041
+// @spec DFF-SPKV-042
+// @spec DFF-SPKV-043
+// @spec DFF-SPKV-044
 import { randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte } from 'drizzle-orm';
@@ -259,6 +264,10 @@ export type DraftStateSnapshot = {
   }>;
   available_players: DraftAvailablePlayer[];
   drafted_players: DraftAvailablePlayer[];
+  startup_pick_values: Array<{
+    global_pick_number: number;
+    dynasty_value: number;
+  }>;
   trades: Array<{
     id: string;
     round: number;
@@ -302,6 +311,23 @@ export type FuturePickAssetValue = {
   dynasty_value: number;
 };
 
+type StartupPickValueReferenceRow = {
+  round: number;
+  pickInRound: number;
+  dynastyValue: number;
+};
+
+type StartupPickValueEntry = {
+  globalPickNumber: number;
+  dynastyValue: number;
+};
+
+export type InMemoryDraftState = {
+  startupPickValues: Map<number, number>;
+};
+
+const inMemoryDraftStates = new Map<string, InMemoryDraftState>();
+
 export function createDraft({
   databasePath,
   config,
@@ -313,20 +339,28 @@ export function createDraft({
   const createdAt = now();
   const baseYear = new Date(createdAt).getUTCFullYear();
   const draftId = idGenerator();
+  const latestCompletedRun = db
+    .select({
+      id: etlRuns.id,
+    })
+    .from(etlRuns)
+    .where(isNotNull(etlRuns.completedAt))
+    .orderBy(desc(etlRuns.startedAt))
+    .get();
+  const startupPickValues = loadStartupPickValuesForDraft({
+    db,
+    draftId,
+    currentYear: baseYear,
+    teamCount: config.teamCount,
+    rounds: config.rounds,
+    etlRunId: latestCompletedRun?.id ?? null,
+  });
+  const serializedStartupPickValues = JSON.stringify(
+    serializeStartupPickValues(startupPickValues.startupPickValues),
+  );
 
   try {
     db.transaction((tx) => {
-      // @spec DFF-HIST-060
-      // @spec DFF-HIST-061
-      const latestCompletedRun = tx
-        .select({
-          id: etlRuns.id,
-        })
-        .from(etlRuns)
-        .where(isNotNull(etlRuns.completedAt))
-        .orderBy(desc(etlRuns.startedAt))
-        .get();
-
       tx.insert(drafts)
         .values({
           id: draftId,
@@ -341,6 +375,7 @@ export function createDraft({
           futurePickRounds: config.futurePickRounds,
           rosterConfig: JSON.stringify(config.rosterConfig),
           etlRunId: latestCompletedRun?.id ?? null,
+          startupPickValues: serializedStartupPickValues,
         })
         .run();
 
@@ -370,6 +405,7 @@ export function createDraft({
         .run();
     });
 
+    inMemoryDraftStates.set(draftId, startupPickValues);
     return draftId;
   } finally {
     sqlite.close();
@@ -605,10 +641,11 @@ export function getDraftState({
       .select({
         id: drafts.id,
         status: drafts.status,
+        startup_pick_values: drafts.startupPickValues,
       })
       .from(drafts)
       .where(eq(drafts.id, draftId))
-      .get() as { id: string; status: DraftStatus } | undefined;
+      .get() as { id: string; status: DraftStatus; startup_pick_values: string } | undefined;
 
     if (!draft) {
       return null;
@@ -693,6 +730,7 @@ export function getDraftState({
         .all(),
       available_players: getAvailablePlayersForDraft({ databasePath, draftId }),
       drafted_players: getDraftedPlayersForDraft({ databasePath, draftId }),
+      startup_pick_values: parseStartupPickValuesForState(draft.startup_pick_values),
       trades: db
         .select({
           id: trades.id,
@@ -1322,6 +1360,123 @@ function selectArchetype(random: () => number): TeamArchetype {
   const index = Math.min(Math.floor(random() * teamArchetypes.length), lastIndex);
 
   return teamArchetypes[index];
+}
+
+// @spec DFF-SPKV-040
+// @spec DFF-SPKV-041
+// @spec DFF-SPKV-042
+// @spec DFF-SPKV-043
+// @spec DFF-SPKV-044
+function loadStartupPickValuesForDraft({
+  db,
+  draftId,
+  currentYear,
+  teamCount,
+  rounds,
+  etlRunId,
+}: {
+  db: ReturnType<typeof createDrizzleDb>['db'];
+  draftId: string;
+  currentYear: number;
+  teamCount: number;
+  rounds: number;
+  etlRunId: string | null;
+}): InMemoryDraftState {
+  const startupPickValueRows = db
+    .select({
+      round: pickValues.round,
+      pickInRound: pickValues.pickInRound,
+      dynastyValue: pickValues.dynastyValue,
+    })
+    .from(pickValues)
+    .where(and(eq(pickValues.year, currentYear), gte(pickValues.pickInRound, 1)))
+    .orderBy(asc(pickValues.round), asc(pickValues.pickInRound))
+    .all() as StartupPickValueReferenceRow[];
+
+  if (startupPickValueRows.length === 0) {
+    console.warn(
+      `[draft] WARN: no startup pick values found for pinned ETL snapshot ${etlRunId ?? 'none'} in ${currentYear}. Continuing with an empty startupPickValues map.`,
+    );
+
+    return {
+      startupPickValues: new Map<number, number>(),
+    };
+  }
+
+  return {
+    startupPickValues: deriveStartupPickValues({
+      teamCount,
+      rounds,
+      startupPickValueRows,
+    }),
+  };
+}
+
+// @spec DFF-SPKV-041
+// @spec DFF-SPKV-042
+function deriveStartupPickValues({
+  teamCount,
+  rounds,
+  startupPickValueRows,
+}: {
+  teamCount: number;
+  rounds: number;
+  startupPickValueRows: StartupPickValueReferenceRow[];
+}): Map<number, number> {
+  const referenceValues = new Map<number, number>();
+
+  for (const row of startupPickValueRows) {
+    referenceValues.set(toGlobalPickNumber(row.round, row.pickInRound, 12), row.dynastyValue);
+  }
+
+  const sortedReferenceGlobals = [...referenceValues.keys()].sort((left, right) => left - right);
+  const lastPublishedGlobalPick = sortedReferenceGlobals.at(-1);
+
+  if (lastPublishedGlobalPick === undefined) {
+    return new Map<number, number>();
+  }
+
+  const lastPublishedDynastyValue = referenceValues.get(lastPublishedGlobalPick);
+
+  if (lastPublishedDynastyValue === undefined) {
+    return new Map<number, number>();
+  }
+
+  const startupPickValues = new Map<number, number>();
+  const totalDraftSlots = teamCount * rounds;
+
+  for (let globalPickNumber = 1; globalPickNumber <= totalDraftSlots; globalPickNumber += 1) {
+    const lookupGlobalPick = Math.min(globalPickNumber, lastPublishedGlobalPick);
+    startupPickValues.set(
+      globalPickNumber,
+      referenceValues.get(lookupGlobalPick) ?? lastPublishedDynastyValue,
+    );
+  }
+
+  return startupPickValues;
+}
+
+// @spec DFF-SPKV-041
+function toGlobalPickNumber(round: number, pickInRound: number, teamCount: number): number {
+  return (round - 1) * teamCount + pickInRound;
+}
+
+// @spec DFF-SPKV-043
+function serializeStartupPickValues(startupPickValues: Map<number, number>): StartupPickValueEntry[] {
+  return [...startupPickValues.entries()]
+    .sort(([leftGlobalPick], [rightGlobalPick]) => leftGlobalPick - rightGlobalPick)
+    .map(([globalPickNumber, dynastyValue]) => ({
+      globalPickNumber,
+      dynastyValue,
+    }));
+}
+
+// @spec DFF-SPKV-043
+function parseStartupPickValuesForState(value: string): DraftStateSnapshot['startup_pick_values'] {
+  return (parseJsonColumn(value) as StartupPickValueEntry[]).map((entry) => ({
+    global_pick_number: entry.globalPickNumber,
+    dynasty_value: entry.dynastyValue,
+  }));
 }
 
 function parseJsonColumn(value: string): unknown {

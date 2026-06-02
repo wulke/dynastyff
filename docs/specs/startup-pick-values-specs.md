@@ -72,10 +72,10 @@ When an ETL run completes without any startup pick rows for the current calendar
 
 ## Draft Engine — Snapshot Loading
 
-**DFF-SPKV-040** `[ ]`
+**DFF-SPKV-040** `[x]`
 When a draft is created, the system shall load all `pick_values` rows for the current calendar year with `pick_in_round >= 1` from the latest pinned ETL snapshot as the startup pick reference dataset.
 
-**DFF-SPKV-041** `[ ]`
+**DFF-SPKV-041** `[x]`
 At draft creation time, the system shall derive a `startupPickValues` map of type `Map<number, number>` (global pick number → dynasty value) by converting each loaded startup pick row from its stored 12-team reference frame to the actual draft's global pick number using the formula:
 
 ```
@@ -90,13 +90,13 @@ ktc_pick_in_round = ((sourceGlobal - 1) % 12) + 1
 ktc_round         = Math.ceil(sourceGlobal / 12)
 ```
 
-**DFF-SPKV-042** `[ ]`
+**DFF-SPKV-042** `[x]`
 When a draft's global pick number exceeds the last published slot in the startup pick reference dataset, the system shall clamp the lookup to the last available slot and use its dynasty value.
 
-**DFF-SPKV-043** `[ ]`
+**DFF-SPKV-043** `[x]`
 The system shall store the derived `startupPickValues` map in `InMemoryDraftState` as part of the static snapshot loaded at draft creation. It shall not be recomputed during the draft.
 
-**DFF-SPKV-044** `[ ]`
+**DFF-SPKV-044** `[x]`
 When no startup pick values are present in the ETL snapshot for the current year, the system shall log a warning and continue draft creation with an empty `startupPickValues` map; bot trade evaluation shall treat startup pick slots as having `dynasty_value = 0` until ETL is re-run.
 
 ---

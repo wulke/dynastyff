@@ -11,3 +11,4 @@ data/dynastyff.sqlite-shm
 data/dynastyff.sqlite-wal
 data/dynastyff.db
 dist/
+coverage/

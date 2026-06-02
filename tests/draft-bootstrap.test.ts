@@ -25,6 +25,47 @@ import { initializeDatabase } from '../src/db/init.js';
 import { createDraft, updateDraftStatus } from '../src/draft/service.js';
 import { teamArchetypes } from '../src/db/schema.js';
 
+function seedCompletedEtlRun(db: Database.Database, runId = 'run-completed-latest'): string {
+  db.prepare(
+    `INSERT INTO etl_runs (
+      id, started_at, completed_at, sources_attempted, sources_succeeded
+    ) VALUES (?, ?, ?, ?, ?)`,
+  ).run(
+    runId,
+    '2026-05-18T21:00:00.000Z',
+    '2026-05-18T21:20:00.000Z',
+    '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+    '["ktc","fantasycalc"]',
+  );
+
+  return runId;
+}
+
+function seedStartupPickValue(
+  db: Database.Database,
+  {
+    id,
+    year,
+    round,
+    pickInRound,
+    dynastyValue,
+    updatedAt = '2026-05-18T21:20:00.000Z',
+  }: {
+    id: string;
+    year: number;
+    round: number;
+    pickInRound: number;
+    dynastyValue: number;
+    updatedAt?: string;
+  },
+): void {
+  db.prepare(
+    `INSERT INTO pick_values (
+      id, year, round, pick_in_round, dynasty_value, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(id, year, round, pickInRound, dynastyValue, updatedAt);
+}
+
 function withDatabase(
   run: (db: Database.Database, databasePath: string) => void | Promise<void>,
 ): Promise<void> {
@@ -368,6 +409,164 @@ test('createDraft leaves drafts.etl_run_id null when no completed ETL run exists
     assert.equal(draft.etl_run_id, null);
     assert.equal(teamCount, 2);
     assert.equal(draftOrderCount, 2);
+  });
+});
+
+// @spec DFF-SPKV-040
+// @spec DFF-SPKV-041
+// @spec DFF-SPKV-043
+test('createDraft stores direct 12-team startup pick values for each draft slot', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedCompletedEtlRun(db);
+    seedStartupPickValue(db, { id: 'startup-1-01', year: 2026, round: 1, pickInRound: 1, dynastyValue: 9000 });
+    seedStartupPickValue(db, { id: 'startup-1-02', year: 2026, round: 1, pickInRound: 2, dynastyValue: 8900 });
+    seedStartupPickValue(db, { id: 'startup-1-03', year: 2026, round: 1, pickInRound: 3, dynastyValue: 8800 });
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 12,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 6,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T22:00:00.000Z',
+      random: () => 0,
+    });
+
+    const draft = db
+      .prepare('SELECT startup_pick_values FROM drafts WHERE id = ?')
+      .get(draftId) as { startup_pick_values: string };
+    const startupPickValues = JSON.parse(draft.startup_pick_values) as Array<{
+      globalPickNumber: number;
+      dynastyValue: number;
+    }>;
+
+    assert.deepEqual(startupPickValues.slice(0, 4), [
+      { globalPickNumber: 1, dynastyValue: 9000 },
+      { globalPickNumber: 2, dynastyValue: 8900 },
+      { globalPickNumber: 3, dynastyValue: 8800 },
+      { globalPickNumber: 4, dynastyValue: 8800 },
+    ]);
+    assert.equal(startupPickValues.length, 12);
+    assert.deepEqual(startupPickValues.at(-1), { globalPickNumber: 12, dynastyValue: 8800 });
+  });
+});
+
+// @spec DFF-SPKV-040
+// @spec DFF-SPKV-041
+// @spec DFF-SPKV-042
+// @spec DFF-SPKV-043
+test('createDraft converts startup pick values from the 12-team reference frame for 8-team drafts and clamps uncovered slots', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedCompletedEtlRun(db);
+    seedStartupPickValue(db, { id: 'startup-1-01', year: 2026, round: 1, pickInRound: 1, dynastyValue: 9100 });
+    seedStartupPickValue(db, { id: 'startup-1-08', year: 2026, round: 1, pickInRound: 8, dynastyValue: 8200 });
+    seedStartupPickValue(db, { id: 'startup-1-09', year: 2026, round: 1, pickInRound: 9, dynastyValue: 7900 });
+    seedStartupPickValue(db, { id: 'startup-2-01', year: 2026, round: 2, pickInRound: 1, dynastyValue: 6800 });
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 8,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 4,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T22:00:00.000Z',
+      random: () => 0,
+    });
+
+    const draft = db
+      .prepare('SELECT startup_pick_values FROM drafts WHERE id = ?')
+      .get(draftId) as { startup_pick_values: string };
+    const startupPickValues = JSON.parse(draft.startup_pick_values) as Array<{
+      globalPickNumber: number;
+      dynastyValue: number;
+    }>;
+
+    assert.deepEqual(
+      startupPickValues.filter((entry) => [1, 8, 9, 13, 16].includes(entry.globalPickNumber)),
+      [
+        { globalPickNumber: 1, dynastyValue: 9100 },
+        { globalPickNumber: 8, dynastyValue: 8200 },
+        { globalPickNumber: 9, dynastyValue: 7900 },
+        { globalPickNumber: 13, dynastyValue: 6800 },
+        { globalPickNumber: 16, dynastyValue: 6800 },
+      ],
+    );
+  });
+});
+
+// @spec DFF-SPKV-040
+// @spec DFF-SPKV-044
+test('createDraft warns and stores an empty startup pick map when the pinned ETL snapshot has no current-year startup pick values', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedCompletedEtlRun(db);
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+      warnings.push([message, ...optionalParams].join(' '));
+    };
+
+    try {
+      const draftId = createDraft({
+        databasePath,
+        config: {
+          teamCount: 12,
+          rounds: 1,
+          scoringFormat: 'ppr',
+          userPickPosition: 6,
+          futurePickYears: 1,
+          futurePickRounds: 1,
+          rosterConfig: {
+            QB: 1,
+            RB: 2,
+            WR: 3,
+            TE: 1,
+            FLEX: 1,
+            SF: 1,
+            bench: 6,
+          },
+        },
+        now: () => '2026-05-18T22:00:00.000Z',
+        random: () => 0,
+      });
+
+      const draft = db
+        .prepare('SELECT startup_pick_values FROM drafts WHERE id = ?')
+        .get(draftId) as { startup_pick_values: string };
+
+      assert.deepEqual(JSON.parse(draft.startup_pick_values), []);
+      assert.match(
+        warnings[0] ?? '',
+        /\[draft\] WARN: no startup pick values found for pinned ETL snapshot .* in 2026\. Continuing with an empty startupPickValues map\./,
+      );
+    } finally {
+      console.warn = originalWarn;
+    }
   });
 });
 

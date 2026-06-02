@@ -88,6 +88,7 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - Each drafting column header now includes an expand control; expanding one panel turns the other two into narrow icon strips with rotated labels, and the layout resets to the default weighted widths on page load instead of persisting accordion state
 - The `Available Players` column now uses `Available` / `Targets` tabs: the default `Available` view keeps the dynasty-sorted list, client-side position filters, live name search, draft-start skeleton rows, a two-step pick confirmation card, bot-turn disabled rows, and pick-submission error toasts
 - The `Targets` tab hydrates from `GET /drafts/:id/queue`, shows queued players in ascending rank order with position badges and dynasty values, removes picked targets on live `pick_made` events, and shares the same confirmation flow plus bot-turn disabled state
+- `trade_offered` SSE events now open a blocking Radix trade modal over the live draft room; user-targeted trades render `Accept` / `Decline`, while bot-to-bot trades render `OK` / `Force Decline`, and each action posts `POST /drafts/:id/trade-response`
 - The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh

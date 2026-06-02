@@ -69,7 +69,7 @@ export type AvailablePlayer = {
   adp: number | null;
 };
 
-type TradeRecord = {
+export type TradeRecord = {
   id: string;
   round: number;
   initiatingTeamId: string;
@@ -90,6 +90,7 @@ type PendingTrade = {
 };
 
 type SseStatus = 'connecting' | 'connected' | 'disconnected';
+export type TradeResponseStatus = 'accepted' | 'declined' | 'force_declined';
 
 export type DraftState = {
   draftId: string | null;
@@ -129,6 +130,7 @@ export interface DraftContextValue {
   loadDraft(draftId: string): Promise<boolean>;
   showError(message: string): void;
   submitPick(playerId: string): void;
+  respondToTrade(status: TradeResponseStatus): Promise<boolean>;
   updateQueue(queue: QueueEntry[]): void;
   newDraft(): void;
 }
@@ -215,6 +217,7 @@ type TradeOfferedPayload = {
   assets_sent: unknown[];
   assets_received: unknown[];
   is_bot_to_bot: boolean;
+  round?: number;
 };
 
 type TradeResolvedPayload = {
@@ -255,6 +258,7 @@ const DRAFT_CONTEXT_ERROR = 'Draft context is unavailable.';
 const GENERIC_DRAFT_CREATE_ERROR = 'Draft creation failed. Check your config and try again.';
 const GENERIC_DRAFT_LOAD_ERROR = 'Failed to load draft state.';
 const GENERIC_PICK_ERROR = 'Pick failed — player may already be taken.';
+const GENERIC_TRADE_RESPONSE_ERROR = 'Trade response failed. Try again.';
 const GENERIC_DISCONNECT_ERROR = 'Lost connection to draft server. Refresh to reconnect.';
 const GENERIC_QUEUE_LOAD_ERROR = 'Failed to load draft queue.';
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000] as const;
@@ -480,21 +484,23 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         return state;
       }
 
+      const currentDraftState = state.draftState;
+
       // @spec DFF-UI-064
       // Derive round from current pick number if not provided in payload
       const tradeRound =
-        action.payload.round > 0
+        typeof action.payload.round === 'number' && action.payload.round > 0
           ? action.payload.round
-          : state.draftState.currentPickNumber
-            ? state.draftState.draftOrder.find(
-                (slot) => slot.pickNumber === state.draftState.currentPickNumber,
+          : currentDraftState.currentPickNumber
+            ? currentDraftState.draftOrder.find(
+                (slot) => slot.pickNumber === currentDraftState.currentPickNumber,
               )?.round ?? 0
             : 0;
 
       return {
         ...state,
         draftState: {
-          ...state.draftState,
+          ...currentDraftState,
           pendingTrade: {
             tradeId: action.payload.trade_id,
             initiatingTeamId: action.payload.initiating_team_id,
@@ -998,6 +1004,36 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
   }
 
+  // @spec DFF-UI-053
+  // @spec DFF-UI-054
+  // @spec DFF-UI-055
+  async function respondToTrade(status: TradeResponseStatus): Promise<boolean> {
+    const draftId = state.draftState?.draftId;
+
+    if (!draftId) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`/drafts/${draftId}/trade-response`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error(GENERIC_TRADE_RESPONSE_ERROR);
+      }
+
+      return true;
+    } catch {
+      setToastMessage(GENERIC_TRADE_RESPONSE_ERROR);
+      return false;
+    }
+  }
+
   // @spec DFF-STATIC-060
   // @spec DFF-STATIC-062
   async function updateQueue(queue: QueueEntry[]) {
@@ -1052,6 +1088,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
         loadDraft,
         showError,
         submitPick,
+        respondToTrade,
         updateQueue,
         newDraft,
       }}

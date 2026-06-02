@@ -16,6 +16,7 @@ import {
   type DraftState,
   DraftContextProvider,
   type QueueEntry,
+  type TradeResponseStatus,
 } from '../ui/context/DraftContext.js';
 import type { DraftConfig, Snapshot } from '../ui/types.js';
 
@@ -294,6 +295,13 @@ export function InMemoryDraftContextProvider({
     // Static build does not expose the shared HTTP toast surface
   }
 
+  // @spec DFF-UI-053
+  // @spec DFF-UI-054
+  // @spec DFF-UI-055
+  async function respondToTrade(_status: TradeResponseStatus): Promise<boolean> {
+    return false;
+  }
+
   const value: DraftContextValue = {
     snapshot,
     draftState,
@@ -302,6 +310,7 @@ export function InMemoryDraftContextProvider({
     loadDraft,
     showError,
     submitPick,
+    respondToTrade,
     updateQueue,
     newDraft,
   };

@@ -371,6 +371,38 @@ Deferred to issue `#16`:
 - User attempts to submit twice -> `isSubmittingDraft` short-circuits duplicate requests until the first request settles.
 - Fetch rejects entirely or the server returns a 5xx error -> remain on the config screen and show the generic draft-creation failure toast.
 
+## Trade Modal
+
+Rendered in the drafting view whenever `draftState.pendingTrade` is non-null. The modal is a blocking Radix Dialog controlled entirely by reducer state fed from SSE and trade-response HTTP calls.
+
+**Behavior:**
+- Trigger: `TRADE_OFFERED` sets `draftState.pendingTrade`, which opens the dialog immediately without any extra local toggle state
+- Blocking scope: the overlay covers the full drafting workspace (status bar + all three columns) and disables pointer interaction beneath it until the user responds
+- Copy: the modal identifies the initiating team, receiving team, and renders both `assetsSent` and `assetsReceived` in separate sections so the user can inspect the full trade
+- User-targeted trade (`isBotToBot: false`): render `Accept` and `Decline`
+- Bot-to-bot trade (`isBotToBot: true`): render `OK` and `Force Decline`
+- Response mapping:
+  - `Accept` -> `accepted`
+  - `Decline` -> `declined`
+  - `OK` -> `accepted`
+  - `Force Decline` -> `force_declined`
+- Submission: each action calls `POST /drafts/:id/trade-response` with `{ status }`
+- Close behavior: the dialog remains open until the response POST succeeds or a `trade_resolved` SSE event clears `draftState.pendingTrade`
+- Failure handling: if the response POST fails, keep the dialog open and surface a toast so the user can retry without losing context
+
+**Trade asset presentation:**
+- `player` assets resolve against `playerCatalog` and show player name plus position badge when metadata exists
+- `pick_slot` assets render as `Startup R.PP` using the trade payload label contract and include inline dynasty value when present
+- `future_pick` assets render as `<year> Round <round>`
+- Unknown or malformed assets degrade to a compact raw-label fallback instead of crashing the dialog
+
+**Edge Case Probe:**
+- A second `trade_offered` arrives before the first trade resolves -> the reducer replaces `pendingTrade` with the latest server truth, and the dialog re-renders from that payload
+- The user refreshes or resumes a draft while a trade is pending -> `GET /drafts/:id/state` preserves `pendingTrade` so the dialog reopens on hydration
+- `POST /drafts/:id/trade-response` returns `409` because the trade already resolved elsewhere in the bot chain -> keep the modal open until the corresponding `trade_resolved` SSE arrives, avoiding premature local closure
+- Team or player metadata is missing from local state -> the dialog falls back to raw ids so the trade remains reviewable
+- User presses Escape or clicks outside the dialog -> those dismiss paths are disabled because trade acknowledgment is mandatory before the draft continues
+
 ## Draft History View
 
 Rendered after the user clicks `View Full History` from the draft completion banner. Uses the `draftState` data accumulated during the draft via SSE events (picks, trades, rosters).

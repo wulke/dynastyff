@@ -86,7 +86,7 @@ type DeferredResponse = {
 };
 
 function createDeferredResponse(): DeferredResponse {
-  let resolve = (_value: Response) => undefined;
+  let resolve: (value: Response) => void = () => undefined;
   const promise = new Promise<Response>((innerResolve) => {
     resolve = innerResolve;
   });

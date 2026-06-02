@@ -2,6 +2,10 @@
 // @spec DFF-ENGINE-002
 // @spec DFF-ENGINE-004
 // @spec DFF-ENGINE-005
+// @spec DFF-ENGINE-040
+// @spec DFF-ENGINE-041
+// @spec DFF-ENGINE-042
+// @spec DFF-ENGINE-050
 // @spec DFF-ENGINE-011
 // @spec DFF-ENGINE-012
 // @spec DFF-ENGINE-013
@@ -24,6 +28,11 @@
 // @spec DFF-DATA-050
 // @spec DFF-DATA-052
 // @spec DFF-DATA-061
+// @spec DFF-DATA-042
+// @spec DFF-DATA-062
+// @spec DFF-DATA-071
+// @spec DFF-DATA-072
+// @spec DFF-DATA-082
 // @spec DFF-DATA-070
 // @spec DFF-DATA-092
 // @spec DFF-HIST-060
@@ -44,6 +53,7 @@ import {
   etlRuns,
   picks,
   players,
+  pickValues,
   rosterPlayers,
   scoringFormats,
   teamArchetypes,
@@ -135,6 +145,39 @@ type DeleteDraftQueueEntryOptions = {
   databasePath: string;
   draftId: string;
   playerId: string;
+};
+
+type TradeAsset = PlayerTradeAsset | PickSlotTradeAsset | FuturePickTradeAsset;
+
+type PlayerTradeAsset = {
+  type: 'player';
+  player_id: string;
+};
+
+type PickSlotTradeAsset = {
+  type: 'pick_slot';
+  draft_order_id?: string;
+  pick_number?: number;
+};
+
+type FuturePickTradeAsset = {
+  type: 'future_pick';
+  year: number;
+  round: number;
+};
+
+type ResolveTradeOptions = {
+  databasePath: string;
+  tradeId: string;
+  draftId: string;
+  pickNumber: number;
+  round: number;
+  initiatingTeamId: string;
+  receivingTeamId: string;
+  assetsSent: unknown[];
+  assetsReceived: unknown[];
+  status: TradeStatus;
+  now?: () => string;
 };
 
 const botTeamNames = [
@@ -251,6 +294,13 @@ export type DeleteDraftQueueEntryResult =
   | { status: 'ok' }
   | { status: 'draft_not_found' }
   | { status: 'queue_entry_not_found' };
+
+export type FuturePickAssetValue = {
+  team_id: string;
+  year: number;
+  round: number;
+  dynasty_value: number;
+};
 
 export function createDraft({
   databasePath,
@@ -690,6 +740,42 @@ export function getDraftHistory({ databasePath }: GetDraftHistoryOptions): Draft
   }
 }
 
+// @spec DFF-DATA-072
+export function getFuturePickAssetValuesForDraft({
+  databasePath,
+  draftId,
+}: {
+  databasePath: string;
+  draftId: string;
+}): FuturePickAssetValue[] {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    return db
+      .select({
+        team_id: teamPickAssets.teamId,
+        year: teamPickAssets.year,
+        round: teamPickAssets.round,
+        dynasty_value: pickValues.dynastyValue,
+      })
+      .from(teamPickAssets)
+      .innerJoin(
+        pickValues,
+        and(
+          eq(teamPickAssets.year, pickValues.year),
+          eq(teamPickAssets.round, pickValues.round),
+          eq(pickValues.pickInRound, 0),
+        ),
+      )
+      .innerJoin(teams, eq(teamPickAssets.teamId, teams.id))
+      .where(eq(teamPickAssets.draftId, draftId))
+      .orderBy(asc(teams.pickPosition), asc(teamPickAssets.year), asc(teamPickAssets.round))
+      .all() as FuturePickAssetValue[];
+  } finally {
+    sqlite.close();
+  }
+}
+
 // @spec DFF-DATA-093
 export function getDraftQueue({
   databasePath,
@@ -868,6 +954,73 @@ export function deleteDraftQueueEntry({
   }
 }
 
+// @spec DFF-ENGINE-040
+// @spec DFF-ENGINE-041
+// @spec DFF-ENGINE-042
+// @spec DFF-ENGINE-050
+// @spec DFF-DATA-042
+// @spec DFF-DATA-062
+// @spec DFF-DATA-071
+// @spec DFF-DATA-082
+export function resolveTrade({
+  databasePath,
+  tradeId,
+  draftId,
+  pickNumber,
+  round,
+  initiatingTeamId,
+  receivingTeamId,
+  assetsSent,
+  assetsReceived,
+  status,
+  now = defaultNow,
+}: ResolveTradeOptions): void {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+  const createdAt = now();
+  const parsedAssetsSent = assetsSent.map(parseTradeAsset);
+  const parsedAssetsReceived = assetsReceived.map(parseTradeAsset);
+
+  try {
+    db.transaction((tx) => {
+      tx.insert(trades)
+        .values({
+          id: tradeId,
+          draftId,
+          pickNumber,
+          round,
+          initiatingTeamId,
+          receivingTeamId,
+          assetsSent: JSON.stringify(assetsSent),
+          assetsReceived: JSON.stringify(assetsReceived),
+          status,
+          createdAt,
+        })
+        .run();
+
+      if (status !== 'accepted') {
+        return;
+      }
+
+      transferTradeAssets({
+        tx,
+        draftId,
+        fromTeamId: initiatingTeamId,
+        toTeamId: receivingTeamId,
+        assets: parsedAssetsSent,
+      });
+      transferTradeAssets({
+        tx,
+        draftId,
+        fromTeamId: receivingTeamId,
+        toTeamId: initiatingTeamId,
+        assets: parsedAssetsReceived,
+      });
+    });
+  } finally {
+    sqlite.close();
+  }
+}
+
 // @spec DFF-ENGINE-013
 export const emitTradeOffered = emitTradeOfferedEvent;
 // @spec DFF-ENGINE-014
@@ -980,6 +1133,187 @@ function buildTeamPickAssets(
         round: roundIndex + 1,
       })),
     ),
+  );
+}
+
+function transferTradeAssets({
+  tx,
+  draftId,
+  fromTeamId,
+  toTeamId,
+  assets,
+}: {
+  tx: any;
+  draftId: string;
+  fromTeamId: string;
+  toTeamId: string;
+  assets: TradeAsset[];
+}): void {
+  for (const asset of assets) {
+    if (asset.type === 'player') {
+      const moved = tx
+        .update(rosterPlayers)
+        .set({ teamId: toTeamId })
+        .where(
+          and(
+            eq(rosterPlayers.draftId, draftId),
+            eq(rosterPlayers.teamId, fromTeamId),
+            eq(rosterPlayers.playerId, asset.player_id),
+          ),
+        )
+        .run();
+
+      if (moved.changes !== 1) {
+        throw new Error(`Trade asset transfer failed for player ${asset.player_id}.`);
+      }
+
+      continue;
+    }
+
+    if (asset.type === 'future_pick') {
+      const moved = tx
+        .update(teamPickAssets)
+        .set({ teamId: toTeamId })
+        .where(
+          and(
+            eq(teamPickAssets.draftId, draftId),
+            eq(teamPickAssets.teamId, fromTeamId),
+            eq(teamPickAssets.year, asset.year),
+            eq(teamPickAssets.round, asset.round),
+          ),
+        )
+        .run();
+
+      if (moved.changes !== 1) {
+        throw new Error(`Trade asset transfer failed for future pick ${asset.year} round ${asset.round}.`);
+      }
+
+      continue;
+    }
+
+    // @spec DFF-ENGINE-051
+    const slot = resolveTradePickSlot({ tx, draftId, fromTeamId, asset });
+
+    const existingPick = tx
+      .select({ id: picks.id })
+      .from(picks)
+      .where(eq(picks.draftOrderId, slot.id))
+      .get();
+
+    if (existingPick) {
+      throw new Error(`Trade asset transfer failed for pick slot ${slot.pickNumber}: slot already used.`);
+    }
+
+    const moved = tx
+      .update(draftOrder)
+      .set({ teamId: toTeamId })
+      .where(eq(draftOrder.id, slot.id))
+      .run();
+
+    if (moved.changes !== 1) {
+      throw new Error(`Trade asset transfer failed for pick slot ${slot.pickNumber}.`);
+    }
+  }
+}
+
+function resolveTradePickSlot({
+  tx,
+  draftId,
+  fromTeamId,
+  asset,
+}: {
+  tx: any;
+  draftId: string;
+  fromTeamId: string;
+  asset: PickSlotTradeAsset;
+}): { id: string; pickNumber: number } {
+  if (asset.draft_order_id) {
+    const slot = tx
+      .select({
+        id: draftOrder.id,
+        pickNumber: draftOrder.pickNumber,
+      })
+      .from(draftOrder)
+      .where(
+        and(
+          eq(draftOrder.id, asset.draft_order_id),
+          eq(draftOrder.draftId, draftId),
+          eq(draftOrder.teamId, fromTeamId),
+        ),
+      )
+      .get();
+
+    if (slot) {
+      return slot;
+    }
+  }
+
+  if (asset.pick_number !== undefined) {
+    const slot = tx
+      .select({
+        id: draftOrder.id,
+        pickNumber: draftOrder.pickNumber,
+      })
+      .from(draftOrder)
+      .where(
+        and(
+          eq(draftOrder.draftId, draftId),
+          eq(draftOrder.teamId, fromTeamId),
+          eq(draftOrder.pickNumber, asset.pick_number),
+        ),
+      )
+      .get();
+
+    if (slot) {
+      return slot;
+    }
+  }
+
+  throw new Error('Trade asset transfer failed for pick slot.');
+}
+
+function parseTradeAsset(asset: unknown): TradeAsset {
+  if (isPlayerTradeAsset(asset)) {
+    return asset;
+  }
+
+  if (isPickSlotTradeAsset(asset)) {
+    return asset;
+  }
+
+  if (isFuturePickTradeAsset(asset)) {
+    return asset;
+  }
+
+  throw new Error('Unsupported trade asset payload.');
+}
+
+function isPlayerTradeAsset(asset: unknown): asset is PlayerTradeAsset {
+  return (
+    typeof asset === 'object' &&
+    asset !== null &&
+    (asset as { type?: unknown }).type === 'player' &&
+    typeof (asset as { player_id?: unknown }).player_id === 'string'
+  );
+}
+
+function isPickSlotTradeAsset(asset: unknown): asset is PickSlotTradeAsset {
+  return (
+    typeof asset === 'object' &&
+    asset !== null &&
+    (asset as { type?: unknown }).type === 'pick_slot' &&
+    (typeof (asset as { draft_order_id?: unknown }).draft_order_id === 'string' ||
+      typeof (asset as { pick_number?: unknown }).pick_number === 'number')
+  );
+}
+
+function isFuturePickTradeAsset(asset: unknown): asset is FuturePickTradeAsset {
+  return (
+    typeof asset === 'object' &&
+    asset !== null &&
+    (asset as { type?: unknown }).type === 'future_pick' &&
+    typeof (asset as { year?: unknown }).year === 'number' &&
+    typeof (asset as { round?: unknown }).round === 'number'
   );
 }
 

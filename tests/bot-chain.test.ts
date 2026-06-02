@@ -2,6 +2,7 @@
 // @spec DFF-ENGINE-031
 // @spec DFF-ENGINE-032
 // @spec DFF-ENGINE-033
+// @spec DFF-ENGINE-040
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
 import test from 'node:test';
@@ -120,5 +121,81 @@ test('createBotChainCoordinator de-duplicates concurrent trigger calls for the s
       { pick_number: 2, player_id: 'player-2' },
       { pick_number: 3, player_id: 'player-3' },
     ]);
+  });
+});
+
+// @spec DFF-ENGINE-033
+// @spec DFF-ENGINE-040
+test('createBotChainCoordinator clears the pending trade when accepted trade persistence fails', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-1', 'Player One', 6000);
+    seedPlayer(db, 'player-2', 'Player Two', 5900);
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 3,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const teams = db
+      .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number }>;
+    const receivingTeamId = teams.find((team) => team.is_user === 0)!.id;
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      now: () => '2026-05-18T20:05:00.000Z',
+      sleep: async () => undefined,
+      decideBotAction: ({ slot }) => ({
+        type: 'trade',
+        tradeId: 'trade-failure',
+        initiatingTeamId: slot.teamId,
+        receivingTeamId,
+        assetsSent: [{ type: 'player', player_id: 'missing-player' }],
+        assetsReceived: [],
+        isBotToBot: true,
+      }),
+    });
+
+    botChain.trigger(draftId);
+
+    let seenFailure = false;
+
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      try {
+        const resolved = botChain.resolvePendingTrade(draftId, 'accepted');
+
+        if (!resolved) {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          continue;
+        }
+      } catch (error) {
+        assert.match(String(error), /Trade asset transfer failed for player missing-player\./);
+        seenFailure = true;
+        break;
+      }
+    }
+
+    assert.equal(seenFailure, true);
+    assert.equal(botChain.resolvePendingTrade(draftId, 'accepted'), false);
+
+    await botChain.waitForIdle(draftId);
   });
 });

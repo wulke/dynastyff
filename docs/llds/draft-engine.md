@@ -190,14 +190,23 @@ The coordinator de-duplicates concurrent triggers per draft id so repeated `POST
 
 ## POST /drafts/:id/trade-response
 
-The trade-response route currently exists to unblock the bot-chain pause/resume contract:
+The trade-response route is the HTTP entry point for persisted trade execution:
 
 - Accepts `{ "status": "accepted" | "declined" | "force_declined" }`
 - Returns HTTP `400` for missing or unsupported statuses
 - Returns HTTP `409` when no trade is currently paused for that draft
-- Resolves the pending in-memory bot-chain pause, emits `trade_resolved`, and allows the bot chain to continue
+- Delegates the resolved status to the pending bot-chain trade execution state
+- Emits `trade_resolved` only after the persistence step succeeds, then allows the bot chain to continue
 
-Trade persistence and asset transfer remain owned by the dedicated trade-execution slice. The route does not yet write a `trades` row or mutate assets on `accepted`.
+Accepted trades execute as one SQLite transaction:
+
+1. Insert the `trades` row
+2. Update `roster_players.team_id` for each traded player
+3. Update `draft_order.team_id` for each traded pick slot
+4. Update `team_pick_assets.team_id` for each traded future pick asset
+5. Commit only if every write succeeds
+
+Declined and `force_declined` trades insert the `trades` row with the resolved status but perform no asset transfer.
 
 ## Read Models
 
@@ -286,8 +295,8 @@ When a bot initiates a trade (see bot-simulator LLD for initiation logic):
 1. Draft engine pauses the bot chain
 2. Emits `trade_offered` SSE event with `is_bot_to_bot` flag
 3. Waits for `POST /trade-response`
-4. In the current bot-chain slice, `POST /trade-response` emits `trade_resolved` and resumes the bot chain
-5. In the later trade-execution slice, `accepted` transfers assets (mutates `draft_order` rows, transfers `team_pick_assets` rows, moves drafted players between teams if applicable) and writes the `trades` row; `declined` / `force_declined` persist the declined outcome without asset transfer. Startup pick slot dynasty values for the trade display are resolved from `InMemoryDraftState.startupPickValues` by global pick number.
+4. `POST /trade-response` persists the trade result, emits `trade_resolved`, and resumes the bot chain
+5. `accepted` transfers assets (mutates `draft_order` rows, transfers `team_pick_assets` rows, moves drafted players between teams if applicable) in the same transaction as the `trades` insert; `declined` / `force_declined` persist the declined outcome without asset transfer. Startup pick slot dynasty values for the trade display are resolved from `InMemoryDraftState.startupPickValues` by global pick number.
 
 ## Decisions
 

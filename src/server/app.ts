@@ -142,31 +142,35 @@ export function createDraftTradeResponseRoute({
   databasePath,
   botChain = createBotChainCoordinator({ databasePath }),
 }: CreateDraftServerOptions): RequestHandler {
-  return (request, response) => {
-    const draftId = readDraftIdParam(request);
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
 
-    if (!draftId) {
-      response.status(404).json({ error: 'Draft not found.' });
-      return;
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const status = readTradeResponseStatus(request.body);
+
+      if (!status) {
+        response.status(400).json({
+          error: 'Invalid trade response: status must be accepted, declined, or force_declined.',
+        });
+        return;
+      }
+
+      const resumed = botChain.resolvePendingTrade(draftId, status);
+
+      if (!resumed) {
+        response.status(409).json({ error: 'No pending trade for this draft.' });
+        return;
+      }
+
+      response.status(200).json({ ok: true });
+    } catch (error) {
+      next(error);
     }
-
-    const status = readTradeResponseStatus(request.body);
-
-    if (!status) {
-      response.status(400).json({
-        error: 'Invalid trade response: status must be accepted, declined, or force_declined.',
-      });
-      return;
-    }
-
-    const resumed = botChain.resolvePendingTrade(draftId, status);
-
-    if (!resumed) {
-      response.status(409).json({ error: 'No pending trade for this draft.' });
-      return;
-    }
-
-    response.status(200).json({ ok: true });
   };
 }
 

@@ -279,12 +279,6 @@ export const teamPickAssets = sqliteTable(
     round: integer('round').notNull(),
   },
   (table) => [
-    uniqueIndex('team_pick_assets_draft_year_round_team_unique').on(
-      table.draftId,
-      table.teamId,
-      table.year,
-      table.round,
-    ),
     index('team_pick_assets_team_id_idx').on(table.teamId),
   ],
 );

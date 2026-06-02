@@ -1191,6 +1191,7 @@ function transferTradeAssets({
       continue;
     }
 
+    // @spec DFF-ENGINE-051
     const slot = resolveTradePickSlot({ tx, draftId, fromTeamId, asset });
 
     const existingPick = tx

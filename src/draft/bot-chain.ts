@@ -53,6 +53,7 @@ type PendingTradeState = {
   assetsSent: unknown[];
   assetsReceived: unknown[];
   resolve: (status: TradeStatus) => void;
+  reject: (error: unknown) => void;
 };
 
 export type DecideBotActionContext = {
@@ -187,23 +188,29 @@ export function createBotChainCoordinator({
         return false;
       }
 
-      resolveTrade({
-        databasePath,
-        tradeId: pendingTrade.tradeId,
-        draftId,
-        pickNumber: pendingTrade.pickNumber,
-        round: pendingTrade.round,
-        initiatingTeamId: pendingTrade.initiatingTeamId,
-        receivingTeamId: pendingTrade.receivingTeamId,
-        assetsSent: pendingTrade.assetsSent,
-        assetsReceived: pendingTrade.assetsReceived,
-        status,
-        now,
-      });
+      try {
+        resolveTrade({
+          databasePath,
+          tradeId: pendingTrade.tradeId,
+          draftId,
+          pickNumber: pendingTrade.pickNumber,
+          round: pendingTrade.round,
+          initiatingTeamId: pendingTrade.initiatingTeamId,
+          receivingTeamId: pendingTrade.receivingTeamId,
+          assetsSent: pendingTrade.assetsSent,
+          assetsReceived: pendingTrade.assetsReceived,
+          status,
+          now,
+        });
 
-      pendingTrades.delete(draftId);
-      pendingTrade.resolve(status);
-      return true;
+        pendingTrade.resolve(status);
+        return true;
+      } catch (error) {
+        pendingTrade.reject(error);
+        throw error;
+      } finally {
+        pendingTrades.delete(draftId);
+      }
     },
   };
 }
@@ -217,7 +224,7 @@ async function awaitTradeResolution(
   action: BotTradeAction,
   pendingTrades: Map<string, PendingTradeState>,
 ): Promise<void> {
-  const status = await new Promise<TradeStatus>((resolve) => {
+  const status = await new Promise<TradeStatus>((resolve, reject) => {
     pendingTrades.set(draftId, {
       tradeId: action.tradeId,
       pickNumber: slot.pickNumber,
@@ -227,6 +234,7 @@ async function awaitTradeResolution(
       assetsSent: action.assetsSent,
       assetsReceived: action.assetsReceived,
       resolve,
+      reject,
     });
 
     emitTradeOfferedEvent({

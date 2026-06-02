@@ -6,6 +6,7 @@
 // @spec DFF-DATA-062
 // @spec DFF-DATA-071
 // @spec DFF-DATA-072
+// @spec DFF-DATA-080
 // @spec DFF-DATA-082
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -71,6 +72,7 @@ function createTradeDraft(databasePath: string): string {
 
 // @spec DFF-ENGINE-040
 // @spec DFF-ENGINE-050
+// @spec DFF-DATA-080
 // @spec DFF-DATA-042
 // @spec DFF-DATA-062
 // @spec DFF-DATA-071
@@ -196,7 +198,7 @@ test('resolveTrade accepted swaps traded players, pick slots, and future pick as
     assert.deepEqual(
       db
         .prepare(
-          `SELECT id, draft_id, pick_number, round, initiating_team_id, receiving_team_id, status
+          `SELECT id, draft_id, pick_number, round, initiating_team_id, receiving_team_id, assets_sent, assets_received, status, created_at
            FROM trades`,
         )
         .all(),
@@ -208,7 +210,26 @@ test('resolveTrade accepted swaps traded players, pick slots, and future pick as
           round: 1,
           initiating_team_id: initiatingTeamId,
           receiving_team_id: receivingTeamId,
+          assets_sent: JSON.stringify([
+            { type: 'player', player_id: 'player-a' },
+            {
+              type: 'pick_slot',
+              draft_order_id: initiatingPickSlot.id,
+              pick_number: initiatingPickSlot.pick_number,
+            },
+            { type: 'future_pick', year: initiatingFuturePick.year, round: initiatingFuturePick.round },
+          ]),
+          assets_received: JSON.stringify([
+            { type: 'player', player_id: 'player-b' },
+            {
+              type: 'pick_slot',
+              draft_order_id: receivingPickSlot.id,
+              pick_number: receivingPickSlot.pick_number,
+            },
+            { type: 'future_pick', year: receivingFuturePick.year, round: receivingFuturePick.round },
+          ]),
           status: 'accepted',
+          created_at: '2026-05-18T20:05:00.000Z',
         },
       ],
     );
@@ -216,6 +237,7 @@ test('resolveTrade accepted swaps traded players, pick slots, and future pick as
 });
 
 // @spec DFF-ENGINE-040
+// @spec DFF-ENGINE-051
 // @spec DFF-DATA-082
 test('resolveTrade rolls back the trade row and ownership changes when an accepted asset transfer fails', async () => {
   await withDatabase(async (db, databasePath) => {
@@ -289,6 +311,82 @@ test('resolveTrade rolls back the trade row and ownership changes when an accept
       ).team_id,
       initiatingTeamId,
     );
+  });
+});
+
+// @spec DFF-ENGINE-040
+// @spec DFF-ENGINE-051
+test('resolveTrade rejects an accepted trade when a traded pick slot has already been used', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-a', 'Player A');
+    seedPlayer(db, 'player-b', 'Player B');
+    seedPlayer(db, 'player-picked', 'Picked Player');
+
+    const draftId = createTradeDraft(databasePath);
+    const teams = db
+      .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number }>;
+    const initiatingTeamId = teams.find((team) => team.is_user === 1)!.id;
+    const receivingTeamId = teams.find((team) => team.is_user === 0)!.id;
+
+    db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+      'roster-a',
+      draftId,
+      initiatingTeamId,
+      'player-a',
+    );
+    db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+      'roster-b',
+      draftId,
+      receivingTeamId,
+      'player-b',
+    );
+
+    const usedPickSlot = db
+      .prepare(
+        `SELECT id, pick_number
+         FROM draft_order
+         WHERE draft_id = ? AND team_id = ? AND pick_number = 4`,
+      )
+      .get(draftId, initiatingTeamId) as { id: string; pick_number: number };
+
+    db.prepare(
+      `INSERT INTO picks (
+        id, draft_id, draft_order_id, team_id, player_id, pick_number, round, picked_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'pick-used-slot',
+      draftId,
+      usedPickSlot.id,
+      initiatingTeamId,
+      'player-picked',
+      usedPickSlot.pick_number,
+      2,
+      '2026-05-18T20:01:00.000Z',
+    );
+
+    assert.throws(
+      () =>
+        resolveTrade({
+          databasePath,
+          tradeId: 'trade-used-slot',
+          draftId,
+          pickNumber: 1,
+          round: 1,
+          initiatingTeamId,
+          receivingTeamId,
+          assetsSent: [
+            { type: 'player', player_id: 'player-a' },
+            { type: 'pick_slot', draft_order_id: usedPickSlot.id, pick_number: usedPickSlot.pick_number },
+          ],
+          assetsReceived: [{ type: 'player', player_id: 'player-b' }],
+          status: 'accepted',
+          now: () => '2026-05-18T20:05:00.000Z',
+        }),
+      /slot already used/i,
+    );
+
+    assert.equal((db.prepare('SELECT COUNT(*) AS count FROM trades').get() as { count: number }).count, 0);
   });
 });
 

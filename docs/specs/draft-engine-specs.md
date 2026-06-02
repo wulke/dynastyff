@@ -121,7 +121,7 @@ If a POST /drafts/:id/trade-response is received when no trade is pending, the s
 **DFF-ENGINE-050** `[x]` → #10
 When a trade containing pick slot assets is accepted, the system shall update `draft_order.team_id` for each swapped pick slot to reflect the new owner.
 
-**DFF-ENGINE-051** `[ ]` → #10
+**DFF-ENGINE-051** `[x]` → #10
 The system shall only allow swapping pick slots that have not yet been used (i.e. picks whose pick_number is greater than the current pick_number).
 
 ---

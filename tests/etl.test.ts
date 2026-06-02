@@ -561,6 +561,16 @@ test('FantasyCalc API-shape fixture parsing emits current-year exact PICK rows a
           rookie: false,
         },
       },
+      {
+        value: 333,
+        player: {
+          name: `${currentYear} Pick X.04`,
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
     ]),
   );
 
@@ -699,6 +709,15 @@ test('RosterAudit API-shape fixture parsing emits exact current-year pick rows a
         pick_slot: null,
         is_exact: false,
         value: 654,
+      },
+      {
+        type: 'pick',
+        name: `${currentYear} Pick X.04`,
+        pick_season: currentYear,
+        pick_round: 1,
+        pick_slot: null,
+        is_exact: true,
+        value: 333,
       },
     ]),
   );
@@ -1544,6 +1563,66 @@ test('runEtl stores startup pick slot rows separately from round-level future pi
       { year: 2027, round: 1, pick_in_round: 0, source: 'ktc', raw_value: 500 },
     ]);
   } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-SPKV-035
+test('runEtl warns and continues when no startup pick values are written for the current year', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () =>
+        makeKtcResult(
+          [
+            {
+              name: 'Alpha QB',
+              position: 'QB',
+              nflTeam: 'BUF',
+              age: 24,
+              isRookie: false,
+              rawValue: 100,
+              adp: 10,
+            },
+          ],
+          [{ year: 2027, round: 1, rawValue: 500 }],
+        ),
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [],
+        pickValues: [{ year: 2028, round: 1, rawValue: 100 }],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [],
+        pickValues: [],
+      }),
+      now: () => '2026-05-20T07:00:00.000Z',
+    });
+
+    const pickValues = db
+      .prepare('SELECT year, round, pick_in_round FROM pick_values ORDER BY year, round, pick_in_round')
+      .all() as Array<{ year: number; round: number; pick_in_round: number }>;
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(pickValues, [
+      { year: 2027, round: 1, pick_in_round: 0 },
+      { year: 2028, round: 1, pick_in_round: 0 },
+    ]);
+    assert.match(
+      warnings[warnings.length - 1] ?? '',
+      /\[ETL\] WARN: no startup pick values were written for 2026\. Re-run ETL before starting a draft\./,
+    );
+  } finally {
+    console.warn = originalWarn;
     cleanup();
   }
 });

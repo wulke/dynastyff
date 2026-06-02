@@ -107,6 +107,8 @@ function parseCurrentYearExactPickEntry(
   return { year: currentYear, round, pickInRound, rawValue };
 }
 
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
 function parsePickValue(entry: RosterAuditApiEntry, currentYear: number): RawPickValue | null {
   const exactPick = parseCurrentYearExactPickEntry(entry, currentYear);
 

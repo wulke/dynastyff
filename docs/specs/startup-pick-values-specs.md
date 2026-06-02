@@ -65,6 +65,9 @@ When upserting future pick values (round-level), the system shall continue to us
 **DFF-SPKV-032** `[x]` → #69
 When writing to `pick_value_snapshots`, the system shall populate `pick_in_round` from the source row: `>= 1` for startup picks, `0` for round-level future picks.
 
+**DFF-SPKV-035** `[x]` → #70
+When an ETL run completes without any startup pick rows for the current calendar year from the successfully written sources, the system shall log a warning and continue normally so operators know to re-run ETL before starting a draft.
+
 ---
 
 ## Draft Engine — Snapshot Loading

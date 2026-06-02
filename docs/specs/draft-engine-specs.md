@@ -95,20 +95,20 @@ When a bot-to-bot trade is initiated, the system shall pause the bot chain, emit
 **DFF-ENGINE-039b** `[x]` → #28
 For a bot-to-bot trade paused by the draft engine, the system shall require one of two explicit user responses before resuming: acknowledge the trade so it stands, or veto it as `force_declined`.
 
-**DFF-ENGINE-039c** `[ ]` → #10
+**DFF-ENGINE-039c** `[x]` → #10
 If the user chooses "Force Decline" for a bot-to-bot trade, the system shall write the trade to `trades` with status `force_declined` and perform no asset transfer.
 
 ---
 
 ## Trade Resolution
 
-**DFF-ENGINE-040** `[ ]` → #10
+**DFF-ENGINE-040** `[x]` → #10
 When a POST /drafts/:id/trade-response is received with status `accepted`, the system shall transfer all assets as specified, write the trade to `trades`, emit a `trade_resolved` event, and resume the bot chain.
 
-**DFF-ENGINE-041** `[ ]` → #10
+**DFF-ENGINE-041** `[x]` → #10
 When a POST /drafts/:id/trade-response is received with status `declined`, the system shall write the trade to `trades` with status `declined`, emit a `trade_resolved` event, and resume the bot chain without transferring any assets.
 
-**DFF-ENGINE-042** `[ ]` → #10
+**DFF-ENGINE-042** `[x]` → #10
 When a POST /drafts/:id/trade-response is received with status `force_declined`, the system shall write the trade to `trades` with status `force_declined`, emit a `trade_resolved` event, and resume the bot chain without transferring any assets.
 
 **DFF-ENGINE-043** `[x]` → #10
@@ -118,7 +118,7 @@ If a POST /drafts/:id/trade-response is received when no trade is pending, the s
 
 ## Pick Slot Swap
 
-**DFF-ENGINE-050** `[ ]` → #10
+**DFF-ENGINE-050** `[x]` → #10
 When a trade containing pick slot assets is accepted, the system shall update `draft_order.team_id` for each swapped pick slot to reflect the new owner.
 
 **DFF-ENGINE-051** `[ ]` → #10

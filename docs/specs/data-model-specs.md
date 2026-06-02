@@ -78,7 +78,7 @@ When a draft is created, the system shall generate `drafts.team_count × drafts.
 **DFF-DATA-041** `[x]`
 The system shall assign pick slots in odd rounds in ascending team position order and in even rounds in descending team position order.
 
-**DFF-DATA-042** `[ ]`
+**DFF-DATA-042** `[x]`
 When a pick slot trade is accepted, the system shall update `draft_order.team_id` for the affected rows to reflect the new owner.
 
 ---
@@ -104,7 +104,7 @@ The system shall store current player ownership in `roster_players` with the fol
 **DFF-DATA-061** `[x]`
 The system shall maintain exactly one row in `roster_players` per player per draft at all times after that player is drafted.
 
-**DFF-DATA-062** `[ ]`
+**DFF-DATA-062** `[x]`
 When a player-for-player trade is accepted, the system shall update `roster_players.team_id` for each traded player to reflect the new owning team.
 
 **DFF-DATA-063** `[ ]`
@@ -117,10 +117,10 @@ The system shall use `roster_players` as the authoritative source of current pla
 **DFF-DATA-070** `[x]`
 When a draft is created, the system shall initialize `team_pick_assets` with one row per team per future pick (future_pick_years × future_pick_rounds), giving all teams identical starting inventories.
 
-**DFF-DATA-071** `[ ]`
+**DFF-DATA-071** `[x]`
 When a future pick asset trade is accepted, the system shall update `team_pick_assets.team_id` for the affected rows to reflect the new owner.
 
-**DFF-DATA-072** `[ ]`
+**DFF-DATA-072** `[x]`
 When querying the dynasty value of a future pick asset, the system shall join `team_pick_assets` to `pick_values` on `(year, round)`.
 
 ---
@@ -149,5 +149,5 @@ When a trade is resolved, the system shall write a row to `trades` with: draft_i
 **DFF-DATA-081** `[x]`
 The system shall restrict `trades.status` to the values: `accepted`, `declined`, `force_declined`.
 
-**DFF-DATA-082** `[ ]`
+**DFF-DATA-082** `[x]`
 The system shall record declined and force-declined trades in `trades` with the appropriate status; only accepted trades trigger asset transfers.

@@ -225,6 +225,7 @@ Returns one JSON document with:
 - `team_pick_assets` ordered by current team then `(year, round)`
 - `user_queue` ordered by `rank`
 - `available_players` ordered by `dynasty_value` descending for the draft's pinned value context
+- `startup_pick_values` ordered by `global_pick_number`
 - `trades` ordered chronologically by `pick_number`
 
 Behavior:

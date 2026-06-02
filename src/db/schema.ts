@@ -75,6 +75,7 @@ export const players = sqliteTable(
   ],
 );
 
+// @spec DFF-SPKV-043
 export const drafts = sqliteTable(
   'drafts',
   {

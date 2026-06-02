@@ -2207,6 +2207,57 @@ test('GET /drafts/:id/state includes startup pick values as a serializable array
   }
 });
 
+// @spec DFF-SPKV-044
+test('GET /drafts/:id/state returns an empty startup pick values array when no current-year startup rows were seeded', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-empty-startup-picks-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedCompletedEtlRun(db);
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 8,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 4,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T22:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeRoute({
+      route: createDraftStateRoute({ databasePath }),
+      params: { id: draftId },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = response.json as {
+      startup_pick_values: Array<{ global_pick_number: number; dynasty_value: number }>;
+    };
+
+    assert.deepEqual(body.startup_pick_values, []);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
 test('GET /drafts/:id/state returns 404 for an unknown draft id', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-state-missing-');
   initializeDatabase(databasePath);

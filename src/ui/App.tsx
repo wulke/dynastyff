@@ -39,6 +39,7 @@ import { DraftBoard } from './components/DraftBoard.js';
 import { PickFeedPanel } from './components/PickFeedPanel.js';
 import { AvailablePlayersPanel } from './components/AvailablePlayersPanel.js';
 import { HistoryView } from './components/HistoryView.js';
+import { TradeModal } from './components/TradeModal.js';
 
 type DraftCompletionBannerProps = {
   teamName: string;
@@ -122,13 +123,22 @@ function getExpandButtonLabel(columnLabel: string): string {
 }
 
 // @spec DFF-UI-132
-function ExpandColumnButton({ label, onClick }: { label: string; onClick: () => void }) {
+function ExpandColumnButton({
+  label,
+  disabled = false,
+  onClick,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       aria-label={getExpandButtonLabel(label)}
+      disabled={disabled}
       onClick={onClick}
-      className="rounded-full border border-stone-700 p-2.5 text-stone-400 transition hover:border-stone-500 hover:text-stone-100"
+      className="rounded-full border border-stone-700 p-2.5 text-stone-400 transition hover:border-stone-500 hover:text-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M15 3h6v6" />
@@ -373,7 +383,7 @@ type DraftListEntry = {
 function DraftApp() {
   // @spec DFF-STATIC-061
   // @spec DFF-STATIC-062
-  const { draftState, newDraft, showError, startDraft } = useDraftContext();
+  const { draftState, newDraft, showError, startDraft, respondToTrade } = useDraftContext();
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -381,11 +391,18 @@ function DraftApp() {
   const [draftsList, setDraftsList] = useState<DraftListEntry[]>([]);
   const [showDraftsListLoading, setShowDraftsListLoading] = useState(true);
   const [expandedColumn, setExpandedColumn] = useState<DraftColumnId | null>(null);
+  const [dismissedTradeId, setDismissedTradeId] = useState<string | null>(null);
   const showErrorRef = useRef(showError);
 
   useEffect(() => {
     showErrorRef.current = showError;
   }, [showError]);
+
+  useEffect(() => {
+    if (!draftState?.pendingTrade) {
+      setDismissedTradeId(null);
+    }
+  }, [draftState?.pendingTrade]);
 
   // @spec DFF-UI-110
   // @spec DFF-UI-111
@@ -422,6 +439,12 @@ function DraftApp() {
   const view = showDraftsList ? 'drafts-list' : !draftState ? 'config' : showHistory ? 'history' : 'drafting';
   const completionBannerTeamName = draftState?.teams.find((team) => team.isUser)?.name ?? 'Your team';
   const showCompletionBanner = draftState?.status === 'completed' && !showHistory;
+  const showTradeModal =
+    Boolean(draftState?.pendingTrade) &&
+    draftState?.pendingTrade?.tradeId !== dismissedTradeId &&
+    !showHistory &&
+    draftState?.status !== 'completed';
+  const isDraftInteractionBlocked = showCompletionBanner || showTradeModal;
 
   // @spec DFF-UI-014
   // @spec DFF-UI-015
@@ -435,6 +458,7 @@ function DraftApp() {
     setIsSubmittingDraft(true);
     setShowHistory(false);
     setShowDraftsList(false);
+    setDismissedTradeId(null);
     // @spec DFF-UI-136
     setExpandedColumn(null);
 
@@ -442,6 +466,23 @@ function DraftApp() {
       await startDraft(safeConfig);
     } finally {
       setIsSubmittingDraft(false);
+    }
+  }
+
+  // @spec DFF-UI-053
+  // @spec DFF-UI-054
+  // @spec DFF-UI-055
+  async function handleTradeResponse(status: 'accepted' | 'declined' | 'force_declined') {
+    const tradeId = draftState?.pendingTrade?.tradeId;
+
+    if (!tradeId) {
+      return;
+    }
+
+    const didRespond = await respondToTrade(status);
+
+    if (didRespond) {
+      setDismissedTradeId(tradeId);
     }
   }
 
@@ -514,8 +555,14 @@ function DraftApp() {
                       <>
                         <DraftBoard
                           draftState={draftState}
-                          isInteractionBlocked={showCompletionBanner}
-                          headerAction={<ExpandColumnButton label={column.label} onClick={() => setExpandedColumn(column.id)} />}
+                          isInteractionBlocked={isDraftInteractionBlocked}
+                          headerAction={
+                            <ExpandColumnButton
+                              label={column.label}
+                              disabled={showTradeModal}
+                              onClick={() => setExpandedColumn(column.id)}
+                            />
+                          }
                         />
                         {showCompletionBanner ? (
                           <DraftCompletionBanner
@@ -529,18 +576,32 @@ function DraftApp() {
                     ) : column.id === 'available-players' ? (
                       <AvailablePlayersPanel
                         draftState={draftState}
-                        headerAction={<ExpandColumnButton label={column.label} onClick={() => setExpandedColumn(column.id)} />}
+                        isInteractionBlocked={showTradeModal}
+                        headerAction={
+                          <ExpandColumnButton
+                            label={column.label}
+                            disabled={showTradeModal}
+                            onClick={() => setExpandedColumn(column.id)}
+                          />
+                        }
                       />
                     ) : (
                       <PickFeedPanel
                         draftState={draftState}
-                        headerAction={<ExpandColumnButton label={column.label} onClick={() => setExpandedColumn(column.id)} />}
+                        headerAction={
+                          <ExpandColumnButton
+                            label={column.label}
+                            disabled={showTradeModal}
+                            onClick={() => setExpandedColumn(column.id)}
+                          />
+                        }
                       />
                     )}
                   </div>
                 );
               })}
             </div>
+            <TradeModal draftState={draftState} isOpen={showTradeModal} onRespond={handleTradeResponse} />
           </div>
         ) : null}
 
@@ -553,6 +614,7 @@ function DraftApp() {
               setShowHistory(false);
               setShowDraftsList(false);
               setDraftConfig(configDefaults);
+              setDismissedTradeId(null);
               newDraft();
             }}
           />

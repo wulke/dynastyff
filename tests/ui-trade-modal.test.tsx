@@ -213,8 +213,7 @@ test('opens a blocking modal for a user-targeted trade and prevents draft-room i
   expect(screen.getByRole('button', { name: /accept/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /decline/i })).toBeInTheDocument();
 
-  await user.click(screen.getByTestId('available-player-row-player-1'));
-
+  expect(screen.getByTestId('available-player-row-player-1')).toBeDisabled();
   expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
 });
 

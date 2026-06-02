@@ -23,6 +23,7 @@
     "test:coverage:ui": "vitest run --config src/ui/vite.config.ts --coverage"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-separator": "^1.1.7",
     "@types/express": "^5.0.6",
     "better-sqlite3": "^11.10.0",

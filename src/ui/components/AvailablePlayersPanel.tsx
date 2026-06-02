@@ -24,6 +24,7 @@ import { useDraftContext, type DraftState } from '../context/DraftContext.js';
 
 type AvailablePlayersPanelProps = {
   draftState: DraftState;
+  isInteractionBlocked?: boolean;
   headerAction?: ReactNode;
 };
 
@@ -165,7 +166,11 @@ function AvailablePlayersLoadingState() {
 // @spec DFF-UI-142
 // @spec DFF-UI-143
 // @spec DFF-UI-132
-export function AvailablePlayersPanel({ draftState, headerAction = null }: AvailablePlayersPanelProps) {
+export function AvailablePlayersPanel({
+  draftState,
+  isInteractionBlocked = false,
+  headerAction = null,
+}: AvailablePlayersPanelProps) {
   const { submitPick } = useDraftContext();
   const [activeTab, setActiveTab] = useState<AvailablePlayersTab>('available');
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');
@@ -176,7 +181,7 @@ export function AvailablePlayersPanel({ draftState, headerAction = null }: Avail
     return <AvailablePlayersLoadingState />;
   }
 
-  const userTurn = isUsersTurn(draftState);
+  const userTurn = isUsersTurn(draftState) && !isInteractionBlocked;
   const queuedPlayers = resolveQueuedPlayers(draftState);
   const normalizedQuery = nameQuery.trim().toLowerCase();
   const filteredPlayers = draftState.availablePlayers.filter((player) => {
@@ -205,7 +210,11 @@ export function AvailablePlayersPanel({ draftState, headerAction = null }: Avail
   }
 
   return (
-    <section className="rounded-[1.75rem] border border-stone-800 bg-stone-900/90 p-5 shadow-2xl shadow-black/20">
+    <section
+      className={`rounded-[1.75rem] border border-stone-800 bg-stone-900/90 p-5 shadow-2xl shadow-black/20 ${
+        isInteractionBlocked ? 'opacity-80' : ''
+      }`}
+    >
       <div className="rounded-[1.5rem] border border-stone-800 bg-stone-900/60 p-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -222,6 +231,7 @@ export function AvailablePlayersPanel({ draftState, headerAction = null }: Avail
             <button
               type="button"
               aria-pressed={activeTab === 'available'}
+              disabled={isInteractionBlocked}
               onClick={() => setActiveTab('available')}
               className={getTabButtonClass(activeTab === 'available')}
             >
@@ -230,6 +240,7 @@ export function AvailablePlayersPanel({ draftState, headerAction = null }: Avail
             <button
               type="button"
               aria-pressed={activeTab === 'targets'}
+              disabled={isInteractionBlocked}
               onClick={() => setActiveTab('targets')}
               className={getTabButtonClass(activeTab === 'targets')}
             >
@@ -247,6 +258,7 @@ export function AvailablePlayersPanel({ draftState, headerAction = null }: Avail
                 </span>
                 <select
                   value={positionFilter}
+                  disabled={isInteractionBlocked}
                   onChange={(event) => setPositionFilter(event.target.value as PositionFilter)}
                   aria-label="Position filter"
                   className="w-full rounded-xl border border-stone-700 bg-stone-950/80 px-3 py-2.5 text-sm text-stone-100 outline-none transition focus:border-amber-300"
@@ -264,6 +276,7 @@ export function AvailablePlayersPanel({ draftState, headerAction = null }: Avail
                 <input
                   type="search"
                   value={nameQuery}
+                  disabled={isInteractionBlocked}
                   onChange={(event) => setNameQuery(event.target.value)}
                   placeholder="Search players"
                   aria-label="Search players"
@@ -370,6 +383,7 @@ export function AvailablePlayersPanel({ draftState, headerAction = null }: Avail
                 <button
                   type="button"
                   onClick={() => setSelectedPlayerId(null)}
+                  disabled={isInteractionBlocked}
                   className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-200 transition hover:border-stone-500 hover:text-stone-50"
                 >
                   Cancel
@@ -377,6 +391,7 @@ export function AvailablePlayersPanel({ draftState, headerAction = null }: Avail
                 <button
                   type="button"
                   onClick={() => void handleConfirmPick()}
+                  disabled={isInteractionBlocked}
                   className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
                 >
                   Confirm Pick

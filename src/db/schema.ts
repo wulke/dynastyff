@@ -90,6 +90,7 @@ export const drafts = sqliteTable(
     futurePickRounds: integer('future_pick_rounds').notNull(),
     rosterConfig: text('roster_config').notNull(),
     etlRunId: text('etl_run_id').references(() => etlRuns.id, { onDelete: 'set null' }),
+    startupPickValues: text('startup_pick_values').notNull().default('[]'),
   },
   (table) => [
     index('drafts_etl_run_id_idx').on(table.etlRunId),

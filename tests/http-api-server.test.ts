@@ -2136,7 +2136,17 @@ test('GET /drafts/:id/state includes startup pick values as a serializable array
   try {
     seedCompletedEtlRun(db);
     seedStartupPickValue(db, { id: 'startup-1-01', year: 2026, round: 1, pickInRound: 1, dynastyValue: 9100 });
+    seedStartupPickValue(db, { id: 'startup-1-02', year: 2026, round: 1, pickInRound: 2, dynastyValue: 9000 });
+    seedStartupPickValue(db, { id: 'startup-1-03', year: 2026, round: 1, pickInRound: 3, dynastyValue: 8900 });
+    seedStartupPickValue(db, { id: 'startup-1-04', year: 2026, round: 1, pickInRound: 4, dynastyValue: 8800 });
+    seedStartupPickValue(db, { id: 'startup-1-05', year: 2026, round: 1, pickInRound: 5, dynastyValue: 8700 });
+    seedStartupPickValue(db, { id: 'startup-1-06', year: 2026, round: 1, pickInRound: 6, dynastyValue: 8600 });
+    seedStartupPickValue(db, { id: 'startup-1-07', year: 2026, round: 1, pickInRound: 7, dynastyValue: 8500 });
+    seedStartupPickValue(db, { id: 'startup-1-08', year: 2026, round: 1, pickInRound: 8, dynastyValue: 8400 });
     seedStartupPickValue(db, { id: 'startup-1-09', year: 2026, round: 1, pickInRound: 9, dynastyValue: 7900 });
+    seedStartupPickValue(db, { id: 'startup-1-10', year: 2026, round: 1, pickInRound: 10, dynastyValue: 7800 });
+    seedStartupPickValue(db, { id: 'startup-1-11', year: 2026, round: 1, pickInRound: 11, dynastyValue: 7700 });
+    seedStartupPickValue(db, { id: 'startup-1-12', year: 2026, round: 1, pickInRound: 12, dynastyValue: 7600 });
     seedStartupPickValue(db, { id: 'startup-2-01', year: 2026, round: 2, pickInRound: 1, dynastyValue: 6800 });
 
     const draftId = createDraft({
@@ -2175,17 +2185,17 @@ test('GET /drafts/:id/state includes startup pick values as a serializable array
 
     assert.deepEqual(body.startup_pick_values, [
       { global_pick_number: 1, dynasty_value: 9100 },
-      { global_pick_number: 2, dynasty_value: 9100 },
-      { global_pick_number: 3, dynasty_value: 9100 },
-      { global_pick_number: 4, dynasty_value: 9100 },
-      { global_pick_number: 5, dynasty_value: 9100 },
-      { global_pick_number: 6, dynasty_value: 9100 },
-      { global_pick_number: 7, dynasty_value: 9100 },
-      { global_pick_number: 8, dynasty_value: 9100 },
+      { global_pick_number: 2, dynasty_value: 9000 },
+      { global_pick_number: 3, dynasty_value: 8900 },
+      { global_pick_number: 4, dynasty_value: 8800 },
+      { global_pick_number: 5, dynasty_value: 8700 },
+      { global_pick_number: 6, dynasty_value: 8600 },
+      { global_pick_number: 7, dynasty_value: 8500 },
+      { global_pick_number: 8, dynasty_value: 8400 },
       { global_pick_number: 9, dynasty_value: 7900 },
-      { global_pick_number: 10, dynasty_value: 7900 },
-      { global_pick_number: 11, dynasty_value: 7900 },
-      { global_pick_number: 12, dynasty_value: 7900 },
+      { global_pick_number: 10, dynasty_value: 7800 },
+      { global_pick_number: 11, dynasty_value: 7700 },
+      { global_pick_number: 12, dynasty_value: 7600 },
       { global_pick_number: 13, dynasty_value: 6800 },
       { global_pick_number: 14, dynasty_value: 6800 },
       { global_pick_number: 15, dynasty_value: 6800 },

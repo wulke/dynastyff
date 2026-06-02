@@ -472,6 +472,7 @@ test('createDraft converts startup pick values from the 12-team reference frame 
   await withDatabase(async (db, databasePath) => {
     seedCompletedEtlRun(db);
     seedStartupPickValue(db, { id: 'startup-1-01', year: 2026, round: 1, pickInRound: 1, dynastyValue: 9100 });
+    seedStartupPickValue(db, { id: 'startup-1-08', year: 2026, round: 1, pickInRound: 8, dynastyValue: 8200 });
     seedStartupPickValue(db, { id: 'startup-1-09', year: 2026, round: 1, pickInRound: 9, dynastyValue: 7900 });
     seedStartupPickValue(db, { id: 'startup-2-01', year: 2026, round: 2, pickInRound: 1, dynastyValue: 6800 });
 
@@ -510,7 +511,7 @@ test('createDraft converts startup pick values from the 12-team reference frame 
       startupPickValues.filter((entry) => [1, 8, 9, 13, 16].includes(entry.globalPickNumber)),
       [
         { globalPickNumber: 1, dynastyValue: 9100 },
-        { globalPickNumber: 8, dynastyValue: 9100 },
+        { globalPickNumber: 8, dynastyValue: 8200 },
         { globalPickNumber: 9, dynastyValue: 7900 },
         { globalPickNumber: 13, dynastyValue: 6800 },
         { globalPickNumber: 16, dynastyValue: 6800 },

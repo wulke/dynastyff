@@ -177,6 +177,7 @@ Current ETL scope:
 - Exposes `npm run export:snapshot`, which writes `data/snapshot.json` from the current `players` table and round-level `pick_values` rows (`pick_in_round = 0`) for the static browser build
 - Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time
 - Reconstructs draft-scoped player `dynasty_value` reads from the pinned ETL run's `player_value_snapshots`, and falls back to `players` when a draft was created before any ETL run completed
+- Derives and stores a draft-scoped startup pick value map from current-year `pick_values` rows at draft creation time, adjusted to the draft's configured team count, and exposes that serialized map on `GET /drafts/:id/state` as `startup_pick_values`
 
 `player-aliases.json` lives at the project root and supports:
 

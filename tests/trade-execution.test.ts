@@ -169,23 +169,29 @@ test('resolveTrade accepted swaps traded players, pick slots, and future pick as
         .prepare('SELECT id, team_id FROM draft_order WHERE id IN (?, ?) ORDER BY pick_number')
         .all(initiatingPickSlot.id, receivingPickSlot.id),
       [
-        { id: initiatingPickSlot.id, team_id: receivingTeamId },
-        { id: receivingPickSlot.id, team_id: initiatingTeamId },
-      ],
+        { id: initiatingPickSlot.id, team_id: receivingTeamId, pick_number: initiatingPickSlot.pick_number },
+        { id: receivingPickSlot.id, team_id: initiatingTeamId, pick_number: receivingPickSlot.pick_number },
+      ]
+        .sort((left, right) => left.pick_number - right.pick_number)
+        .map(({ id, team_id }) => ({ id, team_id })),
     );
     assert.deepEqual(
       db
         .prepare(
           `SELECT year, round, team_id
            FROM team_pick_assets
-           WHERE draft_id = ? AND ((team_id = ? AND round = 2) OR (team_id = ? AND round = 1))
-           ORDER BY round`,
+           WHERE draft_id = ? AND team_id IN (?, ?)
+           ORDER BY team_id, round`,
         )
         .all(draftId, initiatingTeamId, receivingTeamId),
       [
         { year: initiatingFuturePick.year, round: 1, team_id: receivingTeamId },
+        { year: receivingFuturePick.year, round: 1, team_id: receivingTeamId },
+        { year: initiatingFuturePick.year, round: 2, team_id: initiatingTeamId },
         { year: receivingFuturePick.year, round: 2, team_id: initiatingTeamId },
-      ],
+      ].sort(
+        (left, right) => left.team_id.localeCompare(right.team_id) || left.round - right.round,
+      ),
     );
     assert.deepEqual(
       db
@@ -240,7 +246,7 @@ test('resolveTrade rolls back the trade row and ownership changes when an accept
       .prepare(
         `SELECT id, pick_number
          FROM draft_order
-         WHERE draft_id = ? AND team_id = ? AND pick_number = 3`,
+         WHERE draft_id = ? AND team_id = ? AND pick_number = 4`,
       )
       .get(draftId, initiatingTeamId) as { id: string; pick_number: number };
 

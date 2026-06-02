@@ -50,6 +50,7 @@ When saved drafts already exist, the UI now opens on a Drafts List page first. F
 2. **Start a mock draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically.
    - On the API-backed draft flow, bot turns continue server-side after every successful user pick with a randomized `3–5s` delay between bot selections.
    - If your league settings place a bot on the opening slot, the server now auto-starts those opening bot turns immediately after draft creation so the board advances to your first turn without extra input.
+   - When a bot trade is resolved, the server now persists the trade outcome immediately. Accepted trades also transfer traded players, startup pick slots, and future pick assets inside the same SQLite transaction as the `trades` insert.
 3. **Use the advisor (optional)** — on any pick, choose:
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.
@@ -139,7 +140,7 @@ Current draft API surface:
 |---|---|
 | `POST /drafts` | Create a new draft |
 | `POST /drafts/:id/pick` | Submit the user's pick with HTTP-layer validation for turn order and player availability |
-| `POST /drafts/:id/trade-response` | Acknowledge a paused bot-chain trade (`accepted`, `declined`, or `force_declined`) so the draft can resume |
+| `POST /drafts/:id/trade-response` | Resolve a paused bot-chain trade; declined outcomes are persisted, and accepted outcomes persist the `trades` row plus all asset transfers before the draft resumes |
 | `POST /drafts/:id/queue` | Add a player to the user's queue or update that player's rank |
 | `DELETE /drafts/:id/queue/:player_id` | Remove one player from the user's queue |
 | `GET /drafts/:id/queue` | Read the user's queue ordered by ascending rank |
@@ -210,7 +211,7 @@ src/
     bot.ts               # Pure bot pick selection for the static/browser draft flow
     engine.ts            # Pure in-memory draft engine for the static/browser draft flow
     invariant.ts         # Shared invariant error for pure draft modules
-    service.ts           # Transactional draft bootstrap, pick recording, and status updates
+    service.ts           # Transactional draft bootstrap, pick recording, trade execution, and status updates
     stream.ts            # Draft SSE snapshot queries and in-process event fanout
   ui/
     App.tsx              # Top-level React view-state shell

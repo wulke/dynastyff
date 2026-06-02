@@ -2,6 +2,9 @@
 // @spec DFF-ENGINE-031
 // @spec DFF-ENGINE-032
 // @spec DFF-ENGINE-033
+// @spec DFF-ENGINE-040
+// @spec DFF-ENGINE-041
+// @spec DFF-ENGINE-042
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
 import { and, asc, eq, isNull } from 'drizzle-orm';
@@ -9,7 +12,7 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
 import { draftOrder, drafts, picks, teams, tradeStatuses } from '../db/schema.js';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
-import { recordPick } from './service.js';
+import { recordPick, resolveTrade } from './service.js';
 import { emitTradeOfferedEvent, emitTradeResolvedEvent } from './stream.js';
 
 type TradeStatus = (typeof tradeStatuses)[number];
@@ -43,6 +46,10 @@ type CurrentOpenBotSlot = {
 
 type PendingTradeState = {
   tradeId: string;
+  pickNumber: number;
+  round: number;
+  initiatingTeamId: string;
+  receivingTeamId: string;
   assetsSent: unknown[];
   assetsReceived: unknown[];
   resolve: (status: TradeStatus) => void;
@@ -143,7 +150,7 @@ export function createBotChainCoordinator({
         });
 
         if (action.type === 'trade') {
-          await awaitTradeResolution(draftId, action, pendingTrades);
+          await awaitTradeResolution(draftId, refreshedSlot, action, pendingTrades);
           continue;
         }
 
@@ -180,6 +187,20 @@ export function createBotChainCoordinator({
         return false;
       }
 
+      resolveTrade({
+        databasePath,
+        tradeId: pendingTrade.tradeId,
+        draftId,
+        pickNumber: pendingTrade.pickNumber,
+        round: pendingTrade.round,
+        initiatingTeamId: pendingTrade.initiatingTeamId,
+        receivingTeamId: pendingTrade.receivingTeamId,
+        assetsSent: pendingTrade.assetsSent,
+        assetsReceived: pendingTrade.assetsReceived,
+        status,
+        now,
+      });
+
       pendingTrades.delete(draftId);
       pendingTrade.resolve(status);
       return true;
@@ -192,12 +213,17 @@ export function createBotChainCoordinator({
 // @spec DFF-ENGINE-039b
 async function awaitTradeResolution(
   draftId: string,
+  slot: CurrentOpenBotSlot,
   action: BotTradeAction,
   pendingTrades: Map<string, PendingTradeState>,
 ): Promise<void> {
   const status = await new Promise<TradeStatus>((resolve) => {
     pendingTrades.set(draftId, {
       tradeId: action.tradeId,
+      pickNumber: slot.pickNumber,
+      round: slot.round,
+      initiatingTeamId: action.initiatingTeamId,
+      receivingTeamId: action.receivingTeamId,
       assetsSent: action.assetsSent,
       assetsReceived: action.assetsReceived,
       resolve,

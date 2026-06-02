@@ -612,7 +612,7 @@ test('GET /drafts/:id/stream emits draft_complete and persists completed status 
         scoringFormat: 'ppr',
         userPickPosition: 1,
         futurePickYears: 1,
-        futurePickRounds: 1,
+        futurePickRounds: 2,
         rosterConfig: {
           QB: 1,
           RB: 2,
@@ -699,7 +699,7 @@ test('GET /drafts/:id/stream emits bot pick_made events and draft_complete when 
         scoringFormat: 'ppr',
         userPickPosition: 1,
         futurePickYears: 1,
-        futurePickRounds: 1,
+        futurePickRounds: 2,
         rosterConfig: {
           QB: 1,
           RB: 2,
@@ -727,7 +727,9 @@ test('GET /drafts/:id/stream emits bot pick_made events and draft_complete when 
         teams: Array<{ id: string; is_user: boolean }>;
       };
       const userTeamId = stateSync.teams.find((team) => team.is_user)?.id;
-      const botTeamId = stateSync.teams.find((team) => !team.is_user)?.id;
+      const botTeamIds = stateSync.teams.filter((team) => !team.is_user).map((team) => team.id);
+      const botTeamId = botTeamIds[0];
+      const receivingTeamId = botTeamIds[1];
 
       const response = await invokePickRoute(
         databasePath,
@@ -805,6 +807,10 @@ test('GET /drafts/:id/stream pauses the bot chain for a bot-to-bot trade until P
       now: () => '2026-05-18T20:00:00.000Z',
       random: () => 0,
     });
+    const botTeamIds = (
+      database.prepare('SELECT id FROM teams WHERE draft_id = ? AND is_user = 0 ORDER BY pick_position').all(draftId) as Array<{ id: string }>
+    ).map((team) => team.id);
+    const receivingTeamId = botTeamIds[1];
     let tradeOffered = false;
     const botChain = createBotChainCoordinator({
       databasePath,
@@ -817,7 +823,7 @@ test('GET /drafts/:id/stream pauses the bot chain for a bot-to-bot trade until P
             type: 'trade',
             tradeId: 'trade-1',
             initiatingTeamId: slot.teamId,
-            receivingTeamId: 'receiving-team',
+            receivingTeamId: receivingTeamId!,
             assetsSent: [{ type: 'pick_slot', pick_number: slot.pickNumber }],
             assetsReceived: [{ type: 'future_pick', year: 2027, round: 1 }],
             isBotToBot: true,
@@ -853,7 +859,7 @@ test('GET /drafts/:id/stream pauses the bot chain for a bot-to-bot trade until P
       assert.deepEqual(offeredTrade.data, {
         trade_id: 'trade-1',
         initiating_team_id: (offeredTrade.data as { initiating_team_id: string }).initiating_team_id,
-        receiving_team_id: 'receiving-team',
+        receiving_team_id: receivingTeamId,
         assets_sent: [{ type: 'pick_slot', pick_number: 2 }],
         assets_received: [{ type: 'future_pick', year: 2027, round: 1 }],
         is_bot_to_bot: true,
@@ -916,6 +922,12 @@ test('POST /drafts/:id/trade-response accepts a pending trade and persists all o
     database.prepare('UPDATE players SET dynasty_value = 5800 WHERE id = ?').run('player-3');
     seedPlayer(database, 'player-4', 'Player Four');
     database.prepare('UPDATE players SET dynasty_value = 5700 WHERE id = ?').run('player-4');
+    seedPlayer(database, 'player-5', 'Player Five');
+    database.prepare('UPDATE players SET dynasty_value = 5600 WHERE id = ?').run('player-5');
+    seedPlayer(database, 'player-6', 'Player Six');
+    database.prepare('UPDATE players SET dynasty_value = 5500 WHERE id = ?').run('player-6');
+    seedPlayer(database, 'player-7', 'Player Seven');
+    database.prepare('UPDATE players SET dynasty_value = 5400 WHERE id = ?').run('player-7');
 
     const draftId = createDraft({
       databasePath,
@@ -925,7 +937,7 @@ test('POST /drafts/:id/trade-response accepts a pending trade and persists all o
         scoringFormat: 'ppr',
         userPickPosition: 1,
         futurePickYears: 1,
-        futurePickRounds: 1,
+        futurePickRounds: 2,
         rosterConfig: {
           QB: 1,
           RB: 2,
@@ -956,7 +968,7 @@ test('POST /drafts/:id/trade-response accepts a pending trade and persists all o
       .prepare(
         `SELECT id, pick_number
          FROM draft_order
-         WHERE draft_id = ? AND team_id = ? AND pick_number = 6`,
+         WHERE draft_id = ? AND team_id = ? AND pick_number = 4`,
       )
       .get(draftId, receivingTeamId) as { id: string; pick_number: number };
     const initiatingFuturePick = database
@@ -1022,9 +1034,13 @@ test('POST /drafts/:id/trade-response accepts a pending trade and persists all o
           };
         }
 
+        const nextPick = availablePlayers.find(
+          (player) => player.id !== 'player-3' && player.id !== 'player-4',
+        );
+
         return {
           type: 'pick',
-          playerId: availablePlayers[0]!.id,
+          playerId: nextPick!.id,
         };
       },
     });
@@ -1079,23 +1095,29 @@ test('POST /drafts/:id/trade-response accepts a pending trade and persists all o
           .prepare('SELECT id, team_id FROM draft_order WHERE id IN (?, ?) ORDER BY pick_number')
           .all(initiatingPickSlot.id, receivingPickSlot.id),
         [
-          { id: initiatingPickSlot.id, team_id: receivingTeamId },
-          { id: receivingPickSlot.id, team_id: initiatingTeamId },
-        ],
+          { id: initiatingPickSlot.id, team_id: receivingTeamId, pick_number: initiatingPickSlot.pick_number },
+          { id: receivingPickSlot.id, team_id: initiatingTeamId, pick_number: receivingPickSlot.pick_number },
+        ]
+          .sort((left, right) => left.pick_number - right.pick_number)
+          .map(({ id, team_id }) => ({ id, team_id })),
       );
       assert.deepEqual(
         database
           .prepare(
             `SELECT year, round, team_id
              FROM team_pick_assets
-             WHERE draft_id = ? AND ((team_id = ? AND round = 2) OR (team_id = ? AND round = 1))
-             ORDER BY round`,
+             WHERE draft_id = ? AND team_id IN (?, ?)
+             ORDER BY team_id, round`,
           )
           .all(draftId, initiatingTeamId, receivingTeamId),
         [
           { year: initiatingFuturePick.year, round: initiatingFuturePick.round, team_id: receivingTeamId },
+          { year: receivingFuturePick.year, round: 1, team_id: receivingTeamId },
+          { year: initiatingFuturePick.year, round: 2, team_id: initiatingTeamId },
           { year: receivingFuturePick.year, round: receivingFuturePick.round, team_id: initiatingTeamId },
-        ],
+        ].sort(
+          (left, right) => left.team_id.localeCompare(right.team_id) || left.round - right.round,
+        ),
       );
     } finally {
       stream.close();

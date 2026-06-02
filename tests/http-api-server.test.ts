@@ -96,6 +96,47 @@ function seedPlayer(db: Database.Database, playerId: string, name: string, posit
   ).run(playerId, name, position, '2026-05-18T00:00:00.000Z');
 }
 
+function seedCompletedEtlRun(db: Database.Database, runId = 'run-completed-latest'): string {
+  db.prepare(
+    `INSERT INTO etl_runs (
+      id, started_at, completed_at, sources_attempted, sources_succeeded
+    ) VALUES (?, ?, ?, ?, ?)`,
+  ).run(
+    runId,
+    '2026-05-18T21:00:00.000Z',
+    '2026-05-18T21:20:00.000Z',
+    '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+    '["ktc","fantasycalc"]',
+  );
+
+  return runId;
+}
+
+function seedStartupPickValue(
+  db: Database.Database,
+  {
+    id,
+    year,
+    round,
+    pickInRound,
+    dynastyValue,
+    updatedAt = '2026-05-18T21:20:00.000Z',
+  }: {
+    id: string;
+    year: number;
+    round: number;
+    pickInRound: number;
+    dynastyValue: number;
+    updatedAt?: string;
+  },
+): void {
+  db.prepare(
+    `INSERT INTO pick_values (
+      id, year, round, pick_in_round, dynasty_value, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(id, year, round, pickInRound, dynastyValue, updatedAt);
+}
+
 async function invokeRoute({
   route,
   body,
@@ -2078,6 +2119,77 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
         assets_received: [{ type: 'player', player_id: 'player-picked' }],
         status: 'declined',
       },
+    ]);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-SPKV-043
+test('GET /drafts/:id/state includes startup pick values as a serializable array', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-startup-picks-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedCompletedEtlRun(db);
+    seedStartupPickValue(db, { id: 'startup-1-01', year: 2026, round: 1, pickInRound: 1, dynastyValue: 9100 });
+    seedStartupPickValue(db, { id: 'startup-1-09', year: 2026, round: 1, pickInRound: 9, dynastyValue: 7900 });
+    seedStartupPickValue(db, { id: 'startup-2-01', year: 2026, round: 2, pickInRound: 1, dynastyValue: 6800 });
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 8,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 4,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T22:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeRoute({
+      route: createDraftStateRoute({ databasePath }),
+      params: { id: draftId },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = response.json as {
+      startup_pick_values: Array<{ global_pick_number: number; dynasty_value: number }>;
+    };
+
+    assert.deepEqual(body.startup_pick_values, [
+      { global_pick_number: 1, dynasty_value: 9100 },
+      { global_pick_number: 2, dynasty_value: 9100 },
+      { global_pick_number: 3, dynasty_value: 9100 },
+      { global_pick_number: 4, dynasty_value: 9100 },
+      { global_pick_number: 5, dynasty_value: 9100 },
+      { global_pick_number: 6, dynasty_value: 9100 },
+      { global_pick_number: 7, dynasty_value: 9100 },
+      { global_pick_number: 8, dynasty_value: 9100 },
+      { global_pick_number: 9, dynasty_value: 7900 },
+      { global_pick_number: 10, dynasty_value: 7900 },
+      { global_pick_number: 11, dynasty_value: 7900 },
+      { global_pick_number: 12, dynasty_value: 7900 },
+      { global_pick_number: 13, dynasty_value: 6800 },
+      { global_pick_number: 14, dynasty_value: 6800 },
+      { global_pick_number: 15, dynasty_value: 6800 },
+      { global_pick_number: 16, dynasty_value: 6800 },
     ]);
   } finally {
     db.close();

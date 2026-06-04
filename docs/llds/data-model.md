@@ -44,6 +44,21 @@ One row per mock draft session.
 | future_pick_rounds | INTEGER | Rounds of future picks per year |
 | roster_config | TEXT (JSON) | `{ "QB": 1, "RB": 2, "WR": 3, "TE": 1, "FLEX": 1, "SF": 1, "bench": 6 }` |
 
+### `league_configs`
+Reusable saved league setups shown in the config-screen dropdown.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | TEXT (UUID) | Primary key |
+| name | TEXT | Display name entered on the config form |
+| team_count | INTEGER | Saved team count |
+| rounds | INTEGER | Saved round count |
+| scoring_format | TEXT | `ppr`, `half_ppr`, `standard` |
+| roster_slots | TEXT (JSON) | `{ "QB": 1, "RB": 2, "WR": 3, "TE": 1, "FLEX": 1, "SF": 1, "BN": 6 }` |
+| pick_position | INTEGER | Saved 1-based user draft slot |
+| future_pick_years | INTEGER | Saved future-pick horizon |
+| created_at | TEXT (ISO8601) | Used for newest-first dropdown ordering |
+
 ### `teams`
 One row per team per draft. Bots get generic names (Bob, Carl, etc.) assigned at draft creation.
 

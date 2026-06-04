@@ -8,6 +8,8 @@
 // @spec DFF-ENGINE-062
 // @spec DFF-ENGINE-063
 // @spec DFF-DATA-093
+// @spec DFF-DATA-095
+// @spec DFF-DATA-096
 import express, {
   type ErrorRequestHandler,
   type Express,
@@ -16,10 +18,18 @@ import express, {
   type Response,
 } from 'express';
 
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
 import { createBotChainCoordinator, type BotChainCoordinator } from '../draft/bot-chain.js';
-import { draftOrder, drafts, picks, players, teams, tradeStatuses } from '../db/schema.js';
+import {
+  draftOrder,
+  drafts,
+  leagueConfigs,
+  picks,
+  players,
+  teams,
+  tradeStatuses,
+} from '../db/schema.js';
 import {
   createDraft,
   deleteDraftQueueEntry,
@@ -37,11 +47,38 @@ import {
   parseCreateDraftConfig,
   parsePickSubmission,
   parseQueueSubmission,
+  parseSavedLeagueConfig,
 } from './config.js';
 
 type CreateDraftServerOptions = {
   databasePath: string;
   botChain?: BotChainCoordinator;
+};
+
+type SavedLeagueConfigRouteOptions = {
+  databasePath: string;
+  idGenerator?: () => string;
+  now?: () => string;
+};
+
+type SavedLeagueConfigApiRecord = {
+  id: string;
+  name: string;
+  team_count: number;
+  rounds: number;
+  scoring_format: string;
+  roster_slots: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    BN: number;
+  };
+  pick_position: number;
+  future_pick_years: number;
+  created_at: string;
 };
 
 export function createDraftApp({
@@ -51,6 +88,8 @@ export function createDraftApp({
   const app = express();
 
   app.use(express.json());
+  app.get('/configs', createLeagueConfigsListRoute({ databasePath }));
+  app.post('/configs', createLeagueConfigsCreateRoute({ databasePath }));
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath, botChain }));
   app.post('/drafts/:id/pick', createDraftPickRoute({ databasePath, botChain }));
@@ -64,6 +103,83 @@ export function createDraftApp({
   app.use(createDraftErrorHandler());
 
   return app;
+}
+
+// @spec DFF-DATA-095
+export function createLeagueConfigsListRoute({
+  databasePath,
+}: SavedLeagueConfigRouteOptions): RequestHandler {
+  return (_request, response, next) => {
+    const { db, sqlite } = createDrizzleDb(databasePath);
+
+    try {
+      const rows = db
+        .select()
+        .from(leagueConfigs)
+        .orderBy(desc(leagueConfigs.createdAt))
+        .all();
+
+      response.status(200).json(rows.map((row) => toSavedLeagueConfigApiRecord(row)));
+    } catch (error) {
+      next(error);
+    } finally {
+      sqlite.close();
+    }
+  };
+}
+
+// @spec DFF-DATA-096
+export function createLeagueConfigsCreateRoute({
+  databasePath,
+  idGenerator = () => crypto.randomUUID(),
+  now = () => new Date().toISOString(),
+}: SavedLeagueConfigRouteOptions): RequestHandler {
+  return (request, response, next) => {
+    const { db, sqlite } = createDrizzleDb(databasePath);
+
+    try {
+      const config = parseSavedLeagueConfig(request.body);
+      const record = {
+        id: idGenerator(),
+        name: config.name,
+        teamCount: config.teamCount,
+        rounds: config.rounds,
+        scoringFormat: config.scoringFormat,
+        rosterSlots: JSON.stringify({
+          QB: config.rosterConfig.QB,
+          RB: config.rosterConfig.RB,
+          WR: config.rosterConfig.WR,
+          TE: config.rosterConfig.TE,
+          FLEX: config.rosterConfig.FLEX,
+          SF: config.rosterConfig.SF,
+          BN: config.rosterConfig.bench,
+        }),
+        pickPosition: config.userPickPosition,
+        futurePickYears: config.futurePickYears,
+        createdAt: now(),
+      } as const;
+
+      db.insert(leagueConfigs).values(record).run();
+
+      response.status(201).json(
+        toSavedLeagueConfigApiRecord({
+          id: record.id,
+          name: record.name,
+          teamCount: record.teamCount,
+          rounds: record.rounds,
+          scoringFormat: record.scoringFormat,
+          rosterSlots: record.rosterSlots,
+          pickPosition: record.pickPosition,
+          futurePickYears: record.futurePickYears,
+          createdAt: record.createdAt,
+        }),
+      );
+    } catch (error) {
+      next(error);
+    } finally {
+      sqlite.close();
+    }
+  };
 }
 
 // @spec DFF-ENGINE-001
@@ -84,6 +200,51 @@ export function createDraftRoute({
     } catch (error) {
       next(error);
     }
+  };
+}
+
+// @spec DFF-DATA-095
+// @spec DFF-DATA-096
+function toSavedLeagueConfigApiRecord(row: typeof leagueConfigs.$inferSelect): SavedLeagueConfigApiRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    team_count: row.teamCount,
+    rounds: row.rounds,
+    scoring_format: row.scoringFormat,
+    roster_slots: parseSavedLeagueConfigRosterSlots(row.rosterSlots),
+    pick_position: row.pickPosition,
+    future_pick_years: row.futurePickYears,
+    created_at: row.createdAt,
+  };
+}
+
+// @spec DFF-DATA-095
+function parseSavedLeagueConfigRosterSlots(
+  value: string,
+): SavedLeagueConfigApiRecord['roster_slots'] {
+  const parsed = JSON.parse(value) as Partial<SavedLeagueConfigApiRecord['roster_slots']>;
+
+  if (
+    typeof parsed.QB !== 'number' ||
+    typeof parsed.RB !== 'number' ||
+    typeof parsed.WR !== 'number' ||
+    typeof parsed.TE !== 'number' ||
+    typeof parsed.FLEX !== 'number' ||
+    typeof parsed.SF !== 'number' ||
+    typeof parsed.BN !== 'number'
+  ) {
+    throw new Error('Invalid saved league config roster_slots JSON.');
+  }
+
+  return {
+    QB: parsed.QB,
+    RB: parsed.RB,
+    WR: parsed.WR,
+    TE: parsed.TE,
+    FLEX: parsed.FLEX,
+    SF: parsed.SF,
+    BN: parsed.BN,
   };
 }
 

@@ -9,6 +9,8 @@
 // @spec DFF-ENGINE-062
 // @spec DFF-ENGINE-063
 // @spec DFF-DATA-093
+// @spec DFF-DATA-095
+// @spec DFF-DATA-096
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -30,8 +32,10 @@ import {
   createDraftStateRoute,
   createDraftTradeResponseRoute,
   createDraftHistoryRoute,
+  createLeagueConfigsCreateRoute,
+  createLeagueConfigsListRoute,
 } from '../src/server/app.js';
-import { parseCreateDraftConfig } from '../src/server/config.js';
+import { parseCreateDraftConfig, parseSavedLeagueConfig } from '../src/server/config.js';
 import { resolveApiBaseUrl } from '../src/server/runtime.js';
 import viteConfig from '../src/ui/vite.config.js';
 
@@ -43,6 +47,27 @@ function createTempDatabasePath(prefix: string): string {
 function createDraftRequestBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     configName: 'Startup 12',
+    teamCount: 12,
+    rounds: 20,
+    scoringFormat: 'ppr',
+    rosterSlots: {
+      QB: 1,
+      RB: 2,
+      WR: 3,
+      TE: 1,
+      FLEX: 1,
+      SF: 1,
+      BN: 6,
+    },
+    pickPosition: 6,
+    futurePickYears: 3,
+    ...overrides,
+  };
+}
+
+function createSavedConfigRequestBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    configName: 'Default Home League',
     teamCount: 12,
     rounds: 20,
     scoringFormat: 'ppr',
@@ -209,6 +234,26 @@ async function invokeDraftRoute(
         waitForIdle: async () => undefined,
         resolvePendingTrade: () => false,
       },
+    }),
+    body,
+  });
+}
+
+async function invokeConfigsListRoute(databasePath: string) {
+  return invokeRoute({
+    route: createLeagueConfigsListRoute({ databasePath }),
+  });
+}
+
+async function invokeConfigsCreateRoute(
+  databasePath: string,
+  body: Record<string, unknown>,
+) {
+  return invokeRoute({
+    route: createLeagueConfigsCreateRoute({
+      databasePath,
+      idGenerator: () => 'league-config-1',
+      now: () => '2026-06-04T15:00:00.000Z',
     }),
     body,
   });
@@ -2508,9 +2553,233 @@ test('GET /drafts returns 500 when the drafts table is unavailable', async () =>
   }
 });
 
+// @spec DFF-DATA-095
+test('GET /configs returns all saved configs ordered by created_at descending', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-list-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    db.prepare(
+      `INSERT INTO league_configs (
+        id,
+        name,
+        team_count,
+        rounds,
+        scoring_format,
+        roster_slots,
+        pick_position,
+        future_pick_years,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'league-config-older',
+      'Older Build',
+      10,
+      18,
+      'half_ppr',
+      JSON.stringify({ QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 0, BN: 5 }),
+      3,
+      2,
+      '2026-06-03T10:00:00.000Z',
+    );
+
+    db.prepare(
+      `INSERT INTO league_configs (
+        id,
+        name,
+        team_count,
+        rounds,
+        scoring_format,
+        roster_slots,
+        pick_position,
+        future_pick_years,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'league-config-newer',
+      'Newest Build',
+      12,
+      20,
+      'ppr',
+      JSON.stringify({ QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 1, BN: 6 }),
+      6,
+      3,
+      '2026-06-04T09:00:00.000Z',
+    );
+
+    const response = await invokeConfigsListRoute(databasePath);
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json, [
+      {
+        id: 'league-config-newer',
+        name: 'Newest Build',
+        team_count: 12,
+        rounds: 20,
+        scoring_format: 'ppr',
+        roster_slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 1, BN: 6 },
+        pick_position: 6,
+        future_pick_years: 3,
+        created_at: '2026-06-04T09:00:00.000Z',
+      },
+      {
+        id: 'league-config-older',
+        name: 'Older Build',
+        team_count: 10,
+        rounds: 18,
+        scoring_format: 'half_ppr',
+        roster_slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 0, BN: 5 },
+        pick_position: 3,
+        future_pick_years: 2,
+        created_at: '2026-06-03T10:00:00.000Z',
+      },
+    ]);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-095
+test('GET /configs returns 500 when the league_configs table is unavailable', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-list-error-');
+
+  try {
+    const response = await invokeConfigsListRoute(databasePath);
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.json, { error: 'Internal server error.' });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-096
+test('POST /configs persists a saved config and returns the created record', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-');
+  initializeDatabase(databasePath);
+
+  try {
+    const response = await invokeConfigsCreateRoute(
+      databasePath,
+      createSavedConfigRequestBody({
+        configName: 'Road To Sundays',
+        teamCount: 14,
+        rounds: 22,
+        scoringFormat: 'standard',
+        pickPosition: 9,
+        futurePickYears: 4,
+        rosterSlots: {
+          QB: 1,
+          RB: 2,
+          WR: 4,
+          TE: 1,
+          FLEX: 2,
+          SF: 1,
+          BN: 7,
+        },
+      }),
+    );
+
+    assert.equal(response.statusCode, 201);
+    assert.deepEqual(response.json, {
+      id: 'league-config-1',
+      name: 'Road To Sundays',
+      team_count: 14,
+      rounds: 22,
+      scoring_format: 'standard',
+      roster_slots: { QB: 1, RB: 2, WR: 4, TE: 1, FLEX: 2, SF: 1, BN: 7 },
+      pick_position: 9,
+      future_pick_years: 4,
+      created_at: '2026-06-04T15:00:00.000Z',
+    });
+
+    const db = new Database(databasePath);
+
+    try {
+      const row = db
+        .prepare(
+          `SELECT
+             id,
+             name,
+             team_count,
+             rounds,
+             scoring_format,
+             roster_slots,
+             pick_position,
+             future_pick_years,
+             created_at
+           FROM league_configs
+           WHERE id = ?`,
+        )
+        .get('league-config-1') as
+        | {
+            id: string;
+            name: string;
+            team_count: number;
+            rounds: number;
+            scoring_format: string;
+            roster_slots: string;
+            pick_position: number;
+            future_pick_years: number;
+            created_at: string;
+          }
+        | undefined;
+
+      assert.deepEqual(row, {
+        id: 'league-config-1',
+        name: 'Road To Sundays',
+        team_count: 14,
+        rounds: 22,
+        scoring_format: 'standard',
+        roster_slots: JSON.stringify({ QB: 1, RB: 2, WR: 4, TE: 1, FLEX: 2, SF: 1, BN: 7 }),
+        pick_position: 9,
+        future_pick_years: 4,
+        created_at: '2026-06-04T15:00:00.000Z',
+      });
+    } finally {
+      db.close();
+    }
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-096
+test('POST /configs returns 400 when configName is missing', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-invalid-');
+  initializeDatabase(databasePath);
+
+  try {
+    const requestBody = createSavedConfigRequestBody();
+    delete requestBody.configName;
+
+    const response = await invokeConfigsCreateRoute(databasePath, requestBody);
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid saved config: configName must be a string.',
+    });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
 test('Vite dev server proxies /drafts requests to the backend server', () => {
   const serverConfig = viteConfig.server;
   const proxyConfig = serverConfig?.proxy?.['/drafts'];
+
+  assert.ok(serverConfig);
+  assert.ok(proxyConfig && typeof proxyConfig !== 'string');
+  assert.equal(proxyConfig.target, resolveApiBaseUrl());
+});
+
+// @spec DFF-DATA-095
+test('Vite dev server proxies /configs requests to the backend server', () => {
+  const serverConfig = viteConfig.server;
+  const proxyConfig = serverConfig?.proxy?.['/configs'];
 
   assert.ok(serverConfig);
   assert.ok(proxyConfig && typeof proxyConfig !== 'string');
@@ -2550,6 +2819,48 @@ test('parseCreateDraftConfig maps UI camelCase config into the service draft con
       RB: 3,
       WR: 2,
       TE: 2,
+      FLEX: 0,
+      SF: 0,
+      bench: 5,
+    },
+  });
+});
+
+// @spec DFF-DATA-096
+test('parseSavedLeagueConfig maps the saved-config request body into the persistence shape', () => {
+  const config = parseSavedLeagueConfig(
+    createSavedConfigRequestBody({
+      configName: 'Saved Setup',
+      teamCount: 8,
+      rounds: 10,
+      scoringFormat: 'half_ppr',
+      pickPosition: 2,
+      futurePickYears: 1,
+      rosterSlots: {
+        QB: 1,
+        RB: 2,
+        WR: 2,
+        TE: 1,
+        FLEX: 0,
+        SF: 0,
+        BN: 5,
+      },
+    }),
+  );
+
+  assert.deepEqual(config, {
+    name: 'Saved Setup',
+    teamCount: 8,
+    rounds: 10,
+    scoringFormat: 'half_ppr',
+    userPickPosition: 2,
+    futurePickYears: 1,
+    futurePickRounds: 10,
+    rosterConfig: {
+      QB: 1,
+      RB: 2,
+      WR: 2,
+      TE: 1,
       FLEX: 0,
       SF: 0,
       bench: 5,

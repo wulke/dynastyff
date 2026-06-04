@@ -1,5 +1,8 @@
 // @spec DFF-STATIC-013
 // @spec DFF-UI-010
+// @spec DFF-UI-011
+// @spec DFF-UI-012
+// @spec DFF-UI-013
 // @spec DFF-UI-014
 import { useEffect, useState, type ReactNode } from 'react';
 import * as Separator from '@radix-ui/react-separator';
@@ -7,6 +10,11 @@ import * as Separator from '@radix-ui/react-separator';
 import type { DraftConfig, ScoringFormat } from '../types.js';
 
 export type ConfigFormState = DraftConfig;
+
+type SavedConfigOption = {
+  id: string;
+  name: string;
+};
 
 // @spec DFF-UI-010
 export const configDefaults: ConfigFormState = {
@@ -150,7 +158,12 @@ function NumberField({ id, label, min, max, value, disabled = false, onChange }:
 type DraftConfigScreenProps = {
   config: ConfigFormState;
   isSubmitting: boolean;
+  isSavingConfig?: boolean;
+  savedConfigs?: SavedConfigOption[];
+  selectedSavedConfigId?: string;
   onConfigChange: (nextConfig: ConfigFormState) => void;
+  onSavedConfigSelect?: (savedConfigId: string) => void;
+  onSaveConfig?: () => Promise<void>;
   onStartDraft: () => Promise<void>;
   description?: string;
   footerBadgeLabel?: string;
@@ -165,7 +178,12 @@ type DraftConfigScreenProps = {
 export function DraftConfigScreen({
   config,
   isSubmitting,
+  isSavingConfig = false,
+  savedConfigs = [],
+  selectedSavedConfigId = '',
   onConfigChange,
+  onSavedConfigSelect,
+  onSaveConfig,
   onStartDraft,
   description = 'Set the league structure, roster shape, and your draft slot before starting a mock.',
   footerBadgeLabel = 'Local-first mock setup',
@@ -174,6 +192,7 @@ export function DraftConfigScreen({
   supportingContent,
 }: DraftConfigScreenProps) {
   const submitDisabled = isSubmitting || isSubmitDisabled;
+  const canSaveConfig = !isSavingConfig && typeof onSaveConfig === 'function';
 
   return (
     <section className="w-full max-w-5xl rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20">
@@ -199,6 +218,23 @@ export function DraftConfigScreen({
         }}
       >
         <div className="grid gap-6 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm text-stone-200" htmlFor="saved-configs">
+            <span className="font-medium">Saved Configs</span>
+            <select
+              id="saved-configs"
+              value={selectedSavedConfigId}
+              onChange={(event) => onSavedConfigSelect?.(event.target.value)}
+              className="rounded-2xl border border-stone-700 bg-stone-950/80 px-4 py-3 text-base text-stone-50 outline-none transition focus:border-amber-300"
+            >
+              <option value="">Select a saved config</option>
+              {savedConfigs.map((savedConfig) => (
+                <option key={savedConfig.id} value={savedConfig.id}>
+                  {savedConfig.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="flex flex-col gap-2 text-sm text-stone-200" htmlFor="config-name">
             <span className="font-medium">Config Name</span>
             <input
@@ -306,6 +342,20 @@ export function DraftConfigScreen({
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            disabled={!canSaveConfig}
+            onClick={() => {
+              if (!canSaveConfig) {
+                return;
+              }
+
+              void onSaveConfig();
+            }}
+            className="rounded-full border border-stone-600 px-5 py-2.5 text-sm font-semibold text-stone-100 transition hover:border-stone-500 hover:bg-stone-800 disabled:cursor-not-allowed disabled:border-stone-800 disabled:text-stone-500"
+          >
+            {isSavingConfig ? 'Saving…' : 'Save'}
+          </button>
           <button
             type="submit"
             disabled={submitDisabled}

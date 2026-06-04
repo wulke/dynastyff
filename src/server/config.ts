@@ -1,4 +1,5 @@
 // @spec DFF-ENGINE-003
+// @spec DFF-DATA-096
 import { scoringFormats } from '../db/schema.js';
 
 type RawDraftRequestBody = {
@@ -48,6 +49,10 @@ export type CreateDraftConfig = {
   };
 };
 
+export type SavedLeagueConfigInput = CreateDraftConfig & {
+  name: string;
+};
+
 export class DraftConfigValidationError extends Error {}
 export class PickSubmissionValidationError extends Error {}
 export class QueueSubmissionValidationError extends Error {}
@@ -86,6 +91,26 @@ export function parseCreateDraftConfig(input: unknown): CreateDraftConfig {
       SF: rosterSlots.SF,
       bench: rosterSlots.BN,
     },
+  };
+}
+
+// @spec DFF-DATA-096
+export function parseSavedLeagueConfig(input: unknown): SavedLeagueConfigInput {
+  if (!isRecord(input)) {
+    throw new DraftConfigValidationError('Invalid saved config: request body must be a JSON object.');
+  }
+
+  const body = input as RawDraftRequestBody;
+
+  if (typeof body.configName !== 'string') {
+    throw new DraftConfigValidationError('Invalid saved config: configName must be a string.');
+  }
+
+  const config = parseCreateDraftConfig(input);
+
+  return {
+    name: body.configName,
+    ...config,
   };
 }
 

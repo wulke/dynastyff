@@ -14,6 +14,9 @@
 // @spec DFF-UI-082
 // @spec DFF-UI-110
 // @spec DFF-UI-111
+// @spec DFF-UI-011
+// @spec DFF-UI-012
+// @spec DFF-UI-013
 // @spec DFF-UI-116
 // @spec DFF-UI-115
 // @spec DFF-UI-130
@@ -58,6 +61,33 @@ type DraftColumnDefinition = {
   label: string;
   testId: string;
   renderIcon: () => ReactNode;
+};
+
+type SavedLeagueConfigApiRecord = {
+  id: string;
+  name: string;
+  team_count: number;
+  rounds: number;
+  scoring_format: 'ppr' | 'half_ppr' | 'standard';
+  roster_slots: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    BN: number;
+  };
+  pick_position: number;
+  future_pick_years: number;
+  created_at: string;
+};
+
+type SavedLeagueConfig = {
+  id: string;
+  name: string;
+  createdAt: string;
+  config: ConfigFormState;
 };
 
 const DRAFT_COLUMNS: DraftColumnDefinition[] = [
@@ -120,6 +150,65 @@ function getDraftingLayoutClass(expandedColumn: DraftColumnId | null): string {
 // @spec DFF-UI-132
 function getExpandButtonLabel(columnLabel: string): string {
   return `Expand ${columnLabel}`;
+}
+
+// @spec DFF-UI-011
+function isSavedLeagueConfigApiRecord(value: unknown): value is SavedLeagueConfigApiRecord {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<SavedLeagueConfigApiRecord>;
+  const rosterSlots = candidate.roster_slots as Partial<SavedLeagueConfigApiRecord['roster_slots']> | undefined;
+
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.name === 'string' &&
+    typeof candidate.team_count === 'number' &&
+    typeof candidate.rounds === 'number' &&
+    (candidate.scoring_format === 'ppr' ||
+      candidate.scoring_format === 'half_ppr' ||
+      candidate.scoring_format === 'standard') &&
+    typeof candidate.pick_position === 'number' &&
+    typeof candidate.future_pick_years === 'number' &&
+    typeof candidate.created_at === 'string' &&
+    Boolean(rosterSlots) &&
+    typeof rosterSlots?.QB === 'number' &&
+    typeof rosterSlots?.RB === 'number' &&
+    typeof rosterSlots?.WR === 'number' &&
+    typeof rosterSlots?.TE === 'number' &&
+    typeof rosterSlots?.FLEX === 'number' &&
+    typeof rosterSlots?.SF === 'number' &&
+    typeof rosterSlots?.BN === 'number'
+  );
+}
+
+// @spec DFF-UI-011
+// @spec DFF-UI-012
+// @spec DFF-UI-013
+function toSavedLeagueConfig(record: SavedLeagueConfigApiRecord): SavedLeagueConfig {
+  return {
+    id: record.id,
+    name: record.name,
+    createdAt: record.created_at,
+    config: sanitizeDraftConfig({
+      name: record.name,
+      teamCount: record.team_count,
+      rounds: record.rounds,
+      scoringFormat: record.scoring_format,
+      userPickPosition: record.pick_position,
+      futurePickYears: record.future_pick_years,
+      rosterConfig: {
+        QB: record.roster_slots.QB,
+        RB: record.roster_slots.RB,
+        WR: record.roster_slots.WR,
+        TE: record.roster_slots.TE,
+        FLEX: record.roster_slots.FLEX,
+        SF: record.roster_slots.SF,
+        bench: record.roster_slots.BN,
+      },
+    }),
+  };
 }
 
 // @spec DFF-UI-132
@@ -390,6 +479,9 @@ function DraftApp() {
   const [showDraftsList, setShowDraftsList] = useState(false);
   const [draftsList, setDraftsList] = useState<DraftListEntry[]>([]);
   const [showDraftsListLoading, setShowDraftsListLoading] = useState(true);
+  const [savedConfigs, setSavedConfigs] = useState<SavedLeagueConfig[]>([]);
+  const [selectedSavedConfigId, setSelectedSavedConfigId] = useState('');
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [expandedColumn, setExpandedColumn] = useState<DraftColumnId | null>(null);
   const [dismissedTradeId, setDismissedTradeId] = useState<string | null>(null);
   const showErrorRef = useRef(showError);
@@ -436,6 +528,31 @@ function DraftApp() {
         setShowDraftsListLoading(false);
       });
   }, []);
+
+  // @spec DFF-UI-011
+  // @spec DFF-UI-011b
+  useEffect(() => {
+    Promise.resolve()
+      .then(() => fetch('/configs'))
+      .then(async (response) => {
+        if (!response || typeof response.ok !== 'boolean' || !response.ok) {
+          return;
+        }
+
+        const payload = await response.json().catch(() => []);
+
+        if (!Array.isArray(payload)) {
+          return;
+        }
+
+        setSavedConfigs(
+          payload
+            .filter(isSavedLeagueConfigApiRecord)
+            .map((record) => toSavedLeagueConfig(record)),
+        );
+      })
+      .catch(() => undefined);
+  }, []);
   const view = showDraftsList ? 'drafts-list' : !draftState ? 'config' : showHistory ? 'history' : 'drafting';
   const completionBannerTeamName = draftState?.teams.find((team) => team.isUser)?.name ?? 'Your team';
   const showCompletionBanner = draftState?.status === 'completed' && !showHistory;
@@ -466,6 +583,84 @@ function DraftApp() {
       await startDraft(safeConfig);
     } finally {
       setIsSubmittingDraft(false);
+    }
+  }
+
+  // @spec DFF-UI-012
+  function handleSavedConfigSelect(savedConfigId: string) {
+    setSelectedSavedConfigId(savedConfigId);
+
+    if (!savedConfigId) {
+      return;
+    }
+
+    const selectedConfig = savedConfigs.find((savedConfig) => savedConfig.id === savedConfigId);
+
+    if (!selectedConfig) {
+      return;
+    }
+
+    setDraftConfig(selectedConfig.config);
+  }
+
+  // @spec DFF-UI-013
+  // @spec DFF-UI-013b
+  async function handleSaveConfig() {
+    if (isSavingConfig) {
+      return;
+    }
+
+    const safeConfig = sanitizeDraftConfig(draftConfig);
+    setDraftConfig(safeConfig);
+    setIsSavingConfig(true);
+
+    try {
+      const response = await fetch('/configs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          configName: safeConfig.name,
+          teamCount: safeConfig.teamCount,
+          rounds: safeConfig.rounds,
+          scoringFormat: safeConfig.scoringFormat,
+          pickPosition: safeConfig.userPickPosition,
+          futurePickYears: safeConfig.futurePickYears,
+          rosterSlots: {
+            QB: safeConfig.rosterConfig.QB,
+            RB: safeConfig.rosterConfig.RB,
+            WR: safeConfig.rosterConfig.WR,
+            TE: safeConfig.rosterConfig.TE,
+            FLEX: safeConfig.rosterConfig.FLEX,
+            SF: safeConfig.rosterConfig.SF,
+            BN: safeConfig.rosterConfig.bench,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save config.');
+      }
+
+      const payload = await response.json().catch(() => null);
+
+      if (!isSavedLeagueConfigApiRecord(payload)) {
+        throw new Error('Failed to save config.');
+      }
+
+      const savedConfig = toSavedLeagueConfig(payload);
+
+      setSavedConfigs((current) => {
+        const filtered = current.filter((entry) => entry.id !== savedConfig.id);
+        return [savedConfig, ...filtered];
+      });
+      setSelectedSavedConfigId(savedConfig.id);
+      setDraftConfig(savedConfig.config);
+    } catch {
+      showErrorRef.current('Failed to save config.');
+    } finally {
+      setIsSavingConfig(false);
     }
   }
 
@@ -514,7 +709,15 @@ function DraftApp() {
           <DraftConfigScreen
             config={draftConfig}
             isSubmitting={isSubmittingDraft}
+            isSavingConfig={isSavingConfig}
+            savedConfigs={savedConfigs.map((savedConfig) => ({
+              id: savedConfig.id,
+              name: savedConfig.name,
+            }))}
+            selectedSavedConfigId={selectedSavedConfigId}
             onConfigChange={setDraftConfig}
+            onSavedConfigSelect={handleSavedConfigSelect}
+            onSaveConfig={handleSaveConfig}
             onStartDraft={handleStartDraft}
           />
         ) : null}
@@ -613,6 +816,7 @@ function DraftApp() {
             onNewDraft={() => {
               setShowHistory(false);
               setShowDraftsList(false);
+              setSelectedSavedConfigId('');
               setDraftConfig(configDefaults);
               setDismissedTradeId(null);
               newDraft();

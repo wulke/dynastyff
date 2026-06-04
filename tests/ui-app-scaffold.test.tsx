@@ -6,6 +6,9 @@
 // @spec DFF-UI-007
 // @spec DFF-UI-004
 // @spec DFF-UI-010
+// @spec DFF-UI-011
+// @spec DFF-UI-012
+// @spec DFF-UI-013
 // @spec DFF-UI-014
 // @spec DFF-UI-015
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
@@ -121,17 +124,115 @@ function createDraftingState(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function createJsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+type SavedConfigApiRecord = {
+  id: string;
+  name: string;
+  team_count: number;
+  rounds: number;
+  scoring_format: 'ppr' | 'half_ppr' | 'standard';
+  roster_slots: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    BN: number;
+  };
+  pick_position: number;
+  future_pick_years: number;
+  created_at: string;
+};
+
+function createSavedConfigRecord(overrides: Partial<SavedConfigApiRecord> = {}): SavedConfigApiRecord {
+  return {
+    id: 'saved-config-1',
+    name: 'Home League',
+    team_count: 12,
+    rounds: 20,
+    scoring_format: 'ppr',
+    roster_slots: {
+      QB: 1,
+      RB: 2,
+      WR: 3,
+      TE: 1,
+      FLEX: 1,
+      SF: 1,
+      BN: 6,
+    },
+    pick_position: 6,
+    future_pick_years: 3,
+    created_at: '2026-06-04T12:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function setupDraftLifecycleFetches(options: {
+  draftId?: string;
+  postResponse?: Response;
+  savedConfigs?: SavedConfigApiRecord[];
+  onPostDraft?: () => Promise<Response> | Response;
+} = {}) {
+  const {
+    draftId = 'draft-123',
+    postResponse = createJsonResponse({ draftId }, 201),
+    savedConfigs = [],
+    onPostDraft,
+  } = options;
+
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(createJsonResponse([]));
+    }
+
+    if (url === '/configs' && method === 'GET') {
+      return Promise.resolve(createJsonResponse(savedConfigs));
+    }
+
+    if (url === '/drafts' && method === 'POST') {
+      return Promise.resolve(onPostDraft ? onPostDraft() : postResponse);
+    }
+
+    if (url === `/drafts/${draftId}/state` && method === 'GET') {
+      return Promise.resolve(createJsonResponse(createDraftingState({ draft_id: draftId })));
+    }
+
+    if (url === `/drafts/${draftId}/queue` && method === 'GET') {
+      return Promise.resolve(createJsonResponse([]));
+    }
+
+    return Promise.resolve(createJsonResponse([]));
+  });
+}
+
+// @spec DFF-UI-011
 // @spec DFF-UI-014
 // @spec DFF-UI-015
-function setupEmptyDraftsFetch() {
-  // Default: GET /drafts returns empty array so the app shows the config screen.
-  // Individual tests override this with their own mockResolvedValue/mockResolvedValueOnce.
-  fetchMock.mockResolvedValue(
-    new Response(JSON.stringify([]), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    }),
-  );
+function setupDefaultAppFetches(savedConfigs: SavedConfigApiRecord[] = []) {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(createJsonResponse([]));
+    }
+
+    if (url === '/configs' && method === 'GET') {
+      return Promise.resolve(createJsonResponse(savedConfigs));
+    }
+
+    return Promise.resolve(createJsonResponse([]));
+  });
 }
 
 beforeEach(() => {
@@ -139,7 +240,7 @@ beforeEach(() => {
   MockEventSource.instances = [];
   vi.stubGlobal('fetch', fetchMock);
   vi.stubGlobal('EventSource', MockEventSource as unknown as typeof EventSource);
-  setupEmptyDraftsFetch();
+  setupDefaultAppFetches();
 });
 
 // @spec DFF-UI-014
@@ -176,18 +277,271 @@ describe('UI app scaffold', () => {
     expect(screen.getByLabelText(/future pick years/i)).toHaveValue(3);
   });
 
+  // @spec DFF-UI-011
+  test('loads saved configs on mount and displays them in the dropdown', async () => {
+    setupDefaultAppFetches([
+      createSavedConfigRecord({
+        id: 'saved-config-a',
+        name: 'Home League',
+      }),
+      createSavedConfigRecord({
+        id: 'saved-config-b',
+        name: 'Superflex Build',
+        created_at: '2026-06-04T13:00:00.000Z',
+      }),
+    ]);
+
+    await renderAppToConfig();
+
+    const select = screen.getByLabelText(/saved configs/i);
+    const options = within(select).getAllByRole('option');
+
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Select a saved config',
+      'Home League',
+      'Superflex Build',
+    ]);
+  });
+
+  // @spec DFF-UI-011b
+  test('renders only the default saved-config option when GET /configs returns non-ok', async () => {
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'GET') {
+        return Promise.resolve(new Response('boom', { status: 500 }));
+      }
+
+      return Promise.resolve(createJsonResponse([]));
+    });
+
+    await renderAppToConfig();
+
+    const select = screen.getByLabelText(/saved configs/i);
+    const options = within(select).getAllByRole('option');
+
+    expect(options.map((option) => option.textContent)).toEqual(['Select a saved config']);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-012
+  test('selecting a saved config populates all form fields', async () => {
+    const savedConfig = createSavedConfigRecord({
+      id: 'saved-config-2',
+      name: 'Superflex Tight End Premium',
+      team_count: 14,
+      rounds: 24,
+      scoring_format: 'half_ppr',
+      pick_position: 9,
+      future_pick_years: 5,
+      roster_slots: {
+        QB: 1,
+        RB: 2,
+        WR: 4,
+        TE: 2,
+        FLEX: 2,
+        SF: 1,
+        BN: 8,
+      },
+    });
+
+    setupDefaultAppFetches([savedConfig]);
+    const user = userEvent.setup();
+
+    await renderAppToConfig();
+    await user.selectOptions(screen.getByLabelText(/saved configs/i), 'saved-config-2');
+
+    expect(screen.getByLabelText(/config name/i)).toHaveValue('Superflex Tight End Premium');
+    expect(screen.getByLabelText(/team count/i)).toHaveValue(14);
+    expect(screen.getByLabelText(/^rounds$/i)).toHaveValue(24);
+    expect(screen.getByLabelText(/scoring format/i)).toHaveValue('half_ppr');
+    expect(screen.getByLabelText(/^qb$/i)).toHaveValue(1);
+    expect(screen.getByLabelText(/^rb$/i)).toHaveValue(2);
+    expect(screen.getByLabelText(/^wr$/i)).toHaveValue(4);
+    expect(screen.getByLabelText(/^te$/i)).toHaveValue(2);
+    expect(screen.getByLabelText(/^flex$/i)).toHaveValue(2);
+    expect(screen.getByLabelText(/^sf$/i)).toHaveValue(1);
+    expect(screen.getByLabelText(/^bn$/i)).toHaveValue(8);
+    expect(screen.getByLabelText(/pick position/i)).toHaveValue(9);
+    expect(screen.getByLabelText(/future pick years/i)).toHaveValue(5);
+  });
+
+  // @spec DFF-UI-013
+  test('saving the current config posts to /configs and adds the result to the dropdown', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'POST') {
+        return Promise.resolve(
+          createJsonResponse(
+            createSavedConfigRecord({
+              id: 'saved-config-new',
+              name: 'Tournament Build',
+              team_count: 10,
+              rounds: 18,
+              scoring_format: 'standard',
+              roster_slots: {
+                QB: 1,
+                RB: 2,
+                WR: 3,
+                TE: 1,
+                FLEX: 1,
+                SF: 0,
+                BN: 5,
+              },
+              pick_position: 4,
+              future_pick_years: 2,
+            }),
+            201,
+          ),
+        );
+      }
+
+      return Promise.resolve(createJsonResponse([]));
+    });
+
+    await renderAppToConfig();
+
+    await user.type(screen.getByLabelText(/config name/i), 'Tournament Build');
+    await user.clear(screen.getByLabelText(/team count/i));
+    await user.type(screen.getByLabelText(/team count/i), '10');
+    await user.clear(screen.getByLabelText(/^rounds$/i));
+    await user.type(screen.getByLabelText(/^rounds$/i), '18');
+    await user.selectOptions(screen.getByLabelText(/scoring format/i), 'standard');
+    await user.clear(screen.getByLabelText(/^sf$/i));
+    await user.type(screen.getByLabelText(/^sf$/i), '0');
+    await user.clear(screen.getByLabelText(/^bn$/i));
+    await user.type(screen.getByLabelText(/^bn$/i), '5');
+    await user.clear(screen.getByLabelText(/pick position/i));
+    await user.type(screen.getByLabelText(/pick position/i), '4');
+    await user.clear(screen.getByLabelText(/future pick years/i));
+    await user.type(screen.getByLabelText(/future pick years/i), '2');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/configs',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          configName: 'Tournament Build',
+          teamCount: 10,
+          rounds: 18,
+          scoringFormat: 'standard',
+          pickPosition: 4,
+          futurePickYears: 2,
+          rosterSlots: {
+            QB: 1,
+            RB: 2,
+            WR: 3,
+            TE: 1,
+            FLEX: 1,
+            SF: 0,
+            BN: 5,
+          },
+        }),
+      }),
+    );
+
+    const select = screen.getByLabelText(/saved configs/i);
+    expect(within(select).getByRole('option', { name: 'Tournament Build' })).toBeInTheDocument();
+    expect(select).toHaveValue('saved-config-new');
+  });
+
+  // @spec DFF-UI-013b
+  test('shows a save-config error toast and re-enables Save when POST /configs returns non-ok', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'POST') {
+        return Promise.resolve(new Response('boom', { status: 500 }));
+      }
+
+      return Promise.resolve(createJsonResponse([]));
+    });
+
+    await renderAppToConfig();
+
+    const saveButton = screen.getByRole('button', { name: /^save$/i });
+    await user.click(saveButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to save config\./i);
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
+  });
+
+  // @spec DFF-UI-013b
+  test('shows a save-config error toast and re-enables Save when POST /configs returns malformed json', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'POST') {
+        return Promise.resolve(
+          new Response('not-json', {
+            status: 201,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }),
+        );
+      }
+
+      return Promise.resolve(createJsonResponse([]));
+    });
+
+    await renderAppToConfig();
+
+    const saveButton = screen.getByRole('button', { name: /^save$/i });
+    await user.click(saveButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to save config\./i);
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
+  });
+
   // @spec DFF-UI-002
   // @spec DFF-UI-014
   test('posts the current form values and transitions to drafting when a draft is created', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -242,14 +596,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-139
   test('renders the drafting status bar and three weighted columns with a single turn-status surface', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -369,14 +716,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-138
   test('shows the active bot team name in the drafting status bar when it is not the user turn', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -398,14 +738,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-138
   test('shows the final pick count and draft complete status when the draft is completed', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -436,14 +769,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-138
   test('falls back to draft room active when the current pick number has no matching draft-order slot', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -465,14 +791,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-138
   test('falls back to draft room active when the current slot team cannot be resolved', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -502,7 +821,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('shows an error toast and remains on config when draft creation fails', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
+    setupDraftLifecycleFetches({
+      postResponse: new Response('boom', { status: 500 }),
+    });
 
     await renderAppToConfig();
 
@@ -521,7 +842,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('shows the server validation message for a 4xx draft creation error', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(new Response('Pick position must be between 1 and 12.', { status: 422 }));
+    setupDraftLifecycleFetches({
+      postResponse: new Response('Pick position must be between 1 and 12.', { status: 422 }),
+    });
 
     await renderAppToConfig();
 
@@ -538,7 +861,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('shows the generic error toast when the draft creation request rejects', async () => {
     const user = userEvent.setup();
-    fetchMock.mockRejectedValue(new Error('socket hang up'));
+    setupDraftLifecycleFetches({
+      onPostDraft: () => Promise.reject(new Error('socket hang up')),
+    });
 
     await renderAppToConfig();
 
@@ -557,7 +882,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   // @spec DFF-UI-087
   test('auto-dismisses the error toast after 6 seconds', async () => {
-    fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
+    setupDraftLifecycleFetches({
+      postResponse: new Response('boom', { status: 500 }),
+    });
 
     await renderAppToConfig();
     vi.useFakeTimers();
@@ -579,14 +906,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('remains on config when the success response is missing a draft id', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({}), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches({
+      postResponse: createJsonResponse({}, 201),
+    });
 
     await renderAppToConfig();
 
@@ -606,14 +928,14 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('remains on config when the success response body is not valid json', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response('not json', {
+    setupDraftLifecycleFetches({
+      postResponse: new Response('not json', {
         status: 201,
         headers: {
           'Content-Type': 'application/json',
         },
       }),
-    );
+    });
 
     await renderAppToConfig();
 
@@ -634,27 +956,22 @@ describe('UI app scaffold', () => {
   test('ignores a second submit while draft creation is already in flight', async () => {
     const deferredResponse = createDeferred<Response>();
     const user = userEvent.setup();
-    fetchMock
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )
-      .mockImplementation(() => deferredResponse.promise);
+    setupDraftLifecycleFetches({
+      onPostDraft: () => deferredResponse.promise,
+    });
 
     await renderAppToConfig();
 
     const startDraftButton = screen.getByRole('button', { name: /start draft/i });
     await user.click(startDraftButton);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(screen.getByRole('button', { name: /starting draft…/i })).toBeDisabled();
 
     const pendingButton = screen.getByRole('button', { name: /starting draft…/i });
     await user.click(pendingButton);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
 
     deferredResponse.resolve(
       new Response(JSON.stringify({ draftId: 'draft-123' }), {
@@ -676,14 +993,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-014
   test('clamps out-of-range numeric values before posting the draft request', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -728,14 +1038,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-007
   test('renders a completion banner over the draft board when the draft completes', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -774,11 +1077,9 @@ describe('UI app scaffold', () => {
         name: /you finished the draft/i,
       }),
     ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('draft-completion-banner')).getByText(
-        /congratulations, lakeview legends/i,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
+      /congratulations, lakeview legends/i,
+    );
     expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
     expect(screen.getByTestId('layout-toggle')).toBeDisabled();
@@ -788,14 +1089,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-005
   test('falls back to "Your team" when the user team is missing from state', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -823,25 +1117,16 @@ describe('UI app scaffold', () => {
       });
     });
 
-    expect(
-      within(screen.getByTestId('draft-completion-banner')).getByText(
-        /congratulations, your team\./i,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
+      /congratulations, your team\./i,
+    );
   });
 
   // @spec DFF-UI-003
   // @spec DFF-UI-005
   test('renders the completion banner even if draft_complete arrives before the first state_sync', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -859,25 +1144,16 @@ describe('UI app scaffold', () => {
         name: /you finished the draft/i,
       }),
     ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('draft-completion-banner')).getByText(
-        /congratulations, your team\./i,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
+      /congratulations, lakeview legends/i,
+    );
   });
 
   // @spec DFF-UI-006
   // @spec DFF-UI-004
   test('opens history from the completion banner and then returns to config when the user starts a new draft', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 

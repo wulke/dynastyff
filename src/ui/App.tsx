@@ -42,7 +42,7 @@ import { DraftBoard } from './components/DraftBoard.js';
 import { PickFeedPanel } from './components/PickFeedPanel.js';
 import { AvailablePlayersPanel } from './components/AvailablePlayersPanel.js';
 import { HistoryView } from './components/HistoryView.js';
-import { TradeModal } from './components/TradeModal.js';
+import { TradeModal, type TradeComposerState } from './components/TradeModal.js';
 
 type DraftCompletionBannerProps = {
   teamName: string;
@@ -469,10 +469,30 @@ type DraftListEntry = {
   rounds: number;
 };
 
+type ComposerSide = 'offered' | 'requested';
+
+type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE';
+
+function areTradeAssetsEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function createTradeComposerState(targetTeamId: string, offeredAssets: unknown[] = [], requestedAssets: unknown[] = []): TradeComposerState {
+  return {
+    targetTeamId,
+    offeredAssets,
+    requestedAssets,
+    offeredFilter: 'ALL',
+    requestedFilter: 'ALL',
+    status: 'editing',
+    resultStatus: null,
+  };
+}
+
 function DraftApp() {
   // @spec DFF-STATIC-061
   // @spec DFF-STATIC-062
-  const { draftState, newDraft, showError, startDraft, respondToTrade } = useDraftContext();
+  const { draftState, newDraft, showError, startDraft, respondToTrade, submitTradeOffer } = useDraftContext();
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -484,6 +504,8 @@ function DraftApp() {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [expandedColumn, setExpandedColumn] = useState<DraftColumnId | null>(null);
   const [dismissedTradeId, setDismissedTradeId] = useState<string | null>(null);
+  const [tradeComposer, setTradeComposer] = useState<TradeComposerState | null>(null);
+  const [composerTradeId, setComposerTradeId] = useState<string | null>(null);
   const showErrorRef = useRef(showError);
 
   useEffect(() => {
@@ -495,6 +517,28 @@ function DraftApp() {
       setDismissedTradeId(null);
     }
   }, [draftState?.pendingTrade]);
+
+  useEffect(() => {
+    if (!composerTradeId || !draftState) {
+      return;
+    }
+
+    const resolvedTrade = draftState.trades.find((trade) => trade.id === composerTradeId);
+
+    if (!resolvedTrade) {
+      return;
+    }
+
+    setTradeComposer((current) =>
+      current
+        ? {
+            ...current,
+            status: 'resolved',
+            resultStatus: resolvedTrade.status === 'accepted' ? 'accepted' : 'declined',
+          }
+        : current,
+    );
+  }, [composerTradeId, draftState]);
 
   // @spec DFF-UI-110
   // @spec DFF-UI-111
@@ -559,9 +603,11 @@ function DraftApp() {
   const showTradeModal =
     Boolean(draftState?.pendingTrade) &&
     draftState?.pendingTrade?.tradeId !== dismissedTradeId &&
+    tradeComposer === null &&
     !showHistory &&
     draftState?.status !== 'completed';
-  const isDraftInteractionBlocked = showCompletionBanner || showTradeModal;
+  const showComposerModal = Boolean(tradeComposer) && !showHistory && draftState?.status !== 'completed';
+  const isDraftInteractionBlocked = showCompletionBanner || showTradeModal || showComposerModal;
 
   // @spec DFF-UI-014
   // @spec DFF-UI-015
@@ -576,6 +622,8 @@ function DraftApp() {
     setShowHistory(false);
     setShowDraftsList(false);
     setDismissedTradeId(null);
+    setTradeComposer(null);
+    setComposerTradeId(null);
     // @spec DFF-UI-136
     setExpandedColumn(null);
 
@@ -681,6 +729,118 @@ function DraftApp() {
     }
   }
 
+  function handleOpenTradeComposer(targetTeamId: string) {
+    setTradeComposer(createTradeComposerState(targetTeamId));
+    setComposerTradeId(null);
+  }
+
+  function handleComposerTargetChange(targetTeamId: string) {
+    setTradeComposer((current) =>
+      current
+        ? {
+            ...current,
+            targetTeamId,
+            requestedAssets: [],
+            requestedFilter: 'ALL',
+          }
+        : current,
+    );
+  }
+
+  function handleComposerFilterChange(side: ComposerSide, filter: PositionFilter) {
+    setTradeComposer((current) => {
+      if (!current) {
+        return current;
+      }
+
+      if (side === 'offered') {
+        return {
+          ...current,
+          offeredFilter: filter,
+        };
+      }
+
+      return {
+        ...current,
+        requestedFilter: filter,
+      };
+    });
+  }
+
+  function handleToggleComposerAsset(side: ComposerSide, asset: unknown) {
+    setTradeComposer((current) => {
+      if (!current || current.status !== 'editing') {
+        return current;
+      }
+
+      const existingAssets = side === 'offered' ? current.offeredAssets : current.requestedAssets;
+      const nextAssets = existingAssets.some((entry) => areTradeAssetsEqual(entry, asset))
+        ? existingAssets.filter((entry) => !areTradeAssetsEqual(entry, asset))
+        : [...existingAssets, asset];
+
+      if (side === 'offered') {
+        return {
+          ...current,
+          offeredAssets: nextAssets,
+        };
+      }
+
+      return {
+        ...current,
+        requestedAssets: nextAssets,
+      };
+    });
+  }
+
+  async function handleSubmitTradeComposer() {
+    if (!tradeComposer || tradeComposer.status !== 'editing') {
+      return;
+    }
+
+    const result = await submitTradeOffer(
+      tradeComposer.targetTeamId,
+      tradeComposer.offeredAssets,
+      tradeComposer.requestedAssets,
+    );
+
+    if (!result.ok) {
+      return;
+    }
+
+    setComposerTradeId(result.tradeId);
+    setTradeComposer((current) =>
+      current
+        ? {
+            ...current,
+            status: 'awaiting',
+          }
+        : current,
+    );
+  }
+
+  function handleCloseTradeComposer() {
+    setTradeComposer(null);
+    setComposerTradeId(null);
+  }
+
+  function handleCounterTrade() {
+    const pendingTrade = draftState?.pendingTrade;
+
+    if (!pendingTrade || pendingTrade.isBotToBot) {
+      return;
+    }
+
+    setDismissedTradeId(pendingTrade.tradeId);
+    setTradeComposer(
+      createTradeComposerState(
+        pendingTrade.initiatingTeamId,
+        pendingTrade.assetsReceived,
+        pendingTrade.assetsSent,
+      ),
+    );
+    setComposerTradeId(null);
+  }
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_35%),linear-gradient(180deg,_#1c1917_0%,_#0c0a09_100%)] px-6 py-12 text-stone-100">
       <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-7xl items-start justify-center">
@@ -759,10 +919,11 @@ function DraftApp() {
                         <DraftBoard
                           draftState={draftState}
                           isInteractionBlocked={isDraftInteractionBlocked}
+                          onTeamHeaderClick={handleOpenTradeComposer}
                           headerAction={
                             <ExpandColumnButton
                               label={column.label}
-                              disabled={showTradeModal}
+                              disabled={showTradeModal || showComposerModal}
                               onClick={() => setExpandedColumn(column.id)}
                             />
                           }
@@ -777,24 +938,24 @@ function DraftApp() {
                         ) : null}
                       </>
                     ) : column.id === 'available-players' ? (
-                      <AvailablePlayersPanel
-                        draftState={draftState}
-                        isInteractionBlocked={showTradeModal}
-                        headerAction={
-                          <ExpandColumnButton
-                            label={column.label}
-                            disabled={showTradeModal}
-                            onClick={() => setExpandedColumn(column.id)}
-                          />
-                        }
-                      />
+                        <AvailablePlayersPanel
+                          draftState={draftState}
+                          isInteractionBlocked={showTradeModal || showComposerModal}
+                          headerAction={
+                            <ExpandColumnButton
+                              label={column.label}
+                              disabled={showTradeModal || showComposerModal}
+                              onClick={() => setExpandedColumn(column.id)}
+                            />
+                          }
+                        />
                     ) : (
                       <PickFeedPanel
                         draftState={draftState}
                         headerAction={
                           <ExpandColumnButton
                             label={column.label}
-                            disabled={showTradeModal}
+                            disabled={showTradeModal || showComposerModal}
                             onClick={() => setExpandedColumn(column.id)}
                           />
                         }
@@ -804,7 +965,18 @@ function DraftApp() {
                 );
               })}
             </div>
-            <TradeModal draftState={draftState} isOpen={showTradeModal} onRespond={handleTradeResponse} />
+            <TradeModal
+              draftState={draftState}
+              isOpen={showTradeModal || showComposerModal}
+              composer={tradeComposer}
+              onRespond={handleTradeResponse}
+              onCounter={handleCounterTrade}
+              onComposerTargetChange={handleComposerTargetChange}
+              onComposerFilterChange={handleComposerFilterChange}
+              onToggleComposerAsset={handleToggleComposerAsset}
+              onSubmitComposer={handleSubmitTradeComposer}
+              onCloseComposer={handleCloseTradeComposer}
+            />
           </div>
         ) : null}
 
@@ -819,6 +991,8 @@ function DraftApp() {
               setSelectedSavedConfigId('');
               setDraftConfig(configDefaults);
               setDismissedTradeId(null);
+              setTradeComposer(null);
+              setComposerTradeId(null);
               newDraft();
             }}
           />

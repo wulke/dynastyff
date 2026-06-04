@@ -188,6 +188,30 @@ When the user clicks "OK" for a bot-to-bot trade, the system shall POST /drafts/
 **DFF-UI-055** `[x]` → #19
 When the user clicks "Force Decline" for a bot-to-bot trade, the system shall POST /drafts/:id/trade-response with status `force_declined`.
 
+**DFF-UI-056** `[x]` → #86
+When the user clicks a bot team column header on the draft board, the system shall open the trade modal in propose mode targeting that team without closing the draft room.
+
+**DFF-UI-057** `[x]` → #86
+In trade propose mode, the modal shall render a team selector dropdown that lets the user switch the targeted bot team without closing the modal.
+
+**DFF-UI-058** `[x]` → #86
+In trade propose mode, the modal shall render client-side position filter pills (`ALL`, `QB`, `RB`, `WR`, `TE`) for both player asset lists; draft picks shall remain visible and unfiltered.
+
+**DFF-UI-059** `[x]` → #86
+When the user submits a proposed trade, the system shall POST /drafts/:id/trade-offer with the selected offered assets, requested assets, and target team id, then keep the modal open while awaiting the bot result over SSE.
+
+**DFF-UI-059b** `[x]` → #86
+While a user-initiated trade offer is pending, the trade modal shall show a non-dismissible awaiting state rather than Accept / Decline controls.
+
+**DFF-UI-059c** `[x]` → #86
+When the bot resolves a user-initiated trade offer over SSE, the trade modal shall update in place to show whether the offer was accepted or declined.
+
+**DFF-UI-059d** `[x]` → #86
+When the user receives a bot-to-user trade offer, the modal shall render a `Counter` action alongside `Accept` and `Decline`.
+
+**DFF-UI-059e** `[x]` → #86
+When the user clicks `Counter` on a bot-to-user trade offer, the modal shall transition to propose mode targeting the same bot team and pre-populate the offer with the original trade assets reversed.
+
 ---
 
 ## Draft History View

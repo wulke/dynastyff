@@ -85,6 +85,21 @@ When a bot pick is made, the system shall write the pick to `picks`, write owner
 **DFF-ENGINE-033** `[x]` → #28
 When the bot simulator initiates a trade during the bot chain, the system shall pause the chain, emit a `trade_offered` SSE event, and wait for POST /drafts/:id/trade-response before resuming.
 
+**DFF-ENGINE-034** `[x]` → #86
+When a POST /drafts/:id/trade-offer request is received with a valid target bot team id plus offered and requested assets, the system shall emit a `trade_offered` SSE event representing the user-initiated proposal and evaluate the offer asynchronously.
+
+**DFF-ENGINE-035** `[x]` → #86
+While a user-initiated trade offer is pending, the system shall pause the bot chain and shall not process additional bot turns until the trade resolves.
+
+**DFF-ENGINE-036** `[x]` → #86
+When the targeted bot accepts a user-initiated trade offer, the system shall transfer all accepted assets, write the trade to `trades`, emit a `trade_resolved` SSE event with status `accepted`, and resume the bot chain.
+
+**DFF-ENGINE-037** `[x]` → #86
+When the targeted bot declines a user-initiated trade offer, the system shall write the trade to `trades` with status `declined`, emit a `trade_resolved` SSE event, and resume the bot chain without transferring assets.
+
+**DFF-ENGINE-038** `[x]` → #86
+If a POST /drafts/:id/trade-offer request is received with missing fields, an invalid target team, assets not owned by the proposing / targeted teams, or a user-team target, the system shall return a 400 error and shall not emit SSE events or modify draft state.
+
 ---
 
 ## Bot-to-Bot Trade Visibility

@@ -21,6 +21,12 @@ type RawQueueSubmissionRequestBody = {
   rank?: unknown;
 };
 
+type RawTradeOfferSubmissionRequestBody = {
+  targetTeamId?: unknown;
+  offeredAssets?: unknown;
+  requestedAssets?: unknown;
+};
+
 type DraftRequestRosterSlots = {
   QB: number;
   RB: number;
@@ -56,6 +62,7 @@ export type SavedLeagueConfigInput = CreateDraftConfig & {
 export class DraftConfigValidationError extends Error {}
 export class PickSubmissionValidationError extends Error {}
 export class QueueSubmissionValidationError extends Error {}
+export class TradeOfferSubmissionValidationError extends Error {}
 
 export function parseCreateDraftConfig(input: unknown): CreateDraftConfig {
   if (!isRecord(input)) {
@@ -159,6 +166,40 @@ export function parseQueueSubmission(input: unknown): { playerId: string; rank: 
   return {
     playerId: body.playerId,
     rank: body.rank,
+  };
+}
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+export function parseTradeOfferSubmission(input: unknown): {
+  targetTeamId: string;
+  offeredAssets: unknown[];
+  requestedAssets: unknown[];
+} {
+  if (!isRecord(input)) {
+    throw new TradeOfferSubmissionValidationError(
+      'Invalid trade offer: request body must be a JSON object.',
+    );
+  }
+
+  const body = input as RawTradeOfferSubmissionRequestBody;
+
+  if (typeof body.targetTeamId !== 'string' || body.targetTeamId.trim() === '') {
+    throw new TradeOfferSubmissionValidationError('Invalid trade offer: targetTeamId is required.');
+  }
+
+  if (!Array.isArray(body.offeredAssets)) {
+    throw new TradeOfferSubmissionValidationError('Invalid trade offer: offeredAssets must be an array.');
+  }
+
+  if (!Array.isArray(body.requestedAssets)) {
+    throw new TradeOfferSubmissionValidationError('Invalid trade offer: requestedAssets must be an array.');
+  }
+
+  return {
+    targetTeamId: body.targetTeamId,
+    offeredAssets: body.offeredAssets,
+    requestedAssets: body.requestedAssets,
   };
 }
 

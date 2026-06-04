@@ -373,14 +373,26 @@ Issue `#16` scope:
 
 ## Trade Modal
 
-Rendered in the drafting view whenever `draftState.pendingTrade` is non-null. The modal is a blocking Radix Dialog controlled entirely by reducer state fed from SSE and trade-response HTTP calls.
+Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or the user opens a local propose flow from the draft board. The modal is a blocking Radix Dialog controlled by a combination of reducer-fed SSE trade state and local compose state.
 
 **Behavior:**
-- Trigger: `TRADE_OFFERED` sets `draftState.pendingTrade`, which opens the dialog immediately without any extra local toggle state
+- Entry points:
+  - `TRADE_OFFERED` sets `draftState.pendingTrade`, which opens the dialog immediately for incoming bot-originated offers
+  - Clicking a non-user team column header on the draft board opens the dialog in propose mode targeting that team
 - Blocking scope: the overlay covers the full drafting workspace (status bar + all three columns) and disables pointer interaction beneath it until the user responds
 - Copy: the modal identifies the initiating team, receiving team, and renders both `assetsSent` and `assetsReceived` in separate sections so the user can inspect the full trade
-- User-targeted trade (`isBotToBot: false`): render `Accept` and `Decline`
+- Team selection: propose mode renders a target-team dropdown seeded from the clicked board column; changing the dropdown swaps the opposing roster/pick inventory without closing the dialog
+- Propose mode:
+  - Split the asset builder into "You offer" and "<Target> offers"
+  - Each side shows player rows plus a flat picks section
+  - Player rows support pill filters `ALL`, `QB`, `RB`, `WR`, `TE`
+  - Picks remain visible regardless of the active position pill
+  - Submit calls `POST /drafts/:id/trade-offer` with `{ targetTeamId, offeredAssets, requestedAssets }`
+  - After submit, the modal stays open in an awaiting-bot-response state until the corresponding `trade_resolved` SSE arrives
+- User-targeted incoming trade (`isBotToBot: false` and initiating team is a bot): render `Accept`, `Decline`, and `Counter`
+- Counter action: transition into propose mode targeting the same bot with the original offer reversed, so the user edits from the mirrored starting point instead of rebuilding from scratch
 - Bot-to-bot trade (`isBotToBot: true`): render `OK` and `Force Decline`
+- User-initiated pending trade (`isBotToBot: false` and initiating team is the user): render a waiting state, not response buttons
 - Response mapping:
   - `Accept` -> `accepted`
   - `Decline` -> `declined`
@@ -398,6 +410,9 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null. Th
 
 **Edge Case Probe:**
 - A second `trade_offered` arrives before the first trade resolves -> the reducer replaces `pendingTrade` with the latest server truth, and the dialog re-renders from that payload
+- The user switches the target team after selecting offer assets -> the compose state resets the opposing-team selections so stale requested assets from the previous bot cannot leak into the next proposal
+- The user filters to a position with zero matching players -> the player list shows an empty-state message while the picks section remains visible
+- A user-initiated offer is submitted while the modal is already showing a pending user-offer SSE payload -> the submit control stays disabled until the server resolves the current pending proposal
 - The user refreshes or resumes a draft while a trade is pending -> `GET /drafts/:id/state` preserves `pendingTrade` so the dialog reopens on hydration
 - `POST /drafts/:id/trade-response` returns `409` because the trade already resolved elsewhere in the bot chain -> keep the modal open until the corresponding `trade_resolved` SSE arrives, avoiding premature local closure
 - Team or player metadata is missing from local state -> the dialog falls back to raw ids so the trade remains reviewable

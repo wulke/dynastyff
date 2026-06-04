@@ -14,6 +14,7 @@
 // @spec DFF-UI-092
 // @spec DFF-UI-132
 // @spec DFF-UI-139
+// @spec DFF-UI-056
 import { useState, type ReactNode } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 
@@ -21,6 +22,7 @@ type DraftBoardProps = {
   draftState: DraftState;
   isInteractionBlocked?: boolean;
   headerAction?: ReactNode;
+  onTeamHeaderClick?: (teamId: string) => void;
 };
 
 type DraftedPlayerSummary = {
@@ -176,7 +178,8 @@ function persistLayout(mode: LayoutMode): void {
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-093
-function ColumnModeDraftBoard({ draftState }: DraftBoardProps) {
+// @spec DFF-UI-056
+function ColumnModeDraftBoard({ draftState, onTeamHeaderClick }: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
 
   return (
@@ -195,12 +198,25 @@ function ColumnModeDraftBoard({ draftState }: DraftBoardProps) {
                   team.isUser ? 'bg-amber-300/10' : 'bg-stone-950'
                 } text-stone-400`}
               >
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
-                  <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
-                    {team.isUser ? 'Your Team' : team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
-                  </p>
-                </div>
+                {team.isUser || !onTeamHeaderClick ? (
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
+                      {team.isUser ? 'Your Team' : team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onTeamHeaderClick(team.id)}
+                    className="w-full space-y-1 text-left"
+                  >
+                    <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
+                      {team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
+                    </p>
+                  </button>
+                )}
               </th>
             ))}
           </tr>
@@ -252,7 +268,13 @@ function ColumnModeDraftBoard({ draftState }: DraftBoardProps) {
 // @spec DFF-UI-093
 // @spec DFF-UI-139
 // @spec DFF-UI-132
-export function DraftBoard({ draftState, isInteractionBlocked = false, headerAction = null }: DraftBoardProps) {
+// @spec DFF-UI-056
+export function DraftBoard({
+  draftState,
+  isInteractionBlocked = false,
+  headerAction = null,
+  onTeamHeaderClick,
+}: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
   const [layout, setLayout] = useState<LayoutMode>(getStoredLayout);
 
@@ -310,7 +332,7 @@ export function DraftBoard({ draftState, isInteractionBlocked = false, headerAct
       </div>
 
       {layout === 'column' ? (
-        <ColumnModeDraftBoard draftState={draftState} />
+        <ColumnModeDraftBoard draftState={draftState} onTeamHeaderClick={isInteractionBlocked ? undefined : onTeamHeaderClick} />
       ) : (
         <div data-testid="draft-board-scroller" className="mt-8 overflow-x-auto pb-2">
           <table className="min-w-full border-separate border-spacing-0" aria-label="Draft Board">
@@ -344,12 +366,25 @@ export function DraftBoard({ draftState, isInteractionBlocked = false, headerAct
                       team.isUser ? 'bg-amber-300/10' : 'bg-stone-950'
                     }`}
                   >
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
-                      <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
-                        {team.isUser ? 'Your Team' : team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
-                      </p>
-                    </div>
+                    {team.isUser || !onTeamHeaderClick || isInteractionBlocked ? (
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
+                          {team.isUser ? 'Your Team' : team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onTeamHeaderClick(team.id)}
+                        className="w-full space-y-1 text-left"
+                      >
+                        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
+                          {team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
+                        </p>
+                      </button>
+                    )}
                   </th>
                   {rounds.map((round) => {
                     const slot =

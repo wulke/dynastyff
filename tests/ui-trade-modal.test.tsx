@@ -4,6 +4,14 @@
 // @spec DFF-UI-053
 // @spec DFF-UI-054
 // @spec DFF-UI-055
+// @spec DFF-UI-056
+// @spec DFF-UI-057
+// @spec DFF-UI-058
+// @spec DFF-UI-059
+// @spec DFF-UI-059b
+// @spec DFF-UI-059c
+// @spec DFF-UI-059d
+// @spec DFF-UI-059e
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -84,8 +92,16 @@ function createDraftingState(overrides: Partial<Record<string, unknown>> = {}) {
         picked_at: '2026-06-02T12:00:00.000Z',
       },
     ],
-    roster_players: [],
-    team_pick_assets: [],
+    roster_players: [
+      { team_id: 'team-2', player_id: 'roster-user-qb' },
+      { team_id: 'team-2', player_id: 'roster-user-rb' },
+      { team_id: 'team-1', player_id: 'roster-bot-wr' },
+      { team_id: 'team-1', player_id: 'roster-bot-te' },
+    ],
+    team_pick_assets: [
+      { team_id: 'team-2', year: 2027, round: 1 },
+      { team_id: 'team-1', year: 2028, round: 2 },
+    ],
     user_queue: [],
     available_players: [
       {
@@ -107,6 +123,48 @@ function createDraftingState(overrides: Partial<Record<string, unknown>> = {}) {
         is_rookie: false,
         dynasty_value: 9400,
         adp: 2,
+      },
+    ],
+    drafted_players: [
+      {
+        id: 'roster-user-qb',
+        name: 'Jordan Love',
+        position: 'QB',
+        nfl_team: 'GB',
+        age: 27,
+        is_rookie: false,
+        dynasty_value: 7000,
+        adp: 28,
+      },
+      {
+        id: 'roster-user-rb',
+        name: 'Breece Hall',
+        position: 'RB',
+        nfl_team: 'NYJ',
+        age: 24,
+        is_rookie: false,
+        dynasty_value: 7600,
+        adp: 18,
+      },
+      {
+        id: 'roster-bot-wr',
+        name: 'Garrett Wilson',
+        position: 'WR',
+        nfl_team: 'NYJ',
+        age: 25,
+        is_rookie: false,
+        dynasty_value: 7800,
+        adp: 12,
+      },
+      {
+        id: 'roster-bot-te',
+        name: 'Brock Bowers',
+        position: 'TE',
+        nfl_team: 'LV',
+        age: 22,
+        is_rookie: false,
+        dynasty_value: 7200,
+        adp: 20,
       },
     ],
     trades: [],
@@ -160,6 +218,15 @@ function setupTradeModalFetches() {
       return Promise.resolve(
         new Response(JSON.stringify({ ok: true }), {
           status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
+    if (url === '/drafts/draft-trade-123/trade-offer' && method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, tradeId: 'trade-user-proposal' }), {
+          status: 202,
           headers: { 'Content-Type': 'application/json' },
         }),
       );
@@ -351,6 +418,130 @@ test('renders the latest trade when a second trade_offered event arrives before 
   expect(screen.queryByText(/bot alpha sends/i)).not.toBeInTheDocument();
 });
 
+// @spec DFF-UI-056
+// @spec DFF-UI-057
+// @spec DFF-UI-058
+test('clicking a bot team header opens propose mode with team switching and position filters', async () => {
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /propose trade/i })).toBeInTheDocument();
+  expect(screen.getByLabelText(/trade partner/i)).toHaveValue('team-1');
+  expect(screen.getAllByRole('button', { name: /^all$/i })).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: /^qb$/i })).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: /^rb$/i })).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: /^wr$/i })).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: /^te$/i })).toHaveLength(2);
+
+  await user.click(screen.getByRole('button', { name: /garrett wilson/i }));
+  expect(screen.getAllByText(/garrett wilson/i)).toHaveLength(2);
+
+  await user.click(screen.getAllByRole('button', { name: /^rb$/i })[0]!);
+  expect(screen.getByText(/breece hall/i)).toBeInTheDocument();
+  expect(screen.queryByText(/jordan love/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/2027 round 1/i)).toBeInTheDocument();
+
+  await user.selectOptions(screen.getByLabelText(/trade partner/i), 'team-3');
+  expect(screen.getByLabelText(/trade partner/i)).toHaveValue('team-3');
+
+  await user.selectOptions(screen.getByLabelText(/trade partner/i), 'team-1');
+  expect(screen.getByLabelText(/trade partner/i)).toHaveValue('team-1');
+  expect(screen.getAllByText(/garrett wilson/i)).toHaveLength(1);
+});
+
+// @spec DFF-UI-059
+// @spec DFF-UI-059b
+// @spec DFF-UI-059c
+test('submitting a user-initiated trade posts trade-offer and keeps the modal open for the SSE result', async () => {
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+  await user.click(screen.getByRole('button', { name: /jordan love/i }));
+  await user.click(screen.getByRole('button', { name: /garrett wilson/i }));
+  await user.click(screen.getByRole('button', { name: /submit proposal/i }));
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    '/drafts/draft-trade-123/trade-offer',
+    expect.objectContaining({
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        targetTeamId: 'team-1',
+        offeredAssets: [{ type: 'player', player_id: 'roster-user-qb' }],
+        requestedAssets: [{ type: 'player', player_id: 'roster-bot-wr' }],
+      }),
+    }),
+  );
+
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(screen.getByText(/waiting for bot response/i)).toBeInTheDocument();
+
+  act(() => {
+    MockEventSource.instances[0]?.emit('trade_offered', {
+      trade_id: 'trade-user-proposal',
+      initiating_team_id: 'team-2',
+      receiving_team_id: 'team-1',
+      assets_sent: [{ type: 'player', player_id: 'roster-user-qb' }],
+      assets_received: [{ type: 'player', player_id: 'roster-bot-wr' }],
+      is_bot_to_bot: false,
+    });
+    MockEventSource.instances[0]?.emit('trade_resolved', {
+      trade_id: 'trade-user-proposal',
+      status: 'accepted',
+      assets_sent: [{ type: 'player', player_id: 'roster-user-qb' }],
+      assets_received: [{ type: 'player', player_id: 'roster-bot-wr' }],
+    });
+  });
+
+  expect(await screen.findByText(/trade accepted/i)).toBeInTheDocument();
+});
+
+// @spec DFF-UI-059
+// @spec DFF-UI-059b
+// @spec DFF-UI-059c
+test('submitting a user-initiated trade updates the modal in place when the bot declines over SSE', async () => {
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+  await user.click(screen.getByRole('button', { name: /jordan love/i }));
+  await user.click(screen.getByRole('button', { name: /garrett wilson/i }));
+  await user.click(screen.getByRole('button', { name: /submit proposal/i }));
+
+  act(() => {
+    MockEventSource.instances[0]?.emit('trade_offered', {
+      trade_id: 'trade-user-proposal',
+      initiating_team_id: 'team-2',
+      receiving_team_id: 'team-1',
+      assets_sent: [{ type: 'player', player_id: 'roster-user-qb' }],
+      assets_received: [{ type: 'player', player_id: 'roster-bot-wr' }],
+      is_bot_to_bot: false,
+    });
+    MockEventSource.instances[0]?.emit('trade_resolved', {
+      trade_id: 'trade-user-proposal',
+      status: 'declined',
+      assets_sent: [{ type: 'player', player_id: 'roster-user-qb' }],
+      assets_received: [{ type: 'player', player_id: 'roster-bot-wr' }],
+    });
+  });
+
+  expect(await screen.findByText(/trade declined/i)).toBeInTheDocument();
+});
+
+// @spec DFF-UI-058
+test('showing an empty position filter still keeps future picks visible in the composer', async () => {
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+  await user.click(screen.getAllByRole('button', { name: /^rb$/i })[1]!);
+
+  expect(screen.getByText(/no players for this filter/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /2028 round 2/i })).toBeInTheDocument();
+});
+
 function setupTradeModalDefaultResponse(url: string, method: string): Promise<Response> {
   if (url === '/drafts' && method === 'GET') {
     return Promise.resolve(
@@ -397,6 +588,15 @@ function setupTradeModalDefaultResponse(url: string, method: string): Promise<Re
     );
   }
 
+  if (url === '/drafts/draft-trade-123/trade-offer' && method === 'POST') {
+    return Promise.resolve(
+      new Response(JSON.stringify({ ok: true, tradeId: 'trade-user-proposal' }), {
+        status: 202,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }
+
   throw new Error(`Unexpected fetch: ${method} ${url}`);
 }
 
@@ -425,4 +625,20 @@ test('force declining a bot-to-bot trade posts force_declined and closes the mod
     }),
   );
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+// @spec DFF-UI-059d
+// @spec DFF-UI-059e
+test('countering an incoming bot offer reverses the assets into propose mode for the same team', async () => {
+  const user = await renderDraftRoom();
+  emitUserTrade('trade-user-counter');
+
+  expect(screen.getByRole('button', { name: /counter/i })).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: /counter/i }));
+
+  expect(screen.getByRole('heading', { name: /propose trade/i })).toBeInTheDocument();
+  expect(screen.getByLabelText(/trade partner/i)).toHaveValue('team-1');
+  expect(screen.getAllByText(/ceedee lamb/i).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/josh allen/i).length).toBeGreaterThan(0);
 });

@@ -91,6 +91,10 @@ type PendingTrade = {
 
 type SseStatus = 'connecting' | 'connected' | 'disconnected';
 export type TradeResponseStatus = 'accepted' | 'declined' | 'force_declined';
+export type SubmitTradeOfferResult = {
+  ok: boolean;
+  tradeId: string | null;
+};
 
 export type DraftState = {
   draftId: string | null;
@@ -131,6 +135,7 @@ export interface DraftContextValue {
   showError(message: string): void;
   submitPick(playerId: string): void;
   respondToTrade(status: TradeResponseStatus): Promise<boolean>;
+  submitTradeOffer(targetTeamId: string, offeredAssets: unknown[], requestedAssets: unknown[]): Promise<SubmitTradeOfferResult>;
   updateQueue(queue: QueueEntry[]): void;
   newDraft(): void;
 }
@@ -259,6 +264,7 @@ const GENERIC_DRAFT_CREATE_ERROR = 'Draft creation failed. Check your config and
 const GENERIC_DRAFT_LOAD_ERROR = 'Failed to load draft state.';
 const GENERIC_PICK_ERROR = 'Pick failed — player may already be taken.';
 const GENERIC_TRADE_RESPONSE_ERROR = 'Trade response failed. Try again.';
+const GENERIC_TRADE_OFFER_ERROR = 'Trade proposal failed. Try again.';
 const GENERIC_DISCONNECT_ERROR = 'Lost connection to draft server. Refresh to reconnect.';
 const GENERIC_QUEUE_LOAD_ERROR = 'Failed to load draft queue.';
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000] as const;
@@ -1034,6 +1040,46 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
   }
 
+  // @spec DFF-UI-059
+  async function submitTradeOffer(
+    targetTeamId: string,
+    offeredAssets: unknown[],
+    requestedAssets: unknown[],
+  ): Promise<SubmitTradeOfferResult> {
+    const draftId = state.draftState?.draftId;
+
+    if (!draftId) {
+      return { ok: false, tradeId: null };
+    }
+
+    try {
+      const response = await fetch(`/drafts/${draftId}/trade-offer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetTeamId,
+          offeredAssets,
+          requestedAssets,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(GENERIC_TRADE_OFFER_ERROR);
+      }
+
+      const payload = (await response.json().catch(() => null)) as { tradeId?: unknown } | null;
+      return {
+        ok: true,
+        tradeId: typeof payload?.tradeId === 'string' ? payload.tradeId : null,
+      };
+    } catch {
+      setToastMessage(GENERIC_TRADE_OFFER_ERROR);
+      return { ok: false, tradeId: null };
+    }
+  }
+
   // @spec DFF-STATIC-060
   // @spec DFF-STATIC-062
   async function updateQueue(queue: QueueEntry[]) {
@@ -1089,6 +1135,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
         showError,
         submitPick,
         respondToTrade,
+        submitTradeOffer,
         updateQueue,
         newDraft,
       }}

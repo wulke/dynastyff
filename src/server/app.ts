@@ -20,7 +20,11 @@ import express, {
 
 import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
-import { createBotChainCoordinator, type BotChainCoordinator } from '../draft/bot-chain.js';
+import {
+  createBotChainCoordinator,
+  TradeOfferCoordinatorError,
+  type BotChainCoordinator,
+} from '../draft/bot-chain.js';
 import {
   draftOrder,
   drafts,
@@ -48,6 +52,8 @@ import {
   parsePickSubmission,
   parseQueueSubmission,
   parseSavedLeagueConfig,
+  parseTradeOfferSubmission,
+  TradeOfferSubmissionValidationError,
 } from './config.js';
 
 type CreateDraftServerOptions = {
@@ -93,6 +99,7 @@ export function createDraftApp({
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath, botChain }));
   app.post('/drafts/:id/pick', createDraftPickRoute({ databasePath, botChain }));
+  app.post('/drafts/:id/trade-offer', createDraftTradeOfferRoute({ databasePath, botChain }));
   app.post('/drafts/:id/trade-response', createDraftTradeResponseRoute({ databasePath, botChain }));
   app.post('/drafts/:id/queue', createDraftQueuePostRoute({ databasePath }));
   app.get('/drafts/:id/queue', createDraftQueueGetRoute({ databasePath }));
@@ -335,6 +342,41 @@ export function createDraftTradeResponseRoute({
   };
 }
 
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+export function createDraftTradeOfferRoute({
+  databasePath,
+  botChain = createBotChainCoordinator({ databasePath }),
+}: CreateDraftServerOptions): RequestHandler {
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
+
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const submission = parseTradeOfferSubmission(request.body);
+      const tradeId = botChain.submitUserTradeOffer({
+        draftId,
+        targetTeamId: submission.targetTeamId,
+        offeredAssets: submission.offeredAssets,
+        requestedAssets: submission.requestedAssets,
+      });
+
+      response.status(202).json({ ok: true, tradeId });
+    } catch (error) {
+      if (error instanceof TradeOfferCoordinatorError) {
+        response.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+
+      next(error);
+    }
+  };
+}
+
 // @spec DFF-DATA-093
 export function createDraftQueuePostRoute({ databasePath }: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
@@ -533,10 +575,15 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
     }
 
     // @spec DFF-DATA-093
-    if (error instanceof QueueSubmissionValidationError) {
-      response.status(400).json({ error: error.message });
-      return;
-    }
+  if (error instanceof QueueSubmissionValidationError) {
+    response.status(400).json({ error: error.message });
+    return;
+  }
+
+  if (error instanceof TradeOfferSubmissionValidationError) {
+    response.status(400).json({ error: error.message });
+    return;
+  }
 
     if (isJsonBodyParseError(error)) {
       response.status(400).json({ error: 'Invalid draft config: request body must be valid JSON.' });

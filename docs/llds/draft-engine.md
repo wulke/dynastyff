@@ -44,6 +44,7 @@ create → in_progress → [pick loop] → completed
 | GET | `/drafts/:id/stream` | SSE stream for real-time events |
 | GET | `/drafts/:id/state` | Full current draft state snapshot |
 | POST | `/drafts/:id/pick` | Submit user pick (player_id) |
+| POST | `/drafts/:id/trade-offer` | Submit a user-initiated trade proposal to a bot team |
 | POST | `/drafts/:id/queue` | Add a player to the user's queue or update its rank |
 | DELETE | `/drafts/:id/queue/:player_id` | Remove one player from the user's queue |
 | GET | `/drafts/:id/queue` | Return the user's queue ordered by ascending rank |
@@ -88,7 +89,7 @@ Route behavior:
 | Event | Payload | When emitted |
 |---|---|---|
 | `pick_made` | `{ pick_number, team_id, player_id, is_bot }` | Every pick, user or bot |
-| `trade_offered` | `{ trade_id, initiating_team_id, receiving_team_id, assets_sent, assets_received, is_bot_to_bot }` | When a bot proposes a trade |
+| `trade_offered` | `{ trade_id, initiating_team_id, receiving_team_id, assets_sent, assets_received, is_bot_to_bot }` | When a bot or the user proposes a trade |
 | `trade_resolved` | `{ trade_id, status, assets_sent, assets_received }` | After user responds to trade modal |
 | `your_turn` | `{ pick_number, round, pick_in_round }` | When it's the user's turn to pick |
 | `draft_complete` | `{ draft_id, completed_at }` | When all picks are exhausted |
@@ -208,6 +209,26 @@ Accepted trades execute as one SQLite transaction:
 
 Declined and `force_declined` trades insert the `trades` row with the resolved status but perform no asset transfer.
 
+## POST /drafts/:id/trade-offer
+
+This route is the HTTP entry point for user-initiated trade proposals:
+
+- Accepts `{ "targetTeamId": string, "offeredAssets": TradeAsset[], "requestedAssets": TradeAsset[] }`
+- Returns HTTP `404` when `draft_id` does not exist
+- Returns HTTP `400` when `targetTeamId` is missing, points at the user team, points at a non-draft team, or either asset list contains malformed / unowned assets
+- Creates a synthetic pending trade owned by the draft engine, emits `trade_offered`, and evaluates the offer asynchronously against the targeted bot's current roster, future pick inventory, and startup pick values
+
+User-trade lifecycle:
+
+1. Route validates that every offered asset belongs to the user team and every requested asset belongs to the targeted bot team at submit time
+2. Route records an in-memory pending trade marker so the bot chain will not process more bot turns while the offer is unresolved
+3. Route emits `trade_offered` SSE with `initiating_team_id = userTeamId`, `receiving_team_id = targetTeamId`, and `is_bot_to_bot = false`
+4. Route evaluates the offer asynchronously using the same startup/future/player dynasty values already used by the trade subsystem
+5. Accepted proposals persist through the same transactional trade-resolution path as bot-originated accepted trades; declined proposals persist a declined `trades` row without asset transfers
+6. `trade_resolved` emits after persistence succeeds, then the bot chain becomes eligible to resume
+
+The route does not wait for trade evaluation before returning. The browser learns the eventual accept / decline outcome over SSE.
+
 ## Read Models
 
 The draft engine exposes SQLite-backed read endpoints for browser hydration and draft history. These routes do not maintain separate projections; they read the persisted authoritative tables directly so a browser refresh can recover current state without replaying SSE history.
@@ -298,6 +319,14 @@ When a bot initiates a trade (see bot-simulator LLD for initiation logic):
 3. Waits for `POST /trade-response`
 4. `POST /trade-response` persists the trade result, emits `trade_resolved`, and resumes the bot chain
 5. `accepted` transfers assets (mutates `draft_order` rows, transfers `team_pick_assets` rows, moves drafted players between teams if applicable) in the same transaction as the `trades` insert; `declined` / `force_declined` persist the declined outcome without asset transfer. Startup pick slot dynasty values for the trade display are resolved from `InMemoryDraftState.startupPickValues` by global pick number.
+
+When the user initiates a trade:
+
+1. `POST /trade-offer` validates ownership and target-team rules
+2. The coordinator publishes `trade_offered` immediately so the UI can block on the pending proposal
+3. The targeted bot evaluates the reversed value equation from its own perspective
+4. The accepted / declined result is persisted and emitted through `trade_resolved`
+5. Any paused bot chain resumes only after that resolution path finishes
 
 ## Decisions
 

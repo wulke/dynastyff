@@ -2,6 +2,11 @@
 // @spec DFF-ENGINE-031
 // @spec DFF-ENGINE-032
 // @spec DFF-ENGINE-033
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-035
+// @spec DFF-ENGINE-036
+// @spec DFF-ENGINE-037
+// @spec DFF-ENGINE-038
 // @spec DFF-ENGINE-040
 // @spec DFF-ENGINE-041
 // @spec DFF-ENGINE-042
@@ -11,8 +16,9 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import { createDrizzleDb } from '../db/client.js';
 import { draftOrder, drafts, picks, teams, tradeStatuses } from '../db/schema.js';
+import { evaluateBotTrade } from './bot-trade.js';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
-import { recordPick, resolveTrade } from './service.js';
+import { getDraftState, recordPick, resolveTrade } from './service.js';
 import { emitTradeOfferedEvent, emitTradeResolvedEvent } from './stream.js';
 
 type TradeStatus = (typeof tradeStatuses)[number];
@@ -56,6 +62,13 @@ type PendingTradeState = {
   reject: (error: unknown) => void;
 };
 
+type SubmitUserTradeOfferInput = {
+  draftId: string;
+  targetTeamId: string;
+  offeredAssets: unknown[];
+  requestedAssets: unknown[];
+};
+
 export type DecideBotActionContext = {
   draftId: string;
   slot: CurrentOpenBotSlot;
@@ -66,6 +79,7 @@ export type BotChainCoordinator = {
   trigger: (draftId: string) => void;
   waitForIdle: (draftId: string) => Promise<void>;
   resolvePendingTrade: (draftId: string, status: TradeStatus) => boolean;
+  submitUserTradeOffer: (input: SubmitUserTradeOfferInput) => string;
 };
 
 type CreateBotChainCoordinatorOptions = {
@@ -78,6 +92,23 @@ type CreateBotChainCoordinatorOptions = {
 
 const defaultNow = () => new Date().toISOString();
 const defaultRandom = () => Math.random();
+const botAcceptanceThresholds = {
+  win_now: 0.85,
+  punt: 1.15,
+  rb_heavy: 0.95,
+  qb_early: 0.95,
+  bpa: 1.05,
+  balanced: 1.0,
+} as const;
+
+export class TradeOfferCoordinatorError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode = 400,
+  ) {
+    super(message);
+  }
+}
 
 // @spec DFF-ENGINE-031
 export function calculateBotPickDelayMs(random: () => number): number {
@@ -125,10 +156,15 @@ export function createBotChainCoordinator({
 }: CreateBotChainCoordinatorOptions): BotChainCoordinator {
   const activeChains = new Map<string, Promise<void>>();
   const pendingTrades = new Map<string, PendingTradeState>();
+  let userTradeOfferSequence = 0;
 
   async function runBotChain(draftId: string): Promise<void> {
     try {
       while (true) {
+        if (pendingTrades.has(draftId)) {
+          return;
+        }
+
         const nextSlot = getCurrentOpenSlot({ databasePath, draftId });
 
         if (!nextSlot || nextSlot.isUser) {
@@ -139,7 +175,7 @@ export function createBotChainCoordinator({
 
         const refreshedSlot = getCurrentOpenSlot({ databasePath, draftId });
 
-        if (!refreshedSlot || refreshedSlot.isUser) {
+        if (pendingTrades.has(draftId) || !refreshedSlot || refreshedSlot.isUser) {
           return;
         }
 
@@ -167,7 +203,7 @@ export function createBotChainCoordinator({
     }
   }
 
-  return {
+  const coordinator: BotChainCoordinator = {
     trigger(draftId) {
       if (activeChains.has(draftId)) {
         return;
@@ -212,7 +248,120 @@ export function createBotChainCoordinator({
         pendingTrades.delete(draftId);
       }
     },
+    submitUserTradeOffer({ draftId, targetTeamId, offeredAssets, requestedAssets }) {
+      if (pendingTrades.has(draftId)) {
+        throw new TradeOfferCoordinatorError('A trade is already pending for this draft.', 409);
+      }
+
+      const draftState = getDraftState({ databasePath, draftId });
+
+      if (!draftState) {
+        throw new TradeOfferCoordinatorError('Draft not found.', 404);
+      }
+
+      const userTeam = draftState.teams.find((team) => team.is_user);
+      const targetTeam = draftState.teams.find((team) => team.id === targetTeamId);
+
+      if (!userTeam || !targetTeam || targetTeam.is_user) {
+        throw new TradeOfferCoordinatorError('Invalid trade offer.', 400);
+      }
+
+      const parsedOfferedAssets = offeredAssets.map(parseTradeAssetOrThrow);
+      const parsedRequestedAssets = requestedAssets.map(parseTradeAssetOrThrow);
+
+      if (
+        !assetsBelongToTeam({
+          draftState,
+          teamId: userTeam.id,
+          assets: parsedOfferedAssets,
+        }) ||
+        !assetsBelongToTeam({
+          draftState,
+          teamId: targetTeam.id,
+          assets: parsedRequestedAssets,
+        })
+      ) {
+        throw new TradeOfferCoordinatorError('Invalid trade offer.', 400);
+      }
+
+      userTradeOfferSequence += 1;
+      const tradeId = `trade-user-offer-${userTradeOfferSequence}`;
+      const currentRound =
+        draftState.current_pick_number === null
+          ? 0
+          : draftState.draft_order.find((slot) => slot.pick_number === draftState.current_pick_number)?.round ?? 0;
+
+      pendingTrades.set(draftId, {
+        tradeId,
+        pickNumber: draftState.current_pick_number ?? 0,
+        round: currentRound,
+        initiatingTeamId: userTeam.id,
+        receivingTeamId: targetTeam.id,
+        assetsSent: parsedOfferedAssets,
+        assetsReceived: parsedRequestedAssets,
+        resolve: () => undefined,
+        reject: () => undefined,
+      });
+
+      emitTradeOfferedEvent({
+        draftId,
+        tradeId,
+        initiatingTeamId: userTeam.id,
+        receivingTeamId: targetTeam.id,
+        assetsSent: parsedOfferedAssets,
+        assetsReceived: parsedRequestedAssets,
+        isBotToBot: false,
+      });
+
+      queueMicrotask(() => {
+        try {
+          const status = evaluateUserTradeOffer({
+            draftState,
+            targetTeamId: targetTeam.id,
+            assetsSent: parsedOfferedAssets,
+            assetsReceived: parsedRequestedAssets,
+          })
+            ? 'accepted'
+            : 'declined';
+
+          resolveTrade({
+            databasePath,
+            tradeId,
+            draftId,
+            pickNumber: draftState.current_pick_number ?? 0,
+            round: currentRound,
+            initiatingTeamId: userTeam.id,
+            receivingTeamId: targetTeam.id,
+            assetsSent: parsedOfferedAssets,
+            assetsReceived: parsedRequestedAssets,
+            status,
+            now,
+          });
+
+          emitTradeResolvedEvent({
+            draftId,
+            tradeId,
+            status,
+            assetsSent: parsedOfferedAssets,
+            assetsReceived: parsedRequestedAssets,
+          });
+        } catch (error) {
+          console.error(`[draft] user trade offer failed for ${draftId}`, error);
+        } finally {
+          pendingTrades.delete(draftId);
+          queueMicrotask(() => {
+            if (!pendingTrades.has(draftId) && getCurrentOpenSlot({ databasePath, draftId })) {
+              coordinator.trigger(draftId);
+            }
+          });
+        }
+      });
+
+      return tradeId;
+    },
   };
+
+  return coordinator;
 }
 
 // @spec DFF-ENGINE-033
@@ -303,4 +452,153 @@ function getCurrentOpenSlot({
   } finally {
     sqlite.close();
   }
+}
+
+type SupportedTradeAsset =
+  | { type: 'player'; player_id: string }
+  | { type: 'pick_slot'; draft_order_id?: string; pick_number?: number }
+  | { type: 'future_pick'; year: number; round: number };
+
+function parseTradeAssetOrThrow(asset: unknown): SupportedTradeAsset {
+  if (typeof asset !== 'object' || asset === null) {
+    throw new TradeOfferCoordinatorError('Invalid trade offer.', 400);
+  }
+
+  const candidate = asset as {
+    type?: unknown;
+    player_id?: unknown;
+    draft_order_id?: unknown;
+    pick_number?: unknown;
+    year?: unknown;
+    round?: unknown;
+  };
+
+  if (candidate.type === 'player' && typeof candidate.player_id === 'string') {
+    return { type: 'player', player_id: candidate.player_id };
+  }
+
+  if (
+    candidate.type === 'pick_slot' &&
+    ((typeof candidate.draft_order_id === 'string' && candidate.draft_order_id.length > 0) ||
+      typeof candidate.pick_number === 'number')
+  ) {
+    return {
+      type: 'pick_slot',
+      draft_order_id: typeof candidate.draft_order_id === 'string' ? candidate.draft_order_id : undefined,
+      pick_number: typeof candidate.pick_number === 'number' ? candidate.pick_number : undefined,
+    };
+  }
+
+  if (
+    candidate.type === 'future_pick' &&
+    typeof candidate.year === 'number' &&
+    typeof candidate.round === 'number'
+  ) {
+    return {
+      type: 'future_pick',
+      year: candidate.year,
+      round: candidate.round,
+    };
+  }
+
+  throw new TradeOfferCoordinatorError('Invalid trade offer.', 400);
+}
+
+function assetsBelongToTeam({
+  draftState,
+  teamId,
+  assets,
+}: {
+  draftState: NonNullable<ReturnType<typeof getDraftState>>;
+  teamId: string;
+  assets: SupportedTradeAsset[];
+}): boolean {
+  return assets.every((asset) => {
+    if (asset.type === 'player') {
+      return draftState.roster_players.some(
+        (entry) => entry.team_id === teamId && entry.player_id === asset.player_id,
+      );
+    }
+
+    if (asset.type === 'future_pick') {
+      return draftState.team_pick_assets.some(
+        (entry) => entry.team_id === teamId && entry.year === asset.year && entry.round === asset.round,
+      );
+    }
+
+    const matchingSlot = draftState.draft_order.find((slot) => {
+      if (slot.team_id !== teamId) {
+        return false;
+      }
+
+      if (asset.pick_number !== undefined) {
+        return slot.pick_number === asset.pick_number;
+      }
+
+      return false;
+    });
+
+    return Boolean(
+      matchingSlot &&
+        !draftState.picks.some((pick) => pick.pick_number === matchingSlot.pick_number),
+    );
+  });
+}
+
+function evaluateUserTradeOffer({
+  draftState,
+  targetTeamId,
+  assetsSent,
+  assetsReceived,
+}: {
+  draftState: NonNullable<ReturnType<typeof getDraftState>>;
+  targetTeamId: string;
+  assetsSent: SupportedTradeAsset[];
+  assetsReceived: SupportedTradeAsset[];
+}): boolean {
+  const playerValues = new Map<string, number>();
+  for (const player of [...draftState.available_players, ...draftState.drafted_players]) {
+    playerValues.set(player.id, player.dynasty_value);
+  }
+
+  const futurePickValues = new Map<string, number>();
+  for (const asset of draftState.team_pick_assets) {
+    futurePickValues.set(`${asset.year}:${asset.round}`, getFuturePickDynastyValue(asset.round));
+  }
+
+  const startupPickValues = new Map<number, number>();
+  for (const entry of draftState.startup_pick_values) {
+    startupPickValues.set(entry.global_pick_number, entry.dynasty_value);
+  }
+
+  const targetTeam = draftState.teams.find((team) => team.id === targetTeamId);
+  const threshold =
+    targetTeam?.archetype && targetTeam.archetype in botAcceptanceThresholds
+      ? botAcceptanceThresholds[targetTeam.archetype as keyof typeof botAcceptanceThresholds]
+      : botAcceptanceThresholds.balanced;
+
+  return evaluateBotTrade({
+    acceptanceThreshold: threshold,
+    assetsSent: assetsReceived,
+    assetsReceived: assetsSent,
+    playerValues,
+    futurePickValues,
+    startupPickValues,
+  });
+}
+
+function getFuturePickDynastyValue(round: number): number {
+  if (round <= 1) {
+    return 4500;
+  }
+
+  if (round === 2) {
+    return 2500;
+  }
+
+  if (round === 3) {
+    return 1500;
+  }
+
+  return 1000;
 }

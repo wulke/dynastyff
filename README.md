@@ -90,7 +90,9 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - Each drafting column header now includes an expand control; expanding one panel turns the other two into narrow icon strips with rotated labels, and the layout resets to the default weighted widths on page load instead of persisting accordion state
 - The `Available Players` column now uses `Available` / `Targets` tabs: the default `Available` view keeps the dynasty-sorted list, client-side position filters, live name search, draft-start skeleton rows, a two-step pick confirmation card, bot-turn disabled rows, and pick-submission error toasts
 - The `Targets` tab hydrates from `GET /drafts/:id/queue`, shows queued players in ascending rank order with position badges and dynasty values, removes picked targets on live `pick_made` events, and shares the same confirmation flow plus bot-turn disabled state
-- `trade_offered` SSE events now open a blocking Radix trade modal over the live draft room; user-targeted trades render `Accept` / `Decline`, while bot-to-bot trades render `OK` / `Force Decline`, and each action posts `POST /drafts/:id/trade-response`
+- `trade_offered` SSE events now open a blocking Radix trade modal over the live draft room; user-targeted bot offers render `Accept` / `Decline` / `Counter`, bot-to-bot trades render `OK` / `Force Decline`, and each action posts `POST /drafts/:id/trade-response`
+- Clicking a bot team header opens the trade modal in propose mode, including an in-modal team selector plus client-side `ALL/QB/RB/WR/TE` filters for both roster asset lists while future picks remain unfiltered
+- User-initiated trade proposals now post `POST /drafts/:id/trade-offer`, hold the modal in an awaiting state while the bot evaluates the offer over SSE, and surface the final accepted / declined result in-place
 - The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh
@@ -143,6 +145,7 @@ Current draft API surface:
 |---|---|
 | `POST /drafts` | Create a new draft |
 | `POST /drafts/:id/pick` | Submit the user's pick with HTTP-layer validation for turn order and player availability |
+| `POST /drafts/:id/trade-offer` | Submit a user-initiated trade proposal to a bot team; the server emits `trade_offered`, pauses the bot chain while pending, then resolves the proposal over SSE |
 | `POST /drafts/:id/trade-response` | Resolve a paused bot-chain trade; declined outcomes are persisted, and accepted outcomes persist the `trades` row plus all asset transfers before the draft resumes |
 | `POST /drafts/:id/queue` | Add a player to the user's queue or update that player's rank |
 | `DELETE /drafts/:id/queue/:player_id` | Remove one player from the user's queue |

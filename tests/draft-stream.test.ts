@@ -24,6 +24,7 @@ import {
 import {
   createDraftPickRoute,
   createDraftStreamRoute,
+  createDraftTradeOfferRoute,
   createDraftTradeResponseRoute,
 } from '../src/server/app.js';
 
@@ -195,6 +196,32 @@ async function invokeTradeResponseRoute(
   botChain = createBotChainCoordinator({ databasePath }),
 ) {
   const route = createDraftTradeResponseRoute({ databasePath, botChain });
+  const request = { body, params: { id: draftId } } as unknown as Request;
+  let statusCode = 200;
+  let jsonBody: unknown;
+  const response = {
+    status(code: number) {
+      statusCode = code;
+      return this;
+    },
+    json(bodyJson: unknown) {
+      jsonBody = bodyJson;
+      return this;
+    },
+  } as Response;
+
+  await Promise.resolve(route(request, response, () => undefined));
+
+  return { statusCode, jsonBody };
+}
+
+async function invokeTradeOfferRoute(
+  databasePath: string,
+  draftId: string,
+  body: unknown,
+  botChain = createBotChainCoordinator({ databasePath }),
+) {
+  const route = createDraftTradeOfferRoute({ databasePath, botChain });
   const request = { body, params: { id: draftId } } as unknown as Request;
   let statusCode = 200;
   let jsonBody: unknown;
@@ -1119,6 +1146,125 @@ test('POST /drafts/:id/trade-response accepts a pending trade and persists all o
           (left, right) => left.team_id.localeCompare(right.team_id) || left.round - right.round,
         ),
       );
+    } finally {
+      stream.close();
+    }
+  });
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-035
+// @spec DFF-ENGINE-036
+// @spec DFF-ENGINE-037
+test('POST /drafts/:id/trade-offer emits trade events and defers the next bot pick until the offer resolves', async () => {
+  await withDraftServer(async ({ databasePath, database }) => {
+    seedPlayer(database, 'player-1', 'Player One');
+    database.prepare('UPDATE players SET dynasty_value = 7000 WHERE id = ?').run('player-1');
+    seedPlayer(database, 'player-2', 'Player Two');
+    database.prepare('UPDATE players SET dynasty_value = 6900 WHERE id = ?').run('player-2');
+    seedPlayer(database, 'player-3', 'Player Three');
+    database.prepare('UPDATE players SET dynasty_value = 6800 WHERE id = ?').run('player-3');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 2,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const teams = database
+      .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number }>;
+    const userTeamId = teams.find((team) => team.is_user === 1)!.id;
+    const botTeamId = teams.find((team) => team.is_user === 0)!.id;
+
+    let releaseSleep: (() => void) | undefined;
+    const sleepGate = new Promise<void>((resolve) => {
+      releaseSleep = resolve;
+    });
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      now: () => '2026-05-18T20:05:00.000Z',
+      sleep: async () => {
+        await sleepGate;
+      },
+    });
+
+    const stream = await connectToDraftStream(databasePath, draftId);
+    assertSseConnection(stream);
+
+    try {
+      await readStreamEvent(stream);
+
+      const pickResponse = await invokePickRoute(
+        databasePath,
+        draftId,
+        { playerId: 'player-1' },
+        botChain,
+      );
+
+      assert.equal(pickResponse.statusCode, 200);
+      await readStreamEvent(stream);
+
+      const offerResponse = await invokeTradeOfferRoute(
+        databasePath,
+        draftId,
+        {
+          targetTeamId: botTeamId,
+          offeredAssets: [{ type: 'future_pick', year: 2027, round: 1 }],
+          requestedAssets: [{ type: 'future_pick', year: 2027, round: 2 }],
+        },
+        botChain,
+      );
+
+      assert.equal(offerResponse.statusCode, 202);
+      assert.deepEqual(offerResponse.jsonBody, {
+        ok: true,
+        tradeId: 'trade-user-offer-1',
+      });
+
+      releaseSleep?.();
+      await botChain.waitForIdle(draftId);
+
+      const offeredTrade = await readStreamEvent(stream);
+      assert.equal(offeredTrade.event, 'trade_offered');
+      assert.deepEqual(offeredTrade.data, {
+        trade_id: 'trade-user-offer-1',
+        initiating_team_id: userTeamId,
+        receiving_team_id: botTeamId,
+        assets_sent: [{ type: 'future_pick', year: 2027, round: 1 }],
+        assets_received: [{ type: 'future_pick', year: 2027, round: 2 }],
+        is_bot_to_bot: false,
+      });
+
+      const resolvedTrade = await readStreamEvent(stream);
+      assert.equal(resolvedTrade.event, 'trade_resolved');
+      assert.deepEqual(resolvedTrade.data, {
+        trade_id: 'trade-user-offer-1',
+        status: 'accepted',
+        assets_sent: [{ type: 'future_pick', year: 2027, round: 1 }],
+        assets_received: [{ type: 'future_pick', year: 2027, round: 2 }],
+      });
+
+      const botPick = await readStreamEvent(stream);
+      assert.equal(botPick.event, 'pick_made');
     } finally {
       stream.close();
     }

@@ -2553,6 +2553,7 @@ test('GET /drafts returns 500 when the drafts table is unavailable', async () =>
   }
 });
 
+// @spec DFF-DATA-095
 test('GET /configs returns all saved configs ordered by created_at descending', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-configs-list-');
   initializeDatabase(databasePath);
@@ -2641,6 +2642,21 @@ test('GET /configs returns all saved configs ordered by created_at descending', 
   }
 });
 
+// @spec DFF-DATA-095
+test('GET /configs returns 500 when the league_configs table is unavailable', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-list-error-');
+
+  try {
+    const response = await invokeConfigsListRoute(databasePath);
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.json, { error: 'Internal server error.' });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-096
 test('POST /configs persists a saved config and returns the created record', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-');
   initializeDatabase(databasePath);
@@ -2731,6 +2747,26 @@ test('POST /configs persists a saved config and returns the created record', asy
   }
 });
 
+// @spec DFF-DATA-096
+test('POST /configs returns 400 when configName is missing', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-invalid-');
+  initializeDatabase(databasePath);
+
+  try {
+    const requestBody = createSavedConfigRequestBody();
+    delete requestBody.configName;
+
+    const response = await invokeConfigsCreateRoute(databasePath, requestBody);
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid saved config: configName must be a string.',
+    });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
 test('Vite dev server proxies /drafts requests to the backend server', () => {
   const serverConfig = viteConfig.server;
   const proxyConfig = serverConfig?.proxy?.['/drafts'];
@@ -2740,6 +2776,7 @@ test('Vite dev server proxies /drafts requests to the backend server', () => {
   assert.equal(proxyConfig.target, resolveApiBaseUrl());
 });
 
+// @spec DFF-DATA-095
 test('Vite dev server proxies /configs requests to the backend server', () => {
   const serverConfig = viteConfig.server;
   const proxyConfig = serverConfig?.proxy?.['/configs'];
@@ -2789,6 +2826,7 @@ test('parseCreateDraftConfig maps UI camelCase config into the service draft con
   });
 });
 
+// @spec DFF-DATA-096
 test('parseSavedLeagueConfig maps the saved-config request body into the persistence shape', () => {
   const config = parseSavedLeagueConfig(
     createSavedConfigRequestBody({

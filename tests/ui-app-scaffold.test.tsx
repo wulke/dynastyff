@@ -303,6 +303,32 @@ describe('UI app scaffold', () => {
     ]);
   });
 
+  // @spec DFF-UI-011b
+  test('renders only the default saved-config option when GET /configs returns non-ok', async () => {
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'GET') {
+        return Promise.resolve(new Response('boom', { status: 500 }));
+      }
+
+      return Promise.resolve(createJsonResponse([]));
+    });
+
+    await renderAppToConfig();
+
+    const select = screen.getByLabelText(/saved configs/i);
+    const options = within(select).getAllByRole('option');
+
+    expect(options.map((option) => option.textContent)).toEqual(['Select a saved config']);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   // @spec DFF-UI-012
   test('selecting a saved config populates all form fields', async () => {
     const savedConfig = createSavedConfigRecord({
@@ -438,6 +464,77 @@ describe('UI app scaffold', () => {
     const select = screen.getByLabelText(/saved configs/i);
     expect(within(select).getByRole('option', { name: 'Tournament Build' })).toBeInTheDocument();
     expect(select).toHaveValue('saved-config-new');
+  });
+
+  // @spec DFF-UI-013b
+  test('shows a save-config error toast and re-enables Save when POST /configs returns non-ok', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'POST') {
+        return Promise.resolve(new Response('boom', { status: 500 }));
+      }
+
+      return Promise.resolve(createJsonResponse([]));
+    });
+
+    await renderAppToConfig();
+
+    const saveButton = screen.getByRole('button', { name: /^save$/i });
+    await user.click(saveButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to save config\./i);
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
+  });
+
+  // @spec DFF-UI-013b
+  test('shows a save-config error toast and re-enables Save when POST /configs returns malformed json', async () => {
+    const user = userEvent.setup();
+
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'GET') {
+        return Promise.resolve(createJsonResponse([]));
+      }
+
+      if (url === '/configs' && method === 'POST') {
+        return Promise.resolve(
+          new Response('not-json', {
+            status: 201,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }),
+        );
+      }
+
+      return Promise.resolve(createJsonResponse([]));
+    });
+
+    await renderAppToConfig();
+
+    const saveButton = screen.getByRole('button', { name: /^save$/i });
+    await user.click(saveButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to save config\./i);
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
   });
 
   // @spec DFF-UI-002

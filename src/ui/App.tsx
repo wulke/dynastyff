@@ -29,6 +29,14 @@
 // @spec DFF-UI-137
 // @spec DFF-UI-138
 // @spec DFF-UI-139
+// @spec DFF-UI-056
+// @spec DFF-UI-057
+// @spec DFF-UI-058
+// @spec DFF-UI-059
+// @spec DFF-UI-059b
+// @spec DFF-UI-059c
+// @spec DFF-UI-059d
+// @spec DFF-UI-059e
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import * as Separator from '@radix-ui/react-separator';
 import {
@@ -518,6 +526,7 @@ function DraftApp() {
     }
   }, [draftState?.pendingTrade]);
 
+  // @spec DFF-UI-059c
   useEffect(() => {
     if (!composerTradeId || !draftState) {
       return;
@@ -729,11 +738,13 @@ function DraftApp() {
     }
   }
 
+  // @spec DFF-UI-056
   function handleOpenTradeComposer(targetTeamId: string) {
     setTradeComposer(createTradeComposerState(targetTeamId));
     setComposerTradeId(null);
   }
 
+  // @spec DFF-UI-057
   function handleComposerTargetChange(targetTeamId: string) {
     setTradeComposer((current) =>
       current
@@ -747,6 +758,7 @@ function DraftApp() {
     );
   }
 
+  // @spec DFF-UI-058
   function handleComposerFilterChange(side: ComposerSide, filter: PositionFilter) {
     setTradeComposer((current) => {
       if (!current) {
@@ -767,6 +779,7 @@ function DraftApp() {
     });
   }
 
+  // @spec DFF-UI-058
   function handleToggleComposerAsset(side: ComposerSide, asset: unknown) {
     setTradeComposer((current) => {
       if (!current || current.status !== 'editing') {
@@ -792,6 +805,8 @@ function DraftApp() {
     });
   }
 
+  // @spec DFF-UI-059
+  // @spec DFF-UI-059b
   async function handleSubmitTradeComposer() {
     if (!tradeComposer || tradeComposer.status !== 'editing') {
       return;
@@ -823,6 +838,7 @@ function DraftApp() {
     setComposerTradeId(null);
   }
 
+  // @spec DFF-UI-059e
   function handleCounterTrade() {
     const pendingTrade = draftState?.pendingTrade;
 

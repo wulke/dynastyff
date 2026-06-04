@@ -435,6 +435,9 @@ test('clicking a bot team header opens propose mode with team switching and posi
   expect(screen.getAllByRole('button', { name: /^wr$/i })).toHaveLength(2);
   expect(screen.getAllByRole('button', { name: /^te$/i })).toHaveLength(2);
 
+  await user.click(screen.getByRole('button', { name: /garrett wilson/i }));
+  expect(screen.getAllByText(/garrett wilson/i)).toHaveLength(2);
+
   await user.click(screen.getAllByRole('button', { name: /^rb$/i })[0]!);
   expect(screen.getByText(/breece hall/i)).toBeInTheDocument();
   expect(screen.queryByText(/jordan love/i)).not.toBeInTheDocument();
@@ -442,6 +445,10 @@ test('clicking a bot team header opens propose mode with team switching and posi
 
   await user.selectOptions(screen.getByLabelText(/trade partner/i), 'team-3');
   expect(screen.getByLabelText(/trade partner/i)).toHaveValue('team-3');
+
+  await user.selectOptions(screen.getByLabelText(/trade partner/i), 'team-1');
+  expect(screen.getByLabelText(/trade partner/i)).toHaveValue('team-1');
+  expect(screen.getAllByText(/garrett wilson/i)).toHaveLength(1);
 });
 
 // @spec DFF-UI-059
@@ -491,6 +498,48 @@ test('submitting a user-initiated trade posts trade-offer and keeps the modal op
   });
 
   expect(await screen.findByText(/trade accepted/i)).toBeInTheDocument();
+});
+
+// @spec DFF-UI-059
+// @spec DFF-UI-059b
+// @spec DFF-UI-059c
+test('submitting a user-initiated trade updates the modal in place when the bot declines over SSE', async () => {
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+  await user.click(screen.getByRole('button', { name: /jordan love/i }));
+  await user.click(screen.getByRole('button', { name: /garrett wilson/i }));
+  await user.click(screen.getByRole('button', { name: /submit proposal/i }));
+
+  act(() => {
+    MockEventSource.instances[0]?.emit('trade_offered', {
+      trade_id: 'trade-user-proposal',
+      initiating_team_id: 'team-2',
+      receiving_team_id: 'team-1',
+      assets_sent: [{ type: 'player', player_id: 'roster-user-qb' }],
+      assets_received: [{ type: 'player', player_id: 'roster-bot-wr' }],
+      is_bot_to_bot: false,
+    });
+    MockEventSource.instances[0]?.emit('trade_resolved', {
+      trade_id: 'trade-user-proposal',
+      status: 'declined',
+      assets_sent: [{ type: 'player', player_id: 'roster-user-qb' }],
+      assets_received: [{ type: 'player', player_id: 'roster-bot-wr' }],
+    });
+  });
+
+  expect(await screen.findByText(/trade declined/i)).toBeInTheDocument();
+});
+
+// @spec DFF-UI-058
+test('showing an empty position filter still keeps future picks visible in the composer', async () => {
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+  await user.click(screen.getAllByRole('button', { name: /^rb$/i })[1]!);
+
+  expect(screen.getByText(/no players for this filter/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /2028 round 2/i })).toBeInTheDocument();
 });
 
 function setupTradeModalDefaultResponse(url: string, method: string): Promise<Response> {

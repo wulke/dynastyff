@@ -122,6 +122,98 @@ function seedPlayer(db: Database.Database, playerId: string, name: string, posit
   ).run(playerId, name, position, '2026-05-18T00:00:00.000Z');
 }
 
+function countTrades(db: Database.Database, draftId: string): number {
+  const row = db
+    .prepare('SELECT COUNT(*) AS total FROM trades WHERE draft_id = ?')
+    .get(draftId) as { total: number };
+
+  return row.total;
+}
+
+function readRosterPlayerTeam(db: Database.Database, draftId: string, playerId: string): string | null {
+  const row = db
+    .prepare('SELECT team_id FROM roster_players WHERE draft_id = ? AND player_id = ?')
+    .get(draftId, playerId) as { team_id: string } | undefined;
+
+  return row?.team_id ?? null;
+}
+
+function createTradeOfferDraftFixture(databasePath: string): {
+  db: Database.Database;
+  draftId: string;
+  userTeamId: string;
+  botTeamId: string;
+} {
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  seedPlayer(db, 'player-user-1', 'User Player 1', 'QB');
+  seedPlayer(db, 'player-user-2', 'User Player 2', 'RB');
+  seedPlayer(db, 'player-bot-1', 'Bot Player 1', 'WR');
+  seedPlayer(db, 'player-bot-2', 'Bot Player 2', 'TE');
+
+  const draftId = createDraft({
+    databasePath,
+    config: {
+      teamCount: 2,
+      rounds: 2,
+      scoringFormat: 'ppr',
+      userPickPosition: 1,
+      futurePickYears: 1,
+      futurePickRounds: 1,
+      rosterConfig: {
+        QB: 1,
+        RB: 2,
+        WR: 3,
+        TE: 1,
+        FLEX: 1,
+        SF: 1,
+        bench: 6,
+      },
+    },
+    now: () => '2026-05-18T20:00:00.000Z',
+    random: () => 0,
+  });
+
+  const teams = db
+    .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+    .all(draftId) as Array<{ id: string; is_user: number }>;
+  const userTeamId = teams.find((team) => team.is_user === 1)!.id;
+  const botTeamId = teams.find((team) => team.is_user === 0)!.id;
+
+  db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+    'roster-user-1',
+    draftId,
+    userTeamId,
+    'player-user-1',
+  );
+  db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+    'roster-user-2',
+    draftId,
+    userTeamId,
+    'player-user-2',
+  );
+  db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+    'roster-bot-1',
+    draftId,
+    botTeamId,
+    'player-bot-1',
+  );
+  db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+    'roster-bot-2',
+    draftId,
+    botTeamId,
+    'player-bot-2',
+  );
+
+  return {
+    db,
+    draftId,
+    userTeamId,
+    botTeamId,
+  };
+}
+
 function seedCompletedEtlRun(db: Database.Database, runId = 'run-completed-latest'): string {
   db.prepare(
     `INSERT INTO etl_runs (
@@ -1346,21 +1438,112 @@ test('POST /drafts/:id/trade-offer returns 400 when the target team is invalid',
 });
 
 // @spec DFF-ENGINE-034
-test('POST /drafts/:id/trade-offer forwards a valid proposal to the bot chain and returns the trade id', async () => {
-  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-valid-');
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when the target team is the user team', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-user-target-');
+  initializeDatabase(databasePath);
+
+  try {
+    const { db, draftId, userTeamId, botTeamId } = createTradeOfferDraftFixture(databasePath);
+
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: userTeamId,
+      offeredAssets: [{ type: 'player', player_id: 'player-user-1' }],
+      requestedAssets: [{ type: 'player', player_id: 'player-bot-1' }],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer.',
+    });
+    assert.equal(countTrades(db, draftId), 0);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-user-1'), userTeamId);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-bot-1'), botTeamId);
+
+    db.close();
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when offered assets are not on the user roster', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-invalid-offered-assets-');
+  initializeDatabase(databasePath);
+
+  try {
+    const { db, draftId, userTeamId, botTeamId } = createTradeOfferDraftFixture(databasePath);
+
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: botTeamId,
+      offeredAssets: [{ type: 'player', player_id: 'player-bot-1' }],
+      requestedAssets: [{ type: 'player', player_id: 'player-bot-2' }],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer.',
+    });
+    assert.equal(countTrades(db, draftId), 0);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-user-1'), userTeamId);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-bot-1'), botTeamId);
+
+    db.close();
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when requested assets are not on the target bot roster', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-invalid-requested-assets-');
+  initializeDatabase(databasePath);
+
+  try {
+    const { db, draftId, userTeamId, botTeamId } = createTradeOfferDraftFixture(databasePath);
+
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: botTeamId,
+      offeredAssets: [{ type: 'player', player_id: 'player-user-1' }],
+      requestedAssets: [{ type: 'player', player_id: 'player-user-2' }],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer.',
+    });
+    assert.equal(countTrades(db, draftId), 0);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-user-2'), userTeamId);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-bot-1'), botTeamId);
+
+    db.close();
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when required fields are missing', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-missing-fields-');
   initializeDatabase(databasePath);
   const db = new Database(databasePath);
   db.pragma('foreign_keys = ON');
 
   try {
-    seedPlayer(db, 'player-user-1', 'User Player 1', 'QB');
-    seedPlayer(db, 'player-bot-1', 'Bot Player 1', 'WR');
-
     const draftId = createDraft({
       databasePath,
       config: {
         teamCount: 2,
-        rounds: 2,
+        rounds: 1,
         scoringFormat: 'ppr',
         userPickPosition: 1,
         futurePickYears: 1,
@@ -1379,24 +1562,31 @@ test('POST /drafts/:id/trade-offer forwards a valid proposal to the bot chain an
       random: () => 0,
     });
 
-    const teams = db
-      .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
-      .all(draftId) as Array<{ id: string; is_user: number }>;
-    const userTeamId = teams.find((team) => team.is_user === 1)!.id;
-    const botTeamId = teams.find((team) => team.is_user === 0)!.id;
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: 'team-1',
+      offeredAssets: [],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath }),
+    });
 
-    db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
-      'roster-user-1',
-      draftId,
-      userTeamId,
-      'player-user-1',
-    );
-    db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
-      'roster-bot-1',
-      draftId,
-      botTeamId,
-      'player-bot-1',
-    );
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer: requestedAssets must be an array.',
+    });
+    assert.equal(countTrades(db, draftId), 0);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+test('POST /drafts/:id/trade-offer forwards a valid proposal to the bot chain and returns the trade id', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-valid-');
+  initializeDatabase(databasePath);
+
+  try {
+    const { db, draftId, botTeamId } = createTradeOfferDraftFixture(databasePath);
 
     const submitCalls: Array<{
       draftId: string;
@@ -1443,8 +1633,9 @@ test('POST /drafts/:id/trade-offer forwards a valid proposal to the bot chain an
         requestedAssets: [{ type: 'player', player_id: 'player-bot-1' }],
       },
     ]);
-  } finally {
+
     db.close();
+  } finally {
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
   }
 });

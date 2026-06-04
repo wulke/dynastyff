@@ -14,6 +14,7 @@
 // @spec DFF-UI-092
 // @spec DFF-UI-132
 // @spec DFF-UI-139
+// @spec DFF-UI-056
 import { useState, type ReactNode } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 
@@ -177,6 +178,7 @@ function persistLayout(mode: LayoutMode): void {
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-093
+// @spec DFF-UI-056
 function ColumnModeDraftBoard({ draftState, onTeamHeaderClick }: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
 
@@ -266,6 +268,7 @@ function ColumnModeDraftBoard({ draftState, onTeamHeaderClick }: DraftBoardProps
 // @spec DFF-UI-093
 // @spec DFF-UI-139
 // @spec DFF-UI-132
+// @spec DFF-UI-056
 export function DraftBoard({
   draftState,
   isInteractionBlocked = false,

@@ -174,6 +174,47 @@ function createSavedConfigRecord(overrides: Partial<SavedConfigApiRecord> = {}):
   };
 }
 
+function setupDraftLifecycleFetches(options: {
+  draftId?: string;
+  postResponse?: Response;
+  savedConfigs?: SavedConfigApiRecord[];
+  onPostDraft?: () => Promise<Response> | Response;
+} = {}) {
+  const {
+    draftId = 'draft-123',
+    postResponse = createJsonResponse({ draftId }, 201),
+    savedConfigs = [],
+    onPostDraft,
+  } = options;
+
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(createJsonResponse([]));
+    }
+
+    if (url === '/configs' && method === 'GET') {
+      return Promise.resolve(createJsonResponse(savedConfigs));
+    }
+
+    if (url === '/drafts' && method === 'POST') {
+      return Promise.resolve(onPostDraft ? onPostDraft() : postResponse);
+    }
+
+    if (url === `/drafts/${draftId}/state` && method === 'GET') {
+      return Promise.resolve(createJsonResponse(createDraftingState({ draft_id: draftId })));
+    }
+
+    if (url === `/drafts/${draftId}/queue` && method === 'GET') {
+      return Promise.resolve(createJsonResponse([]));
+    }
+
+    return Promise.resolve(createJsonResponse([]));
+  });
+}
+
 // @spec DFF-UI-011
 // @spec DFF-UI-014
 // @spec DFF-UI-015
@@ -403,14 +444,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-014
   test('posts the current form values and transitions to drafting when a draft is created', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -465,14 +499,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-139
   test('renders the drafting status bar and three weighted columns with a single turn-status surface', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -592,14 +619,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-138
   test('shows the active bot team name in the drafting status bar when it is not the user turn', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -621,14 +641,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-138
   test('shows the final pick count and draft complete status when the draft is completed', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -659,14 +672,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-138
   test('falls back to draft room active when the current pick number has no matching draft-order slot', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -688,14 +694,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-138
   test('falls back to draft room active when the current slot team cannot be resolved', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
@@ -725,7 +724,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('shows an error toast and remains on config when draft creation fails', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
+    setupDraftLifecycleFetches({
+      postResponse: new Response('boom', { status: 500 }),
+    });
 
     await renderAppToConfig();
 
@@ -744,7 +745,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('shows the server validation message for a 4xx draft creation error', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(new Response('Pick position must be between 1 and 12.', { status: 422 }));
+    setupDraftLifecycleFetches({
+      postResponse: new Response('Pick position must be between 1 and 12.', { status: 422 }),
+    });
 
     await renderAppToConfig();
 
@@ -761,7 +764,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('shows the generic error toast when the draft creation request rejects', async () => {
     const user = userEvent.setup();
-    fetchMock.mockRejectedValue(new Error('socket hang up'));
+    setupDraftLifecycleFetches({
+      onPostDraft: () => Promise.reject(new Error('socket hang up')),
+    });
 
     await renderAppToConfig();
 
@@ -780,7 +785,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   // @spec DFF-UI-087
   test('auto-dismisses the error toast after 6 seconds', async () => {
-    fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
+    setupDraftLifecycleFetches({
+      postResponse: new Response('boom', { status: 500 }),
+    });
 
     await renderAppToConfig();
     vi.useFakeTimers();
@@ -802,14 +809,9 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('remains on config when the success response is missing a draft id', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({}), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches({
+      postResponse: createJsonResponse({}, 201),
+    });
 
     await renderAppToConfig();
 
@@ -829,14 +831,14 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-015
   test('remains on config when the success response body is not valid json', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response('not json', {
+    setupDraftLifecycleFetches({
+      postResponse: new Response('not json', {
         status: 201,
         headers: {
           'Content-Type': 'application/json',
         },
       }),
-    );
+    });
 
     await renderAppToConfig();
 
@@ -857,27 +859,22 @@ describe('UI app scaffold', () => {
   test('ignores a second submit while draft creation is already in flight', async () => {
     const deferredResponse = createDeferred<Response>();
     const user = userEvent.setup();
-    fetchMock
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )
-      .mockImplementation(() => deferredResponse.promise);
+    setupDraftLifecycleFetches({
+      onPostDraft: () => deferredResponse.promise,
+    });
 
     await renderAppToConfig();
 
     const startDraftButton = screen.getByRole('button', { name: /start draft/i });
     await user.click(startDraftButton);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(screen.getByRole('button', { name: /starting draft…/i })).toBeDisabled();
 
     const pendingButton = screen.getByRole('button', { name: /starting draft…/i });
     await user.click(pendingButton);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
 
     deferredResponse.resolve(
       new Response(JSON.stringify({ draftId: 'draft-123' }), {
@@ -899,14 +896,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-014
   test('clamps out-of-range numeric values before posting the draft request', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -951,14 +941,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-007
   test('renders a completion banner over the draft board when the draft completes', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -997,11 +980,9 @@ describe('UI app scaffold', () => {
         name: /you finished the draft/i,
       }),
     ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('draft-completion-banner')).getByText(
-        /congratulations, lakeview legends/i,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
+      /congratulations, lakeview legends/i,
+    );
     expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
     expect(screen.getByTestId('layout-toggle')).toBeDisabled();
@@ -1011,14 +992,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-005
   test('falls back to "Your team" when the user team is missing from state', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -1046,25 +1020,16 @@ describe('UI app scaffold', () => {
       });
     });
 
-    expect(
-      within(screen.getByTestId('draft-completion-banner')).getByText(
-        /congratulations, your team\./i,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
+      /congratulations, your team\./i,
+    );
   });
 
   // @spec DFF-UI-003
   // @spec DFF-UI-005
   test('renders the completion banner even if draft_complete arrives before the first state_sync', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 
@@ -1082,25 +1047,16 @@ describe('UI app scaffold', () => {
         name: /you finished the draft/i,
       }),
     ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('draft-completion-banner')).getByText(
-        /congratulations, your team\./i,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
+      /congratulations, lakeview legends/i,
+    );
   });
 
   // @spec DFF-UI-006
   // @spec DFF-UI-004
   test('opens history from the completion banner and then returns to config when the user starts a new draft', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    setupDraftLifecycleFetches();
 
     await renderAppToConfig();
 

@@ -106,6 +106,28 @@ export const drafts = sqliteTable(
   ],
 );
 
+// @spec DFF-DATA-094
+export const leagueConfigs = sqliteTable(
+  'league_configs',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    teamCount: integer('team_count').notNull(),
+    rounds: integer('rounds').notNull(),
+    scoringFormat: text('scoring_format').notNull(),
+    rosterSlots: text('roster_slots').notNull(),
+    pickPosition: integer('pick_position').notNull(),
+    futurePickYears: integer('future_pick_years').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [
+    check(
+      'league_configs_scoring_format_check',
+      sql`${table.scoringFormat} in (${sql.raw(quotedList(scoringFormats))})`,
+    ),
+  ],
+);
+
 export const etlRuns = sqliteTable('etl_runs', {
   id: text('id').primaryKey(),
   startedAt: text('started_at').notNull(),

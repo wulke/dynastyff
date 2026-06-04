@@ -781,7 +781,7 @@ describe('available players list', () => {
     await user.click(screen.getByRole('button', { name: /confirm pick/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      5,
+      6,
       '/drafts/draft-available-123/pick',
       expect.objectContaining({
         method: 'POST',
@@ -789,7 +789,7 @@ describe('available players list', () => {
       }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
-      6,
+      7,
       '/drafts/draft-available-123/pick',
       expect.objectContaining({
         method: 'POST',

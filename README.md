@@ -37,7 +37,7 @@ npm run serve
 npm run dev
 ```
 
-The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so both commands should be running for draft creation, state/history reads, and the live draft SSE stream.
+The Vite dev server proxies `/drafts` and `/configs` requests to `http://localhost:3001`, so both commands should be running for draft creation, saved-config reads/writes, state/history reads, and the live draft SSE stream.
 
 Open the Vite URL shown in the terminal to begin.
 
@@ -47,6 +47,7 @@ When saved drafts already exist, the UI now opens on a Drafts List page first. F
 
 1. **Configure your league** — set team count, roster slots, scoring, and your draft position on the config screen.
    - If prior drafts exist, use the Drafts List page first to resume or review them, or click **New Draft** to open the config form.
+   - The config screen also loads saved league templates from SQLite, lets you re-apply them from a dropdown, and persists the current form as a new saved config with **Save**.
 2. **Start a mock draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically.
    - On the API-backed draft flow, bot turns continue server-side after every successful user pick with a randomized `3–5s` delay between bot selections.
    - If your league settings place a bot on the opening slot, the server now auto-starts those opening bot turns immediately after draft creation so the board advances to your first turn without extra input.
@@ -79,6 +80,7 @@ The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs
 Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under `/src/ui`:
 
 - `Config Screen` renders on first load as a real league configuration form
+- The config form now loads saved league setups from `GET /configs`, applies them back into every field from a dropdown, and persists new saved setups through `POST /configs`
 - `src/ui/context/DraftContext.tsx` owns the HTTP draft lifecycle and exposes `useDraftContext()` for all draft data and actions
 - `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
 - Successful draft creation transitions the UI into the drafting view immediately, then hydrates `GET /drafts/:id/state` in parallel with SSE so the three-column draft room can load in place

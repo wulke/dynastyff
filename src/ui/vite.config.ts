@@ -15,6 +15,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/configs': {
+        target: resolveApiBaseUrl(),
+      },
       '/drafts': {
         target: resolveApiBaseUrl(),
       },

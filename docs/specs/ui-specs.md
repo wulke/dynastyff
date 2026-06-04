@@ -36,13 +36,13 @@ When the user clicks "New Draft" from the History view, the system shall transit
 **DFF-UI-010** `[x]` → #15
 The Config screen shall render input fields for: config name, team count (8–16), rounds (10–30), scoring format (PPR / Half PPR / Standard), roster slots per position (QB, RB, WR, TE, FLEX, SF, BN), pick position (1–team_count), and future pick years (1–5).
 
-**DFF-UI-011** `[ ]` → #16
+**DFF-UI-011** `[x]` → #16
 When the Config screen loads, the system shall fetch saved configs from GET /configs and display them in a dropdown.
 
-**DFF-UI-012** `[ ]` → #16
+**DFF-UI-012** `[x]` → #16
 When the user selects a saved config from the dropdown, the system shall populate all form fields with that config's values.
 
-**DFF-UI-013** `[ ]` → #16
+**DFF-UI-013** `[x]` → #16
 When the user clicks "Save", the system shall POST /configs with the current form values and add the saved config to the dropdown.
 
 **DFF-UI-014** `[x]` → #15

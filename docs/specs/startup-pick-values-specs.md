@@ -103,10 +103,10 @@ When no startup pick values are present in the ETL snapshot for the current year
 
 ## Bot — Trade Evaluation
 
-**DFF-SPKV-050** `[ ]`
+**DFF-SPKV-050** `[x]`
 The bot simulator shall treat any unfilled startup pick slot owned by a bot team as a tradeable asset, subject to the same value-threshold trade evaluation logic applied to future picks and players.
 
-**DFF-SPKV-051** `[ ]`
+**DFF-SPKV-051** `[x]`
 When scoring a `pick_slot` asset during bot trade evaluation, the system shall compute its dynasty value by looking up the slot's global pick number in the `startupPickValues` map from `InMemoryDraftState`. A missing key shall yield `dynasty_value = 0`.
 
 ---

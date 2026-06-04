@@ -4,7 +4,7 @@
 
 The bot simulator drives automated pick and trade decisions for all non-user teams. It is invoked by the draft engine during the bot chain — once per bot turn. It is stateless between calls; all state it needs (rosters, available players, pick assets, archetypes) is passed in or queried from SQLite. Its output is either a pick (player_id) or a trade proposal.
 
-Drives specs: `docs/specs/bot-simulator-specs.md`
+Drives specs: `docs/specs/bot-simulator-specs.md`, `docs/specs/startup-pick-values-specs.md`
 
 ## Responsibilities
 
@@ -94,6 +94,16 @@ Before picking, a bot evaluates whether to trade. Steps:
 2. Apply archetype tilt: does the incoming asset fit the bot's positional preference? Does the outgoing asset violate stickiness rules?
 3. Accept if: value received ≥ value sent × acceptance threshold AND no stickiness violation
 4. Decline otherwise
+
+### Tradeable Asset Scoring
+
+Bots score every tradeable asset through the same dynasty-value pipeline before applying the offer/accept threshold math:
+
+- `player`: use the player's persisted `dynasty_value`
+- `future_pick`: use the joined `pick_values` round-level `dynasty_value`
+- `pick_slot`: treat any unfilled startup draft slot still owned by a bot team as a tradeable asset and resolve its `dynasty_value` from `InMemoryDraftState.startupPickValues` by global `pick_number`
+
+If a `pick_slot` global pick number is missing from `startupPickValues`, the bot scores that asset as `dynasty_value = 0`. Filled startup slots are not tradeable.
 
 ### Trade Fallback
 

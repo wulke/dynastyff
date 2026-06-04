@@ -356,7 +356,7 @@ type DraftCreateRequestBody = {
 
 The browser form keeps local state in a UI-friendly `ConfigFormState` shape, then clamps numeric values and translates that state into the HTTP request body above before submit.
 
-Deferred to issue `#16`:
+Issue `#16` scope:
 - Saved-config dropdown loaded from `GET /configs`
 - Selecting a saved config to repopulate the form
 - `Save` button backed by `POST /configs`

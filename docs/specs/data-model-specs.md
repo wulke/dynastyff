@@ -54,6 +54,19 @@ When a draft is completed, the system shall set `drafts.completed_at` to the cur
 
 ---
 
+## Saved League Configs
+
+**DFF-DATA-094** `[ ]` → #16
+The system shall persist saved league configs in a `league_configs` table with the columns: id, name, team_count, rounds, scoring_format, roster_slots, pick_position, future_pick_years, created_at.
+
+**DFF-DATA-095** `[ ]` → #16
+The system shall expose saved league configs via `GET /configs`, returning all saved configs ordered by `created_at` descending.
+
+**DFF-DATA-096** `[ ]` → #16
+When the user saves a league config, the system shall persist it via `POST /configs` and return the created config record.
+
+---
+
 ## Teams
 
 **DFF-DATA-030** `[x]`

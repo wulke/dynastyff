@@ -157,6 +157,48 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function mockAppBootstrapAndDraftCreation(draftId = 'draft-pick-feed-123') {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/configs' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/drafts' && method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ draftId }), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    throw new Error(`Unhandled fetch in ui-pick-feed test: ${method} ${url}`);
+  });
+}
+
 async function renderAppToConfig() {
   render(<App />);
   await screen.findByRole('heading', { name: /config screen/i });
@@ -168,14 +210,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-144
   test('renders a pick feed panel alongside the draft board with full-column scroll behavior and empty state', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation();
 
     await renderAppToConfig();
 
@@ -203,14 +238,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-101
   test('hydrates from existing picks in draft state on load, ordered most recent at top', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation();
 
     await renderAppToConfig();
 
@@ -256,14 +284,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-103
   test('hydrates historical pick names from drafted player metadata when resume state has no available players left', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation();
 
     await renderAppToConfig();
 
@@ -326,14 +347,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-103
   test('prepends a new entry on pick_made SSE event as a concise round-pick line', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation();
 
     await renderAppToConfig();
 
@@ -379,14 +393,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-103
   test('falls back to raw playerId when player absent from catalog', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation();
 
     await renderAppToConfig();
 
@@ -403,14 +410,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-103
   test('renders em dash for round/pick when pick number is absent from draftOrder', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation();
 
     await renderAppToConfig();
 
@@ -439,14 +439,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-103
   test('renders duplicate entries when the same player is picked twice (two pick_made events with same player_id)', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation();
 
     await renderAppToConfig();
 
@@ -477,14 +470,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-100
   test('pick feed panel renders alongside the draft board without replacing it', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-pick-feed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation();
 
     await renderAppToConfig();
 

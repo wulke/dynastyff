@@ -106,6 +106,48 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+function mockAppBootstrapAndDraftCreation(draftId: string) {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/configs' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/drafts' && method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ draftId }), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    throw new Error(`Unhandled fetch in ui-draft-context test: ${method} ${url}`);
+  });
+}
+
 async function renderAppToConfig() {
   render(<App />);
   await screen.findByRole('heading', { name: /config screen/i });
@@ -169,14 +211,7 @@ describe('HTTP draft context', () => {
   // @spec DFF-UI-082
   test('starts a draft through the context and shows the SSE connecting badge', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-ctx-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation('draft-ctx-123');
 
     await renderAppToConfig();
 
@@ -200,14 +235,7 @@ describe('HTTP draft context', () => {
   // @spec DFF-UI-074
   test('dispatches draft_complete into the app, closes the stream, and waits for the user to open history', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-stream-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation('draft-stream-123');
 
     await renderAppToConfig();
 
@@ -296,14 +324,7 @@ describe('HTTP draft context', () => {
   test(
     'reconnects with exponential backoff capped at 30 seconds and shows a disconnect toast when retries are exhausted',
     async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-reconnect-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation('draft-reconnect-123');
 
     await renderAppToConfig();
 
@@ -350,14 +371,7 @@ describe('HTTP draft context', () => {
   test(
     'handles malformed SSE payloads by disconnecting and reconnecting instead of throwing',
     async () => {
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-malformed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation('draft-malformed-123');
 
     await renderAppToConfig();
 

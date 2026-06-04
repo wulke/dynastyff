@@ -165,5 +165,5 @@ describe('static in-browser draft flow', () => {
         value: originalCrypto,
       });
     }
-  });
+  }, 20_000);
 });

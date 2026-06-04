@@ -486,8 +486,6 @@ function DraftApp() {
   const [dismissedTradeId, setDismissedTradeId] = useState<string | null>(null);
   const showErrorRef = useRef(showError);
 
-  // @spec DFF-UI-011
-  // @spec DFF-UI-011b
   useEffect(() => {
     showErrorRef.current = showError;
   }, [showError]);
@@ -531,6 +529,8 @@ function DraftApp() {
       });
   }, []);
 
+  // @spec DFF-UI-011
+  // @spec DFF-UI-011b
   useEffect(() => {
     Promise.resolve()
       .then(() => fetch('/configs'))
@@ -603,7 +603,6 @@ function DraftApp() {
     setDraftConfig(selectedConfig.config);
   }
 
-  // @spec DFF-UI-013
   // @spec DFF-UI-013
   // @spec DFF-UI-013b
   async function handleSaveConfig() {

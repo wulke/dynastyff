@@ -58,6 +58,11 @@ type TeamPickAsset = {
   round: number;
 };
 
+type StartupPickValue = {
+  globalPickNumber: number;
+  dynastyValue: number;
+};
+
 export type AvailablePlayer = {
   id: string;
   name: string;
@@ -107,6 +112,7 @@ export type DraftState = {
   picks: PickRecord[];
   rosterPlayers: RosterPlayerRecord[];
   teamPickAssets: TeamPickAsset[];
+  startupPickValues: StartupPickValue[];
   userQueue: QueueEntry[];
   availablePlayers: AvailablePlayer[];
   trades: TradeRecord[];
@@ -123,6 +129,7 @@ export type CompletedDraft = {
   picks: PickRecord[];
   rosterPlayers: RosterPlayerRecord[];
   teamPickAssets: TeamPickAsset[];
+  startupPickValues: StartupPickValue[];
   trades: TradeRecord[];
 };
 
@@ -199,6 +206,10 @@ type StateSyncPayload = {
     is_rookie: boolean;
     dynasty_value: number;
     adp: number | null;
+  }>;
+  startup_pick_values?: Array<{
+    global_pick_number: number;
+    dynasty_value: number;
   }>;
 };
 
@@ -288,6 +299,7 @@ function createEmptyDraftState(draftId: string): DraftState {
     picks: [],
     rosterPlayers: [],
     teamPickAssets: [],
+    startupPickValues: [],
     userQueue: [],
     availablePlayers: [],
     trades: [],
@@ -371,6 +383,10 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
       year: asset.year,
       round: asset.round,
     })),
+    startupPickValues: (payload.startup_pick_values ?? []).map((entry) => ({
+      globalPickNumber: entry.global_pick_number,
+      dynastyValue: entry.dynasty_value,
+    })),
     userQueue: payload.user_queue.map((entry) => ({
       playerId: entry.player_id,
       rank: entry.rank,
@@ -394,6 +410,7 @@ function toCompletedDraft(state: DraftState, completedAt: string): CompletedDraf
     picks: state.picks,
     rosterPlayers: state.rosterPlayers,
     teamPickAssets: state.teamPickAssets,
+    startupPickValues: state.startupPickValues,
     trades: state.trades,
   };
 }

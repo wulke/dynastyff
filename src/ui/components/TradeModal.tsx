@@ -7,6 +7,9 @@
 // @spec DFF-UI-056
 // @spec DFF-UI-057
 // @spec DFF-UI-058
+// @spec DFF-UI-058f
+// @spec DFF-UI-058g
+// @spec DFF-UI-058h
 // @spec DFF-UI-059
 // @spec DFF-UI-059b
 // @spec DFF-UI-059c
@@ -45,6 +48,10 @@ type TradeAsset = {
   type?: string;
   player_id?: string;
   playerId?: string;
+  draft_order_id?: string;
+  draftOrderId?: string;
+  pick_number?: number;
+  pickNumber?: number;
   year?: number;
   round?: number;
   pick_in_round?: number;
@@ -66,9 +73,22 @@ function getTeamName(draftState: DraftState, teamId: string): string {
   return draftState.teams.find((team) => team.id === teamId)?.name ?? teamId;
 }
 
+// @spec DFF-UI-058f
+// @spec DFF-UI-058h
+function getDraftOrderSlotByPickNumber(draftState: DraftState, pickNumber: number) {
+  return draftState.draftOrder.find((slot) => slot.pickNumber === pickNumber) ?? null;
+}
+
+// @spec DFF-UI-058f
+// @spec DFF-UI-058h
+function getStartupPickValueByPickNumber(draftState: DraftState, pickNumber: number): number | null {
+  return draftState.startupPickValues.find((entry) => entry.globalPickNumber === pickNumber)?.dynastyValue ?? null;
+}
+
 // @spec DFF-UI-051
 // @spec DFF-UI-052
 // @spec DFF-UI-058
+// @spec DFF-UI-058h
 function getTradeAssetLabel(asset: unknown, draftState: DraftState): string {
   if (!asset || typeof asset !== 'object') {
     return 'Unknown asset';
@@ -88,9 +108,12 @@ function getTradeAssetLabel(asset: unknown, draftState: DraftState): string {
   }
 
   if (candidate.type === 'pick_slot') {
-    const round = candidate.round ?? 0;
-    const pickInRound = candidate.pick_in_round ?? candidate.pickInRound ?? 0;
-    const value = candidate.dynasty_value ?? candidate.dynastyValue;
+    const pickNumber = candidate.pick_number ?? candidate.pickNumber ?? null;
+    const slot = pickNumber !== null ? getDraftOrderSlotByPickNumber(draftState, pickNumber) : null;
+    const round = candidate.round ?? slot?.round ?? 0;
+    const pickInRound = candidate.pick_in_round ?? candidate.pickInRound ?? slot?.pickInRound ?? 0;
+    const value =
+      candidate.dynasty_value ?? candidate.dynastyValue ?? (pickNumber !== null ? getStartupPickValueByPickNumber(draftState, pickNumber) ?? undefined : undefined);
     const baseLabel = `Startup ${round}.${String(pickInRound).padStart(2, '0')}`;
     return typeof value === 'number' ? `${baseLabel} (${value})` : baseLabel;
   }
@@ -139,14 +162,39 @@ function buildSelectablePlayerAssets(draftState: DraftState, teamId: string): Se
 }
 
 // @spec DFF-UI-058
+// @spec DFF-UI-058f
+// @spec DFF-UI-058g
+// @spec DFF-UI-058h
 function buildSelectablePickAssets(draftState: DraftState, teamId: string): SelectableTradeAsset[] {
-  return draftState.teamPickAssets
+  const usedPickNumbers = new Set(draftState.picks.map((pick) => pick.pickNumber));
+
+  const startupSlots = draftState.draftOrder
+    .filter((slot) => slot.teamId === teamId && !usedPickNumbers.has(slot.pickNumber))
+    .map((slot) => {
+      const asset = {
+        type: 'pick_slot',
+        pick_number: slot.pickNumber,
+        round: slot.round,
+        pick_in_round: slot.pickInRound,
+        dynasty_value: getStartupPickValueByPickNumber(draftState, slot.pickNumber) ?? undefined,
+      };
+
+      return {
+        asset,
+        label: getTradeAssetLabel(asset, draftState),
+        position: null,
+      };
+    });
+
+  const futurePicks = draftState.teamPickAssets
     .filter((entry) => entry.teamId === teamId)
     .map((entry) => ({
       asset: { type: 'future_pick', year: entry.year, round: entry.round },
       label: `${entry.year} Round ${entry.round}`,
       position: null,
     }));
+
+  return [...startupSlots, ...futurePicks];
 }
 
 // @spec DFF-UI-058

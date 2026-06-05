@@ -197,13 +197,13 @@ In trade propose mode, the modal shall render a team selector dropdown that lets
 **DFF-UI-058** `[x]` → #86
 In trade propose mode, the modal shall render client-side position filter pills (`ALL`, `QB`, `RB`, `WR`, `TE`) for both player asset lists; draft picks shall remain visible and unfiltered.
 
-**DFF-UI-058f** `[ ]` → #116
+**DFF-UI-058f** `[x]` → #116
 In trade propose mode, when the modal renders the picks section for either side, the system shall include unresolved startup pick slots from that team's `draftState.draftOrder` entries as `pick_slot` assets while continuing to show true future picks from `draftState.teamPickAssets`.
 
-**DFF-UI-058g** `[ ]` → #116
+**DFF-UI-058g** `[x]` → #116
 In trade propose mode, the modal shall keep both `pick_slot` and `future_pick` assets visible and unfiltered regardless of the active player-position pill.
 
-**DFF-UI-058h** `[ ]` → #116
+**DFF-UI-058h** `[x]` → #116
 When the trade compose UI renders startup pick slots from `draftState.draftOrder`, the system shall preserve them as `pick_slot` assets and shall not relabel or coerce them into `future_pick` assets.
 
 **DFF-UI-059** `[x]` → #86

@@ -385,6 +385,10 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
 - Propose mode:
   - Split the asset builder into "You offer" and "<Target> offers"
   - Each side shows player rows plus a flat picks section
+  - The picks section merges two distinct inventories for that team:
+    - unresolved startup pick slots derived from `draftState.draftOrder`
+    - true future picks derived from `draftState.teamPickAssets`
+  - Startup pick slots remain `pick_slot` trade assets and future picks remain `future_pick` trade assets; the compose UI shall not coerce startup slots into future-pick labels
   - Player rows support pill filters `ALL`, `QB`, `RB`, `WR`, `TE`
   - Picks remain visible regardless of the active position pill
   - Submit calls `POST /drafts/:id/trade-offer` with `{ targetTeamId, offeredAssets, requestedAssets }`

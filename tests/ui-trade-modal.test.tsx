@@ -566,6 +566,87 @@ test('showing an empty position filter still keeps startup and future picks visi
   expect(screen.getByRole('button', { name: /2028 round 2/i })).toBeInTheDocument();
 });
 
+// @spec DFF-UI-058f
+test('shows future picks without a false empty state when a team has no unresolved startup slots', async () => {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts/draft-trade-123/state' && method === 'GET') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            createDraftingState({
+              picks: [
+                {
+                  pick_number: 1,
+                  team_id: 'team-1',
+                  player_id: 'player-picked',
+                  picked_at: '2026-06-02T12:00:00.000Z',
+                },
+                {
+                  pick_number: 6,
+                  team_id: 'team-1',
+                  player_id: 'player-picked-2',
+                  picked_at: '2026-06-02T12:05:00.000Z',
+                },
+              ],
+            }),
+          ),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    }
+
+    return setupTradeModalDefaultResponse(url, method);
+  });
+
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+
+  expect(screen.queryByRole('button', { name: /startup 1\.01/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /startup 2\.03/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /2028 round 2/i })).toBeInTheDocument();
+  expect(screen.queryByText(/no players for this filter/i)).not.toBeInTheDocument();
+});
+
+// @spec DFF-UI-058f
+test('shows unresolved startup pick slots when the selected team has no future-pick assets', async () => {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts/draft-trade-123/state' && method === 'GET') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            createDraftingState({
+              team_pick_assets: [{ team_id: 'team-2', year: 2027, round: 1 }],
+            }),
+          ),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    }
+
+    return setupTradeModalDefaultResponse(url, method);
+  });
+
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+
+  expect(screen.getByRole('button', { name: /startup 2\.03/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /2028 round 2/i })).not.toBeInTheDocument();
+});
+
 function setupTradeModalDefaultResponse(url: string, method: string): Promise<Response> {
   if (url === '/drafts' && method === 'GET') {
     return Promise.resolve(

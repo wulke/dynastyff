@@ -287,6 +287,7 @@ class DraftCreateUiError extends Error {}
 // @spec DFF-STATIC-060
 // @spec DFF-STATIC-062
 // @spec DFF-UI-071
+// @spec DFF-UI-058f
 function createEmptyDraftState(draftId: string): DraftState {
   return {
     draftId,
@@ -340,6 +341,7 @@ function toUiPlayer(player: {
 // @spec DFF-STATIC-060
 // @spec DFF-STATIC-062
 // @spec DFF-UI-071
+// @spec DFF-UI-058f
 function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftState | null): DraftState {
   const syncedPlayers = sortAvailablePlayers(payload.available_players.map(toUiPlayer));
   const draftedPlayers = (payload.drafted_players ?? []).map(toUiPlayer);
@@ -401,6 +403,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
 
 // @spec DFF-STATIC-060
 // @spec DFF-STATIC-062
+// @spec DFF-UI-058f
 function toCompletedDraft(state: DraftState, completedAt: string): CompletedDraft {
   return {
     draftId: state.draftId ?? '',

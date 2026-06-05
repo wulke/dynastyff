@@ -7,6 +7,9 @@
 // @spec DFF-UI-056
 // @spec DFF-UI-057
 // @spec DFF-UI-058
+// @spec DFF-UI-058f
+// @spec DFF-UI-058g
+// @spec DFF-UI-058h
 // @spec DFF-UI-059
 // @spec DFF-UI-059b
 // @spec DFF-UI-059c
@@ -83,6 +86,9 @@ function createDraftingState(overrides: Partial<Record<string, unknown>> = {}) {
       { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
       { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
       { pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+      { pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+      { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
+      { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
     ],
     picks: [
       {
@@ -124,6 +130,14 @@ function createDraftingState(overrides: Partial<Record<string, unknown>> = {}) {
         dynasty_value: 9400,
         adp: 2,
       },
+    ],
+    startup_pick_values: [
+      { global_pick_number: 1, dynasty_value: 9100 },
+      { global_pick_number: 2, dynasty_value: 9000 },
+      { global_pick_number: 3, dynasty_value: 8900 },
+      { global_pick_number: 4, dynasty_value: 8800 },
+      { global_pick_number: 5, dynasty_value: 8700 },
+      { global_pick_number: 6, dynasty_value: 8600 },
     ],
     drafted_players: [
       {
@@ -421,6 +435,9 @@ test('renders the latest trade when a second trade_offered event arrives before 
 // @spec DFF-UI-056
 // @spec DFF-UI-057
 // @spec DFF-UI-058
+// @spec DFF-UI-058f
+// @spec DFF-UI-058g
+// @spec DFF-UI-058h
 test('clicking a bot team header opens propose mode with team switching and position filters', async () => {
   const user = await renderDraftRoom();
 
@@ -441,7 +458,12 @@ test('clicking a bot team header opens propose mode with team switching and posi
   await user.click(screen.getAllByRole('button', { name: /^rb$/i })[0]!);
   expect(screen.getByText(/breece hall/i)).toBeInTheDocument();
   expect(screen.queryByText(/jordan love/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/startup 1\.02/i)).toBeInTheDocument();
+  expect(screen.getByText(/startup 2\.02/i)).toBeInTheDocument();
+  expect(screen.getByText(/startup 2\.03/i)).toBeInTheDocument();
   expect(screen.getByText(/2027 round 1/i)).toBeInTheDocument();
+  expect(screen.getByText(/2028 round 2/i)).toBeInTheDocument();
+  expect(screen.queryByText(/startup 1\.01/i)).not.toBeInTheDocument();
 
   await user.selectOptions(screen.getByLabelText(/trade partner/i), 'team-3');
   expect(screen.getByLabelText(/trade partner/i)).toHaveValue('team-3');
@@ -532,13 +554,15 @@ test('submitting a user-initiated trade updates the modal in place when the bot 
 });
 
 // @spec DFF-UI-058
-test('showing an empty position filter still keeps future picks visible in the composer', async () => {
+// @spec DFF-UI-058g
+test('showing an empty position filter still keeps startup and future picks visible in the composer', async () => {
   const user = await renderDraftRoom();
 
   await user.click(screen.getByRole('button', { name: /bot alpha/i }));
   await user.click(screen.getAllByRole('button', { name: /^rb$/i })[1]!);
 
   expect(screen.getByText(/no players for this filter/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /startup 2\.03/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /2028 round 2/i })).toBeInTheDocument();
 });
 

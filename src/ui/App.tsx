@@ -38,7 +38,6 @@
 // @spec DFF-UI-059d
 // @spec DFF-UI-059e
 import { useState, useEffect, useRef, type ReactNode } from 'react';
-import * as Separator from '@radix-ui/react-separator';
 import {
   HttpDraftContextProvider,
   useDraftContext,
@@ -61,6 +60,53 @@ type DraftStatusSummary = {
   currentPickLabel: string;
   turnLabel: string;
 };
+
+type Theme = 'ember' | 'volt' | 'pitch';
+
+const THEMES: { id: Theme; label: string }[] = [
+  { id: 'ember', label: 'Ember' },
+  { id: 'volt', label: 'Volt' },
+  { id: 'pitch', label: 'Pitch' },
+];
+
+function ThemeSwitcher() {
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem('dff-theme') as Theme) ?? 'ember',
+  );
+
+  function handleThemeChange(next: Theme) {
+    setTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('dff-theme', next);
+  }
+
+  return (
+    <div className="flex items-center gap-0.5 rounded border border-default p-0.5">
+      {THEMES.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          aria-pressed={theme === t.id}
+          onClick={() => handleThemeChange(t.id)}
+          className={`rounded px-2.5 py-1 text-xs font-medium transition ${
+            theme === t.id ? 'bg-accent text-accent-fg' : 'text-muted hover:text-secondary'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function AppHeader() {
+  return (
+    <header className="sticky top-0 z-50 flex h-10 items-center justify-between border-b border-default bg-surface px-4">
+      <span className="font-condensed text-sm font-bold tracking-wide text-primary">DFF</span>
+      <ThemeSwitcher />
+    </header>
+  );
+}
 
 type DraftColumnId = 'draft-board' | 'available-players' | 'pick-feed';
 
@@ -235,9 +281,9 @@ function ExpandColumnButton({
       aria-label={getExpandButtonLabel(label)}
       disabled={disabled}
       onClick={onClick}
-      className="rounded-full border border-stone-700 p-2.5 text-stone-400 transition hover:border-stone-500 hover:text-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
+      className="rounded border border-default p-1.5 text-muted transition hover:border-strong hover:text-secondary disabled:cursor-not-allowed disabled:opacity-40"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M15 3h6v6" />
         <path d="M9 21H3v-6" />
         <path d="m21 3-7 7" />
@@ -262,11 +308,11 @@ function CollapsedColumnStrip({
       data-testid={`${column.id}-collapsed-strip`}
       aria-label={getExpandButtonLabel(column.label)}
       onClick={onExpand}
-      className="flex h-full min-h-[20rem] w-full items-center justify-center rounded-[1.75rem] border border-stone-800 bg-stone-900/90 px-3 py-5 text-stone-300 shadow-2xl shadow-black/20 transition duration-200 hover:border-stone-700 hover:text-stone-100"
+      className="flex h-full min-h-[20rem] w-full items-center justify-center rounded-md border border-default bg-surface px-2 py-4 text-muted transition duration-200 hover:border-strong hover:text-secondary"
     >
-      <span className="flex flex-col items-center gap-4">
-        <span className="rounded-full border border-stone-700 p-2 text-stone-400">{column.renderIcon()}</span>
-        <span className="[writing-mode:vertical-rl] rotate-180 text-xs font-semibold uppercase tracking-[0.3em]">
+      <span className="flex flex-col items-center gap-3">
+        <span className="rounded border border-default p-1.5 text-muted">{column.renderIcon()}</span>
+        <span className="[writing-mode:vertical-rl] rotate-180 text-[0.6rem] font-semibold uppercase tracking-widest">
           {column.label}
         </span>
       </span>
@@ -278,37 +324,32 @@ function CollapsedColumnStrip({
 function DraftsListLoadingState() {
   return (
     <section
-      className="w-full max-w-5xl rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20"
+      className="w-full max-w-5xl rounded-md border border-default bg-surface"
       aria-label="Loading drafts"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Drafts</p>
-      <div className="mt-4">
-        <h1 className="text-4xl font-semibold tracking-tight text-stone-50">Loading drafts</h1>
-        <p className="mt-2 text-base text-stone-400">Checking saved drafts before choosing the next view.</p>
+      <div className="border-b border-default px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">Drafts</p>
+        <h1 className="font-condensed text-2xl font-bold tracking-tight text-primary">Loading drafts</h1>
+        <p className="text-xs text-muted">Checking saved drafts before choosing the next view.</p>
       </div>
-      <Separator.Root
-        decorative
-        orientation="horizontal"
-        className="my-8 h-px w-full bg-gradient-to-r from-transparent via-stone-700 to-transparent"
-      />
-      <div aria-hidden="true" className="overflow-hidden rounded-[1.5rem] border border-stone-800">
-        <div className="grid grid-cols-[1.4fr_0.9fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-0 border-b border-stone-800 bg-stone-950/50 px-4 py-3">
+      <div aria-hidden="true" className="overflow-hidden">
+        <div className="grid grid-cols-[1.4fr_0.9fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-0 border-b border-default bg-app px-3 py-2">
           {Array.from({ length: 7 }).map((_, index) => (
-            <div key={`drafts-loading-header-${index}`} className="h-3 w-16 animate-pulse rounded bg-stone-800" />
+            <div key={`drafts-loading-header-${index}`} className="h-2.5 w-14 animate-pulse rounded bg-surface-raised" />
           ))}
         </div>
         {Array.from({ length: 4 }).map((_, rowIndex) => (
           <div
             key={`drafts-loading-row-${rowIndex}`}
-            className="grid grid-cols-[1.4fr_0.9fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] items-center gap-4 border-b border-stone-800/80 px-4 py-4 last:border-b-0"
+            className="grid grid-cols-[1.4fr_0.9fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] items-center gap-3 border-b border-default px-3 py-2.5 last:border-b-0"
           >
-            <div className="h-4 w-24 animate-pulse rounded bg-stone-800" />
-            <div className="h-6 w-24 animate-pulse rounded-full bg-stone-800" />
-            <div className="h-4 w-28 animate-pulse rounded bg-stone-800" />
-            <div className="h-4 w-10 animate-pulse rounded bg-stone-800" />
-            <div className="h-4 w-10 animate-pulse rounded bg-stone-800" />
-            <div className="h-4 w-16 animate-pulse rounded bg-stone-800" />
-            <div className="ml-auto h-8 w-28 animate-pulse rounded-full bg-stone-800" />
+            <div className="h-3 w-20 animate-pulse rounded bg-surface-raised" />
+            <div className="h-4 w-20 animate-pulse rounded bg-surface-raised" />
+            <div className="h-3 w-24 animate-pulse rounded bg-surface-raised" />
+            <div className="h-3 w-8 animate-pulse rounded bg-surface-raised" />
+            <div className="h-3 w-8 animate-pulse rounded bg-surface-raised" />
+            <div className="h-3 w-14 animate-pulse rounded bg-surface-raised" />
+            <div className="ml-auto h-6 w-20 animate-pulse rounded bg-surface-raised" />
           </div>
         ))}
       </div>
@@ -334,33 +375,30 @@ type ShellProps = {
 // @spec DFF-UI-082
 function ViewShell({ eyebrow, title, description, statusBadge, actionLabel, onAction }: ShellProps) {
   return (
-    <section className="w-full max-w-4xl rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20">
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">{eyebrow}</p>
-        {statusBadge ? (
-          <span className="rounded-full border border-stone-700 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-stone-300">
-            {statusBadge}
-          </span>
-        ) : null}
+    <section className="w-full max-w-4xl rounded-md border border-default bg-surface">
+      <div className="border-b border-default px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">{eyebrow}</p>
+          {statusBadge ? (
+            <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
+              {statusBadge}
+            </span>
+          ) : null}
+        </div>
+        <h1 className="font-condensed text-2xl font-bold tracking-tight text-primary">{title}</h1>
+        <p className="mt-1 max-w-2xl text-xs text-muted">{description}</p>
       </div>
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50">{title}</h1>
-      <p className="mt-3 max-w-2xl text-base leading-7 text-stone-300">{description}</p>
-      <Separator.Root
-        decorative
-        orientation="horizontal"
-        className="my-8 h-px w-full bg-gradient-to-r from-transparent via-stone-700 to-transparent"
-      />
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
         {actionLabel && onAction ? (
           <button
             type="button"
             onClick={onAction}
-            className="rounded-full bg-amber-300 px-5 py-2.5 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
+            className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg transition hover:bg-accent-hover"
           >
             {actionLabel}
           </button>
         ) : null}
-        <span className="rounded-full border border-stone-700 px-4 py-2 text-xs uppercase tracking-[0.25em] text-stone-400">
+        <span className="rounded border border-default px-2 py-1 text-[0.65rem] uppercase tracking-wide text-muted">
           Tailwind + Radix scaffold
         </span>
       </div>
@@ -375,20 +413,20 @@ function ViewShell({ eyebrow, title, description, statusBadge, actionLabel, onAc
 function DraftCompletionBanner({ teamName, onViewHistory }: DraftCompletionBannerProps) {
   return (
     <div
-      className="absolute inset-0 z-10 flex items-center justify-center rounded-[2rem] bg-stone-950/70 p-6 backdrop-blur-[2px]"
+      className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       aria-label="Draft completion banner"
       data-testid="draft-completion-banner"
     >
-      <section className="w-full max-w-xl rounded-[1.75rem] border border-amber-300/20 bg-stone-900/95 p-8 text-center shadow-2xl shadow-black/40">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Congratulations</p>
-        <h2 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50">You finished the draft</h2>
-        <p className="mt-4 text-base leading-7 text-stone-300">
-          Congratulations, {teamName}. Review every pick, roster decision, and trade from the full draft history.
+      <section className="w-full max-w-md rounded-lg border border-accent/30 bg-surface-raised p-6 text-center shadow-lg">
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">Congratulations</p>
+        <h2 className="font-condensed mt-2 text-2xl font-bold tracking-tight text-primary">You finished the draft</h2>
+        <p className="mt-2 text-xs text-muted">
+          {teamName} — review every pick, roster decision, and trade from the full draft history.
         </p>
         <button
           type="button"
           onClick={onViewHistory}
-          className="mt-8 rounded-full bg-amber-300 px-6 py-3 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
+          className="mt-5 rounded bg-accent px-4 py-2 text-xs font-semibold text-accent-fg transition hover:bg-accent-hover"
         >
           View Full History
         </button>
@@ -429,16 +467,16 @@ function DraftStatusBar({ draftState }: { draftState: DraftState }) {
   return (
     <section
       data-testid="draft-status-bar"
-      className="w-full rounded-[1.75rem] border border-stone-800 bg-stone-900/90 px-5 py-4 shadow-2xl shadow-black/20"
+      className="w-full rounded-md border border-default bg-surface px-3 py-2"
     >
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Draft Status</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-50">{status.currentPickLabel}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Draft Status</p>
+          <p className="font-condensed text-xl font-bold tracking-tight text-primary tabular-nums">{status.currentPickLabel}</p>
         </div>
         <div
           data-testid="draft-status-turn"
-          className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-200"
+          className="rounded border border-default px-3 py-1 text-xs font-semibold text-secondary"
         >
           {status.turnLabel}
         </div>
@@ -858,8 +896,10 @@ function DraftApp() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.16),_transparent_35%),linear-gradient(180deg,_#1c1917_0%,_#0c0a09_100%)] px-6 py-12 text-stone-100">
-      <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-7xl items-start justify-center">
+    <>
+      <AppHeader />
+      <main className="bg-app-gradient px-4 py-6 text-primary" style={{ minHeight: 'calc(100vh - 2.5rem)' }}>
+      <div className="mx-auto flex max-w-7xl items-start justify-center" style={{ minHeight: 'calc(100vh - 2.5rem - 3rem)' }}>
         {/* @spec DFF-UI-116 */}
         {showDraftsListLoading ? <DraftsListLoadingState /> : null}
 
@@ -1015,5 +1055,6 @@ function DraftApp() {
         ) : null}
       </div>
     </main>
+    </>
   );
 }

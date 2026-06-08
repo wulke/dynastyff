@@ -259,8 +259,8 @@ describe('available players list', () => {
 
     expect(availableTab).toHaveAttribute('aria-pressed', 'true');
     expect(targetsTab).toHaveAttribute('aria-pressed', 'false');
-    expect(targetsTab.className).toContain('border-stone-800');
-    expect(availableTab.className).toContain('border-amber-300/40');
+    expect(targetsTab.className).toContain('border-default');
+    expect(availableTab.className).toContain('border-accent/30');
     expect(screen.queryByTestId('targets-panel')).not.toBeInTheDocument();
 
     expect(rows[0]).toHaveAttribute('data-player-id', 'player-wr-1');

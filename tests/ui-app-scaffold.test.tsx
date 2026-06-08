@@ -1077,9 +1077,8 @@ describe('UI app scaffold', () => {
         name: /you finished the draft/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
-      /congratulations, lakeview legends/i,
-    );
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/congratulations/i);
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/lakeview legends/i);
     expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
     expect(screen.getByTestId('layout-toggle')).toBeDisabled();
@@ -1117,9 +1116,8 @@ describe('UI app scaffold', () => {
       });
     });
 
-    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
-      /congratulations, your team\./i,
-    );
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/congratulations/i);
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/your team/i);
   });
 
   // @spec DFF-UI-003
@@ -1144,9 +1142,8 @@ describe('UI app scaffold', () => {
         name: /you finished the draft/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(
-      /congratulations, lakeview legends/i,
-    );
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/congratulations/i);
+    expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/lakeview legends/i);
   });
 
   // @spec DFF-UI-006

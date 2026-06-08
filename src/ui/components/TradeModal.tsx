@@ -76,15 +76,11 @@ function getTradeAssetLabel(asset: unknown, draftState: DraftState): string {
 
 // @spec DFF-UI-058
 function getTradeAssetPosition(asset: unknown, draftState: DraftState): string | null {
-  if (!asset || typeof asset !== 'object') {
-    return null;
-  }
+  if (!asset || typeof asset !== 'object') return null;
 
   const candidate = asset as TradeAsset;
 
-  if (candidate.type !== 'player') {
-    return null;
-  }
+  if (candidate.type !== 'player') return null;
 
   const playerId = candidate.player_id ?? candidate.playerId;
   return playerId ? draftState.playerCatalog[playerId]?.position ?? null : null;
@@ -116,18 +112,8 @@ function buildSelectablePickAssets(draftState: DraftState, teamId: string): Sele
   const startupSlots = draftState.draftOrder
     .filter((slot) => slot.teamId === teamId && !usedPickNumbers.has(slot.pickNumber))
     .map((slot) => {
-      const asset = {
-        type: 'pick_slot',
-        pick_number: slot.pickNumber,
-        round: slot.round,
-        pick_in_round: slot.pickInRound,
-      };
-
-      return {
-        asset,
-        label: getTradeAssetLabel(asset, draftState),
-        position: null,
-      };
+      const asset = { type: 'pick_slot', pick_number: slot.pickNumber, round: slot.round, pick_in_round: slot.pickInRound };
+      return { asset, label: getTradeAssetLabel(asset, draftState), position: null };
     });
 
   const futurePicks = draftState.teamPickAssets
@@ -143,35 +129,24 @@ function buildSelectablePickAssets(draftState: DraftState, teamId: string): Sele
 
 // @spec DFF-UI-058
 function filterSelectableAssets(assets: SelectableTradeAsset[], filter: PositionFilter): SelectableTradeAsset[] {
-  if (filter === 'ALL') {
-    return assets;
-  }
-
+  if (filter === 'ALL') return assets;
   return assets.filter((asset) => asset.position === filter);
 }
 
 // @spec DFF-UI-051
 // @spec DFF-UI-052
-function TradeAssetList({
-  title,
-  assets,
-  draftState,
-}: {
-  title: string;
-  assets: unknown[];
-  draftState: DraftState;
-}) {
+function TradeAssetList({ title, assets, draftState }: { title: string; assets: unknown[]; draftState: DraftState }) {
   return (
     <section>
-      <h3 className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-400">{title}</h3>
-      <ul className="mt-3 space-y-2">
+      <h3 className="font-condensed text-xs font-semibold uppercase tracking-widest text-muted">{title}</h3>
+      <ul className="mt-2 space-y-1">
         {assets.length === 0 ? (
-          <li className="rounded-xl border border-dashed border-stone-700 px-3 py-3 text-sm text-stone-500">No assets</li>
+          <li className="rounded border border-dashed border-default px-2 py-2 text-xs text-muted">No assets</li>
         ) : (
           assets.map((asset, index) => (
             <li
               key={`${title}-${index}`}
-              className="rounded-xl border border-stone-800 bg-stone-950/60 px-3 py-3 text-sm text-stone-200"
+              className="rounded border border-default bg-app px-2 py-2 text-xs text-secondary"
             >
               <TradeAssetDisplay asset={asset} draftState={draftState} />
             </li>
@@ -183,24 +158,18 @@ function TradeAssetList({
 }
 
 // @spec DFF-UI-058
-function PositionFilterPills({
-  activeFilter,
-  onChange,
-}: {
-  activeFilter: PositionFilter;
-  onChange: (filter: PositionFilter) => void;
-}) {
+function PositionFilterPills({ activeFilter, onChange }: { activeFilter: PositionFilter; onChange: (filter: PositionFilter) => void }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="mt-2 flex flex-wrap gap-1">
       {positionFilters.map((filter) => (
         <button
           key={filter}
           type="button"
           onClick={() => onChange(filter)}
-          className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] ${
+          className={`rounded border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide transition ${
             filter === activeFilter
-              ? 'border-amber-300 bg-amber-300 text-stone-950'
-              : 'border-stone-700 text-stone-300'
+              ? 'border-accent bg-accent text-accent-fg'
+              : 'border-default text-muted hover:border-strong hover:text-secondary'
           }`}
         >
           {filter}
@@ -234,25 +203,26 @@ function SelectableAssetSection({
 
   return (
     <section>
-      <h3 className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-400">{title}</h3>
+      <h3 className="font-condensed text-xs font-semibold uppercase tracking-widest text-muted">{title}</h3>
       <PositionFilterPills activeFilter={filter} onChange={onFilterChange} />
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-3 space-y-1">
         {filteredPlayers.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-stone-700 px-3 py-3 text-sm text-stone-500">
+          <p className="rounded border border-dashed border-default px-2 py-2 text-xs text-muted">
             No players for this filter.
           </p>
         ) : (
           filteredPlayers.map((entry) => {
             const isSelected = selectedAssets.some((asset) => areTradeAssetsEqual(asset, entry.asset));
-
             return (
               <button
                 key={entry.label}
                 type="button"
                 onClick={() => onToggleAsset(entry.asset)}
-                className={`w-full rounded-xl border px-3 py-3 text-left text-sm ${
-                  isSelected ? 'border-amber-300 bg-amber-300/10 text-stone-50' : 'border-stone-800 bg-stone-950/60 text-stone-200'
+                className={`w-full rounded border px-2 py-2 text-left text-xs transition ${
+                  isSelected
+                    ? 'border-accent/30 bg-accent/10 text-primary'
+                    : 'border-default bg-app text-secondary hover:border-strong hover:bg-surface-hover'
                 }`}
               >
                 <TradeAssetDisplay asset={entry.asset} draftState={draftState} />
@@ -262,17 +232,18 @@ function SelectableAssetSection({
         )}
       </div>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-1 space-y-1">
         {pickAssets.map((entry) => {
           const isSelected = selectedAssets.some((asset) => areTradeAssetsEqual(asset, entry.asset));
-
           return (
             <button
               key={entry.label}
               type="button"
               onClick={() => onToggleAsset(entry.asset)}
-              className={`w-full rounded-xl border px-3 py-3 text-left text-sm ${
-                isSelected ? 'border-amber-300 bg-amber-300/10 text-stone-50' : 'border-stone-800 bg-stone-950/60 text-stone-200'
+              className={`w-full rounded border px-2 py-2 text-left text-xs transition ${
+                isSelected
+                  ? 'border-accent/30 bg-accent/10 text-primary'
+                  : 'border-default bg-app text-secondary hover:border-strong hover:bg-surface-hover'
               }`}
             >
               <TradeAssetDisplay asset={entry.asset} draftState={draftState} />
@@ -282,11 +253,11 @@ function SelectableAssetSection({
       </div>
 
       {selectedAssets.length > 0 ? (
-        <div className="mt-4 space-y-2">
+        <div className="mt-1 space-y-1">
           {selectedAssets.map((asset, index) => (
             <div
               key={`${title}-selected-${index}`}
-              className="rounded-xl border border-stone-800 bg-stone-950/60 px-3 py-3 text-sm text-stone-200"
+              className="rounded border border-default bg-app px-2 py-2 text-xs text-secondary"
             >
               <TradeAssetDisplay asset={asset} draftState={draftState} />
             </div>
@@ -300,38 +271,28 @@ function SelectableAssetSection({
 // @spec DFF-UI-051
 // @spec DFF-UI-052
 // @spec DFF-UI-059d
-function TradeModalActions({
-  draftState,
-  onRespond,
-  onCounter,
-}: {
-  draftState: DraftState;
-  onRespond: (status: TradeResponseStatus) => Promise<void>;
-  onCounter: () => void;
-}) {
+function TradeModalActions({ draftState, onRespond, onCounter }: { draftState: DraftState; onRespond: (status: TradeResponseStatus) => Promise<void>; onCounter: () => void }) {
   const pendingTrade = draftState.pendingTrade;
 
-  if (!pendingTrade) {
-    return null;
-  }
+  if (!pendingTrade) return null;
 
   const userTeamId = draftState.teams.find((team) => team.isUser)?.id ?? null;
   const isUserInitiated = pendingTrade.initiatingTeamId === userTeamId;
 
   if (pendingTrade.isBotToBot) {
     return (
-      <div className="mt-8 flex flex-wrap justify-end gap-3">
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
         <button
           type="button"
           onClick={() => void onRespond('force_declined')}
-          className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-100 transition hover:border-stone-500"
+          className="rounded border border-default px-3 py-1.5 text-xs font-semibold text-secondary transition hover:border-strong hover:text-primary"
         >
           Force Decline
         </button>
         <button
           type="button"
           onClick={() => void onRespond('accepted')}
-          className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
+          className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg transition hover:bg-accent-hover"
         >
           OK
         </button>
@@ -341,32 +302,32 @@ function TradeModalActions({
 
   if (isUserInitiated) {
     return (
-      <div className="mt-8 rounded-2xl border border-stone-800 bg-stone-950/60 px-4 py-4 text-sm text-stone-200">
+      <div className="mt-4 rounded border border-default bg-app px-3 py-3 text-xs text-muted">
         Waiting for bot response.
       </div>
     );
   }
 
   return (
-    <div className="mt-8 flex flex-wrap justify-end gap-3">
+    <div className="mt-4 flex flex-wrap justify-end gap-2">
       <button
         type="button"
         onClick={onCounter}
-        className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-100 transition hover:border-stone-500"
+        className="rounded border border-default px-3 py-1.5 text-xs font-semibold text-secondary transition hover:border-strong hover:text-primary"
       >
         Counter
       </button>
       <button
         type="button"
         onClick={() => void onRespond('declined')}
-        className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-100 transition hover:border-stone-500"
+        className="rounded border border-default px-3 py-1.5 text-xs font-semibold text-secondary transition hover:border-strong hover:text-primary"
       >
         Decline
       </button>
       <button
         type="button"
         onClick={() => void onRespond('accepted')}
-        className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
+        className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg transition hover:bg-accent-hover"
       >
         Accept
       </button>
@@ -407,101 +368,94 @@ function TradeComposerContent({
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3 border-b border-default px-4 py-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Trade Builder</p>
-          <Dialog.Title className="mt-3 text-3xl font-semibold tracking-tight text-stone-50">
-            Propose Trade
-          </Dialog.Title>
-          <Dialog.Description className="mt-3 text-sm leading-6 text-stone-300">
-            Build a trade by selecting assets to offer and request, then wait for the bot to resolve the proposal.
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Trade Builder</p>
+          <Dialog.Title className="font-condensed text-xl font-bold text-primary">Propose Trade</Dialog.Title>
+          <Dialog.Description className="mt-1 text-xs text-muted">
+            Select assets to offer and request, then submit for bot review.
           </Dialog.Description>
         </div>
-        {composer.status === 'editing' ? (
+        {(composer.status === 'editing' || composer.status === 'resolved') ? (
           <button
             type="button"
             onClick={onCloseComposer}
-            className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-100"
+            className="rounded border border-default px-3 py-1.5 text-xs font-semibold text-secondary transition hover:border-strong hover:text-primary"
           >
-            Cancel
+            {composer.status === 'resolved' ? 'Done' : 'Cancel'}
           </button>
         ) : null}
+      </div>
+
+      <div className="p-4">
+        <label className="flex flex-col gap-1 text-xs text-muted">
+          Trade Partner
+          <select
+            aria-label="Trade Partner"
+            value={composer.targetTeamId}
+            disabled={composer.status !== 'editing'}
+            onChange={(event) => onComposerTargetChange(event.target.value)}
+            className="rounded border border-strong bg-app px-2 py-1.5 text-xs text-primary outline-none"
+          >
+            {draftState.teams
+              .filter((team) => !team.isUser)
+              .map((team) => (
+                <option key={team.id} value={team.id}>{team.name}</option>
+              ))}
+          </select>
+        </label>
+
+        {composer.status === 'awaiting' ? (
+          <div className="mt-3 rounded border border-default bg-app px-3 py-3 text-xs text-muted">
+            Waiting for bot response.
+          </div>
+        ) : null}
+
         {composer.status === 'resolved' ? (
-          <button
-            type="button"
-            onClick={onCloseComposer}
-            className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-100"
-          >
-            Done
-          </button>
+          <div className={`mt-3 rounded border px-3 py-3 text-xs font-semibold ${
+            composer.resultStatus === 'accepted'
+              ? 'border-positive/30 bg-positive/10 text-positive'
+              : 'border-negative/30 bg-negative/10 text-negative'
+          }`}>
+            {composer.resultStatus === 'accepted' ? 'Trade accepted.' : 'Trade declined.'}
+          </div>
+        ) : null}
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <SelectableAssetSection
+            title={`${userTeam?.name ?? 'You'} offer`}
+            playerAssets={offeredPlayerAssets}
+            pickAssets={offeredPickAssets}
+            selectedAssets={composer.offeredAssets}
+            draftState={draftState}
+            filter={composer.offeredFilter}
+            onFilterChange={(filter) => onComposerFilterChange('offered', filter)}
+            onToggleAsset={(asset) => onToggleComposerAsset('offered', asset)}
+          />
+          <SelectableAssetSection
+            title={`${targetTeam?.name ?? 'Target'} offer`}
+            playerAssets={requestedPlayerAssets}
+            pickAssets={requestedPickAssets}
+            selectedAssets={composer.requestedAssets}
+            draftState={draftState}
+            filter={composer.requestedFilter}
+            onFilterChange={(filter) => onComposerFilterChange('requested', filter)}
+            onToggleAsset={(asset) => onToggleComposerAsset('requested', asset)}
+          />
+        </div>
+
+        {composer.status === 'editing' ? (
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => void onSubmitComposer()}
+              className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg transition hover:bg-accent-hover"
+            >
+              Submit Proposal
+            </button>
+          </div>
         ) : null}
       </div>
-
-      <label className="mt-6 flex flex-col gap-2 text-sm text-stone-300">
-        Trade Partner
-        <select
-          aria-label="Trade Partner"
-          value={composer.targetTeamId}
-          disabled={composer.status !== 'editing'}
-          onChange={(event) => onComposerTargetChange(event.target.value)}
-          className="rounded-xl border border-stone-800 bg-stone-950/60 px-3 py-3 text-stone-100"
-        >
-          {draftState.teams
-            .filter((team) => !team.isUser)
-            .map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-        </select>
-      </label>
-
-      {composer.status === 'awaiting' ? (
-        <div className="mt-6 rounded-2xl border border-stone-800 bg-stone-950/60 px-4 py-4 text-sm text-stone-200">
-          Waiting for bot response.
-        </div>
-      ) : null}
-
-      {composer.status === 'resolved' ? (
-        <div className="mt-6 rounded-2xl border border-stone-800 bg-stone-950/60 px-4 py-4 text-sm text-stone-200">
-          {composer.resultStatus === 'accepted' ? 'Trade accepted.' : 'Trade declined.'}
-        </div>
-      ) : null}
-
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <SelectableAssetSection
-          title={`${userTeam?.name ?? 'You'} offer`}
-          playerAssets={offeredPlayerAssets}
-          pickAssets={offeredPickAssets}
-          selectedAssets={composer.offeredAssets}
-          draftState={draftState}
-          filter={composer.offeredFilter}
-          onFilterChange={(filter) => onComposerFilterChange('offered', filter)}
-          onToggleAsset={(asset) => onToggleComposerAsset('offered', asset)}
-        />
-        <SelectableAssetSection
-          title={`${targetTeam?.name ?? 'Target'} offer`}
-          playerAssets={requestedPlayerAssets}
-          pickAssets={requestedPickAssets}
-          selectedAssets={composer.requestedAssets}
-          draftState={draftState}
-          filter={composer.requestedFilter}
-          onFilterChange={(filter) => onComposerFilterChange('requested', filter)}
-          onToggleAsset={(asset) => onToggleComposerAsset('requested', asset)}
-        />
-      </div>
-
-      {composer.status === 'editing' ? (
-        <div className="mt-8 flex justify-end">
-          <button
-            type="button"
-            onClick={() => void onSubmitComposer()}
-            className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
-          >
-            Submit Proposal
-          </button>
-        </div>
-      ) : null}
     </>
   );
 }
@@ -535,9 +489,7 @@ export function TradeModal({
 }: TradeModalProps) {
   const pendingTrade = draftState.pendingTrade;
 
-  if (!composer && !pendingTrade) {
-    return null;
-  }
+  if (!composer && !pendingTrade) return null;
 
   const initiatingTeamName = pendingTrade ? getTeamName(draftState, pendingTrade.initiatingTeamId) : '';
   const receivingTeamName = pendingTrade ? getTeamName(draftState, pendingTrade.receivingTeamId) : '';
@@ -547,10 +499,10 @@ export function TradeModal({
       <Dialog.Portal>
         <Dialog.Overlay
           data-testid="trade-modal-overlay"
-          className="fixed inset-0 z-40 bg-stone-950/80 backdrop-blur-[2px]"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
         />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-50 w-[min(52rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto -translate-x-1/2 -translate-y-1/2 rounded-[1.75rem] border border-stone-800 bg-stone-900 p-6 shadow-2xl shadow-black/50"
+          className="fixed left-1/2 top-1/2 z-50 w-[min(52rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto -translate-x-1/2 -translate-y-1/2 rounded-lg border border-strong bg-surface-raised shadow-lg"
           onEscapeKeyDown={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onPointerDownOutside={(event) => event.preventDefault()}
@@ -567,32 +519,28 @@ export function TradeModal({
             />
           ) : pendingTrade ? (
             <>
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3 border-b border-default px-4 py-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Trade Pending</p>
-                  <Dialog.Title className="mt-3 text-3xl font-semibold tracking-tight text-stone-50">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-accent">Trade Pending</p>
+                  <Dialog.Title className="font-condensed text-xl font-bold text-primary">
                     {pendingTrade.isBotToBot ? 'Bot Trade Review' : 'Trade Offer'}
                   </Dialog.Title>
-                  <Dialog.Description className="mt-3 text-sm leading-6 text-stone-300">
-                    {initiatingTeamName} and {receivingTeamName} have a pending trade. Review the assets below before the
-                    draft continues.
+                  <Dialog.Description className="mt-1 text-xs text-muted">
+                    {initiatingTeamName} and {receivingTeamName} have a pending trade. Review before the draft continues.
                   </Dialog.Description>
                 </div>
-                <div className="rounded-full border border-stone-700 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.25em] text-stone-300">
+                <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
                   {pendingTrade.isBotToBot ? 'Bot to Bot' : 'Your Response Required'}
+                </span>
+              </div>
+
+              <div className="p-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <TradeAssetList title={`${initiatingTeamName} sends`} assets={pendingTrade.assetsSent} draftState={draftState} />
+                  <TradeAssetList title={`${receivingTeamName} sends`} assets={pendingTrade.assetsReceived} draftState={draftState} />
                 </div>
+                <TradeModalActions draftState={draftState} onRespond={onRespond} onCounter={onCounter} />
               </div>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <TradeAssetList title={`${initiatingTeamName} sends`} assets={pendingTrade.assetsSent} draftState={draftState} />
-                <TradeAssetList
-                  title={`${receivingTeamName} sends`}
-                  assets={pendingTrade.assetsReceived}
-                  draftState={draftState}
-                />
-              </div>
-
-              <TradeModalActions draftState={draftState} onRespond={onRespond} onCounter={onCounter} />
             </>
           ) : null}
         </Dialog.Content>

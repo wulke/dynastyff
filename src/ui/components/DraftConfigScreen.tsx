@@ -5,7 +5,6 @@
 // @spec DFF-UI-013
 // @spec DFF-UI-014
 import { useEffect, useState, type ReactNode } from 'react';
-import * as Separator from '@radix-ui/react-separator';
 
 import type { DraftConfig, ScoringFormat } from '../types.js';
 
@@ -59,17 +58,9 @@ function clamp(value: number, min: number, max: number) {
 // @spec DFF-UI-010
 // @spec DFF-UI-014
 function parseNumberInput(input: string, fallback: number) {
-  if (input.trim() === '') {
-    return fallback;
-  }
-
+  if (input.trim() === '') return fallback;
   const parsed = Number.parseInt(input, 10);
-
-  if (Number.isNaN(parsed)) {
-    return fallback;
-  }
-
-  return parsed;
+  return Number.isNaN(parsed) ? fallback : parsed;
 }
 
 // @spec DFF-UI-010
@@ -122,8 +113,8 @@ function NumberField({ id, label, min, max, value, disabled = false, onChange }:
   }, [value]);
 
   return (
-    <label className="flex flex-col gap-2 text-sm text-stone-200" htmlFor={id}>
-      <span className="font-medium">{label}</span>
+    <label className="flex flex-col gap-1 text-xs text-secondary" htmlFor={id}>
+      <span className="font-medium uppercase tracking-wide text-muted">{label}</span>
       <input
         id={id}
         type="number"
@@ -134,11 +125,7 @@ function NumberField({ id, label, min, max, value, disabled = false, onChange }:
         onChange={(event) => {
           const nextValue = event.target.value;
           setDraftValue(nextValue);
-
-          if (nextValue.trim() === '') {
-            return;
-          }
-
+          if (nextValue.trim() === '') return;
           onChange(parseNumberInput(nextValue, value));
         }}
         onBlur={() => {
@@ -146,7 +133,7 @@ function NumberField({ id, label, min, max, value, disabled = false, onChange }:
           setDraftValue(String(committedValue));
           onChange(committedValue);
         }}
-        className="rounded-2xl border border-stone-700 bg-stone-950/80 px-4 py-3 text-base text-stone-50 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:border-stone-800 disabled:text-stone-500"
+        className="rounded border border-strong bg-app px-3 py-2 text-sm tabular-nums text-primary outline-none transition focus:border-accent disabled:cursor-not-allowed disabled:border-default disabled:text-muted"
       />
     </label>
   );
@@ -195,177 +182,155 @@ export function DraftConfigScreen({
   const canSaveConfig = !isSavingConfig && typeof onSaveConfig === 'function';
 
   return (
-    <section className="w-full max-w-5xl rounded-[2rem] border border-stone-800 bg-stone-900/90 p-10 shadow-2xl shadow-black/20">
-      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">League Setup</p>
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-50">Config Screen</h1>
-      <p className="mt-3 max-w-3xl text-base leading-7 text-stone-300">{description}</p>
-      {supportingContent ? <div className="mt-8">{supportingContent}</div> : null}
-      <Separator.Root
-        decorative
-        orientation="horizontal"
-        className="my-8 h-px w-full bg-gradient-to-r from-transparent via-stone-700 to-transparent"
-      />
+    <section className="w-full max-w-5xl rounded-md border border-default bg-surface">
+      <div className="border-b border-default px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">League Setup</p>
+        <h1 className="font-condensed text-2xl font-bold tracking-tight text-primary">Config Screen</h1>
+        <p className="mt-1 max-w-3xl text-xs text-muted">{description}</p>
+        {supportingContent ? <div className="mt-3">{supportingContent}</div> : null}
+      </div>
+
       <form
-        className="space-y-8"
+        className="p-4"
         onSubmit={async (event) => {
           event.preventDefault();
-
-          if (submitDisabled) {
-            return;
-          }
-
+          if (submitDisabled) return;
           await onStartDraft();
         }}
       >
-        <div className="grid gap-6 md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm text-stone-200" htmlFor="saved-configs">
-            <span className="font-medium">Saved Configs</span>
-            <select
-              id="saved-configs"
-              value={selectedSavedConfigId}
-              onChange={(event) => onSavedConfigSelect?.(event.target.value)}
-              className="rounded-2xl border border-stone-700 bg-stone-950/80 px-4 py-3 text-base text-stone-50 outline-none transition focus:border-amber-300"
-            >
-              <option value="">Select a saved config</option>
-              {savedConfigs.map((savedConfig) => (
-                <option key={savedConfig.id} value={savedConfig.id}>
-                  {savedConfig.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs text-secondary" htmlFor="saved-configs">
+              <span className="font-medium uppercase tracking-wide text-muted">Saved Configs</span>
+              <select
+                id="saved-configs"
+                value={selectedSavedConfigId}
+                onChange={(event) => onSavedConfigSelect?.(event.target.value)}
+                className="rounded border border-strong bg-app px-3 py-2 text-sm text-primary outline-none transition focus:border-accent"
+              >
+                <option value="">Select a saved config</option>
+                {savedConfigs.map((savedConfig) => (
+                  <option key={savedConfig.id} value={savedConfig.id}>{savedConfig.name}</option>
+                ))}
+              </select>
+            </label>
 
-          <label className="flex flex-col gap-2 text-sm text-stone-200" htmlFor="config-name">
-            <span className="font-medium">Config Name</span>
-            <input
-              id="config-name"
-              type="text"
-              value={config.name}
-              onChange={(event) => onConfigChange({ ...config, name: event.target.value })}
-              className="rounded-2xl border border-stone-700 bg-stone-950/80 px-4 py-3 text-base text-stone-50 outline-none transition focus:border-amber-300"
-            />
-          </label>
+            <label className="flex flex-col gap-1 text-xs text-secondary" htmlFor="config-name">
+              <span className="font-medium uppercase tracking-wide text-muted">Config Name</span>
+              <input
+                id="config-name"
+                type="text"
+                value={config.name}
+                onChange={(event) => onConfigChange({ ...config, name: event.target.value })}
+                className="rounded border border-strong bg-app px-3 py-2 text-sm text-primary outline-none transition focus:border-accent"
+              />
+            </label>
 
-          <label className="flex flex-col gap-2 text-sm text-stone-200" htmlFor="scoring-format">
-            <span className="font-medium">Scoring Format</span>
-            <select
-              id="scoring-format"
-              value={config.scoringFormat}
-              onChange={(event) =>
-                onConfigChange({
-                  ...config,
-                  scoringFormat: event.target.value as ScoringFormat,
-                })
+            <label className="flex flex-col gap-1 text-xs text-secondary" htmlFor="scoring-format">
+              <span className="font-medium uppercase tracking-wide text-muted">Scoring Format</span>
+              <select
+                id="scoring-format"
+                value={config.scoringFormat}
+                onChange={(event) =>
+                  onConfigChange({ ...config, scoringFormat: event.target.value as ScoringFormat })
+                }
+                className="rounded border border-strong bg-app px-3 py-2 text-sm text-primary outline-none transition focus:border-accent"
+              >
+                <option value="ppr">PPR</option>
+                <option value="half_ppr">Half PPR</option>
+                <option value="standard">Standard</option>
+              </select>
+            </label>
+
+            <NumberField
+              id="team-count"
+              label="Team Count"
+              min={8}
+              max={16}
+              value={config.teamCount}
+              onChange={(teamCount) =>
+                onConfigChange({ ...config, teamCount, userPickPosition: clamp(config.userPickPosition, 1, teamCount) })
               }
-              className="rounded-2xl border border-stone-700 bg-stone-950/80 px-4 py-3 text-base text-stone-50 outline-none transition focus:border-amber-300"
-            >
-              <option value="ppr">PPR</option>
-              <option value="half_ppr">Half PPR</option>
-              <option value="standard">Standard</option>
-            </select>
-          </label>
+            />
 
-          <NumberField
-            id="team-count"
-            label="Team Count"
-            min={8}
-            max={16}
-            value={config.teamCount}
-            onChange={(teamCount) =>
-              onConfigChange({
-                ...config,
-                teamCount,
-                userPickPosition: clamp(config.userPickPosition, 1, teamCount),
-              })
-            }
-          />
+            <NumberField
+              id="rounds"
+              label="Rounds"
+              min={10}
+              max={30}
+              value={config.rounds}
+              onChange={(rounds) => onConfigChange({ ...config, rounds })}
+            />
 
-          <NumberField
-            id="rounds"
-            label="Rounds"
-            min={10}
-            max={30}
-            value={config.rounds}
-            onChange={(rounds) => onConfigChange({ ...config, rounds })}
-          />
+            <NumberField
+              id="pick-position"
+              label="Pick Position"
+              min={1}
+              max={config.teamCount}
+              value={config.userPickPosition}
+              onChange={(userPickPosition) => onConfigChange({ ...config, userPickPosition })}
+            />
 
-          <NumberField
-            id="pick-position"
-            label="Pick Position"
-            min={1}
-            max={config.teamCount}
-            value={config.userPickPosition}
-            onChange={(userPickPosition) => onConfigChange({ ...config, userPickPosition })}
-          />
+            <NumberField
+              id="future-pick-years"
+              label="Future Pick Years"
+              min={1}
+              max={5}
+              value={config.futurePickYears}
+              onChange={(futurePickYears) => onConfigChange({ ...config, futurePickYears })}
+            />
+          </div>
 
-          <NumberField
-            id="future-pick-years"
-            label="Future Pick Years"
-            min={1}
-            max={5}
-            value={config.futurePickYears}
-            onChange={(futurePickYears) => onConfigChange({ ...config, futurePickYears })}
-          />
-        </div>
-
-        <div className="rounded-[1.5rem] border border-stone-800 bg-stone-950/70 p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-stone-50">Roster Slots</h2>
-              <p className="mt-1 text-sm text-stone-400">Adjust the starting lineup and bench counts.</p>
+          <div className="rounded-md border border-default bg-app p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-condensed text-sm font-semibold text-primary">Roster Slots</h2>
+                <p className="text-xs text-muted">Adjust the starting lineup and bench counts.</p>
+              </div>
+              <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted tabular-nums">
+                Total {Object.values(config.rosterConfig).reduce((total, slotCount) => total + slotCount, 0)}
+              </span>
             </div>
-            <span className="rounded-full border border-stone-700 px-4 py-2 text-xs uppercase tracking-[0.25em] text-stone-400">
-              Total {Object.values(config.rosterConfig).reduce((total, slotCount) => total + slotCount, 0)}
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {ROSTER_FIELDS.map((field) => (
+                <NumberField
+                  key={field.key}
+                  id={`roster-${field.key}`}
+                  label={field.label}
+                  min={field.min}
+                  max={field.max}
+                  value={config.rosterConfig[field.key]}
+                  onChange={(slotCount) =>
+                    onConfigChange({ ...config, rosterConfig: { ...config.rosterConfig, [field.key]: slotCount } })
+                  }
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-default pt-4">
+            <button
+              type="button"
+              disabled={!canSaveConfig}
+              onClick={() => {
+                if (!canSaveConfig) return;
+                void onSaveConfig();
+              }}
+              className="rounded border border-default px-3 py-1.5 text-xs font-semibold text-secondary transition hover:border-strong hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isSavingConfig ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="submit"
+              disabled={submitDisabled}
+              className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {startButtonLabel ?? (isSubmitting ? 'Starting Draft…' : 'Start Draft')}
+            </button>
+            <span className="rounded border border-default px-2 py-1 text-[0.65rem] uppercase tracking-wide text-muted">
+              {footerBadgeLabel}
             </span>
           </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {ROSTER_FIELDS.map((field) => (
-              <NumberField
-                key={field.key}
-                id={`roster-${field.key}`}
-                label={field.label}
-                min={field.min}
-                max={field.max}
-                value={config.rosterConfig[field.key]}
-                onChange={(slotCount) =>
-                  onConfigChange({
-                    ...config,
-                    rosterConfig: {
-                      ...config.rosterConfig,
-                      [field.key]: slotCount,
-                    },
-                  })
-                }
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          <button
-            type="button"
-            disabled={!canSaveConfig}
-            onClick={() => {
-              if (!canSaveConfig) {
-                return;
-              }
-
-              void onSaveConfig();
-            }}
-            className="rounded-full border border-stone-600 px-5 py-2.5 text-sm font-semibold text-stone-100 transition hover:border-stone-500 hover:bg-stone-800 disabled:cursor-not-allowed disabled:border-stone-800 disabled:text-stone-500"
-          >
-            {isSavingConfig ? 'Saving…' : 'Save'}
-          </button>
-          <button
-            type="submit"
-            disabled={submitDisabled}
-            className="rounded-full bg-amber-300 px-5 py-2.5 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-stone-600 disabled:text-stone-300"
-          >
-            {startButtonLabel ?? (isSubmitting ? 'Starting Draft…' : 'Start Draft')}
-          </button>
-          <span className="rounded-full border border-stone-700 px-4 py-2 text-xs uppercase tracking-[0.25em] text-stone-400">
-            {footerBadgeLabel}
-          </span>
         </div>
       </form>
     </section>

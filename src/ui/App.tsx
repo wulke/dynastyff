@@ -413,7 +413,7 @@ function ViewShell({ eyebrow, title, description, statusBadge, actionLabel, onAc
 function DraftCompletionBanner({ teamName, onViewHistory }: DraftCompletionBannerProps) {
   return (
     <div
-      className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-black/60 p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       aria-label="Draft completion banner"
       data-testid="draft-completion-banner"
     >

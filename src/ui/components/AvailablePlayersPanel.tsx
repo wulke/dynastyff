@@ -21,6 +21,7 @@
 import { useState, type ReactNode } from 'react';
 
 import { useDraftContext, type DraftState } from '../context/DraftContext.js';
+import { getPositionBadgeClass } from './positionBadge.js';
 
 type AvailablePlayersPanelProps = {
   draftState: DraftState;
@@ -32,18 +33,6 @@ type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'Picks';
 type AvailablePlayersTab = 'available' | 'targets';
 
 const FILTERS: PositionFilter[] = ['ALL', 'QB', 'RB', 'WR', 'TE', 'Picks'];
-
-function getPositionBadgeClass(position: string): string {
-  const base = 'inline-block rounded border px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide';
-
-  if (position === 'QB')                    return `${base} border-pos-qb/30 bg-pos-qb/10 text-pos-qb`;
-  if (position === 'RB')                    return `${base} border-pos-rb/30 bg-pos-rb/10 text-pos-rb`;
-  if (position === 'WR')                    return `${base} border-pos-wr/30 bg-pos-wr/10 text-pos-wr`;
-  if (position === 'TE')                    return `${base} border-pos-te/30 bg-pos-te/10 text-pos-te`;
-  if (position === 'PICK' || position === 'RDP') return `${base} border-pos-pick/30 bg-pos-pick/10 text-pos-pick`;
-
-  return `${base} border-default bg-surface text-muted`;
-}
 
 // @spec DFF-UI-035
 function isUsersTurn(draftState: DraftState): boolean {
@@ -236,7 +225,7 @@ export function AvailablePlayersPanel({
                   onChange={(event) => setNameQuery(event.target.value)}
                   placeholder="Search players…"
                   aria-label="Search players"
-                  className="mt-5 w-full rounded border border-strong bg-app px-2 py-1.5 text-xs text-primary outline-none transition placeholder:text-muted focus:border-accent"
+                  className="w-full rounded border border-strong bg-app px-2 py-1.5 text-xs text-primary outline-none transition placeholder:text-muted focus:border-accent"
                 />
               </label>
             </div>

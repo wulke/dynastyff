@@ -391,6 +391,7 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
   - Startup pick slots remain `pick_slot` trade assets and future picks remain `future_pick` trade assets; the compose UI shall not coerce startup slots into future-pick labels
   - Player rows support pill filters `ALL`, `QB`, `RB`, `WR`, `TE`
   - Picks remain visible regardless of the active position pill
+  - Before submit, propose mode includes a local dismiss action that closes the composer without sending a trade request
   - Submit calls `POST /drafts/:id/trade-offer` with `{ targetTeamId, offeredAssets, requestedAssets }`
   - After submit, the modal stays open in an awaiting-bot-response state until the corresponding `trade_resolved` SSE arrives
 - User-targeted incoming trade (`isBotToBot: false` and initiating team is a bot): render `Accept`, `Decline`, and `Counter`
@@ -417,6 +418,7 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
 - A second `trade_offered` arrives before the first trade resolves -> the reducer replaces `pendingTrade` with the latest server truth, and the dialog re-renders from that payload
 - The user switches the target team after selecting offer assets -> the compose state resets the opposing-team selections so stale requested assets from the previous bot cannot leak into the next proposal
 - The user filters to a position with zero matching players -> the player list shows an empty-state message while the picks section remains visible
+- The user opens propose mode but decides not to make an offer -> the local dismiss action closes the composer immediately without mutating draft state or posting a trade request
 - A team has no unresolved startup pick slots because all remaining `draftOrder` entries for that team are already resolved -> the picks section omits startup slots and continues rendering any future picks without showing a false empty state
 - `draftState.teamPickAssets` is empty or missing entries for the selected team -> the picks section continues rendering unresolved startup pick slots without crashing
 - A `draftOrder` slot belongs to the selected team but its pick has already been made -> exclude that `pick_slot` from the compose inventory because only unresolved startup slots are tradeable

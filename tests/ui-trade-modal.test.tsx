@@ -501,6 +501,7 @@ test('clicking a bot team header opens propose mode with team switching and posi
 // @spec DFF-UI-059
 // @spec DFF-UI-059b
 // @spec DFF-UI-059c
+// @spec DFF-UI-059f
 test('submitting a user-initiated trade posts trade-offer and keeps the modal open for the SSE result', async () => {
   const user = await renderDraftRoom();
 
@@ -545,6 +546,24 @@ test('submitting a user-initiated trade posts trade-offer and keeps the modal op
   });
 
   expect(await screen.findByText(/trade accepted/i)).toBeInTheDocument();
+});
+
+// @spec DFF-UI-059f
+test('editable propose mode can be cancelled without posting a trade offer', async () => {
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalledWith(
+    '/drafts/draft-trade-123/trade-offer',
+    expect.objectContaining({
+      method: 'POST',
+    }),
+  );
 });
 
 // @spec DFF-UI-059

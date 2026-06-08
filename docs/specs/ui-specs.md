@@ -221,6 +221,9 @@ When the user receives a bot-to-user trade offer, the modal shall render a `Coun
 **DFF-UI-059e** `[x]` → #86
 When the user clicks `Counter` on a bot-to-user trade offer, the modal shall transition to propose mode targeting the same bot team and pre-populate the offer with the original trade assets reversed.
 
+**DFF-UI-059f** `[x]`
+While the trade modal is in editable propose mode before submit, the system shall provide a dismiss action that closes the modal without posting `POST /drafts/:id/trade-offer`.
+
 ---
 
 ## Draft History View

@@ -95,6 +95,14 @@ function emitStateSyncWithHistoryData() {
       picks: [],
       roster_players: [],
       team_pick_assets: [],
+      startup_pick_values: [
+        { global_pick_number: 1, dynasty_value: 9100 },
+        { global_pick_number: 2, dynasty_value: 9000 },
+        { global_pick_number: 3, dynasty_value: 8900 },
+        { global_pick_number: 4, dynasty_value: 8800 },
+        { global_pick_number: 5, dynasty_value: 8700 },
+        { global_pick_number: 6, dynasty_value: 8600 },
+      ],
       user_queue: [],
       available_players: [
         { id: 'player-1', name: 'Josh Allen', position: 'QB', nfl_team: 'BUF', age: 30, is_rookie: false, dynasty_value: 9999, adp: 1 },
@@ -391,6 +399,51 @@ describe('draft history view', () => {
 
     // Outcome badge
     expect(within(tradeRow).getByText(/accepted/i)).toBeInTheDocument();
+  });
+
+  // @spec DFF-SPKV-060
+  // @spec DFF-SPKV-061
+  test('trade log shows startup pick slots with a STARTUP badge, zero-padded label, and inline value', async () => {
+    const user = userEvent.setup();
+    setupDraftHistoryFetches();
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSyncWithHistoryData();
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('trade_offered', {
+        trade_id: 'trade-startup-history',
+        initiating_team_id: 'team-3',
+        receiving_team_id: 'team-2',
+        assets_sent: [{ type: 'pick_slot', pick_number: 4 }],
+        assets_received: [{ type: 'player', player_id: 'player-2' }],
+        is_bot_to_bot: false,
+      });
+      MockEventSource.instances[0]?.emit('trade_resolved', {
+        trade_id: 'trade-startup-history',
+        status: 'accepted',
+        assets_sent: [{ type: 'pick_slot', pick_number: 4 }],
+        assets_received: [{ type: 'player', player_id: 'player-2' }],
+      });
+      MockEventSource.instances[0]?.emit('draft_complete', {
+        draft_id: 'history-draft-1',
+        completed_at: '2026-05-22T18:00:00.000Z',
+      });
+    });
+
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
+    await user.click(screen.getByRole('tab', { name: /trade log/i }));
+
+    const tradeRow = within(screen.getByRole('tabpanel', { name: /trade log/i })).getByTestId(
+      'history-trade-trade-startup-history',
+    );
+
+    expect(within(tradeRow).getByText('STARTUP')).toBeInTheDocument();
+    expect(within(tradeRow).getByText('Startup 2.01')).toBeInTheDocument();
+    expect(within(tradeRow).getByText('8,800')).toBeInTheDocument();
+    expect(within(tradeRow).getByText('Bijan Robinson')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-065

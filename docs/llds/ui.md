@@ -408,8 +408,9 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
 
 **Trade asset presentation:**
 - `player` assets resolve against `playerCatalog` and show player name plus position badge when metadata exists
-- `pick_slot` assets render as `Startup R.PP` using the trade payload label contract and include inline dynasty value when present
-- `future_pick` assets render as `<year> Round <round>`
+- `pick_slot` assets render with a distinct `STARTUP` badge plus the label `Startup R.PP`, where `PP` is zero-padded from `draftOrder.pickInRound`; the UI derives the inline dynasty value from `startupPickValues` when the payload omits it
+- `future_pick` assets render with a `PICK` badge plus the label `<year> Round <round>`
+- Trade history reuses the same startup-pick label contract so modal and post-draft trade views stay visually aligned
 - Unknown or malformed assets degrade to a compact raw-label fallback instead of crashing the dialog
 
 **Edge Case Probe:**

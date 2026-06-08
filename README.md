@@ -204,12 +204,14 @@ Current ETL scope:
 docs/
   high-level-design.md   # System overview and design decisions
   llds/                  # Low-level designs per component
+    grade-summary.md
     draft-engine.md
     bot-simulator.md
     advisor-agent.md
     data-model.md
     etl-pipeline.md
   specs/                 # EARS specs per component
+    grade-summary-specs.md
 src/
   db/
     init.ts              # SQLite schema init entry point

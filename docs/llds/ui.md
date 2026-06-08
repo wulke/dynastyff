@@ -385,6 +385,10 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
 - Propose mode:
   - Split the asset builder into "You offer" and "<Target> offers"
   - Each side shows player rows plus a flat picks section
+  - The picks section merges two distinct inventories for that team:
+    - unresolved startup pick slots derived from `draftState.draftOrder`
+    - true future picks derived from `draftState.teamPickAssets`
+  - Startup pick slots remain `pick_slot` trade assets and future picks remain `future_pick` trade assets; the compose UI shall not coerce startup slots into future-pick labels
   - Player rows support pill filters `ALL`, `QB`, `RB`, `WR`, `TE`
   - Picks remain visible regardless of the active position pill
   - Submit calls `POST /drafts/:id/trade-offer` with `{ targetTeamId, offeredAssets, requestedAssets }`
@@ -412,6 +416,9 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
 - A second `trade_offered` arrives before the first trade resolves -> the reducer replaces `pendingTrade` with the latest server truth, and the dialog re-renders from that payload
 - The user switches the target team after selecting offer assets -> the compose state resets the opposing-team selections so stale requested assets from the previous bot cannot leak into the next proposal
 - The user filters to a position with zero matching players -> the player list shows an empty-state message while the picks section remains visible
+- A team has no unresolved startup pick slots because all remaining `draftOrder` entries for that team are already resolved -> the picks section omits startup slots and continues rendering any future picks without showing a false empty state
+- `draftState.teamPickAssets` is empty or missing entries for the selected team -> the picks section continues rendering unresolved startup pick slots without crashing
+- A `draftOrder` slot belongs to the selected team but its pick has already been made -> exclude that `pick_slot` from the compose inventory because only unresolved startup slots are tradeable
 - A user-initiated offer is submitted while the modal is already showing a pending user-offer SSE payload -> the submit control stays disabled until the server resolves the current pending proposal
 - The user refreshes or resumes a draft while a trade is pending -> `GET /drafts/:id/state` preserves `pendingTrade` so the dialog reopens on hydration
 - `POST /drafts/:id/trade-response` returns `409` because the trade already resolved elsewhere in the bot chain -> keep the modal open until the corresponding `trade_resolved` SSE arrives, avoiding premature local closure

@@ -27,28 +27,14 @@ type TradeAssetPresentationOptions = {
   playerLabelStyle?: 'full' | 'name-only';
 };
 
-// @spec DFF-UI-051
-// @spec DFF-UI-052
-// @spec DFF-UI-064
-// @spec DFF-SPKV-060
-// @spec DFF-SPKV-061
 function formatDynastyValue(value: number): string {
   return value.toLocaleString('en-US');
 }
 
-// @spec DFF-UI-051
-// @spec DFF-UI-052
-// @spec DFF-UI-064
-// @spec DFF-SPKV-060
-// @spec DFF-SPKV-061
 function getDraftOrderSlotByPickNumber(draftState: DraftState, pickNumber: number) {
   return draftState.draftOrder.find((slot) => slot.pickNumber === pickNumber) ?? null;
 }
 
-// @spec DFF-UI-051
-// @spec DFF-UI-052
-// @spec DFF-UI-064
-// @spec DFF-SPKV-061
 function getStartupPickValueByPickNumber(draftState: DraftState, pickNumber: number): number | null {
   return draftState.startupPickValues.find((entry) => entry.globalPickNumber === pickNumber)?.dynastyValue ?? null;
 }

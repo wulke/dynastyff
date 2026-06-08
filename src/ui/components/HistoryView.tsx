@@ -6,6 +6,7 @@
 // @spec DFF-UI-065
 import { useState, useMemo } from 'react';
 import type { DraftState, TradeRecord } from '../context/DraftContext.js';
+import { TradeAssetDisplay } from './tradeAssetPresentation.js';
 
 type HistoryViewProps = {
   draftState: DraftState;
@@ -295,33 +296,27 @@ function RosterViewTab({ draftState }: { draftState: DraftState }) {
 }
 
 // @spec DFF-UI-064
-function formatAssets(assets: unknown[], draftState: DraftState): string {
+// @spec DFF-SPKV-060
+// @spec DFF-SPKV-061
+function renderAssets(assets: unknown[], draftState: DraftState) {
   if (!assets || assets.length === 0) {
     return '—';
   }
 
-  return assets
-    .map((asset) => {
-      if (typeof asset === 'object' && asset !== null) {
-        const a = asset as Record<string, unknown>;
-
-        if (a.type === 'player') {
-          const playerId = String(a.player_id ?? '');
-          return getPlayerName(draftState, playerId);
-        }
-
-        if (a.type === 'future_pick') {
-          return `${String(a.year ?? '?')} Rd ${String(a.round ?? '?')}`;
-        }
-
-        if (a.type === 'pick_slot') {
-          return `Pick ${String(a.round ?? '?')}.${String(a.pick_in_round ?? '?')}`;
-        }
-      }
-
-      return String(asset);
-    })
-    .join(', ');
+  return (
+    <div className="flex flex-wrap gap-2">
+      {assets.map((asset, index) => (
+        <span key={`trade-asset-${index}`} className="inline-flex">
+          <TradeAssetDisplay
+            asset={asset}
+            draftState={draftState}
+            futurePickLabelStyle="abbreviated"
+            playerLabelStyle="name-only"
+          />
+        </span>
+      ))}
+    </div>
+  );
 }
 
 // @spec DFF-UI-064
@@ -373,8 +368,8 @@ function TradeLogTab({ draftState }: { draftState: DraftState }) {
               <td className="px-4 py-3 text-sm font-medium text-stone-200">
                 {getTeamName(draftState, trade.receivingTeamId)}
               </td>
-              <td className="px-4 py-3 text-sm text-stone-300">{formatAssets(trade.assetsSent, draftState)}</td>
-              <td className="px-4 py-3 text-sm text-stone-300">{formatAssets(trade.assetsReceived, draftState)}</td>
+              <td className="px-4 py-3 text-sm text-stone-300">{renderAssets(trade.assetsSent, draftState)}</td>
+              <td className="px-4 py-3 text-sm text-stone-300">{renderAssets(trade.assetsReceived, draftState)}</td>
               <td className="px-4 py-3 text-right">
                 <span
                   className={`inline-block rounded-full px-2.5 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${

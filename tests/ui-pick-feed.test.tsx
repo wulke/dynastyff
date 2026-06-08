@@ -262,9 +262,9 @@ describe('pick feed panel', () => {
     const pickFeed = screen.getByTestId('pick-feed-panel');
 
     // All three picks should be rendered
-    expect(within(pickFeed).getByText('1.1 - Josh Allen')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('1.2 - Bijan Robinson')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.1 — Josh Allen')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.2 — Bijan Robinson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.3 — Justin Jefferson')).toBeInTheDocument();
 
     // Most recent pick (pick 3, Justin Jefferson) should be at the top
     const feedEntries = within(pickFeed).getAllByTestId(/^pick-feed-entry-/);
@@ -273,11 +273,11 @@ describe('pick feed panel', () => {
     // feeds are rendered most-recent-first: pick 3, pick 2, pick 1
     const firstEntry = feedEntries[0];
     expect(firstEntry).toHaveAttribute('data-testid', 'pick-feed-entry-3');
-    expect(within(firstEntry).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
+    expect(within(firstEntry).getByText('1.3 — Justin Jefferson')).toBeInTheDocument();
 
     const lastEntry = feedEntries[2];
     expect(lastEntry).toHaveAttribute('data-testid', 'pick-feed-entry-1');
-    expect(within(lastEntry).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+    expect(within(lastEntry).getByText('1.1 — Josh Allen')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-101
@@ -338,9 +338,9 @@ describe('pick feed panel', () => {
     });
 
     const pickFeed = screen.getByTestId('pick-feed-panel');
-    expect(within(pickFeed).getByText('1.1 - Josh Allen')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('1.2 - Bijan Robinson')).toBeInTheDocument();
-    expect(within(pickFeed).getByText('1.3 - Justin Jefferson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.1 — Josh Allen')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.2 — Bijan Robinson')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.3 — Justin Jefferson')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-102
@@ -366,7 +366,7 @@ describe('pick feed panel', () => {
     expect(feedEntries1).toHaveLength(1);
 
     const entry1 = feedEntries1[0];
-    expect(within(entry1).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+    expect(within(entry1).getByText('1.1 — Josh Allen')).toBeInTheDocument();
     expect(within(entry1).queryByText('QB')).not.toBeInTheDocument();
     expect(within(entry1).queryByText('Bob')).not.toBeInTheDocument();
     expect(within(entry1).queryByText('Rd 1, Pick 1')).not.toBeInTheDocument();
@@ -380,14 +380,14 @@ describe('pick feed panel', () => {
 
     // Most recent (pick 2) at top
     expect(feedEntries2[0]).toHaveAttribute('data-testid', 'pick-feed-entry-2');
-    expect(within(feedEntries2[0]).getByText('1.2 - Bijan Robinson')).toBeInTheDocument();
+    expect(within(feedEntries2[0]).getByText('1.2 — Bijan Robinson')).toBeInTheDocument();
     expect(within(feedEntries2[0]).queryByText('RB')).not.toBeInTheDocument();
     expect(within(feedEntries2[0]).queryByText('You')).not.toBeInTheDocument();
     expect(within(feedEntries2[0]).queryByText('Rd 1, Pick 2')).not.toBeInTheDocument();
 
     // Older pick (pick 1) at bottom
     expect(feedEntries2[1]).toHaveAttribute('data-testid', 'pick-feed-entry-1');
-    expect(within(feedEntries2[1]).getByText('1.1 - Josh Allen')).toBeInTheDocument();
+    expect(within(feedEntries2[1]).getByText('1.1 — Josh Allen')).toBeInTheDocument();
   });
 
   // @spec DFF-UI-103
@@ -403,7 +403,7 @@ describe('pick feed panel', () => {
     emitPickMade(1, 'team-1', 'unknown-player-X');
 
     const pickFeed = screen.getByTestId('pick-feed-panel');
-    expect(within(pickFeed).getByText('1.1 - unknown-player-X')).toBeInTheDocument();
+    expect(within(pickFeed).getByText('1.1 — unknown-player-X')).toBeInTheDocument();
     expect(within(pickFeed).queryByText('NA')).not.toBeInTheDocument();
   });
 
@@ -432,7 +432,7 @@ describe('pick feed panel', () => {
     const entry = within(pickFeed).getByTestId('pick-feed-entry-1');
 
     // Entry should show the player name but em dash for round/pick
-    expect(within(entry).getByText('— - Josh Allen')).toBeInTheDocument();
+    expect(within(entry).getByText('— — Josh Allen')).toBeInTheDocument();
     expect(within(entry).queryByText(/rd 0/i)).not.toBeInTheDocument();
   });
 

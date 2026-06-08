@@ -34,29 +34,15 @@ type DraftedPlayerSummary = {
 
 // @spec DFF-UI-092
 function getPositionBadgeClass(position: string): string {
-  const base = 'inline-block rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em]';
+  const base = 'inline-block rounded border px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide';
 
-  if (position === 'QB') {
-    return `${base} border-amber-400/30 bg-amber-400/10 text-amber-200`;
-  }
+  if (position === 'QB')                    return `${base} border-pos-qb/30 bg-pos-qb/10 text-pos-qb`;
+  if (position === 'RB')                    return `${base} border-pos-rb/30 bg-pos-rb/10 text-pos-rb`;
+  if (position === 'WR')                    return `${base} border-pos-wr/30 bg-pos-wr/10 text-pos-wr`;
+  if (position === 'TE')                    return `${base} border-pos-te/30 bg-pos-te/10 text-pos-te`;
+  if (position === 'PICK' || position === 'RDP') return `${base} border-pos-pick/30 bg-pos-pick/10 text-pos-pick`;
 
-  if (position === 'RB') {
-    return `${base} border-blue-400/30 bg-blue-400/10 text-blue-200`;
-  }
-
-  if (position === 'WR') {
-    return `${base} border-emerald-400/30 bg-emerald-400/10 text-emerald-200`;
-  }
-
-  if (position === 'TE') {
-    return `${base} border-purple-400/30 bg-purple-400/10 text-purple-200`;
-  }
-
-  if (position === 'PICK' || position === 'RDP') {
-    return `${base} border-yellow-400/30 bg-yellow-400/10 text-yellow-200`;
-  }
-
-  return `${base} border-stone-400/30 bg-stone-400/10 text-stone-400`;
+  return `${base} border-default bg-surface text-muted`;
 }
 
 // @spec DFF-UI-022
@@ -64,20 +50,10 @@ function getDraftedPlayerSummary(draftState: DraftState, playerId: string): Draf
   const player = draftState.playerCatalog[playerId];
 
   if (!player) {
-    return {
-      id: playerId,
-      name: playerId,
-      position: 'NA',
-      nflTeam: null,
-    };
+    return { id: playerId, name: playerId, position: 'NA', nflTeam: null };
   }
 
-  return {
-    id: player.id,
-    name: player.name,
-    position: player.position,
-    nflTeam: player.nflTeam,
-  };
+  return { id: player.id, name: player.name, position: player.position, nflTeam: player.nflTeam };
 }
 
 // @spec DFF-UI-021
@@ -85,18 +61,10 @@ function getDraftedPlayerSummary(draftState: DraftState, playerId: string): Draf
 // @spec DFF-UI-024
 // @spec DFF-UI-024b
 // @spec DFF-UI-025
-function DraftBoardCell({
-  draftState,
-  pickNumber,
-}: {
-  draftState: DraftState;
-  pickNumber: number;
-}) {
+function DraftBoardCell({ draftState, pickNumber }: { draftState: DraftState; pickNumber: number }) {
   const slot = draftState.draftOrder.find((entry) => entry.pickNumber === pickNumber) ?? null;
 
-  if (!slot) {
-    return null;
-  }
+  if (!slot) return null;
 
   const team = draftState.teams.find((entry) => entry.id === slot.teamId) ?? null;
   const pick = draftState.picks.find((entry) => entry.pickNumber === pickNumber) ?? null;
@@ -110,41 +78,40 @@ function DraftBoardCell({
       data-testid={`draft-slot-${pickNumber}`}
       data-round={slot.round}
       data-team-id={slot.teamId}
-      className="min-w-[14rem] border border-stone-800 bg-stone-950/45 align-top"
+      className="min-w-[12rem] border border-default bg-app align-top"
     >
-      <div className="flex min-h-[8.75rem] flex-col justify-between px-4 py-3">
-        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.25em] text-stone-500">
-          Pick {slot.round}.{String(slot.pickInRound).padStart(2, '0')}
+      <div className="flex min-h-[5.5rem] flex-col justify-between px-2 py-2">
+        <p className="font-condensed text-[0.65rem] font-semibold uppercase tracking-wide text-muted tabular-nums">
+          {slot.round}.{String(slot.pickInRound).padStart(2, '0')}
         </p>
 
         {pick ? (
           (() => {
             const player = getDraftedPlayerSummary(draftState, pick.playerId);
-
             return (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <p className="text-base font-semibold leading-tight text-stone-50">{player.name}</p>
-                  <p className="text-sm text-stone-400">{team?.name ?? slot.teamId}</p>
+              <div className="space-y-1.5">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold leading-tight text-primary">{player.name}</p>
+                  <p className="text-xs text-muted">{team?.name ?? slot.teamId}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={getPositionBadgeClass(player.position)}>
-                    {player.position}
-                  </span>
-                  {player.nflTeam ? <span className="text-xs uppercase tracking-[0.25em] text-stone-500">{player.nflTeam}</span> : null}
+                <div className="flex items-center gap-1.5">
+                  <span className={getPositionBadgeClass(player.position)}>{player.position}</span>
+                  {player.nflTeam ? (
+                    <span className="text-[0.6rem] uppercase tracking-wide text-muted">{player.nflTeam}</span>
+                  ) : null}
                 </div>
               </div>
             );
           })()
         ) : showBotSkeleton ? (
-          <div data-testid="draft-slot-skeleton" className="space-y-3 animate-pulse">
-            <div className="h-4 w-24 rounded-full bg-stone-700/80" />
-            <div className="h-6 w-full rounded-2xl bg-stone-800/80" />
-            <div className="h-3 w-20 rounded-full bg-stone-800/80" />
+          <div data-testid="draft-slot-skeleton" className="space-y-2 animate-pulse">
+            <div className="h-3 w-20 rounded bg-surface-raised" />
+            <div className="h-4 w-full rounded bg-surface-raised" />
+            <div className="h-2.5 w-16 rounded bg-surface-raised" />
           </div>
         ) : (
           <div className="flex h-full items-end">
-            <p className="text-sm text-stone-600">Waiting for selection</p>
+            <p className="text-xs text-muted">Waiting</p>
           </div>
         )}
       </div>
@@ -155,9 +122,6 @@ function DraftBoardCell({
 // @spec DFF-UI-088
 // @spec DFF-UI-089
 const LAYOUT_KEY = 'draftBoardLayout';
-
-// @spec DFF-UI-088
-// @spec DFF-UI-089
 type LayoutMode = 'row' | 'column';
 
 // @spec DFF-UI-089
@@ -173,77 +137,78 @@ function persistLayout(mode: LayoutMode): void {
   }
 }
 
+const thHeaderClass = 'sticky top-0 z-10 min-w-[12rem] border border-default bg-app px-3 py-2 text-left';
+const thLabelClass = 'font-condensed text-[0.65rem] font-semibold uppercase tracking-widest text-muted';
+
+function TeamHeaderContent({
+  team,
+  onTeamHeaderClick,
+  isInteractionBlocked,
+}: {
+  team: DraftState['teams'][number];
+  onTeamHeaderClick?: (teamId: string) => void;
+  isInteractionBlocked?: boolean;
+}) {
+  const inner = (
+    <div className="space-y-0.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-secondary">{team.name}</p>
+      <p className="text-[0.6rem] uppercase tracking-wide text-muted">
+        {team.isUser ? 'Your Team' : (team.archetype?.replaceAll('_', ' ') ?? 'Bot')}
+      </p>
+    </div>
+  );
+
+  if (!team.isUser && onTeamHeaderClick && !isInteractionBlocked) {
+    return (
+      <button type="button" onClick={() => onTeamHeaderClick(team.id)} className="w-full text-left">
+        {inner}
+      </button>
+    );
+  }
+
+  return inner;
+}
+
 // @spec DFF-UI-088
 // @spec DFF-UI-089
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-093
 // @spec DFF-UI-056
-function ColumnModeDraftBoard({ draftState, onTeamHeaderClick }: DraftBoardProps) {
-  const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
+function ColumnModeDraftBoard({ draftState, onTeamHeaderClick, isInteractionBlocked }: DraftBoardProps) {
+  const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((a, b) => a - b);
 
   return (
-    <div data-testid="draft-board-scroller" className="mt-8 max-h-[60vh] overflow-y-auto pb-2">
+    <div data-testid="draft-board-scroller" className="mt-4 max-h-[60vh] overflow-y-auto">
       <table className="min-w-full border-separate border-spacing-0" aria-label="Draft Board">
         <thead>
           <tr>
-            <th className="sticky top-0 z-10 min-w-[12rem] border border-stone-800 bg-stone-950 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.3em] text-stone-400">
-              Round
+            <th className={`${thHeaderClass} min-w-[8rem]`}>
+              <span className={thLabelClass}>Round</span>
             </th>
             {draftState.teams.map((team) => (
               <th
                 key={team.id}
                 scope="col"
-                className={`sticky top-0 z-10 min-w-[14rem] border border-stone-800 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.3em] ${
-                  team.isUser ? 'bg-amber-300/10' : 'bg-stone-950'
-                } text-stone-400`}
+                className={`${thHeaderClass} ${team.isUser ? 'bg-accent/10' : ''}`}
               >
-                {team.isUser || !onTeamHeaderClick ? (
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
-                    <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
-                      {team.isUser ? 'Your Team' : team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => onTeamHeaderClick(team.id)}
-                    className="w-full space-y-1 text-left"
-                  >
-                    <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
-                    <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
-                      {team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
-                    </p>
-                  </button>
-                )}
+                <TeamHeaderContent team={team} onTeamHeaderClick={onTeamHeaderClick} isInteractionBlocked={isInteractionBlocked} />
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rounds.map((round) => (
-            <tr
-              key={round}
-              data-testid={`draft-board-round-${round}`}
-              className="bg-transparent"
-            >
-              <th
-                scope="row"
-                className="sticky left-0 z-10 min-w-[12rem] border border-stone-800 bg-stone-950 px-4 py-4 text-left"
-              >
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">Round {round}</p>
-                </div>
+            <tr key={round} data-testid={`draft-board-round-${round}`}>
+              <th scope="row" className="sticky left-0 z-10 min-w-[8rem] border border-default bg-app px-3 py-2 text-left">
+                <p className="font-condensed text-xs font-semibold text-secondary tabular-nums">Rd {round}</p>
               </th>
               {draftState.teams.map((team) => {
-                const slot =
-                  draftState.draftOrder.find((entry) => entry.round === round && entry.teamId === team.id) ?? null;
-
+                const slot = draftState.draftOrder.find((entry) => entry.round === round && entry.teamId === team.id) ?? null;
                 return slot ? (
                   <DraftBoardCell key={slot.pickNumber} draftState={draftState} pickNumber={slot.pickNumber} />
                 ) : (
-                  <td key={`${team.id}-${round}`} className="min-w-[14rem] border border-stone-800 bg-stone-950/45" />
+                  <td key={`${team.id}-${round}`} className="min-w-[12rem] border border-default bg-app" />
                 );
               })}
             </tr>
@@ -275,32 +240,29 @@ export function DraftBoard({
   headerAction = null,
   onTeamHeaderClick,
 }: DraftBoardProps) {
-  const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((left, right) => left - right);
+  const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((a, b) => a - b);
   const [layout, setLayout] = useState<LayoutMode>(getStoredLayout);
 
   function toggleLayout() {
-    if (isInteractionBlocked) {
-      return;
-    }
-
-    const nextLayout: LayoutMode = layout === 'row' ? 'column' : 'row';
-    setLayout(nextLayout);
-    persistLayout(nextLayout);
+    if (isInteractionBlocked) return;
+    const next: LayoutMode = layout === 'row' ? 'column' : 'row';
+    setLayout(next);
+    persistLayout(next);
   }
 
   return (
-    <section className="w-full rounded-[2rem] border border-stone-800 bg-stone-900/90 p-6 shadow-2xl shadow-black/20">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <section className="w-full rounded-md border border-default bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-default px-3 py-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">
             Draft {draftState.draftId}
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-50">Draft Board</h1>
-          <p className="mt-3 text-sm text-stone-300">Live board for every round, team, and completed pick.</p>
+          <h1 className="font-condensed text-xl font-bold tracking-tight text-primary">Draft Board</h1>
+          <p className="text-xs text-muted">Live board for every round, team, and completed pick.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {draftState.sseStatus === 'connecting' ? (
-            <span className="rounded-full border border-stone-700 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-stone-300">
+            <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
               Connecting…
             </span>
           ) : null}
@@ -310,19 +272,17 @@ export function DraftBoard({
             data-testid="layout-toggle"
             onClick={toggleLayout}
             disabled={isInteractionBlocked}
-            className="rounded-full border border-stone-700 p-2.5 text-sm text-stone-400 transition hover:border-stone-500 hover:text-stone-200 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded border border-default p-1.5 text-muted transition hover:border-strong hover:text-secondary disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={layout === 'row' ? 'Switch to column layout' : 'Switch to row layout'}
             title={layout === 'row' ? 'Column layout' : 'Row layout'}
           >
             {layout === 'row' ? (
-              /* Columns icon (rows → icon shows columns to indicate what you'll get) */
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M12 3v18" />
               </svg>
             ) : (
-              /* Rows icon */
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="18" x="3" y="3" rx="2" />
                 <path d="M3 12h18" />
               </svg>
@@ -332,22 +292,24 @@ export function DraftBoard({
       </div>
 
       {layout === 'column' ? (
-        <ColumnModeDraftBoard draftState={draftState} onTeamHeaderClick={isInteractionBlocked ? undefined : onTeamHeaderClick} />
+        <div className="px-3 pb-3">
+          <ColumnModeDraftBoard
+            draftState={draftState}
+            isInteractionBlocked={isInteractionBlocked}
+            onTeamHeaderClick={isInteractionBlocked ? undefined : onTeamHeaderClick}
+          />
+        </div>
       ) : (
-        <div data-testid="draft-board-scroller" className="mt-8 overflow-x-auto pb-2">
+        <div data-testid="draft-board-scroller" className="mt-0 overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-0" aria-label="Draft Board">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 min-w-[12rem] border border-stone-800 bg-stone-950 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.3em] text-stone-400">
-                  Team
+                <th className="sticky left-0 z-10 min-w-[10rem] border border-default bg-app px-3 py-2 text-left">
+                  <span className={thLabelClass}>Team</span>
                 </th>
                 {rounds.map((round) => (
-                  <th
-                    key={round}
-                    scope="col"
-                    className="min-w-[14rem] border border-stone-800 bg-stone-950 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.3em] text-stone-400"
-                  >
-                    Round {round}
+                  <th key={round} scope="col" className="min-w-[12rem] border border-default bg-app px-3 py-2 text-left">
+                    <span className={`${thLabelClass} tabular-nums`}>Round {round}</span>
                   </th>
                 ))}
               </tr>
@@ -358,42 +320,25 @@ export function DraftBoard({
                   key={team.id}
                   data-testid={`draft-board-row-${team.id}`}
                   data-user-team={team.isUser ? 'true' : 'false'}
-                  className={team.isUser ? 'bg-amber-300/8' : 'bg-transparent'}
                 >
                   <th
                     scope="row"
-                    className={`sticky left-0 z-10 min-w-[12rem] border border-stone-800 px-4 py-4 text-left ${
-                      team.isUser ? 'bg-amber-300/10' : 'bg-stone-950'
+                    className={`sticky left-0 z-10 min-w-[10rem] border border-default px-3 py-2 text-left ${
+                      team.isUser ? 'bg-accent/10' : 'bg-app'
                     }`}
                   >
-                    {team.isUser || !onTeamHeaderClick || isInteractionBlocked ? (
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
-                        <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
-                          {team.isUser ? 'Your Team' : team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
-                        </p>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onTeamHeaderClick(team.id)}
-                        className="w-full space-y-1 text-left"
-                      >
-                        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-stone-200">{team.name}</p>
-                        <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
-                          {team.archetype?.replaceAll('_', ' ') ?? 'Bot'}
-                        </p>
-                      </button>
-                    )}
+                    <TeamHeaderContent
+                      team={team}
+                      onTeamHeaderClick={onTeamHeaderClick}
+                      isInteractionBlocked={isInteractionBlocked}
+                    />
                   </th>
                   {rounds.map((round) => {
-                    const slot =
-                      draftState.draftOrder.find((entry) => entry.round === round && entry.teamId === team.id) ?? null;
-
+                    const slot = draftState.draftOrder.find((entry) => entry.round === round && entry.teamId === team.id) ?? null;
                     return slot ? (
                       <DraftBoardCell key={slot.pickNumber} draftState={draftState} pickNumber={slot.pickNumber} />
                     ) : (
-                      <td key={`${team.id}-${round}`} className="min-w-[14rem] border border-stone-800 bg-stone-950/45" />
+                      <td key={`${team.id}-${round}`} className="min-w-[12rem] border border-default bg-app" />
                     );
                   })}
                 </tr>

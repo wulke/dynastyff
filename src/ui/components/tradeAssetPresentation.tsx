@@ -53,11 +53,7 @@ export function getTradeAssetPresentation(
   const playerLabelStyle = options.playerLabelStyle ?? 'full';
 
   if (!asset || typeof asset !== 'object') {
-    return {
-      badge: null,
-      label: 'Unknown asset',
-      value: null,
-    };
+    return { badge: null, label: 'Unknown asset', value: null };
   }
 
   const candidate = asset as TradeAsset;
@@ -65,19 +61,17 @@ export function getTradeAssetPresentation(
   if (candidate.type === 'player') {
     const playerId = candidate.player_id ?? candidate.playerId;
 
-    if (!playerId) {
-      return {
-        badge: null,
-        label: 'Unknown player',
-        value: null,
-      };
-    }
+    if (!playerId) return { badge: null, label: 'Unknown player', value: null };
 
     const player = draftState.playerCatalog[playerId];
 
     return {
       badge: null,
-      label: player ? (playerLabelStyle === 'name-only' ? player.name : `${player.name} (${player.position})`) : playerId,
+      label: player
+        ? playerLabelStyle === 'name-only'
+          ? player.name
+          : `${player.name} (${player.position})`
+        : playerId,
       value: null,
     };
   }
@@ -111,18 +105,10 @@ export function getTradeAssetPresentation(
       };
     }
 
-    return {
-      badge: 'PICK',
-      label: 'Future pick',
-      value: null,
-    };
+    return { badge: 'PICK', label: 'Future pick', value: null };
   }
 
-  return {
-    badge: null,
-    label: JSON.stringify(asset),
-    value: null,
-  };
+  return { badge: null, label: JSON.stringify(asset), value: null };
 }
 
 // @spec DFF-UI-051
@@ -141,20 +127,19 @@ export function TradeAssetDisplay({
   futurePickLabelStyle?: 'round' | 'abbreviated';
   playerLabelStyle?: 'full' | 'name-only';
 }) {
-  const presentation = getTradeAssetPresentation(asset, draftState, {
-    futurePickLabelStyle,
-    playerLabelStyle,
-  });
+  const presentation = getTradeAssetPresentation(asset, draftState, { futurePickLabelStyle, playerLabelStyle });
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-2">
+    <span className="inline-flex flex-wrap items-center gap-1.5">
       {presentation.badge ? (
-        <span className="rounded-full border border-stone-700 bg-stone-900 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-300">
+        <span className="rounded border border-default bg-surface px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-muted">
           {presentation.badge}
         </span>
       ) : null}
-      <span>{presentation.label}</span>
-      {presentation.value ? <span className="text-stone-400">{presentation.value}</span> : null}
+      <span className="text-secondary">{presentation.label}</span>
+      {presentation.value ? (
+        <span className="font-condensed tabular-nums text-muted">{presentation.value}</span>
+      ) : null}
     </span>
   );
 }

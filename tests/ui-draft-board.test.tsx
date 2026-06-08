@@ -430,7 +430,7 @@ describe('draft board UI', () => {
     emitStateSync({ current_pick_number: 2 });
 
     expect(screen.queryByTestId('draft-slot-skeleton')).not.toBeInTheDocument();
-    expect(within(screen.getByTestId('draft-slot-2')).getByText(/waiting for selection/i)).toBeInTheDocument();
+    expect(within(screen.getByTestId('draft-slot-2')).getByText(/^waiting$/i)).toBeInTheDocument();
   });
 
   // @spec DFF-UI-088
@@ -458,7 +458,7 @@ describe('draft board UI', () => {
 
     // Column mode: rounds as rows, teams as columns
     expect(screen.getByRole('columnheader', { name: /bob/i })).toBeInTheDocument();
-    expect(screen.getByRole('rowheader', { name: /round 1/i })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /rd 1/i })).toBeInTheDocument();
   });
 
   // @spec DFF-UI-088
@@ -476,7 +476,7 @@ describe('draft board UI', () => {
     emitDraftState();
 
     // Should start in column mode
-    expect(screen.getByRole('rowheader', { name: /round 1/i })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /rd 1/i })).toBeInTheDocument();
 
     // Switch to row mode
     await user.click(screen.getByTestId('layout-toggle'));
@@ -530,13 +530,13 @@ describe('draft board UI', () => {
     const teamHeaderCells = screen.getAllByRole('columnheader');
     const userTeamHeader = teamHeaderCells.find((cell) => cell.textContent?.includes('You'));
     expect(userTeamHeader).toBeDefined();
-    expect(userTeamHeader!.className).toContain('bg-amber-300/10');
+    expect(userTeamHeader!.className).toContain('bg-accent/10');
 
-    // Non-user team should not have amber tint
+    // Non-user team should not have accent tint
     const nonUserTeamHeader = teamHeaderCells.find((cell) => cell.textContent?.includes('Bob'));
     expect(nonUserTeamHeader).toBeDefined();
-    expect(nonUserTeamHeader!.className).toContain('bg-stone-950');
-    expect(nonUserTeamHeader!.className).not.toContain('amber');
+    expect(nonUserTeamHeader!.className).toContain('bg-app');
+    expect(nonUserTeamHeader!.className).not.toContain('bg-accent/10');
   });
 
   // @spec DFF-UI-092
@@ -621,21 +621,21 @@ describe('draft board UI', () => {
       });
     });
 
-    // Verify QB badge has amber color classes
+    // Verify QB badge uses pos-qb semantic classes
     const qbBadge = within(screen.getByTestId('draft-slot-1')).getByText('QB');
-    expect(qbBadge.className).toContain('amber');
-    expect(qbBadge.className).not.toContain('emerald');
+    expect(qbBadge.className).toContain('pos-qb');
+    expect(qbBadge.className).not.toContain('pos-wr');
 
-    // Verify RB badge has blue color classes
+    // Verify RB badge uses pos-rb semantic classes
     const rbBadge = within(screen.getByTestId('draft-slot-2')).getByText('RB');
-    expect(rbBadge.className).toContain('blue');
-    expect(rbBadge.className).not.toContain('emerald');
+    expect(rbBadge.className).toContain('pos-rb');
+    expect(rbBadge.className).not.toContain('pos-wr');
 
-    // Verify WR badge has emerald color classes
+    // Verify WR badge uses pos-wr semantic classes
     const wrBadge = within(screen.getByTestId('draft-slot-3')).getByText('WR');
-    expect(wrBadge.className).toContain('emerald');
+    expect(wrBadge.className).toContain('pos-wr');
 
-    // Verify TE badge has purple color classes
+    // Verify TE badge uses pos-te semantic classes
     act(() => {
       MockEventSource.instances[0]?.emit('pick_made', {
         pick_number: 4,
@@ -646,7 +646,7 @@ describe('draft board UI', () => {
     });
 
     const teBadge = within(screen.getByTestId('draft-slot-4')).getByText('TE');
-    expect(teBadge.className).toContain('purple');
+    expect(teBadge.className).toContain('pos-te');
   });
 
   // @spec DFF-UI-092
@@ -721,22 +721,22 @@ describe('draft board UI', () => {
       });
     });
 
-    // Verify PICK badge has yellow color classes
+    // Verify PICK badge uses pos-pick semantic classes
     const pickBadge = within(screen.getByTestId('draft-slot-1')).getByText('PICK');
-    expect(pickBadge.className).toContain('yellow');
+    expect(pickBadge.className).toContain('pos-pick');
 
-    // Verify RDP badge has yellow color classes
+    // Verify RDP badge uses pos-pick semantic classes
     const rdpBadge = within(screen.getByTestId('draft-slot-2')).getByText('RDP');
-    expect(rdpBadge.className).toContain('yellow');
+    expect(rdpBadge.className).toContain('pos-pick');
 
-    // Verify unknown position (K) badge has stone color classes
+    // Verify unknown position (K) badge uses border-default (no position color)
     const unknownBadge = within(screen.getByTestId('draft-slot-3')).getByText('K');
-    expect(unknownBadge.className).toContain('stone');
-    expect(unknownBadge.className).not.toContain('amber');
-    expect(unknownBadge.className).not.toContain('blue');
-    expect(unknownBadge.className).not.toContain('emerald');
-    expect(unknownBadge.className).not.toContain('purple');
-    expect(unknownBadge.className).not.toContain('yellow');
+    expect(unknownBadge.className).toContain('border-default');
+    expect(unknownBadge.className).not.toContain('pos-qb');
+    expect(unknownBadge.className).not.toContain('pos-rb');
+    expect(unknownBadge.className).not.toContain('pos-wr');
+    expect(unknownBadge.className).not.toContain('pos-te');
+    expect(unknownBadge.className).not.toContain('pos-pick');
   });
 
   // @spec DFF-UI-089

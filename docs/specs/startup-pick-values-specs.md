@@ -113,8 +113,8 @@ When scoring a `pick_slot` asset during bot trade evaluation, the system shall c
 
 ## UI — Display
 
-**DFF-SPKV-060** `[ ]`
+**DFF-SPKV-060** `[x]` → #73
 The system shall display startup pick slot assets in trade UIs with a `STARTUP` badge label and the pick identifier formatted as `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`), where `R` is the round and `PP` is the zero-padded pick-in-round.
 
-**DFF-SPKV-061** `[ ]`
+**DFF-SPKV-061** `[x]` → #73
 The dynasty value of a startup pick slot shall be displayed inline alongside its label in the trade offer UI, consistent with how player and future pick values are shown.

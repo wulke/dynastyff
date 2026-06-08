@@ -18,6 +18,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 
 import type { DraftState, TradeResponseStatus } from '../context/DraftContext.js';
+import { TradeAssetDisplay, getTradeAssetPresentation } from './tradeAssetPresentation.js';
 
 type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE';
 
@@ -44,26 +45,16 @@ type TradeModalProps = {
   onCloseComposer: () => void;
 };
 
-type TradeAsset = {
-  type?: string;
-  player_id?: string;
-  playerId?: string;
-  draft_order_id?: string;
-  draftOrderId?: string;
-  pick_number?: number;
-  pickNumber?: number;
-  year?: number;
-  round?: number;
-  pick_in_round?: number;
-  pickInRound?: number;
-  dynasty_value?: number;
-  dynastyValue?: number;
-};
-
 type SelectableTradeAsset = {
   asset: unknown;
   label: string;
   position: string | null;
+};
+
+type TradeAsset = {
+  type?: string;
+  player_id?: string;
+  playerId?: string;
 };
 
 const positionFilters: PositionFilter[] = ['ALL', 'QB', 'RB', 'WR', 'TE'];
@@ -73,60 +64,14 @@ function getTeamName(draftState: DraftState, teamId: string): string {
   return draftState.teams.find((team) => team.id === teamId)?.name ?? teamId;
 }
 
-// @spec DFF-UI-058f
-// @spec DFF-UI-058h
-function getDraftOrderSlotByPickNumber(draftState: DraftState, pickNumber: number) {
-  return draftState.draftOrder.find((slot) => slot.pickNumber === pickNumber) ?? null;
-}
-
-// @spec DFF-UI-058f
-// @spec DFF-UI-058h
-function getStartupPickValueByPickNumber(draftState: DraftState, pickNumber: number): number | null {
-  return draftState.startupPickValues.find((entry) => entry.globalPickNumber === pickNumber)?.dynastyValue ?? null;
-}
-
 // @spec DFF-UI-051
 // @spec DFF-UI-052
 // @spec DFF-UI-058
 // @spec DFF-UI-058h
+// @spec DFF-SPKV-060
+// @spec DFF-SPKV-061
 function getTradeAssetLabel(asset: unknown, draftState: DraftState): string {
-  if (!asset || typeof asset !== 'object') {
-    return 'Unknown asset';
-  }
-
-  const candidate = asset as TradeAsset;
-
-  if (candidate.type === 'player') {
-    const playerId = candidate.player_id ?? candidate.playerId;
-
-    if (!playerId) {
-      return 'Unknown player';
-    }
-
-    const player = draftState.playerCatalog[playerId];
-    return player ? `${player.name} (${player.position})` : playerId;
-  }
-
-  if (candidate.type === 'pick_slot') {
-    const pickNumber = candidate.pick_number ?? candidate.pickNumber ?? null;
-    const slot = pickNumber !== null ? getDraftOrderSlotByPickNumber(draftState, pickNumber) : null;
-    const round = candidate.round ?? slot?.round ?? 0;
-    const pickInRound = candidate.pick_in_round ?? candidate.pickInRound ?? slot?.pickInRound ?? 0;
-    const value =
-      candidate.dynasty_value ?? candidate.dynastyValue ?? (pickNumber !== null ? getStartupPickValueByPickNumber(draftState, pickNumber) ?? undefined : undefined);
-    const baseLabel = `Startup ${round}.${String(pickInRound).padStart(2, '0')}`;
-    return typeof value === 'number' ? `${baseLabel} (${value})` : baseLabel;
-  }
-
-  if (candidate.type === 'future_pick') {
-    if (typeof candidate.year === 'number' && typeof candidate.round === 'number') {
-      return `${candidate.year} Round ${candidate.round}`;
-    }
-
-    return 'Future pick';
-  }
-
-  return JSON.stringify(asset);
+  return getTradeAssetPresentation(asset, draftState).label;
 }
 
 // @spec DFF-UI-058
@@ -176,7 +121,6 @@ function buildSelectablePickAssets(draftState: DraftState, teamId: string): Sele
         pick_number: slot.pickNumber,
         round: slot.round,
         pick_in_round: slot.pickInRound,
-        dynasty_value: getStartupPickValueByPickNumber(draftState, slot.pickNumber) ?? undefined,
       };
 
       return {
@@ -229,7 +173,7 @@ function TradeAssetList({
               key={`${title}-${index}`}
               className="rounded-xl border border-stone-800 bg-stone-950/60 px-3 py-3 text-sm text-stone-200"
             >
-              {getTradeAssetLabel(asset, draftState)}
+              <TradeAssetDisplay asset={asset} draftState={draftState} />
             </li>
           ))
         )}
@@ -311,7 +255,7 @@ function SelectableAssetSection({
                   isSelected ? 'border-amber-300 bg-amber-300/10 text-stone-50' : 'border-stone-800 bg-stone-950/60 text-stone-200'
                 }`}
               >
-                {entry.label}
+                <TradeAssetDisplay asset={entry.asset} draftState={draftState} />
               </button>
             );
           })
@@ -331,7 +275,7 @@ function SelectableAssetSection({
                 isSelected ? 'border-amber-300 bg-amber-300/10 text-stone-50' : 'border-stone-800 bg-stone-950/60 text-stone-200'
               }`}
             >
-              {entry.label}
+              <TradeAssetDisplay asset={entry.asset} draftState={draftState} />
             </button>
           );
         })}
@@ -344,7 +288,7 @@ function SelectableAssetSection({
               key={`${title}-selected-${index}`}
               className="rounded-xl border border-stone-800 bg-stone-950/60 px-3 py-3 text-sm text-stone-200"
             >
-              {getTradeAssetLabel(asset, draftState)}
+              <TradeAssetDisplay asset={asset} draftState={draftState} />
             </div>
           ))}
         </div>
@@ -436,6 +380,7 @@ function TradeModalActions({
 // @spec DFF-UI-059
 // @spec DFF-UI-059b
 // @spec DFF-UI-059c
+// @spec DFF-UI-059f
 function TradeComposerContent({
   draftState,
   composer,
@@ -472,6 +417,15 @@ function TradeComposerContent({
             Build a trade by selecting assets to offer and request, then wait for the bot to resolve the proposal.
           </Dialog.Description>
         </div>
+        {composer.status === 'editing' ? (
+          <button
+            type="button"
+            onClick={onCloseComposer}
+            className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-100"
+          >
+            Cancel
+          </button>
+        ) : null}
         {composer.status === 'resolved' ? (
           <button
             type="button"
@@ -566,6 +520,7 @@ function TradeComposerContent({
 // @spec DFF-UI-059c
 // @spec DFF-UI-059d
 // @spec DFF-UI-059e
+// @spec DFF-UI-059f
 export function TradeModal({
   draftState,
   isOpen,

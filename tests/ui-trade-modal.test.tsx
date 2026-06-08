@@ -15,7 +15,7 @@
 // @spec DFF-UI-059c
 // @spec DFF-UI-059d
 // @spec DFF-UI-059e
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -290,6 +290,8 @@ function emitUserTrade(tradeId = 'trade-user-1') {
 
 // @spec DFF-UI-050
 // @spec DFF-UI-051
+// @spec DFF-SPKV-060
+// @spec DFF-SPKV-061
 test('opens a blocking modal for a user-targeted trade and prevents draft-room interaction beneath it', async () => {
   await renderDraftRoom();
   emitUserTrade();
@@ -300,6 +302,29 @@ test('opens a blocking modal for a user-targeted trade and prevents draft-room i
 
   expect(screen.getByTestId('available-player-row-player-1')).toBeDisabled();
   expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
+});
+
+// @spec DFF-SPKV-060
+// @spec DFF-SPKV-061
+test('renders startup pick slots in the trade offer modal with a STARTUP badge, zero-padded label, and inline value', async () => {
+  await renderDraftRoom();
+
+  act(() => {
+    MockEventSource.instances[0]?.emit('trade_offered', {
+      trade_id: 'trade-user-startup-slot',
+      initiating_team_id: 'team-1',
+      receiving_team_id: 'team-2',
+      assets_sent: [{ type: 'pick_slot', pick_number: 6 }],
+      assets_received: [{ type: 'future_pick', year: 2027, round: 1 }],
+      is_bot_to_bot: false,
+    });
+  });
+
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('STARTUP')).toBeInTheDocument();
+  expect(within(dialog).getByText('Startup 2.03')).toBeInTheDocument();
+  expect(within(dialog).getByText('8,600')).toBeInTheDocument();
+  expect(within(dialog).getByText('2027 Round 1')).toBeInTheDocument();
 });
 
 // @spec DFF-UI-053
@@ -476,6 +501,7 @@ test('clicking a bot team header opens propose mode with team switching and posi
 // @spec DFF-UI-059
 // @spec DFF-UI-059b
 // @spec DFF-UI-059c
+// @spec DFF-UI-059f
 test('submitting a user-initiated trade posts trade-offer and keeps the modal open for the SSE result', async () => {
   const user = await renderDraftRoom();
 
@@ -520,6 +546,24 @@ test('submitting a user-initiated trade posts trade-offer and keeps the modal op
   });
 
   expect(await screen.findByText(/trade accepted/i)).toBeInTheDocument();
+});
+
+// @spec DFF-UI-059f
+test('editable propose mode can be cancelled without posting a trade offer', async () => {
+  const user = await renderDraftRoom();
+
+  await user.click(screen.getByRole('button', { name: /bot alpha/i }));
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalledWith(
+    '/drafts/draft-trade-123/trade-offer',
+    expect.objectContaining({
+      method: 'POST',
+    }),
+  );
 });
 
 // @spec DFF-UI-059

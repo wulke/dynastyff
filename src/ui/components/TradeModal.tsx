@@ -380,6 +380,7 @@ function TradeModalActions({
 // @spec DFF-UI-059
 // @spec DFF-UI-059b
 // @spec DFF-UI-059c
+// @spec DFF-UI-059f
 function TradeComposerContent({
   draftState,
   composer,
@@ -416,6 +417,15 @@ function TradeComposerContent({
             Build a trade by selecting assets to offer and request, then wait for the bot to resolve the proposal.
           </Dialog.Description>
         </div>
+        {composer.status === 'editing' ? (
+          <button
+            type="button"
+            onClick={onCloseComposer}
+            className="rounded-full border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-100"
+          >
+            Cancel
+          </button>
+        ) : null}
         {composer.status === 'resolved' ? (
           <button
             type="button"
@@ -510,6 +520,7 @@ function TradeComposerContent({
 // @spec DFF-UI-059c
 // @spec DFF-UI-059d
 // @spec DFF-UI-059e
+// @spec DFF-UI-059f
 export function TradeModal({
   draftState,
   isOpen,

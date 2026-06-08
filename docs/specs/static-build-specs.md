@@ -92,14 +92,17 @@ The system shall implement `src/draft/bot.ts` as an isomorphic module exporting 
 **DFF-STATIC-033** `[x]` → #52
 `selectBotPick` shall throw an `InvariantError` if `available` is empty.
 
-**DFF-STATIC-034** `[x]` → #56
-The static build's bot loop shall delay 1.5–3 seconds (randomly sampled) between successive bot picks to simulate realistic draft pacing.
+**DFF-STATIC-034** `[D]` → #56
+~~The static build's bot loop shall delay 1.5–3 seconds (randomly sampled) between successive bot picks to simulate realistic draft pacing.~~
+*Retired by UI Unification Epic; static bot loop timing behaviour is covered by `tests/in-memory-draft-engine.test.ts` and the shared `InMemoryDraftContextProvider`.*
 
-**DFF-STATIC-035** `[x]` → #56
-The static build's bot loop shall halt and yield control to the user when `currentTeam(state)` returns a team flagged `isUser = true`.
+**DFF-STATIC-035** `[D]` → #56
+~~The static build's bot loop shall halt and yield control to the user when `currentTeam(state)` returns a team flagged `isUser = true`.~~
+*Retired by UI Unification Epic; static bot loop halt-on-user-turn behaviour is covered by `tests/in-memory-draft-engine.test.ts` and the shared `InMemoryDraftContextProvider`.*
 
-**DFF-STATIC-036** `[x]` → #56
-During an active static draft, the system shall render an in-browser Draft Room showing the current turn indicator, the Draft Board grid (rounds × teams), the available undrafted player list, and a recent-picks list using player names rather than raw player IDs.
+**DFF-STATIC-036** `[D]` → #56
+~~During an active static draft, the system shall render an in-browser Draft Room showing the current turn indicator, the Draft Board grid (rounds × teams), the available undrafted player list, and a recent-picks list using player names rather than raw player IDs.~~
+*Retired by UI Unification Epic; the static Draft Room is replaced by the shared three-column layout specified in DFF-UI-130 through DFF-UI-139 and DFF-UI-154.*
 
 **DFF-STATIC-037** `[x]` → #56
 If the static bot loop encounters an invariant failure while selecting or submitting a bot pick, the system shall halt the bot loop and display an error toast indicating the draft cannot continue.
@@ -155,8 +158,9 @@ Existing `src/ui/` components shall reference `useDraftContext()` for all draft 
 **DFF-STATIC-062** `[x]` → #54
 The main app (`src/ui/App.tsx`) shall wire an `HttpDraftContext` implementation of `DraftContextValue` that calls Express HTTP endpoints and subscribes to the SSE stream.
 
-**DFF-STATIC-063** `[x]` → #56
-The static app (`src/ui-static/App.tsx`) shall wire an `InMemoryDraftContext` implementation of `DraftContextValue` that operates entirely in browser memory using the in-memory draft engine.
+**DFF-STATIC-063** `[D]` → #56
+~~The static app (`src/ui-static/App.tsx`) shall wire an `InMemoryDraftContext` implementation of `DraftContextValue` that operates entirely in browser memory using the in-memory draft engine.~~
+*Retired by UI Unification Epic; the static app now wraps `InMemoryDraftContextProvider` around the shared `DraftApp` (DFF-UI-152) rather than defining its own view-state machine.*
 
 ---
 

@@ -1,6 +1,6 @@
 // @spec DFF-UI-150
 // @spec DFF-UI-151
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { App, DraftApp } from '../src/ui/App.js';
@@ -62,8 +62,14 @@ describe('shared DraftApp shell', () => {
     );
 
     expect(await screen.findByRole('heading', { name: /config screen/i })).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
+
+    const playersCard = screen.getByText('Players').closest('div');
+    const pickValuesCard = screen.getByText('Pick Values').closest('div');
+
+    expect(playersCard).not.toBeNull();
+    expect(pickValuesCard).not.toBeNull();
+    expect(within(playersCard!).getByText('2')).toBeInTheDocument();
+    expect(within(pickValuesCard!).getByText('3')).toBeInTheDocument();
     expect(screen.getByText('Jun 8, 2026')).toBeInTheDocument();
   });
 

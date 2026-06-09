@@ -766,6 +766,7 @@ describe('available players list', () => {
     await user.click(enabledRow);
     const confirmationCard = await screen.findByTestId('pick-confirmation-card');
     expect(enabledRow.className).toContain('border-accent');
+    expect(enabledRow).toHaveAttribute('aria-pressed', 'true');
     expect(within(confirmationCard).getByText('CeeDee Lamb')).toBeInTheDocument();
     expect(within(confirmationCard).getByText('DAL')).toBeInTheDocument();
     expect(within(confirmationCard).getByText('Age 27')).toBeInTheDocument();
@@ -777,7 +778,7 @@ describe('available players list', () => {
     );
     await user.click(enabledRow);
     expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
-    expect(enabledRow.className).not.toContain('border-accent');
+    expect(enabledRow).toHaveAttribute('aria-pressed', 'false');
 
     await user.click(enabledRow);
     await user.click(within(await screen.findByTestId('pick-confirmation-card')).getByRole('button', { name: /draft ceedee lamb/i }));

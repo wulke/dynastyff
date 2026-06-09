@@ -142,7 +142,7 @@ export interface DraftContextValue {
   startDraft(config: DraftConfig): void;
   loadDraft(draftId: string): Promise<boolean>;
   showError(message: string): void;
-  submitPick(playerId: string): void;
+  submitPick(playerId: string): Promise<boolean>;
   respondToTrade(status: TradeResponseStatus): Promise<boolean>;
   submitTradeOffer(targetTeamId: string, offeredAssets: unknown[], requestedAssets: unknown[]): Promise<SubmitTradeOfferResult>;
   updateQueue(queue: QueueEntry[]): void;
@@ -1019,11 +1019,11 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
   // @spec DFF-STATIC-060
   // @spec DFF-STATIC-062
   // @spec DFF-UI-084
-  async function submitPick(playerId: string) {
+  async function submitPick(playerId: string): Promise<boolean> {
     const draftId = state.draftState?.draftId;
 
     if (!draftId) {
-      return;
+      return false;
     }
 
     try {
@@ -1039,8 +1039,11 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
       if (!response.ok) {
         throw new Error(GENERIC_PICK_ERROR);
       }
+
+      return true;
     } catch {
       setToastMessage(GENERIC_PICK_ERROR);
+      return false;
     }
   }
 

@@ -244,12 +244,12 @@ export function InMemoryDraftContextProvider({
 
   // @spec DFF-STATIC-035
   // @spec DFF-STATIC-063
-  function submitPick(playerId: string) {
+  async function submitPick(playerId: string): Promise<boolean> {
     const currentState = engineStateRef.current;
     const teamOnClock = currentState ? currentTeam(currentState) : null;
 
     if (!currentState || !teamOnClock?.isUser) {
-      return;
+      return false;
     }
 
     const nextEngineState = applyDraftState(submitEnginePick(currentState, playerId));
@@ -257,6 +257,8 @@ export function InMemoryDraftContextProvider({
     if (nextEngineState.status !== 'completed') {
       enterBotLoop(nextEngineState);
     }
+
+    return true;
   }
 
   // @spec DFF-STATIC-063

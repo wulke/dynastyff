@@ -69,6 +69,16 @@ function getTabButtonClass(isActive: boolean): string {
   return 'rounded border border-default px-3 py-1 text-xs font-semibold text-muted transition hover:border-strong hover:text-secondary';
 }
 
+// @spec DFF-UI-036
+// @spec DFF-UI-123
+function getPlayerRowClass(isSelected: boolean): string {
+  if (isSelected) {
+    return 'flex w-full items-center justify-between gap-3 rounded border border-accent bg-accent/10 px-2 py-2 text-left transition hover:border-accent hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-accent';
+  }
+
+  return 'flex w-full items-center justify-between gap-3 rounded border border-default bg-app px-2 py-2 text-left transition hover:border-accent hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-default disabled:hover:bg-app';
+}
+
 function AvailablePlayersLoadingState() {
   return (
     <section
@@ -154,10 +164,22 @@ export function AvailablePlayersPanel({
     queuedPlayers.find((player) => player.id === selectedPlayerId) ??
     null;
 
+  // @spec DFF-UI-036
+  // @spec DFF-UI-123
+  function handlePlayerSelection(playerId: string) {
+    setSelectedPlayerId((currentPlayerId) => (currentPlayerId === playerId ? null : playerId));
+  }
+
+  // @spec DFF-UI-036
+  // @spec DFF-UI-084
+  // @spec DFF-UI-123
   async function handleConfirmPick() {
     if (!selectedPlayer) return;
-    await submitPick(selectedPlayer.id);
-    setSelectedPlayerId(null);
+    const submitted = await submitPick(selectedPlayer.id);
+
+    if (submitted) {
+      setSelectedPlayerId(null);
+    }
   }
 
   return (
@@ -243,8 +265,9 @@ export function AvailablePlayersPanel({
                     data-testid={`available-player-row-${player.id}`}
                     data-player-id={player.id}
                     disabled={!userTurn}
-                    onClick={() => setSelectedPlayerId(player.id)}
-                    className="flex w-full items-center justify-between gap-3 rounded border border-default bg-app px-2 py-2 text-left transition hover:border-accent hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-default disabled:hover:bg-app"
+                    aria-pressed={selectedPlayerId === player.id}
+                    onClick={() => handlePlayerSelection(player.id)}
+                    className={getPlayerRowClass(selectedPlayerId === player.id)}
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-primary">{player.name}</p>
@@ -278,8 +301,9 @@ export function AvailablePlayersPanel({
                     data-testid={`target-player-row-${player.id}`}
                     data-player-id={player.id}
                     disabled={!userTurn}
-                    onClick={() => setSelectedPlayerId(player.id)}
-                    className="flex w-full items-center justify-between gap-3 rounded border border-default bg-app px-2 py-2 text-left transition hover:border-accent hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-default disabled:hover:bg-app"
+                    aria-pressed={selectedPlayerId === player.id}
+                    onClick={() => handlePlayerSelection(player.id)}
+                    className={getPlayerRowClass(selectedPlayerId === player.id)}
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-primary">{player.name}</p>
@@ -309,7 +333,10 @@ export function AvailablePlayersPanel({
                 <h3 className="font-condensed text-lg font-semibold text-primary">{selectedPlayer.name}</h3>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <span className={getPositionBadgeClass(selectedPlayer.position)}>{selectedPlayer.position}</span>
+                  <span className="text-xs uppercase tracking-wide text-muted">{selectedPlayer.nflTeam ?? 'FA'}</span>
+                  <span className="text-xs text-muted tabular-nums">Age {selectedPlayer.age ?? 'NA'}</span>
                   <span className="text-xs text-muted tabular-nums">Dynasty {selectedPlayer.dynastyValue}</span>
+                  <span className="text-xs text-muted tabular-nums">ADP {selectedPlayer.adp ?? 'NA'}</span>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -327,7 +354,7 @@ export function AvailablePlayersPanel({
                   disabled={isInteractionBlocked}
                   className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg transition hover:bg-accent-hover"
                 >
-                  Confirm Pick
+                  Draft {selectedPlayer.name}
                 </button>
               </div>
             </div>

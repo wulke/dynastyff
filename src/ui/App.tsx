@@ -1076,9 +1076,9 @@ function DraftApp() {
           />
         ) : null}
 
-        {!showDraftsListLoading && view === 'grade-summary' && draftState ? (
+        {!showDraftsListLoading && view === 'grade-summary' ? (
           <DraftGradeSummaryView
-            draftState={draftState}
+            draftState={draftState as DraftState}
             onViewHistory={() => {
               setShowGradeSummary(false);
               setShowHistory(true);

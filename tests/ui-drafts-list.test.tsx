@@ -312,6 +312,51 @@ test('review button navigates to the draft grade summary view for a completed dr
   expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
 });
 
+// @spec DFF-UI-114
+test('review button navigates to the draft history view for an in-progress draft', async () => {
+  createDraftsFetchResponse();
+
+  render(<App />);
+
+  await screen.findByRole('heading', { name: /drafts list/i });
+
+  fetchMock.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        draft_id: 'draft-in-progress-1',
+        status: 'in_progress',
+        current_pick_number: 5,
+        teams: [
+          { id: 'team-1', name: 'Bot 1', is_user: false, archetype: 'bpa' },
+          { id: 'team-2', name: 'You', is_user: true, archetype: null },
+        ],
+        draft_order: [
+          { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+          { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        ],
+        picks: [],
+        roster_players: [],
+        team_pick_assets: [],
+        user_queue: [],
+        available_players: [],
+        trades: [],
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    ),
+  );
+
+  await userEvent.setup().click(
+    within(screen.getByTestId('draft-row-draft-in-progress-1')).getByRole('button', { name: /review/i }),
+  );
+
+  expect(await screen.findByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /draft grade summary/i })).not.toBeInTheDocument();
+});
+
 // @spec DFF-UI-117
 test('falls back to config screen when GET /drafts fails', async () => {
   fetchMock.mockRejectedValue(new Error('Network error'));

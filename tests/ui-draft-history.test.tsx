@@ -92,6 +92,15 @@ function emitStateSyncWithHistoryData() {
         { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
         { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
       ],
+      roster_config: {
+        QB: 1,
+        RB: 1,
+        WR: 1,
+        TE: 1,
+        FLEX: 0,
+        SF: 0,
+        bench: 0,
+      },
       picks: [],
       roster_players: [],
       team_pick_assets: [],
@@ -196,6 +205,15 @@ function setupDraftHistoryFetches(draftId = 'history-draft-1') {
             current_pick_number: 1,
             teams: [],
             draft_order: [],
+            roster_config: {
+              QB: 1,
+              RB: 1,
+              WR: 1,
+              TE: 1,
+              FLEX: 0,
+              SF: 0,
+              bench: 0,
+            },
             picks: [],
             roster_players: [],
             team_pick_assets: [],
@@ -262,6 +280,28 @@ describe('draft history view', () => {
 
     // @spec DFF-UI-065 - New Draft button
     expect(screen.getByRole('button', { name: /new draft/i })).toBeInTheDocument();
+  });
+
+  // @spec DFF-GRADE-003
+  // @spec DFF-GRADE-040
+  // @spec DFF-GRADE-041
+  test('history view renders the post-draft grade summary with overall grades and dimension scores', async () => {
+    const user = userEvent.setup();
+    setupDraftHistoryFetches();
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSyncWithHistoryData();
+    simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
+
+    expect(screen.getByRole('heading', { name: /grade summary/i })).toBeInTheDocument();
+    expect(screen.getByTestId('grade-summary-leaderboard')).toBeInTheDocument();
+    expect(screen.getByTestId('grade-summary-team-team-2')).toHaveAttribute('data-user-team', 'true');
+    expect(screen.getByText(/value over expected adp/i)).toBeInTheDocument();
+    expect(screen.getByText(/positional balance/i)).toBeInTheDocument();
+    expect(screen.getByText(/roster construction/i)).toBeInTheDocument();
   });
 
   // @spec DFF-UI-060

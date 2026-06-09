@@ -75,6 +75,7 @@ import {
   emitTradeResolvedEvent,
   emitYourTurnEvent,
 } from './stream.js';
+import { parseDraftRosterConfig, type DraftRosterConfig } from './roster-config.js';
 
 type DraftStatus = (typeof draftStatuses)[number];
 type ScoringFormat = (typeof scoringFormats)[number];
@@ -231,15 +232,7 @@ export type DraftStateSnapshot = {
   draft_id: string;
   status: DraftStatus;
   current_pick_number: number | null;
-  roster_config: {
-    QB: number;
-    RB: number;
-    WR: number;
-    TE: number;
-    FLEX: number;
-    SF: number;
-    bench: number;
-  };
+  roster_config: DraftRosterConfig;
   teams: Array<{
     id: string;
     name: string;
@@ -1495,31 +1488,6 @@ function parseStartupPickValuesForState(value: string): DraftStateSnapshot['star
   }));
 }
 
-function parseDraftRosterConfig(value: string): DraftStateSnapshot['roster_config'] {
-  const parsed = JSON.parse(value) as Partial<DraftStateSnapshot['roster_config']>;
-
-  if (
-    typeof parsed.QB !== 'number' ||
-    typeof parsed.RB !== 'number' ||
-    typeof parsed.WR !== 'number' ||
-    typeof parsed.TE !== 'number' ||
-    typeof parsed.FLEX !== 'number' ||
-    typeof parsed.SF !== 'number' ||
-    typeof parsed.bench !== 'number'
-  ) {
-    throw new Error('Invalid draft roster_config JSON.');
-  }
-
-  return {
-    QB: parsed.QB,
-    RB: parsed.RB,
-    WR: parsed.WR,
-    TE: parsed.TE,
-    FLEX: parsed.FLEX,
-    SF: parsed.SF,
-    bench: parsed.bench,
-  };
-}
 
 function parseJsonColumn(value: string): unknown {
   return JSON.parse(value);

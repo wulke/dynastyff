@@ -10,6 +10,7 @@ import {
   getDraftedPlayersForDraft,
   type DraftAvailablePlayer,
 } from './available-players.js';
+import { parseDraftRosterConfig, type DraftRosterConfig } from './roster-config.js';
 
 import { createDrizzleDb } from '../db/client.js';
 import { draftOrder, drafts, picks, rosterPlayers, teamPickAssets, teams, userQueue } from '../db/schema.js';
@@ -18,15 +19,7 @@ export type DraftStateSyncPayload = {
   draft_id: string;
   status: string;
   current_pick_number: number | null;
-  roster_config: {
-    QB: number;
-    RB: number;
-    WR: number;
-    TE: number;
-    FLEX: number;
-    SF: number;
-    bench: number;
-  };
+  roster_config: DraftRosterConfig;
   teams: Array<{
     id: string;
     name: string;
@@ -336,32 +329,6 @@ export function getDraftStateSyncPayload({
   } finally {
     sqlite.close();
   }
-}
-
-function parseDraftRosterConfig(value: string): DraftStateSyncPayload['roster_config'] {
-  const parsed = JSON.parse(value) as Partial<DraftStateSyncPayload['roster_config']>;
-
-  if (
-    typeof parsed.QB !== 'number' ||
-    typeof parsed.RB !== 'number' ||
-    typeof parsed.WR !== 'number' ||
-    typeof parsed.TE !== 'number' ||
-    typeof parsed.FLEX !== 'number' ||
-    typeof parsed.SF !== 'number' ||
-    typeof parsed.bench !== 'number'
-  ) {
-    throw new Error('Invalid draft roster_config JSON.');
-  }
-
-  return {
-    QB: parsed.QB,
-    RB: parsed.RB,
-    WR: parsed.WR,
-    TE: parsed.TE,
-    FLEX: parsed.FLEX,
-    SF: parsed.SF,
-    bench: parsed.bench,
-  };
 }
 
 function publishDraftEvent(draftId: string, event: DraftStreamEvent): void {

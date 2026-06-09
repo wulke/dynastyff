@@ -206,7 +206,7 @@ function calculateValueOverExpectedAdp(
   const totalPicks = Math.max(input.draftOrder.length, 1);
   const equalWeight = 1 / playersWithAdp.length;
   const weightedScore = playersWithAdp.reduce((sum, entry) => {
-    const slotDelta = (entry.player!.adp ?? 0) - entry.pick.pickNumber;
+    const slotDelta = entry.player!.adp - entry.pick.pickNumber;
     const normalizedDelta = clamp(slotDelta / totalPicks, -1, 1);
     const pickScore = 50 + (normalizedDelta * 50);
     const weight = totalDraftedDynastyValue > 0
@@ -308,7 +308,7 @@ function calculateRosterConstruction(
     warnings.push('missing_required_position');
   }
 
-  if (dominantShare > 0.6 && missingRequiredPositions.length >= 2) {
+  if (dominantShare > 0.6) {
     warnings.push('degenerate_roster');
   }
 
@@ -342,7 +342,7 @@ function calculateRosterConstruction(
   const benchScore = calculateBenchRedundancyScore(input.rosterConfig, positionCounts);
   let score = dedicatedScore + flexScore + superflexScore + benchScore;
 
-  if (dominantShare > 0.6 && missingRequiredPositions.length >= 2) {
+  if (dominantShare > 0.6) {
     score = Math.min(score, 25);
   }
 

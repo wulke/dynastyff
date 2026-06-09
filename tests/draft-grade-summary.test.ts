@@ -132,3 +132,30 @@ test('calculateDraftGradeSummaries assigns a neutral ADP score and warning when 
   assert.equal(userSummary.dimensions.valueOverExpectedAdp.score, 50);
   assert.equal(userSummary.dimensions.valueOverExpectedAdp.warnings.includes('missing_adp'), true);
 });
+
+// @spec DFF-GRADE-012
+// @spec DFF-GRADE-011
+test('calculateDraftGradeSummaries excludes missing-ADP players but still weights the remaining ADP picks by dynasty value', () => {
+  const draft = createCompletedDraftInput();
+
+  draft.playerCatalog['player-te'] = {
+    ...draft.playerCatalog['player-te']!,
+    adp: null,
+  };
+  draft.playerCatalog['player-rb'] = {
+    ...draft.playerCatalog['player-rb']!,
+    adp: 2,
+    dynastyValue: 9300,
+  };
+  draft.playerCatalog['player-qb'] = {
+    ...draft.playerCatalog['player-qb']!,
+    adp: 1,
+    dynastyValue: 1500,
+  };
+
+  const userSummary = getUserTeamGradeSummary(draft);
+
+  assert.ok(userSummary);
+  assert.equal(userSummary.dimensions.valueOverExpectedAdp.warnings.includes('missing_adp'), true);
+  assert.ok(userSummary.dimensions.valueOverExpectedAdp.score < 50);
+});

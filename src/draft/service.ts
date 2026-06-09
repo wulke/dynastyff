@@ -231,6 +231,15 @@ export type DraftStateSnapshot = {
   draft_id: string;
   status: DraftStatus;
   current_pick_number: number | null;
+  roster_config: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    bench: number;
+  };
   teams: Array<{
     id: string;
     name: string;
@@ -641,11 +650,17 @@ export function getDraftState({
       .select({
         id: drafts.id,
         status: drafts.status,
+        roster_config: drafts.rosterConfig,
         startup_pick_values: drafts.startupPickValues,
       })
       .from(drafts)
       .where(eq(drafts.id, draftId))
-      .get() as { id: string; status: DraftStatus; startup_pick_values: string } | undefined;
+      .get() as {
+        id: string;
+        status: DraftStatus;
+        roster_config: string;
+        startup_pick_values: string;
+      } | undefined;
 
     if (!draft) {
       return null;
@@ -665,6 +680,7 @@ export function getDraftState({
       draft_id: draft.id,
       status: draft.status,
       current_pick_number: currentPick?.pickNumber ?? null,
+      roster_config: parseDraftRosterConfig(draft.roster_config),
       teams: db
         .select({
           id: teams.id,
@@ -1477,6 +1493,32 @@ function parseStartupPickValuesForState(value: string): DraftStateSnapshot['star
     global_pick_number: entry.globalPickNumber,
     dynasty_value: entry.dynastyValue,
   }));
+}
+
+function parseDraftRosterConfig(value: string): DraftStateSnapshot['roster_config'] {
+  const parsed = JSON.parse(value) as Partial<DraftStateSnapshot['roster_config']>;
+
+  if (
+    typeof parsed.QB !== 'number' ||
+    typeof parsed.RB !== 'number' ||
+    typeof parsed.WR !== 'number' ||
+    typeof parsed.TE !== 'number' ||
+    typeof parsed.FLEX !== 'number' ||
+    typeof parsed.SF !== 'number' ||
+    typeof parsed.bench !== 'number'
+  ) {
+    throw new Error('Invalid draft roster_config JSON.');
+  }
+
+  return {
+    QB: parsed.QB,
+    RB: parsed.RB,
+    WR: parsed.WR,
+    TE: parsed.TE,
+    FLEX: parsed.FLEX,
+    SF: parsed.SF,
+    bench: parsed.bench,
+  };
 }
 
 function parseJsonColumn(value: string): unknown {

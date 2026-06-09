@@ -56,6 +56,7 @@ When saved drafts already exist, the UI now opens on a Drafts List page first. F
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.
 4. **Review history** — when a draft completes, the draft board stays visible behind a completion banner. Click **View Full History** to open the history view with three tabs:
+   - **Grade Summary** — top-of-page post-draft rubric showing an overall numeric + letter grade for every team, plus a detailed breakdown of your team's value over expected ADP, positional balance, and roster construction.
    - **Pick Log** — chronological list of all picks with round, pick number, team, player name, position badge, and dynasty value at draft time.
    - **Roster View** — per-team cards with players grouped by position (QB, RB, WR, TE), showing round drafted and dynasty value. Your team card is highlighted.
    - **Trade Log** — chronological list of all trades with round, teams involved, assets exchanged, and outcome (accepted / declined / force_declined).

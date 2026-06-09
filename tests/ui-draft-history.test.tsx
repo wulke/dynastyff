@@ -299,9 +299,9 @@ describe('draft history view', () => {
     expect(screen.getByRole('heading', { name: /grade summary/i })).toBeInTheDocument();
     expect(screen.getByTestId('grade-summary-leaderboard')).toBeInTheDocument();
     expect(screen.getByTestId('grade-summary-team-team-2')).toHaveAttribute('data-user-team', 'true');
-    expect(screen.getByText(/value over expected adp/i)).toBeInTheDocument();
-    expect(screen.getByText(/positional balance/i)).toBeInTheDocument();
-    expect(screen.getByText(/roster construction/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/value over expected adp/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/positional balance/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/roster construction/i).length).toBeGreaterThan(0);
   });
 
   // @spec DFF-UI-060

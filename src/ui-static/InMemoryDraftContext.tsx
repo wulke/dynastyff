@@ -64,6 +64,7 @@ function buildDraftState(
     status: engineState.status,
     isHydrating: false,
     currentPickNumber: engineState.status === 'completed' ? null : engineState.picks.length + 1,
+    rosterConfig: engineState.config.rosterConfig,
     teams: engineState.teams,
     draftOrder: engineState.draftOrder,
     picks: engineState.picks,
@@ -94,6 +95,7 @@ function buildCompletedDraft(state: DraftState, completedAt: string): CompletedD
   return {
     draftId: state.draftId ?? '',
     completedAt,
+    rosterConfig: state.rosterConfig,
     teams: state.teams,
     draftOrder: state.draftOrder,
     picks: state.picks,

@@ -2,9 +2,11 @@
 // @spec DFF-UI-156
 // @spec DFF-UI-060
 // @spec DFF-UI-061
+// @spec DFF-UI-065
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { useState } from 'react';
 
 import { DraftApp } from '../src/ui/App.js';
 import { DraftContextProvider, type DraftState, type DraftContextValue } from '../src/ui/context/DraftContext.js';
@@ -134,6 +136,33 @@ function renderStaticDraftApp() {
   );
 }
 
+// @spec DFF-UI-065
+function StatefulStaticDraftApp() {
+  const [draftState, setDraftState] = useState<DraftState | null>(createCompletedDraftState());
+  const snapshot = createSnapshot();
+  const value: DraftContextValue = {
+    snapshot,
+    draftState,
+    sessionHistory: [],
+    startDraft: () => undefined,
+    loadDraft: async () => false,
+    showError: () => undefined,
+    submitPick: async () => false,
+    respondToTrade: async () => false,
+    submitTradeOffer: async () => ({ ok: false }),
+    updateQueue: () => undefined,
+    newDraft: () => {
+      setDraftState(null);
+    },
+  };
+
+  return (
+    <DraftContextProvider value={value}>
+      <DraftApp />
+    </DraftContextProvider>
+  );
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
   fetchMock.mockImplementation((input, init) => {
@@ -189,5 +218,20 @@ describe('static completed-draft review flow', () => {
     const pickLogPanel = screen.getByRole('tabpanel', { name: /pick log/i });
     expect(within(pickLogPanel).getByText(/josh allen/i)).toBeInTheDocument();
     expect(within(pickLogPanel).getByText(/bijan robinson/i)).toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-065
+  test('new draft from the static history flow returns to the config screen', async () => {
+    const user = userEvent.setup();
+
+    render(<StatefulStaticDraftApp />);
+
+    const completionBanner = await screen.findByTestId('draft-completion-banner');
+    await user.click(within(completionBanner).getByRole('button', { name: /view draft grade/i }));
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
+    await user.click(screen.getByRole('button', { name: /new draft/i }));
+
+    expect(await screen.findByRole('heading', { name: /config screen/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start draft/i })).toBeInTheDocument();
   });
 });

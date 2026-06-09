@@ -170,10 +170,10 @@ The main app (`src/ui/App.tsx`) shall wire an `HttpDraftContext` implementation 
 The static app's `InMemoryDraftContext` shall maintain a `sessionHistory` array that accumulates one `CompletedDraft` entry per finished draft session.
 
 **DFF-STATIC-071** `[x]` → #56
-When a draft transitions to `completed`, the context shall append a `CompletedDraft` snapshot to `sessionHistory` before transitioning the view state to `history`.
+When a draft transitions to `completed`, the context shall append a `CompletedDraft` snapshot to `sessionHistory`. Any later transition into the shared History view is controlled by `DraftApp`.
 
 **DFF-STATIC-072** `[x]` → #56
-The history view in the static app shall render the `HistoryView` component with three tabs (Pick Log, Roster View, Trade Log) using the completed draft's `draftState`. The `sessionHistory` array continues to accumulate completed drafts in the background.
+When the user opens full history in the static app, the shared History view shall render the `HistoryView` component with three tabs (Pick Log, Roster View, Trade Log) using the completed draft's `draftState`. The `sessionHistory` array continues to accumulate completed drafts in the background.
 
 **DFF-STATIC-073** `[x]` → #56
 Session history shall not be persisted to `localStorage` or any browser storage API — it is intentionally lost on page refresh.

@@ -316,6 +316,6 @@ describe('static snapshot app', () => {
     expect(screen.getByTestId('drafting-layout')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^draft board$/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^available players$/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /^targets$/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^pick feed$/i })).toBeInTheDocument();
   });
 });

@@ -117,7 +117,7 @@ Current UI commands:
 | `npm run dev` | Start the Vite React frontend from `/src/ui` |
 | `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
 | `npm run preview` | Preview the built Vite UI bundle locally |
-| `npm run test:ui` | Run the UI tests for config submission, draft board rendering, draft context, SSE lifecycle transitions, and draft history view |
+| `npm run test:ui` | Run the UI tests for config submission, draft board rendering, draft context, SSE lifecycle transitions, draft history view, and the shared/static UX baseline lock (`tests/ui-app-scaffold.test.tsx` plus the seam coverage in `tests/ui-static-app.test.tsx`) |
 
 Static build commands:
 

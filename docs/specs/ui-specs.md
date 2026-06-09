@@ -18,10 +18,10 @@ When a draft is successfully created via POST /drafts, the system shall transiti
 When a `draft_complete` SSE event is received, the system shall render a completion banner over the Draft Board without navigating away.
 
 **DFF-UI-005** `[x]` → #81
-The draft completion banner shall display a congratulatory message, the user's team name, and a `View Full History` call to action.
+The draft completion banner shall display a congratulatory message, the user's team name, and a `View Draft Grade` call to action.
 
 **DFF-UI-006** `[x]` → #81
-When the user clicks `View Full History` from the draft completion banner, the system shall transition to the History view.
+When the user clicks `View Draft Grade` from the draft completion banner, the system shall transition to the dedicated draft grade summary view.
 
 **DFF-UI-007** `[x]` → #81
 While the draft completion banner is open, the Draft Board grid shall remain visible behind it and shall not be interactive.
@@ -432,3 +432,22 @@ The Targets panel shall no longer be rendered as a side-by-side inner grid withi
 
 **DFF-UI-144** `[x]` → #98
 The Pick Feed panel shall fill the full height of its column. The fixed `max-h-[28rem]` constraint shall be removed; the feed shall scroll independently within the available column height.
+
+---
+
+## Draft Grade Summary View
+
+**DFF-UI-145** `[x]` → #88
+When the user clicks `View Draft Grade` from the draft completion banner, the system shall navigate to a dedicated draft grade summary view for the completed draft.
+
+**DFF-UI-146** `[x]` → #88
+When the user clicks `Review` for a completed draft from the Drafts List page, the system shall load that draft and navigate to the draft grade summary view instead of the history tabs.
+
+**DFF-UI-147** `[x]` → #88
+The draft grade summary view shall display the user's overall draft grade prominently, including both the numeric `0-100` score and the mapped letter grade.
+
+**DFF-UI-148** `[x]` → #88
+The draft grade summary view shall display the user's grade breakdown for value over expected ADP, positional balance, and roster construction using the approved grade-summary rubric.
+
+**DFF-UI-149** `[x]` → #88
+The draft grade summary view shall display the user's final roster alongside the grade breakdown and shall expose a `View Full History` action that navigates to the existing Draft History view.

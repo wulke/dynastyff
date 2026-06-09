@@ -55,12 +55,14 @@ When saved drafts already exist, the UI now opens on a Drafts List page first. F
 3. **Use the advisor (optional)** — on any pick, choose:
    - **Advise me** — Claude recommends a pick with dynasty value reasoning.
    - **Grill me** — share your thinking; Claude pushes back.
-4. **Review history** — when a draft completes, the draft board stays visible behind a completion banner. Click **View Full History** to open the history view with three tabs:
-   - **Grade Summary** — top-of-page post-draft rubric showing an overall numeric + letter grade for every team, plus a detailed breakdown of your team's value over expected ADP, positional balance, and roster construction.
+4. **Review your results** — when a draft completes, the draft board stays visible behind a completion banner. Click **View Draft Grade** to open the dedicated grade summary page:
+   - **Draft Grade Summary** — post-draft rubric showing your overall numeric + letter grade, a team leaderboard, the three scoring dimensions, and your final roster grouped by position.
+   - **View Full History** — from the grade summary page, open the history view with three tabs:
    - **Pick Log** — chronological list of all picks with round, pick number, team, player name, position badge, and dynasty value at draft time.
    - **Roster View** — per-team cards with players grouped by position (QB, RB, WR, TE), showing round drafted and dynasty value. Your team card is highlighted.
    - **Trade Log** — chronological list of all trades with round, teams involved, assets exchanged, and outcome (accepted / declined / force_declined).
-   A "New Draft" button returns you to the config screen.
+   - Completed drafts opened from the Drafts List `Review` action also land on the grade summary page first.
+   A `New Draft` button remains available from both review screens and returns you to the config screen.
 
 ## Configuration
 
@@ -100,7 +102,8 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - Failed draft creation shows an error toast and keeps the user on the config screen
 - Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh
 - `draft_complete` SSE now renders a blocking completion banner over the live draft board so the final grid remains visible in the background
-- The completion banner shows your team name and a `View Full History` CTA that opens the full History view with Pick Log, Roster View, and Trade Log tabs
+- The completion banner now shows your team name and a `View Draft Grade` CTA that opens a dedicated post-draft summary page with the overall grade, rubric breakdown, final roster, and room-wide leaderboard
+- Completed drafts opened from the Drafts List `Review` action now land on that same grade summary page first, with `View Full History` as a secondary drill-in
 - `New Draft` returns the user to the config screen
 - The app now checks `GET /drafts` on load and routes to the Drafts List page when persisted drafts exist; the list shows Resume only for in-progress drafts, Review for every draft, a table loading skeleton during the bootstrap fetch, and an error toast on bootstrap failure
 - Human live-browser verification of the board fill behavior remains required before merge per issue `#17`
@@ -233,7 +236,8 @@ src/
     components/
       DraftBoard.tsx     # Draft board grid with snake-order slot rendering
       DraftConfigScreen.tsx # League configuration form
-      HistoryView.tsx    # Post-draft history view with Pick Log, Roster View, and Trade Log tabs
+      DraftGradeSummaryView.tsx # Dedicated completed-draft grade summary page
+      HistoryView.tsx    # Draft history view with Pick Log, Roster View, and Trade Log tabs
     context/
       DraftContext.tsx   # Draft state management, SSE lifecycle, and HTTP draft actions
 ```

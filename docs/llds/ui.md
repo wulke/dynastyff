@@ -34,10 +34,10 @@ Drives specs: `docs/specs/ui-specs.md`
 There is no router. A single top-level enum drives which view is rendered:
 
 ```
-drafts-list → config → drafting → history
-   │            │           │        ▲
-   │            │           │        │
-   │            │           └── (completion banner) ──┘
+drafts-list → config → drafting → grade-summary → history
+   │            │           │             ▲             ▲
+   │            │           │             │             │
+   │            │           └── (completion banner) ────┘
    │            │
    └────────────┘
 ```
@@ -48,10 +48,12 @@ Startup:
 Transitions:
 - `drafts-list → config`: user clicks "New Draft"
 - `drafts-list → drafting`: user clicks "Resume" on an in-progress draft; loads draft state and connects SSE
-- `drafts-list → history`: user clicks "Review" on any draft; loads draft state directly to history view
+- `drafts-list → grade-summary`: user clicks "Review" on a completed draft; loads draft state directly to the grade summary view
+- `drafts-list → history`: user clicks "Review" on an in-progress draft; loads draft state directly to history view
 - `config → drafting`: user submits config and a draft is created (`POST /drafts`)
 - `drafting (board) → drafting (completed banner)`: `draft_complete` SSE event received
-- `drafting (completed banner) → history`: user clicks `View Full History`
+- `drafting (completed banner) → grade-summary`: user clicks `View Draft Grade`
+- `grade-summary → history`: user clicks `View Full History`
 - `history → config`: user clicks "New Draft"
 
 ## App Scaffold
@@ -69,8 +71,9 @@ At this stage, the config view is functional, the drafting view now renders the 
 - Drafts list: fetched from `GET /drafts` on mount; shows all persisted drafts with Resume/Review CTAs
 - Config screen: league settings form + `Start Draft` calls `startDraft()` on `HttpDraftContext`
 - Draft board: renders immediately after draft creation, keeps the live SSE status badge, and hydrates the grid in place from `state_sync` / `pick_made` events
-- Draft completion banner: renders over the Draft Board when `draft_complete` arrives, keeps the board visible behind the overlay, and exposes `View Full History`
-- History shell: becomes visible only after the user clicks `View Full History`, then exposes `New Draft`
+- Draft completion banner: renders over the Draft Board when `draft_complete` arrives, keeps the board visible behind the overlay, and exposes `View Draft Grade`
+- Grade summary shell: becomes visible after the user opens a completed draft from the completion banner or Drafts List review flow, then exposes `View Full History` and `New Draft`
+- History shell: becomes visible after the user clicks `View Full History`, then exposes `New Draft`
 
 ## Component Hierarchy
 
@@ -87,6 +90,7 @@ At this stage, the config view is functional, the drafting view now renders the 
     <AdvisorPanel />           ← slide-out, advise-me + grill-me
     <TradeModal />             ← blocking modal on trade_offered SSE
   </DraftView>
+  <DraftGradeSummaryView>      ← view: grade-summary
   <HistoryView>                ← view: history
     <PickLog />                ← toggle tab
     <RosterView />             ← toggle tab
@@ -143,7 +147,7 @@ Rendered as the app entry point when persisted drafts exist. Fetches `GET /draft
 **Features:**
 - Table columns: draft ID (truncated), status badge, date created, team count, rounds, scoring format
 - "Resume" button on in-progress drafts: calls `loadDraft(draftId)` on the context, then navigates to drafting view
-- "Review" button on all drafts: calls `loadDraft(draftId)` on the context, then navigates to history view
+- "Review" button on all drafts: calls `loadDraft(draftId)` on the context, then navigates to grade summary view for completed drafts or history view for in-progress drafts
 - "New Draft" button: clears draft state and navigates to config screen
 - Loading state: skeleton rows while `GET /drafts` is in flight
 - Empty state for `GET /drafts` returning `[]` → redirects to config screen
@@ -192,15 +196,32 @@ A blocking banner rendered only after the draft reaches `status: 'completed'`. I
 
 **Features:**
 - Triggered by the `draft_complete` SSE event after the reducer marks the draft completed
-- Displays a congratulatory heading, the user's team name, and a single `View Full History` CTA
+- Displays a congratulatory heading, the user's team name, and a single `View Draft Grade` CTA
 - Keeps the Draft Board grid visible but non-interactive beneath a translucent overlay
-- Does not expose a dismiss or close affordance; the only in-flow exit is `View Full History`
-- Leaves the existing history data in `draftState`, so clicking the CTA swaps the view shell to the already-hydrated `HistoryView`
+- Does not expose a dismiss or close affordance; the only in-flow exit is `View Draft Grade`
+- Leaves the existing history data in `draftState`, so clicking the CTA swaps the view shell to the already-hydrated grade summary view
 
 **Edge Case Probe:**
 - User team lookup fails (unexpected malformed state) -> banner falls back to `Your team`
 - `draft_complete` arrives before the first `state_sync` -> banner still renders from reducer state, even if the board has sparse metadata
-- Completed draft state is rehydrated after a reconnect or future refresh-restore path -> the completion banner renders again, because `View Full History` is client-local UI state and is not persisted
+- Completed draft state is rehydrated after a reconnect or future refresh-restore path -> the completion banner renders again, because `View Draft Grade` is client-local UI state and is not persisted
+
+## Draft Grade Summary View
+
+Rendered after the user clicks `View Draft Grade` from the draft completion banner or opens a completed draft from the Drafts List `Review` flow. Uses the same `draftState` payload already hydrated via SSE or `GET /drafts/:id/state`.
+
+**Features:**
+- Prominent overall grade callout for the user's team, showing both the numeric score and the letter grade from the grade-summary rubric
+- Dimension breakdown for value over expected ADP, positional balance, and roster construction, using the deterministic summaries from `calculateDraftGradeSummaries`
+- Final user roster grouped by position and shown alongside the grade breakdown
+- Secondary `View Full History` CTA for the existing history tabs, plus `New Draft`
+- Team leaderboard cards so the user can compare their result against the rest of the room without leaving the page
+
+**Edge Case Probe:**
+- Draft is not completed -> grade summary view is unavailable; in-progress drafts still open into the History view from Drafts List review
+- Grade-summary rubric returns `null` because roster config is missing -> the view renders an unavailable-state message instead of crashing
+- User team cannot be identified -> fall back to the first graded team while still rendering the leaderboard
+- User roster contains no players for a position -> that position renders an em dash rather than collapsing the section
 
 ## Pick Feed Panel
 
@@ -430,7 +451,7 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
 
 ## Draft History View
 
-Rendered after the user clicks `View Full History` from the draft completion banner. Uses the `draftState` data accumulated during the draft via SSE events (picks, trades, rosters).
+Rendered after the user clicks `View Full History` from the grade summary view or opens an in-progress draft from the Drafts List review flow. Uses the `draftState` data accumulated during the draft via SSE events (picks, trades, rosters).
 
 Three tabs toggled by pill buttons at the top, implemented in `src/ui/components/HistoryView.tsx`:
 

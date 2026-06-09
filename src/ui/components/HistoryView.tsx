@@ -8,7 +8,7 @@ import { useState, useMemo } from 'react';
 import type { DraftState, TradeRecord } from '../context/DraftContext.js';
 import { TradeAssetDisplay } from './tradeAssetPresentation.js';
 import { getPositionBadgeClass } from './positionBadge.js';
-import { calculateDraftGradeSummaries, type DraftGradeSummaryInput } from '../../draft/grade-summary.js';
+import { getPickRound, getPickRoundForPlayer } from '../utils/draftUtils.js';
 
 type HistoryViewProps = {
   draftState: DraftState;
@@ -45,62 +45,12 @@ function getPlayerPosition(draftState: DraftState, playerId: string): string {
   return draftState.playerCatalog[playerId]?.position ?? 'NA';
 }
 
-function getPickRound(draftState: DraftState, pickNumber: number): number {
-  return draftState.draftOrder.find((s) => s.pickNumber === pickNumber)?.round ?? 0;
-}
-
 function getPickInRound(draftState: DraftState, pickNumber: number): number {
   return draftState.draftOrder.find((s) => s.pickNumber === pickNumber)?.pickInRound ?? 0;
 }
 
 function getTeamName(draftState: DraftState, teamId: string): string {
   return draftState.teams.find((t) => t.id === teamId)?.name ?? teamId;
-}
-
-function getPickRoundForPlayer(draftState: DraftState, playerId: string): number {
-  const pick = draftState.picks.find((p) => p.playerId === playerId);
-  return pick ? getPickRound(draftState, pick.pickNumber) : 0;
-}
-
-function buildGradeSummaryInput(draftState: DraftState): DraftGradeSummaryInput | null {
-  if (draftState.status !== 'completed' || !draftState.rosterConfig) {
-    return null;
-  }
-
-  return {
-    status: 'completed',
-    rosterConfig: draftState.rosterConfig,
-    teams: draftState.teams.map((team) => ({
-      id: team.id,
-      name: team.name,
-      isUser: team.isUser,
-    })),
-    draftOrder: draftState.draftOrder.map((slot) => ({
-      pickNumber: slot.pickNumber,
-      teamId: slot.teamId,
-    })),
-    picks: draftState.picks.map((pick) => ({
-      pickNumber: pick.pickNumber,
-      teamId: pick.teamId,
-      playerId: pick.playerId,
-    })),
-    rosterPlayers: draftState.rosterPlayers.map((entry) => ({
-      teamId: entry.teamId,
-      playerId: entry.playerId,
-    })),
-    playerCatalog: Object.fromEntries(
-      Object.entries(draftState.playerCatalog).map(([playerId, player]) => [
-        playerId,
-        {
-          id: player.id,
-          name: player.name,
-          position: player.position,
-          dynastyValue: player.dynastyValue,
-          adp: player.adp,
-        },
-      ]),
-    ),
-  };
 }
 
 const thClass = 'border-b border-default px-3 py-2 text-[0.65rem] font-semibold uppercase tracking-widest text-muted';
@@ -313,110 +263,6 @@ function TradeLogTab({ draftState }: { draftState: DraftState }) {
   );
 }
 
-function formatGradeScore(score: number, letterGrade: string): string {
-  return `${score} · ${letterGrade}`;
-}
-
-// @spec DFF-GRADE-003
-// @spec DFF-GRADE-040
-// @spec DFF-GRADE-041
-function GradeSummaryPanel({ draftState }: { draftState: DraftState }) {
-  const summary = useMemo(() => {
-    const input = buildGradeSummaryInput(draftState);
-    return input ? calculateDraftGradeSummaries(input) : null;
-  }, [draftState]);
-
-  if (!summary) {
-    return null;
-  }
-
-  const userTeam = summary.teamSummaries.find((team) => team.isUser) ?? summary.teamSummaries[0];
-
-  if (!userTeam) {
-    return null;
-  }
-
-  const dimensionOrder = [
-    userTeam.dimensions.valueOverExpectedAdp,
-    userTeam.dimensions.positionalBalance,
-    userTeam.dimensions.rosterConstruction,
-  ];
-
-  return (
-    <div className="border-b border-default px-4 py-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,2.25fr)_minmax(0,1.75fr)]">
-        <section>
-          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Post-Draft</p>
-          <h2 className="font-condensed text-xl font-bold text-primary">Grade Summary</h2>
-          <p className="mt-1 text-xs text-muted">
-            Deterministic rubric using value over expected ADP, positional balance, and roster construction.
-          </p>
-
-          <div
-            data-testid="grade-summary-leaderboard"
-            className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
-          >
-            {summary.teamSummaries.map((team) => (
-              <article
-                key={team.teamId}
-                data-testid={`grade-summary-team-${team.teamId}`}
-                data-user-team={team.isUser ? 'true' : 'false'}
-                className={`rounded-md border px-3 py-3 ${
-                  team.isUser ? 'border-accent bg-accent/10' : 'border-default bg-app'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-condensed text-sm font-semibold text-primary">{team.teamName}</p>
-                    <p className="text-[0.65rem] uppercase tracking-widest text-muted">
-                      {team.isUser ? 'Your Team' : 'Draft Grade'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-condensed text-lg font-bold tabular-nums text-primary">
-                      {formatGradeScore(team.overallScore, team.letterGrade)}
-                    </p>
-                    <p className="text-[0.65rem] uppercase tracking-widest text-muted">Overall</p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-md border border-default bg-app px-3 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-accent">Your Breakdown</p>
-              <h3 className="font-condensed text-lg font-bold text-primary">{userTeam.teamName}</h3>
-            </div>
-            <div className="text-right">
-              <p className="font-condensed text-2xl font-bold tabular-nums text-primary">
-                {formatGradeScore(userTeam.overallScore, userTeam.letterGrade)}
-              </p>
-              <p className="text-[0.65rem] uppercase tracking-widest text-muted">Overall Grade</p>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {dimensionOrder.map((dimension) => (
-              <div key={dimension.key} className="rounded border border-default bg-surface px-3 py-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-condensed text-sm font-semibold text-primary">{dimension.label}</p>
-                  <p className="font-condensed text-sm font-bold tabular-nums text-primary">
-                    {dimension.score}
-                  </p>
-                </div>
-                <p className="mt-1 text-xs text-muted">{dimension.summary}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
 // @spec DFF-UI-060
 // @spec DFF-UI-065
 export function HistoryView({ draftState, onNewDraft }: HistoryViewProps) {
@@ -440,9 +286,6 @@ export function HistoryView({ draftState, onNewDraft }: HistoryViewProps) {
           New Draft
         </button>
       </div>
-
-      <GradeSummaryPanel draftState={draftState} />
-
       <div className="border-b border-default px-4 py-2">
         <div className="flex gap-1" role="tablist" aria-label="Draft history tabs">
           {TABS.map((tab) => (

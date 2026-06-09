@@ -267,8 +267,8 @@ test('resume button navigates to the draft board and loads draft state', async (
   expect(await screen.findByRole('heading', { name: /draft board/i })).toBeInTheDocument();
 });
 
-// @spec DFF-UI-114
-test('review button navigates to the history view for a draft', async () => {
+// @spec DFF-UI-146
+test('review button navigates to the draft grade summary view for a completed draft', async () => {
   createDraftsFetchResponse();
 
   render(<App />);
@@ -308,7 +308,8 @@ test('review button navigates to the history view for a draft', async () => {
     within(screen.getByTestId('draft-row-draft-completed-1')).getByRole('button', { name: /review/i }),
   );
 
-  expect(await screen.findByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: /draft grade summary/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
 });
 
 // @spec DFF-UI-117
@@ -365,7 +366,7 @@ test('review stays on the drafts list and shows a toast when loadDraft fails', a
   );
 
   expect(screen.getByRole('heading', { name: /drafts list/i })).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /draft grade summary/i })).not.toBeInTheDocument();
   expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load draft state.');
 });
 

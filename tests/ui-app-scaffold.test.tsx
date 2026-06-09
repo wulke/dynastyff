@@ -1036,6 +1036,7 @@ describe('UI app scaffold', () => {
   // @spec DFF-UI-003
   // @spec DFF-UI-005
   // @spec DFF-UI-007
+  // @spec DFF-UI-145
   test('renders a completion banner over the draft board when the draft completes', async () => {
     const user = userEvent.setup();
     setupDraftLifecycleFetches();
@@ -1079,10 +1080,10 @@ describe('UI app scaffold', () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/congratulations/i);
     expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/lakeview legends/i);
-    expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view draft grade/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
     expect(screen.getByTestId('layout-toggle')).toBeDisabled();
-    expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /draft grade summary/i })).not.toBeInTheDocument();
   });
 
   // @spec DFF-UI-005
@@ -1146,9 +1147,10 @@ describe('UI app scaffold', () => {
     expect(screen.getByTestId('draft-completion-banner')).toHaveTextContent(/lakeview legends/i);
   });
 
-  // @spec DFF-UI-006
+  // @spec DFF-UI-145
+  // @spec DFF-UI-149
   // @spec DFF-UI-004
-  test('opens history from the completion banner and then returns to config when the user starts a new draft', async () => {
+  test('opens the draft grade summary from the completion banner and then returns to config when the user starts a new draft', async () => {
     const user = userEvent.setup();
     setupDraftLifecycleFetches();
 
@@ -1183,7 +1185,8 @@ describe('UI app scaffold', () => {
         completed_at: '2026-05-21T18:00:00.000Z',
       });
     });
-    await user.click(screen.getByRole('button', { name: /view full history/i }));
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
+    expect(screen.getByRole('heading', { name: /draft grade summary/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /new draft/i }));
 
     expect(

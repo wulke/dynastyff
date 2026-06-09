@@ -225,7 +225,7 @@ describe('static snapshot app', () => {
       await screen.findByText(/player data is over 30 days old/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', {
+      await screen.findByRole('heading', {
         name: /config screen/i,
       }),
     ).toBeInTheDocument();

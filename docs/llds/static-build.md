@@ -37,9 +37,9 @@ Browser runtime (no server):
 │  InMemoryDraftContext                             │
 │    src/draft/engine.ts  ←→  src/draft/bot.ts     │
 │         ↓                                         │
-│  Shared React components (src/ui/components/)     │
-│    Config  │  Draft Board + DraftRoom  │  History │
-│            │  (full grid + picks UI)   │   View   │
+│  Shared DraftApp shell (src/ui/App.tsx)           │
+│    Config │ Drafting │ Grade Summary │ History    │
+│    (status bar + 3-column draft room)             │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -230,13 +230,15 @@ The static app wires an `InMemoryDraftContext` implementation (manages in-memory
 
 Components reference `useDraftContext()` and are unaware of which implementation is active.
 
-In the current static slice, `src/ui-static/App.tsx` reuses the shared `DraftConfigScreen` and `DraftBoard` from `src/ui/components/` for the config and drafting views. The `DraftRoom` component wraps the `DraftBoard` grid alongside the available players list and recent picks feed, providing the full drafting experience in-browser. After draft completion, the shared `HistoryView` component renders the three-tab summary (Pick Log, Roster View, Trade Log).
+`src/ui-static/App.tsx` is intentionally thin. It owns only snapshot loading, stale-snapshot warning state, and the full-screen loading/error surfaces. Once the snapshot is ready, it wraps `InMemoryDraftContextProvider` around the shared `DraftApp` export from `src/ui/App.tsx`.
+
+All view-state decisions (`config`, `drafting`, `grade-summary`, `history`), the drafting status bar, the three-column drafting layout, the completion banner, and the `View Full History` transition are owned by `DraftApp`. This makes the static build and HTTP build render the same draft-room UX from a single source of truth.
 
 **Dev mode:** Running `npm run dev:static` starts Vite's dev server with the static build's config. The `createSnapshotCopyPlugin` serves `data/snapshot.json` at runtime via a `configureServer` middleware so the snapshot fetch succeeds. The `base: '/dynastyff/'` path is handled correctly in both dev and production builds.
 
 ## Session History
 
-In the static build, draft history is in-memory only — it does not survive a page refresh. `InMemoryDraftContext` maintains a `sessionHistory: CompletedDraft[]` array. When `currentTeam` returns `null` (all picks exhausted), the engine transitions the draft to `completed`, and the context appends a `CompletedDraft` snapshot to `sessionHistory` before transitioning the view state to `history`.
+In the static build, draft history is in-memory only — it does not survive a page refresh. `InMemoryDraftContext` maintains a `sessionHistory: CompletedDraft[]` array. When `currentTeam` returns `null` (all picks exhausted), the engine transitions the draft to `completed` and the context appends a `CompletedDraft` snapshot to `sessionHistory`.
 
 ```ts
 type CompletedDraft = {
@@ -251,9 +253,9 @@ type CompletedDraft = {
 };
 ```
 
-The history view renders the shared `HistoryView` component with three tabs (Pick Log, Roster View, Trade Log) using `draftState` from the completed draft — the same component used by the server-backed build. The `buildDraftState` function populates `playerCatalog` from all snapshot players so drafted players are renderable with their metadata.
+The shared `DraftApp` keeps the user in the drafting shell when the draft completes so the completion banner can render over the Draft Board. If the user clicks `View Draft Grade`, `DraftApp` transitions to the shared grade summary screen; if the user then clicks `View Full History`, `DraftApp` transitions to the shared `HistoryView` component with the same Pick Log, Roster View, and Trade Log tabs used by the server-backed build. The `buildDraftState` function populates `playerCatalog` from all snapshot players so drafted players are renderable with their metadata.
 
-`newDraft()` clears only the active draft state. Snapshot data and `sessionHistory` remain in memory so the user can run another mock in the same tab session, though the UI only shows the most recently completed draft at a time.
+`newDraft()` clears only the active draft state. Snapshot data and `sessionHistory` remain in memory so the user can run another mock in the same tab session, though the static build still does not expose persisted `GET /drafts` review flows because there is no Express server in that context.
 
 ## File Layout
 

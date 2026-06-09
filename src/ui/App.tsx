@@ -37,6 +37,9 @@
 // @spec DFF-UI-059c
 // @spec DFF-UI-059d
 // @spec DFF-UI-059e
+// @spec DFF-UI-145
+// @spec DFF-UI-146
+// @spec DFF-UI-149
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import {
   HttpDraftContextProvider,
@@ -48,12 +51,13 @@ import { DraftsListPage } from './components/DraftsListPage.js';
 import { DraftBoard } from './components/DraftBoard.js';
 import { PickFeedPanel } from './components/PickFeedPanel.js';
 import { AvailablePlayersPanel } from './components/AvailablePlayersPanel.js';
+import { DraftGradeSummaryView } from './components/DraftGradeSummaryView.js';
 import { HistoryView } from './components/HistoryView.js';
 import { TradeModal, type TradeComposerState } from './components/TradeModal.js';
 
 type DraftCompletionBannerProps = {
   teamName: string;
-  onViewHistory: () => void;
+  onViewGrade: () => void;
 };
 
 type DraftStatusSummary = {
@@ -408,9 +412,9 @@ function ViewShell({ eyebrow, title, description, statusBadge, actionLabel, onAc
 
 // @spec DFF-UI-003
 // @spec DFF-UI-005
-// @spec DFF-UI-006
 // @spec DFF-UI-007
-function DraftCompletionBanner({ teamName, onViewHistory }: DraftCompletionBannerProps) {
+// @spec DFF-UI-145
+function DraftCompletionBanner({ teamName, onViewGrade }: DraftCompletionBannerProps) {
   return (
     <div
       className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
@@ -421,14 +425,14 @@ function DraftCompletionBanner({ teamName, onViewHistory }: DraftCompletionBanne
         <p className="text-xs font-semibold uppercase tracking-widest text-accent">Congratulations</p>
         <h2 className="font-condensed mt-2 text-2xl font-bold tracking-tight text-primary">You finished the draft</h2>
         <p className="mt-2 text-xs text-muted">
-          {teamName} — review every pick, roster decision, and trade from the full draft history.
+          {teamName} — review your post-draft grade, roster construction, and the room-wide results.
         </p>
         <button
           type="button"
-          onClick={onViewHistory}
+          onClick={onViewGrade}
           className="mt-5 rounded bg-accent px-4 py-2 text-xs font-semibold text-accent-fg transition hover:bg-accent-hover"
         >
-          View Full History
+          View Draft Grade
         </button>
       </section>
     </div>
@@ -541,6 +545,7 @@ function DraftApp() {
   const { draftState, newDraft, showError, startDraft, respondToTrade, submitTradeOffer } = useDraftContext();
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
+  const [showGradeSummary, setShowGradeSummary] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showDraftsList, setShowDraftsList] = useState(false);
   const [draftsList, setDraftsList] = useState<DraftListEntry[]>([]);
@@ -644,16 +649,29 @@ function DraftApp() {
       })
       .catch(() => undefined);
   }, []);
-  const view = showDraftsList ? 'drafts-list' : !draftState ? 'config' : showHistory ? 'history' : 'drafting';
+  const view = showDraftsList
+    ? 'drafts-list'
+    : !draftState
+      ? 'config'
+      : showHistory
+        ? 'history'
+        : showGradeSummary
+          ? 'grade-summary'
+          : 'drafting';
   const completionBannerTeamName = draftState?.teams.find((team) => team.isUser)?.name ?? 'Your team';
-  const showCompletionBanner = draftState?.status === 'completed' && !showHistory;
+  const showCompletionBanner = draftState?.status === 'completed' && !showHistory && !showGradeSummary;
   const showTradeModal =
     Boolean(draftState?.pendingTrade) &&
     draftState?.pendingTrade?.tradeId !== dismissedTradeId &&
     tradeComposer === null &&
     !showHistory &&
+    !showGradeSummary &&
     draftState?.status !== 'completed';
-  const showComposerModal = Boolean(tradeComposer) && !showHistory && draftState?.status !== 'completed';
+  const showComposerModal =
+    Boolean(tradeComposer) &&
+    !showHistory &&
+    !showGradeSummary &&
+    draftState?.status !== 'completed';
   const isDraftInteractionBlocked = showCompletionBanner || showTradeModal || showComposerModal;
 
   // @spec DFF-UI-014
@@ -666,6 +684,7 @@ function DraftApp() {
     const safeConfig = sanitizeDraftConfig(draftConfig);
     setDraftConfig(safeConfig);
     setIsSubmittingDraft(true);
+    setShowGradeSummary(false);
     setShowHistory(false);
     setShowDraftsList(false);
     setDismissedTradeId(null);
@@ -912,11 +931,13 @@ function DraftApp() {
             }}
             onNavigateToDrafting={() => {
               setShowDraftsList(false);
+              setShowGradeSummary(false);
               setShowHistory(false);
             }}
-            onNavigateToHistory={() => {
+            onNavigateToReview={(draftStatus) => {
               setShowDraftsList(false);
-              setShowHistory(true);
+              setShowGradeSummary(draftStatus === 'completed');
+              setShowHistory(draftStatus !== 'completed');
             }}
           />
         ) : null}
@@ -987,8 +1008,8 @@ function DraftApp() {
                         {showCompletionBanner ? (
                           <DraftCompletionBanner
                             teamName={completionBannerTeamName}
-                            onViewHistory={() => {
-                              setShowHistory(true);
+                            onViewGrade={() => {
+                              setShowGradeSummary(true);
                             }}
                           />
                         ) : null}
@@ -1042,6 +1063,28 @@ function DraftApp() {
           <HistoryView
             draftState={draftState}
             onNewDraft={() => {
+              setShowGradeSummary(false);
+              setShowHistory(false);
+              setShowDraftsList(false);
+              setSelectedSavedConfigId('');
+              setDraftConfig(configDefaults);
+              setDismissedTradeId(null);
+              setTradeComposer(null);
+              setComposerTradeId(null);
+              newDraft();
+            }}
+          />
+        ) : null}
+
+        {!showDraftsListLoading && view === 'grade-summary' && draftState ? (
+          <DraftGradeSummaryView
+            draftState={draftState}
+            onViewHistory={() => {
+              setShowGradeSummary(false);
+              setShowHistory(true);
+            }}
+            onNewDraft={() => {
+              setShowGradeSummary(false);
               setShowHistory(false);
               setShowDraftsList(false);
               setSelectedSavedConfigId('');

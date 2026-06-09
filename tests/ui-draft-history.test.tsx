@@ -298,7 +298,7 @@ describe('draft history view', () => {
     expect(screen.getByRole('heading', { name: /draft grade summary/i })).toBeInTheDocument();
     expect(screen.getByTestId('grade-summary-leaderboard')).toBeInTheDocument();
     expect(screen.getByTestId('grade-summary-team-team-2')).toHaveAttribute('data-user-team', 'true');
-    expect(screen.getByText(/overall grade/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/overall grade/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/value over expected adp/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/positional balance/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/roster construction/i).length).toBeGreaterThan(0);
@@ -592,6 +592,7 @@ describe('draft history view', () => {
       });
     });
 
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Pick Log — empty state

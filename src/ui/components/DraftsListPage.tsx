@@ -3,6 +3,7 @@
 // @spec DFF-UI-113
 // @spec DFF-UI-114
 // @spec DFF-UI-115
+// @spec DFF-UI-146
 import { useDraftContext } from '../context/DraftContext.js';
 
 // @spec DFF-UI-112
@@ -20,7 +21,7 @@ type DraftsListPageProps = {
   drafts: DraftListEntry[];
   onNavigateToConfig: () => void;
   onNavigateToDrafting: () => void;
-  onNavigateToHistory: () => void;
+  onNavigateToReview: (draftStatus: DraftListEntry['status']) => void;
 };
 
 // @spec DFF-UI-112
@@ -39,7 +40,8 @@ function formatScoringFormat(format: string): string {
 }
 
 // @spec DFF-UI-110
-export function DraftsListPage({ drafts, onNavigateToConfig, onNavigateToDrafting, onNavigateToHistory }: DraftsListPageProps) {
+// @spec DFF-UI-146
+export function DraftsListPage({ drafts, onNavigateToConfig, onNavigateToDrafting, onNavigateToReview }: DraftsListPageProps) {
   const { loadDraft } = useDraftContext();
 
   // @spec DFF-UI-115
@@ -54,9 +56,10 @@ export function DraftsListPage({ drafts, onNavigateToConfig, onNavigateToDraftin
   }
 
   // @spec DFF-UI-114
-  async function handleReview(draftId: string) {
+  // @spec DFF-UI-146
+  async function handleReview(draftId: string, draftStatus: DraftListEntry['status']) {
     const loaded = await loadDraft(draftId);
-    if (loaded) onNavigateToHistory();
+    if (loaded) onNavigateToReview(draftStatus);
   }
 
   return (
@@ -134,7 +137,7 @@ export function DraftsListPage({ drafts, onNavigateToConfig, onNavigateToDraftin
                     {/* @spec DFF-UI-114 */}
                     <button
                       type="button"
-                      onClick={() => handleReview(draft.id)}
+                      onClick={() => handleReview(draft.id, draft.status)}
                       className="rounded border border-default px-2.5 py-1 text-[0.65rem] font-semibold text-muted transition hover:border-strong hover:text-secondary"
                     >
                       Review

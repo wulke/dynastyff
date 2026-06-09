@@ -692,7 +692,7 @@ async function hydrateDraftState(
   draftId: string,
   dispatch: Dispatch<DraftAction>,
   actionType: 'STATE_SYNC' | 'LOAD_DRAFT',
-): Promise<boolean> {
+): Promise<StateSyncPayload> {
   const response = await fetch(`/drafts/${draftId}/state`);
 
   if (!response.ok) {
@@ -706,7 +706,7 @@ async function hydrateDraftState(
   }
 
   dispatch({ type: actionType, payload });
-  return true;
+  return payload;
 }
 
 // @spec DFF-UI-121
@@ -1141,13 +1141,18 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
 
   // @spec DFF-UI-113
   // @spec DFF-UI-114
+  // @spec DFF-UI-146
   async function loadDraft(draftId: string) {
     try {
-      const didLoad = await hydrateDraftState(draftId, dispatch, 'LOAD_DRAFT');
-      await hydrateDraftQueue(draftId, dispatch).catch(() => {
-        setToastMessage(GENERIC_QUEUE_LOAD_ERROR);
-      });
-      return didLoad;
+      const payload = await hydrateDraftState(draftId, dispatch, 'LOAD_DRAFT');
+
+      if (payload.status === 'in_progress') {
+        await hydrateDraftQueue(draftId, dispatch).catch(() => {
+          setToastMessage(GENERIC_QUEUE_LOAD_ERROR);
+        });
+      }
+
+      return true;
     } catch {
       setToastMessage(GENERIC_DRAFT_LOAD_ERROR);
       return false;

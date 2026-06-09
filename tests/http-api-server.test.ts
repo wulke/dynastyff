@@ -2470,6 +2470,15 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
       draft_id: string;
       status: string;
       current_pick_number: number | null;
+      roster_config: {
+        QB: number;
+        RB: number;
+        WR: number;
+        TE: number;
+        FLEX: number;
+        SF: number;
+        bench: number;
+      };
       teams: Array<{ id: string; name: string; is_user: boolean; archetype: string | null }>;
       draft_order: Array<{ pick_number: number; round: number; pick_in_round: number; team_id: string }>;
       picks: Array<{ pick_number: number; team_id: string; player_id: string; picked_at: string }>;
@@ -2492,6 +2501,15 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
     assert.equal(body.draft_id, draftId);
     assert.equal(body.status, 'in_progress');
     assert.equal(body.current_pick_number, 2);
+    assert.deepEqual(body.roster_config, {
+      QB: 1,
+      RB: 2,
+      WR: 3,
+      TE: 1,
+      FLEX: 1,
+      SF: 1,
+      bench: 6,
+    });
     assert.equal(body.teams.length, 4);
     assert.deepEqual(body.teams.map((team) => team.name), ['Bob', 'You', 'Carl', 'Dana']);
     assert.deepEqual(

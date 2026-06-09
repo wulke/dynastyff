@@ -10,6 +10,7 @@ import {
   getDraftedPlayersForDraft,
   type DraftAvailablePlayer,
 } from './available-players.js';
+import { parseDraftRosterConfig, type DraftRosterConfig } from './roster-config.js';
 
 import { createDrizzleDb } from '../db/client.js';
 import { draftOrder, drafts, picks, rosterPlayers, teamPickAssets, teams, userQueue } from '../db/schema.js';
@@ -18,6 +19,7 @@ export type DraftStateSyncPayload = {
   draft_id: string;
   status: string;
   current_pick_number: number | null;
+  roster_config: DraftRosterConfig;
   teams: Array<{
     id: string;
     name: string;
@@ -235,6 +237,7 @@ export function getDraftStateSyncPayload({
       .select({
         id: drafts.id,
         status: drafts.status,
+        roster_config: drafts.rosterConfig,
       })
       .from(drafts)
       .where(eq(drafts.id, draftId))
@@ -258,6 +261,7 @@ export function getDraftStateSyncPayload({
       draft_id: draft.id,
       status: draft.status,
       current_pick_number: currentPick?.pickNumber ?? null,
+      roster_config: parseDraftRosterConfig(draft.roster_config),
       teams: db
         .select({
           id: teams.id,

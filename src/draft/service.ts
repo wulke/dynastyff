@@ -75,6 +75,7 @@ import {
   emitTradeResolvedEvent,
   emitYourTurnEvent,
 } from './stream.js';
+import { parseDraftRosterConfig, type DraftRosterConfig } from './roster-config.js';
 
 type DraftStatus = (typeof draftStatuses)[number];
 type ScoringFormat = (typeof scoringFormats)[number];
@@ -231,6 +232,7 @@ export type DraftStateSnapshot = {
   draft_id: string;
   status: DraftStatus;
   current_pick_number: number | null;
+  roster_config: DraftRosterConfig;
   teams: Array<{
     id: string;
     name: string;
@@ -641,11 +643,17 @@ export function getDraftState({
       .select({
         id: drafts.id,
         status: drafts.status,
+        roster_config: drafts.rosterConfig,
         startup_pick_values: drafts.startupPickValues,
       })
       .from(drafts)
       .where(eq(drafts.id, draftId))
-      .get() as { id: string; status: DraftStatus; startup_pick_values: string } | undefined;
+      .get() as {
+        id: string;
+        status: DraftStatus;
+        roster_config: string;
+        startup_pick_values: string;
+      } | undefined;
 
     if (!draft) {
       return null;
@@ -665,6 +673,7 @@ export function getDraftState({
       draft_id: draft.id,
       status: draft.status,
       current_pick_number: currentPick?.pickNumber ?? null,
+      roster_config: parseDraftRosterConfig(draft.roster_config),
       teams: db
         .select({
           id: teams.id,
@@ -1478,6 +1487,7 @@ function parseStartupPickValuesForState(value: string): DraftStateSnapshot['star
     dynasty_value: entry.dynastyValue,
   }));
 }
+
 
 function parseJsonColumn(value: string): unknown {
   return JSON.parse(value);

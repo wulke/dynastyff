@@ -106,6 +106,7 @@ export type DraftState = {
   status: 'idle' | 'in_progress' | 'completed';
   isHydrating: boolean;
   currentPickNumber: number | null;
+  rosterConfig: DraftConfig['rosterConfig'] | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
   playerCatalog: Record<string, AvailablePlayer>;
@@ -124,6 +125,7 @@ export type DraftState = {
 export type CompletedDraft = {
   draftId: string;
   completedAt: string;
+  rosterConfig: DraftConfig['rosterConfig'] | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
   picks: PickRecord[];
@@ -156,6 +158,15 @@ type StateSyncPayload = {
   draft_id: string;
   status: 'in_progress' | 'completed';
   current_pick_number: number | null;
+  roster_config?: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    bench: number;
+  };
   teams: Array<{
     id: string;
     name: string;
@@ -294,6 +305,7 @@ function createEmptyDraftState(draftId: string): DraftState {
     status: 'in_progress',
     isHydrating: true,
     currentPickNumber: null,
+    rosterConfig: null,
     teams: [],
     draftOrder: [],
     playerCatalog: {},
@@ -357,6 +369,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
     status: payload.status,
     isHydrating: false,
     currentPickNumber: payload.current_pick_number,
+    rosterConfig: payload.roster_config ?? existingState?.rosterConfig ?? null,
     teams: payload.teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -408,6 +421,7 @@ function toCompletedDraft(state: DraftState, completedAt: string): CompletedDraf
   return {
     draftId: state.draftId ?? '',
     completedAt,
+    rosterConfig: state.rosterConfig,
     teams: state.teams,
     draftOrder: state.draftOrder,
     picks: state.picks,

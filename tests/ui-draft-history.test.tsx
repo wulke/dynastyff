@@ -260,9 +260,9 @@ async function renderAppToConfig() {
 }
 
 describe('draft history view', () => {
-  // @spec DFF-UI-060
-  // @spec DFF-UI-065
-  test('renders history view after draft_complete with three tab pills and a New Draft button', async () => {
+  // @spec DFF-UI-145
+  // @spec DFF-UI-149
+  test('renders the draft grade summary view after clicking the completion banner CTA', async () => {
     const user = userEvent.setup();
     setupDraftHistoryFetches();
 
@@ -271,21 +271,20 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
-    await user.click(screen.getByRole('button', { name: /view full history/i }));
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
 
-    // @spec DFF-UI-060 - three tab pills
-    expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /roster view/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /trade log/i })).toBeInTheDocument();
-
-    // @spec DFF-UI-065 - New Draft button
+    expect(screen.getByRole('heading', { name: /draft grade summary/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /new draft/i })).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-147
+  // @spec DFF-UI-148
+  // @spec DFF-UI-149
   // @spec DFF-GRADE-003
   // @spec DFF-GRADE-040
   // @spec DFF-GRADE-041
-  test('history view renders the post-draft grade summary with overall grades and dimension scores', async () => {
+  test('draft grade summary view renders the overall grade, rubric breakdown, and final roster', async () => {
     const user = userEvent.setup();
     setupDraftHistoryFetches();
 
@@ -294,14 +293,39 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
-    await user.click(screen.getByRole('button', { name: /view full history/i }));
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
 
-    expect(screen.getByRole('heading', { name: /grade summary/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /draft grade summary/i })).toBeInTheDocument();
     expect(screen.getByTestId('grade-summary-leaderboard')).toBeInTheDocument();
     expect(screen.getByTestId('grade-summary-team-team-2')).toHaveAttribute('data-user-team', 'true');
+    expect(screen.getByText(/overall grade/i)).toBeInTheDocument();
     expect(screen.getAllByText(/value over expected adp/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/positional balance/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/roster construction/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: /final roster/i })).toBeInTheDocument();
+    expect(screen.getByText('Bijan Robinson')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /pick log/i })).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-149
+  // @spec DFF-UI-060
+  // @spec DFF-UI-065
+  test('view full history from the draft grade summary opens the history tabs', async () => {
+    const user = userEvent.setup();
+    setupDraftHistoryFetches();
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSyncWithHistoryData();
+    simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
+
+    expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /roster view/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /trade log/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /new draft/i })).toBeInTheDocument();
   });
 
   // @spec DFF-UI-060
@@ -315,6 +339,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // The Pick Log tab should be visible by default
@@ -360,6 +385,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Switch to Roster View tab
@@ -413,6 +439,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Switch to Trade Log tab
@@ -473,6 +500,7 @@ describe('draft history view', () => {
       });
     });
 
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
     await user.click(screen.getByRole('tab', { name: /trade log/i }));
 
@@ -496,6 +524,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Click New Draft button
@@ -517,6 +546,7 @@ describe('draft history view', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Pick Log tabpanel should be visible by default

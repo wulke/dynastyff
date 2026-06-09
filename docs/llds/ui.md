@@ -4,7 +4,7 @@
 
 The UI is a local-first React single-page application that runs in the browser pointed at `localhost`. It is the sole interaction surface for the user: configuring a draft, running it, querying the advisor, and reviewing history. It connects to the Express backend via HTTP and SSE. There is no auth, no routing library, and no mobile layout — this is a desktop-only tool for one user.
 
-Drives specs: `docs/specs/ui-specs.md`
+Drives specs: `docs/specs/ui-specs.md`, `docs/specs/ui-unification-specs.md`
 
 ## Responsibilities
 
@@ -63,13 +63,14 @@ Issue `#13` establishes the initial frontend shell under `/src/ui`, issue `#15` 
 - `index.html` mounts the React app through Vite
 - `main.tsx` hydrates a single `<App />` entry point
 - `App.tsx` renders the top-level view shell while `HttpDraftContext` owns draft network effects and live draft state
+- `DraftApp` is exported from `App.tsx` as the shared app shell so alternate providers can reuse the same config, drafting, grade-summary, and history views
 - Tailwind CSS provides the shell styling and layout primitives
 - A Radix UI primitive is wired into the shared shell so the initial scaffold proves the dependency path works before later feature slices add dialogs, tabs, and other interactive primitives
 
 At this stage, the config view is functional, the drafting view now renders the live draft board, and the history view remains a light shell:
 
 - Drafts list: fetched from `GET /drafts` on mount; shows all persisted drafts with Resume/Review CTAs
-- Config screen: league settings form + `Start Draft` calls `startDraft()` on `HttpDraftContext`
+- Config screen: league settings form + `Start Draft` calls `startDraft()` on the active draft context; when `DraftContextValue.snapshot` is non-null, the form header also shows snapshot player count, pick-values count, and export date
 - Draft board: renders immediately after draft creation, keeps the live SSE status badge, and hydrates the grid in place from `state_sync` / `pick_made` events
 - Draft completion banner: renders over the Draft Board when `draft_complete` arrives, keeps the board visible behind the overlay, and exposes `View Draft Grade`
 - Grade summary shell: becomes visible after the user opens a completed draft from the completion banner or Drafts List review flow, then exposes `View Full History` and `New Draft`

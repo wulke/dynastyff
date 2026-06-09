@@ -85,6 +85,7 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - `Config Screen` renders on first load as a real league configuration form
 - The config form now loads saved league setups from `GET /configs`, applies them back into every field from a dropdown, and persists new saved setups through `POST /configs`
 - `src/ui/context/DraftContext.tsx` owns the HTTP draft lifecycle and exposes `useDraftContext()` for all draft data and actions
+- `src/ui/App.tsx` now exports `DraftApp` as the shared provider-agnostic app shell, while `App` continues to wrap it in the HTTP context for the default UI entrypoint
 - `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
 - Successful draft creation transitions the UI into the drafting view immediately, then hydrates `GET /drafts/:id/state` in parallel with SSE so the three-column draft room can load in place
 - The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
@@ -135,6 +136,7 @@ Static draft runtime modules:
 Current static app behavior:
 
 - `src/ui-static/App.tsx` now supports the full `config → drafting → history` flow without an Express server running
+- When the active draft context carries a snapshot, the shared config screen shows snapshot player count, pick-values count, and export date above the form
 - Bot turns in the static build resolve locally with a visible `1.5–3s` delay before each pick
 - Completed static drafts are shown in reverse chronological order for the current browser session only
 - Refreshing the page clears static history by design; no `localStorage` or other browser storage APIs are used

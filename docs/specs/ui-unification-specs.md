@@ -14,10 +14,10 @@ The static (GitHub Pages) build historically maintained its own view-state logic
 
 ## Shared App Shell
 
-**DFF-UI-150** `[ ]` → #109
+**DFF-UI-150** `[x]` → #109
 The system shall export `DraftApp` as a named export from `src/ui/App.tsx`, separate from the existing `App` export that bundles `HttpDraftContextProvider` with `DraftApp`.
 
-**DFF-UI-151** `[ ]` → #109
+**DFF-UI-151** `[x]` → #109
 When `DraftContextValue.snapshot` is non-null, the Config screen shall render snapshot stats — player count, pick values count, and export date — as supporting content below the draft configuration form.
 
 **DFF-UI-152** `[ ]` → #110

@@ -1,10 +1,5 @@
-// @spec DFF-STATIC-034
-// @spec DFF-STATIC-035
-// @spec DFF-STATIC-063
-// @spec DFF-STATIC-070
-// @spec DFF-STATIC-071
-// @spec DFF-STATIC-072
-// @spec DFF-STATIC-036
+// @spec DFF-UI-155
+// @spec DFF-UI-156
 // @spec DFF-UI-060
 // @spec DFF-UI-061
 // @spec DFF-UI-065
@@ -16,7 +11,8 @@ import type { Snapshot } from '../src/ui/types.js';
 
 const fetchMock = vi.fn<typeof fetch>();
 
-// @spec DFF-STATIC-063
+// @spec DFF-UI-155
+// @spec DFF-UI-156
 function createSnapshot(playerCount = 120): Snapshot {
   return {
     exportedAt: '2026-05-22T12:00:00.000Z',
@@ -34,16 +30,30 @@ function createSnapshot(playerCount = 120): Snapshot {
   };
 }
 
-// @spec DFF-STATIC-063
+// @spec DFF-UI-155
+// @spec DFF-UI-156
 function mockSnapshotFetch(snapshot: Snapshot) {
-  fetchMock.mockResolvedValue(
-    new Response(JSON.stringify(snapshot), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }),
-  );
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === './data/snapshot.json' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify(snapshot), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(new Response('missing', { status: 404 }));
+    }
+
+    return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+  });
 }
 
 function configureSmallDraft() {
@@ -65,7 +75,7 @@ async function completeStaticDraft() {
       await vi.advanceTimersByTimeAsync(3_000);
     });
 
-    if (screen.queryByRole('heading', { name: /draft summary/i })) {
+    if (screen.queryByTestId('draft-completion-banner')) {
       return;
     }
 
@@ -88,7 +98,7 @@ async function completeStaticDraft() {
       await vi.advanceTimersByTimeAsync(25_000);
     });
 
-    if (screen.queryByRole('heading', { name: /draft summary/i })) {
+    if (screen.queryByTestId('draft-completion-banner')) {
       return;
     }
   }
@@ -108,17 +118,12 @@ afterEach(() => {
 });
 
 describe('static in-browser draft flow', () => {
-  // @spec DFF-STATIC-034
-  // @spec DFF-STATIC-035
-  // @spec DFF-STATIC-063
-  // @spec DFF-STATIC-070
-  // @spec DFF-STATIC-071
-  // @spec DFF-STATIC-072
-  // @spec DFF-STATIC-036
+  // @spec DFF-UI-155
+  // @spec DFF-UI-156
   // @spec DFF-UI-060
   // @spec DFF-UI-061
   // @spec DFF-UI-065
-  test('completes config to history in-browser and renders draft summary with Pick Log, Roster View, and Trade Log tabs', async () => {
+  test('shows the completion banner first, then opens full history after View Full History', async () => {
     const originalCrypto = globalThis.crypto;
     let nextId = 0;
 
@@ -139,24 +144,31 @@ describe('static in-browser draft flow', () => {
       configureSmallDraft();
       await completeStaticDraft();
 
-      // @spec DFF-UI-060 — Draft Summary heading and tab pills
+      const completionBanner = screen.getByTestId('draft-completion-banner');
+      expect(within(completionBanner).getByText(/you finished the draft/i)).toBeInTheDocument();
+      expect(screen.getByTestId('drafting-layout')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
+
+      fireEvent.click(within(completionBanner).getByRole('button', { name: /view draft grade/i }));
+      fireEvent.click(screen.getByRole('button', { name: /view full history/i }));
+
       expect(screen.getByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /roster view/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /trade log/i })).toBeInTheDocument();
 
-      // @spec DFF-UI-061 — Pick Log has picks
       const pickLogPanel = screen.getByRole('tabpanel', { name: /pick log/i });
       expect(within(pickLogPanel).getByText(/player 001/i)).toBeInTheDocument();
 
-      // @spec DFF-UI-065 — New Draft button works
       fireEvent.click(screen.getByRole('button', { name: /new draft/i }));
       expect(screen.getByRole('heading', { name: /config screen/i })).toBeInTheDocument();
 
-      // Complete a second draft to verify the flow works again
       configureSmallDraft();
       await completeStaticDraft();
 
+      expect(screen.getByTestId('draft-completion-banner')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /view draft grade/i }));
+      fireEvent.click(screen.getByRole('button', { name: /view full history/i }));
       expect(screen.getByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
     } finally {

@@ -673,10 +673,11 @@ describe('available players list', () => {
   // @spec DFF-UI-036
   // @spec DFF-UI-123
   // @spec DFF-UI-126
+  // @spec DFF-UI-084
   // @spec DFF-UI-139
   // @spec DFF-UI-140
   // @spec DFF-UI-142
-  test('shows disabled rows during bot turns, then uses the shared confirmation flow for available players and targets on the user turn', async () => {
+  test('shows disabled rows during bot turns, then uses a toggleable shared confirmation flow for available players and targets on the user turn', async () => {
     const user = userEvent.setup();
 
     fetchMock.mockImplementation((input, init) => {
@@ -764,12 +765,22 @@ describe('available players list', () => {
 
     await user.click(enabledRow);
     const confirmationCard = await screen.findByTestId('pick-confirmation-card');
+    expect(enabledRow.className).toContain('border-accent');
     expect(within(confirmationCard).getByText('CeeDee Lamb')).toBeInTheDocument();
+    expect(within(confirmationCard).getByText('DAL')).toBeInTheDocument();
+    expect(within(confirmationCard).getByText('Age 27')).toBeInTheDocument();
+    expect(within(confirmationCard).getByText('Dynasty 9800')).toBeInTheDocument();
+    expect(within(confirmationCard).getByText('ADP 2')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/drafts/draft-available-123/pick',
       expect.objectContaining({ method: 'POST' }),
     );
-    await user.click(within(confirmationCard).getByRole('button', { name: /confirm pick/i }));
+    await user.click(enabledRow);
+    expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
+    expect(enabledRow.className).not.toContain('border-accent');
+
+    await user.click(enabledRow);
+    await user.click(within(await screen.findByTestId('pick-confirmation-card')).getByRole('button', { name: /draft ceedee lamb/i }));
 
     await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const targetsPanel = await screen.findByTestId('targets-panel');
@@ -777,8 +788,14 @@ describe('available players list', () => {
     const enabledTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
     expect(enabledTargetRow).toBeEnabled();
     await user.click(enabledTargetRow);
-    expect(within(await screen.findByTestId('pick-confirmation-card')).getByText('Bijan Robinson')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /confirm pick/i }));
+    const targetConfirmationCard = await screen.findByTestId('pick-confirmation-card');
+    expect(enabledTargetRow.className).toContain('border-accent');
+    expect(within(targetConfirmationCard).getByText('Bijan Robinson')).toBeInTheDocument();
+    expect(within(targetConfirmationCard).getByText('ATL')).toBeInTheDocument();
+    expect(within(targetConfirmationCard).getByText('Age 23')).toBeInTheDocument();
+    expect(within(targetConfirmationCard).getByText('Dynasty 9700')).toBeInTheDocument();
+    expect(within(targetConfirmationCard).getByText('ADP 3')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /draft bijan robinson/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       6,
@@ -799,7 +816,7 @@ describe('available players list', () => {
   });
 
   // @spec DFF-UI-084
-  test('shows the failed pick toast when the pick submission returns an error', async () => {
+  test('shows the failed pick toast and keeps the selection active when the pick submission returns an error', async () => {
     const user = userEvent.setup();
 
     fetchMock.mockImplementation((input, init) => {
@@ -847,10 +864,14 @@ describe('available players list', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     const panel = await screen.findByTestId('available-players-panel');
-    await user.click(within(panel).getByRole('button', { name: /ceedee lamb/i }));
-    await user.click(await screen.findByRole('button', { name: /confirm pick/i }));
+    const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
+    await user.click(lambRow);
+    await user.click(await screen.findByRole('button', { name: /draft ceedee lamb/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Pick failed — player may already be taken.');
+    expect(await screen.findByTestId('pick-confirmation-card')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
+    expect(lambRow.className).toContain('border-accent');
   });
 
   // @spec DFF-UI-080

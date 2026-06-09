@@ -282,6 +282,14 @@ describe('HTTP draft context', () => {
     expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
     expect(stream?.closed).toBe(true);
 
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
+
+    expect(
+      await screen.findByRole('heading', {
+        name: /draft grade summary/i,
+      }),
+    ).toBeInTheDocument();
+
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     expect(

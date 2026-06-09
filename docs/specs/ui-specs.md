@@ -437,17 +437,17 @@ The Pick Feed panel shall fill the full height of its column. The fixed `max-h-[
 
 ## Draft Grade Summary View
 
-**DFF-UI-145** `[ ]` → #88
+**DFF-UI-145** `[x]` → #88
 When the user clicks `View Draft Grade` from the draft completion banner, the system shall navigate to a dedicated draft grade summary view for the completed draft.
 
-**DFF-UI-146** `[ ]` → #88
+**DFF-UI-146** `[x]` → #88
 When the user clicks `Review` for a completed draft from the Drafts List page, the system shall load that draft and navigate to the draft grade summary view instead of the history tabs.
 
-**DFF-UI-147** `[ ]` → #88
+**DFF-UI-147** `[x]` → #88
 The draft grade summary view shall display the user's overall draft grade prominently, including both the numeric `0-100` score and the mapped letter grade.
 
-**DFF-UI-148** `[ ]` → #88
+**DFF-UI-148** `[x]` → #88
 The draft grade summary view shall display the user's grade breakdown for value over expected ADP, positional balance, and roster construction using the approved grade-summary rubric.
 
-**DFF-UI-149** `[ ]` → #88
+**DFF-UI-149** `[x]` → #88
 The draft grade summary view shall display the user's final roster alongside the grade breakdown and shall expose a `View Full History` action that navigates to the existing Draft History view.

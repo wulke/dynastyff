@@ -54,6 +54,7 @@ import { AvailablePlayersPanel } from './components/AvailablePlayersPanel.js';
 import { DraftGradeSummaryView } from './components/DraftGradeSummaryView.js';
 import { HistoryView } from './components/HistoryView.js';
 import { TradeModal, type TradeComposerState } from './components/TradeModal.js';
+import type { Snapshot } from './types.js';
 
 type DraftCompletionBannerProps = {
   teamName: string;
@@ -540,10 +541,48 @@ function createTradeComposerState(targetTeamId: string, offeredAssets: unknown[]
   };
 }
 
-function DraftApp() {
+// @spec DFF-UI-151
+function formatSnapshotExportDate(exportedAt: string): string {
+  return new Date(exportedAt).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+// @spec DFF-UI-151
+function renderSnapshotSupportingContent(snapshot: Snapshot): ReactNode {
+  return (
+    <dl className="grid gap-3 md:grid-cols-3">
+      <div className="rounded border border-default bg-app px-3 py-2">
+        <dt className="text-xs font-semibold uppercase tracking-widest text-muted">Players</dt>
+        <dd className="mt-1 font-condensed text-xl font-bold tabular-nums text-primary">
+          {snapshot.players.length}
+        </dd>
+      </div>
+      <div className="rounded border border-default bg-app px-3 py-2">
+        <dt className="text-xs font-semibold uppercase tracking-widest text-muted">Pick Values</dt>
+        <dd className="mt-1 font-condensed text-xl font-bold tabular-nums text-primary">
+          {snapshot.pickValues.length}
+        </dd>
+      </div>
+      <div className="rounded border border-default bg-app px-3 py-2">
+        <dt className="text-xs font-semibold uppercase tracking-widest text-muted">Exported</dt>
+        <dd className="mt-1 font-condensed text-lg font-semibold tabular-nums text-primary">
+          {formatSnapshotExportDate(snapshot.exportedAt)}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+// @spec DFF-UI-150
+// @spec DFF-UI-151
+export function DraftApp() {
   // @spec DFF-STATIC-061
   // @spec DFF-STATIC-062
-  const { draftState, newDraft, showError, startDraft, respondToTrade, submitTradeOffer } = useDraftContext();
+  const { snapshot, draftState, newDraft, showError, startDraft, respondToTrade, submitTradeOffer } =
+    useDraftContext();
   const [draftConfig, setDraftConfig] = useState<ConfigFormState>(configDefaults);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [showGradeSummary, setShowGradeSummary] = useState(false);
@@ -674,6 +713,7 @@ function DraftApp() {
     !showGradeSummary &&
     draftState?.status !== 'completed';
   const isDraftInteractionBlocked = showCompletionBanner || showTradeModal || showComposerModal;
+  const configSupportingContent = snapshot ? renderSnapshotSupportingContent(snapshot) : undefined;
 
   // @spec DFF-UI-014
   // @spec DFF-UI-015
@@ -957,6 +997,7 @@ function DraftApp() {
             onSavedConfigSelect={handleSavedConfigSelect}
             onSaveConfig={handleSaveConfig}
             onStartDraft={handleStartDraft}
+            supportingContent={configSupportingContent}
           />
         ) : null}
 
@@ -1104,3 +1145,5 @@ function DraftApp() {
     </>
   );
 }
+
+export default App;

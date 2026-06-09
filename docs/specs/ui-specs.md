@@ -18,10 +18,10 @@ When a draft is successfully created via POST /drafts, the system shall transiti
 When a `draft_complete` SSE event is received, the system shall render a completion banner over the Draft Board without navigating away.
 
 **DFF-UI-005** `[x]` → #81
-The draft completion banner shall display a congratulatory message, the user's team name, and a `View Full History` call to action.
+The draft completion banner shall display a congratulatory message, the user's team name, and a `View Draft Grade` call to action.
 
 **DFF-UI-006** `[x]` → #81
-When the user clicks `View Full History` from the draft completion banner, the system shall transition to the History view.
+When the user clicks `View Draft Grade` from the draft completion banner, the system shall transition to the dedicated draft grade summary view.
 
 **DFF-UI-007** `[x]` → #81
 While the draft completion banner is open, the Draft Board grid shall remain visible behind it and shall not be interactive.

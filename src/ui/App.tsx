@@ -412,6 +412,7 @@ function ViewShell({ eyebrow, title, description, statusBadge, actionLabel, onAc
 
 // @spec DFF-UI-003
 // @spec DFF-UI-005
+// @spec DFF-UI-006
 // @spec DFF-UI-007
 // @spec DFF-UI-145
 function DraftCompletionBanner({ teamName, onViewGrade }: DraftCompletionBannerProps) {
@@ -1077,24 +1078,26 @@ function DraftApp() {
         ) : null}
 
         {!showDraftsListLoading && view === 'grade-summary' ? (
-          <DraftGradeSummaryView
-            draftState={draftState as DraftState}
-            onViewHistory={() => {
-              setShowGradeSummary(false);
-              setShowHistory(true);
-            }}
-            onNewDraft={() => {
-              setShowGradeSummary(false);
-              setShowHistory(false);
-              setShowDraftsList(false);
-              setSelectedSavedConfigId('');
-              setDraftConfig(configDefaults);
-              setDismissedTradeId(null);
-              setTradeComposer(null);
-              setComposerTradeId(null);
-              newDraft();
-            }}
-          />
+          draftState ? (
+            <DraftGradeSummaryView
+              draftState={draftState}
+              onViewHistory={() => {
+                setShowGradeSummary(false);
+                setShowHistory(true);
+              }}
+              onNewDraft={() => {
+                setShowGradeSummary(false);
+                setShowHistory(false);
+                setShowDraftsList(false);
+                setSelectedSavedConfigId('');
+                setDraftConfig(configDefaults);
+                setDismissedTradeId(null);
+                setTradeComposer(null);
+                setComposerTradeId(null);
+                newDraft();
+              }}
+            />
+          ) : null
         ) : null}
       </div>
     </main>

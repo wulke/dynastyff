@@ -8,6 +8,7 @@ import { useState, useMemo } from 'react';
 import type { DraftState, TradeRecord } from '../context/DraftContext.js';
 import { TradeAssetDisplay } from './tradeAssetPresentation.js';
 import { getPositionBadgeClass } from './positionBadge.js';
+import { getPickRound, getPickRoundForPlayer } from '../utils/draftUtils.js';
 
 type HistoryViewProps = {
   draftState: DraftState;
@@ -44,21 +45,12 @@ function getPlayerPosition(draftState: DraftState, playerId: string): string {
   return draftState.playerCatalog[playerId]?.position ?? 'NA';
 }
 
-function getPickRound(draftState: DraftState, pickNumber: number): number {
-  return draftState.draftOrder.find((s) => s.pickNumber === pickNumber)?.round ?? 0;
-}
-
 function getPickInRound(draftState: DraftState, pickNumber: number): number {
   return draftState.draftOrder.find((s) => s.pickNumber === pickNumber)?.pickInRound ?? 0;
 }
 
 function getTeamName(draftState: DraftState, teamId: string): string {
   return draftState.teams.find((t) => t.id === teamId)?.name ?? teamId;
-}
-
-function getPickRoundForPlayer(draftState: DraftState, playerId: string): number {
-  const pick = draftState.picks.find((p) => p.playerId === playerId);
-  return pick ? getPickRound(draftState, pick.pickNumber) : 0;
 }
 
 const thClass = 'border-b border-default px-3 py-2 text-[0.65rem] font-semibold uppercase tracking-widest text-muted';

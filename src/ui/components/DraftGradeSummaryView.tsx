@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 
 import type { DraftState } from '../context/DraftContext.js';
 import { calculateDraftGradeSummaries, type DraftGradeSummaryInput } from '../../draft/grade-summary.js';
+import { getPickRoundForPlayer } from '../utils/draftUtils.js';
 
 type DraftGradeSummaryViewProps = {
   draftState: DraftState;
@@ -77,12 +78,6 @@ function formatDynastyValue(value: number): string {
   return value.toLocaleString('en-US');
 }
 
-function getPickRound(draftState: DraftState, playerId: string): number {
-  const pick = draftState.picks.find((entry) => entry.playerId === playerId);
-  const slot = draftState.draftOrder.find((entry) => entry.pickNumber === pick?.pickNumber);
-  return slot?.round ?? 0;
-}
-
 function buildRosterGroups(draftState: DraftState, teamId: string): Record<Position, RosterPlayerSummary[]> {
   const grouped = {
     QB: [],
@@ -106,7 +101,7 @@ function buildRosterGroups(draftState: DraftState, teamId: string): Record<Posit
     grouped[position].push({
       playerId: rosterPlayer.playerId,
       name: player?.name ?? rosterPlayer.playerId,
-      round: getPickRound(draftState, rosterPlayer.playerId),
+      round: getPickRoundForPlayer(draftState, rosterPlayer.playerId),
       value: player?.dynastyValue ?? 0,
     });
   }
@@ -237,7 +232,7 @@ export function DraftGradeSummaryView({ draftState, onNewDraft, onViewHistory }:
                     <div>
                       <p className="font-condensed text-sm font-semibold text-primary">{team.teamName}</p>
                       <p className="text-[0.65rem] uppercase tracking-widest text-muted">
-                        {team.isUser ? 'Your Team' : 'Draft Grade'}
+                        {team.isUser ? 'Your Team' : 'Team'}
                       </p>
                     </div>
                     <div className="text-right">

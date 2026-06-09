@@ -135,10 +135,12 @@ Static draft runtime modules:
 
 Current static app behavior:
 
-- `src/ui-static/App.tsx` now supports the full `config → drafting → history` flow without an Express server running
+- `src/ui-static/App.tsx` now owns only snapshot loading, the stale-data banner, and full-screen loading/error states before handing off to the shared `DraftApp` shell from `src/ui/App.tsx`
 - When the active draft context carries a snapshot, the shared config screen shows snapshot player count, pick-values count, and export date above the form
+- The static build now renders the same drafting UI as the HTTP app: draft status bar, three-column layout (`Draft Board`, `Available Players`, `Pick Feed`), and column expand/collapse controls
+- When a static draft completes, the Draft Board stays visible behind the shared completion banner; `View Draft Grade` opens the grade summary, and `View Full History` drills into the shared history tabs
+- The static build has no Express server, so its bootstrap `GET /drafts` request falls back silently to the config screen via the static context's no-op `showError`
 - Bot turns in the static build resolve locally with a visible `1.5–3s` delay before each pick
-- Completed static drafts are shown in reverse chronological order for the current browser session only
 - Refreshing the page clears static history by design; no `localStorage` or other browser storage APIs are used
 
 GitHub Actions deployment:

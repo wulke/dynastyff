@@ -20,26 +20,26 @@ The system shall export `DraftApp` as a named export from `src/ui/App.tsx`, sepa
 **DFF-UI-151** `[x]` → #109
 When `DraftContextValue.snapshot` is non-null, the Config screen shall render snapshot stats — player count, pick values count, and export date — as supporting content below the draft configuration form.
 
-**DFF-UI-152** `[ ]` → #110
+**DFF-UI-152** `[x]` → #110
 `src/ui-static/App.tsx` shall handle snapshot loading, the stale-data banner, and full-screen error states, and shall wrap `InMemoryDraftContextProvider` around `DraftApp` (imported from `src/ui/App.tsx`). It shall not define its own draft room component, view-state machine, or history transition logic.
 
-**DFF-UI-153** `[ ]` → #110
+**DFF-UI-153** `[x]` → #110
 `src/ui-static/App.tsx` shall not contain a `DraftRoom`, `StaticDraftApp`, or `StaticHistoryView` component after this refactor.
 
 ---
 
 ## Static Build Behaviour Post-Refactor
 
-**DFF-UI-154** `[ ]` → #110
+**DFF-UI-154** `[x]` → #110
 The static build shall render `DraftStatusBar`, the three-column drafting layout (`DraftBoard`, `AvailablePlayersPanel`, `PickFeedPanel`), and column expand/collapse controls — identical to the HTTP app's drafting view (as specified by DFF-UI-130 through DFF-UI-139).
 
-**DFF-UI-155** `[ ]` → #110
+**DFF-UI-155** `[x]` → #110
 When a static draft reaches `status: completed`, the system shall render the draft completion banner over the Draft Board, consistent with DFF-UI-003. The prior auto-transition to the history view on draft completion is retired.
 
-**DFF-UI-156** `[ ]` → #110
+**DFF-UI-156** `[x]` → #110
 When the user clicks "View Full History" from the completion banner in the static build, the system shall transition to the History view, consistent with DFF-UI-006.
 
-**DFF-UI-157** `[ ]` → #110
+**DFF-UI-157** `[x]` → #110
 When the static build's `GET /drafts` request returns a non-OK response (including a 404 from the absence of an Express server), the system shall silently resolve to the Config screen without displaying an error — `showError` is a no-op stub in the static context.
 
 ---

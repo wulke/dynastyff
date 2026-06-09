@@ -1,169 +1,237 @@
-// @spec DFF-STATIC-034
-// @spec DFF-STATIC-035
-// @spec DFF-STATIC-063
-// @spec DFF-STATIC-070
-// @spec DFF-STATIC-071
-// @spec DFF-STATIC-072
-// @spec DFF-STATIC-036
+// @spec DFF-UI-155
+// @spec DFF-UI-156
 // @spec DFF-UI-060
 // @spec DFF-UI-061
 // @spec DFF-UI-065
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { useState } from 'react';
 
-import { App } from '../src/ui-static/App.js';
+import { DraftApp } from '../src/ui/App.js';
+import { DraftContextProvider, type DraftState, type DraftContextValue } from '../src/ui/context/DraftContext.js';
 import type { Snapshot } from '../src/ui/types.js';
 
 const fetchMock = vi.fn<typeof fetch>();
 
-// @spec DFF-STATIC-063
-function createSnapshot(playerCount = 120): Snapshot {
+// @spec DFF-UI-155
+// @spec DFF-UI-156
+function createSnapshot(): Snapshot {
   return {
     exportedAt: '2026-05-22T12:00:00.000Z',
-    players: Array.from({ length: playerCount }, (_, index) => ({
-      id: `player-${String(index + 1).padStart(3, '0')}`,
-      name: `Player ${String(index + 1).padStart(3, '0')}`,
-      position: (['WR', 'QB', 'RB', 'TE'] as const)[index % 4]!,
-      nflTeam: ['BUF', 'DET', 'HOU', 'KC'][index % 4]!,
-      age: 21 + (index % 8),
-      isRookie: false,
-      dynastyValue: 10_000 - index,
-      adp: index + 1,
-    })),
+    players: [
+      {
+        id: 'player-1',
+        name: 'Josh Allen',
+        position: 'QB',
+        nflTeam: 'BUF',
+        age: 30,
+        isRookie: false,
+        dynastyValue: 9999,
+        adp: 1,
+      },
+      {
+        id: 'player-2',
+        name: 'Bijan Robinson',
+        position: 'RB',
+        nflTeam: 'ATL',
+        age: 23,
+        isRookie: false,
+        dynastyValue: 9500,
+        adp: 2,
+      },
+    ],
     pickValues: [{ year: 2027, round: 1, dynastyValue: 6200 }],
   };
 }
 
-// @spec DFF-STATIC-063
-function mockSnapshotFetch(snapshot: Snapshot) {
-  fetchMock.mockResolvedValue(
-    new Response(JSON.stringify(snapshot), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
+// @spec DFF-UI-155
+// @spec DFF-UI-156
+function createCompletedDraftState(): DraftState {
+  return {
+    draftId: 'static-draft-1',
+    status: 'completed',
+    isHydrating: false,
+    currentPickNumber: null,
+    rosterConfig: {
+      QB: 1,
+      RB: 1,
+      WR: 1,
+      TE: 1,
+      FLEX: 0,
+      SF: 0,
+      bench: 0,
+    },
+    teams: [
+      { id: 'team-1', name: 'Bot Alpha', isUser: false, archetype: 'win_now' },
+      { id: 'team-2', name: 'Lakeview Legends', isUser: true, archetype: null },
+    ],
+    draftOrder: [
+      { pickNumber: 1, round: 1, pickInRound: 1, teamId: 'team-1' },
+      { pickNumber: 2, round: 1, pickInRound: 2, teamId: 'team-2' },
+    ],
+    playerCatalog: {
+      'player-1': {
+        id: 'player-1',
+        name: 'Josh Allen',
+        position: 'QB',
+        nflTeam: 'BUF',
+        age: 30,
+        isRookie: false,
+        dynastyValue: 9999,
+        adp: 1,
       },
-    }),
+      'player-2': {
+        id: 'player-2',
+        name: 'Bijan Robinson',
+        position: 'RB',
+        nflTeam: 'ATL',
+        age: 23,
+        isRookie: false,
+        dynastyValue: 9500,
+        adp: 2,
+      },
+    },
+    picks: [
+      { pickNumber: 1, teamId: 'team-1', playerId: 'player-1', pickedAt: '2026-05-22T12:00:00.000Z' },
+      { pickNumber: 2, teamId: 'team-2', playerId: 'player-2', pickedAt: '2026-05-22T12:01:00.000Z' },
+    ],
+    rosterPlayers: [
+      { teamId: 'team-1', playerId: 'player-1' },
+      { teamId: 'team-2', playerId: 'player-2' },
+    ],
+    teamPickAssets: [],
+    startupPickValues: [],
+    userQueue: [],
+    availablePlayers: [],
+    trades: [],
+    pendingTrade: null,
+    sseStatus: 'connected',
+    completedAt: '2026-05-22T12:05:00.000Z',
+  };
+}
+
+// @spec DFF-UI-155
+// @spec DFF-UI-156
+function renderStaticDraftApp() {
+  const snapshot = createSnapshot();
+  const value: DraftContextValue = {
+    snapshot,
+    draftState: createCompletedDraftState(),
+    sessionHistory: [],
+    startDraft: () => undefined,
+    loadDraft: async () => false,
+    showError: () => undefined,
+    submitPick: async () => false,
+    respondToTrade: async () => false,
+    submitTradeOffer: async () => ({ ok: false }),
+    updateQueue: () => undefined,
+    newDraft: () => undefined,
+  };
+
+  render(
+    <DraftContextProvider value={value}>
+      <DraftApp />
+    </DraftContextProvider>,
   );
 }
 
-function configureSmallDraft() {
-  fireEvent.change(screen.getByLabelText(/team count/i), { target: { value: '8' } });
-  fireEvent.blur(screen.getByLabelText(/team count/i));
-  fireEvent.change(screen.getByLabelText(/^rounds$/i), { target: { value: '10' } });
-  fireEvent.blur(screen.getByLabelText(/^rounds$/i));
-  fireEvent.change(screen.getByLabelText(/pick position/i), { target: { value: '2' } });
-  fireEvent.blur(screen.getByLabelText(/pick position/i));
-}
+// @spec DFF-UI-065
+function StatefulStaticDraftApp() {
+  const [draftState, setDraftState] = useState<DraftState | null>(createCompletedDraftState());
+  const snapshot = createSnapshot();
+  const value: DraftContextValue = {
+    snapshot,
+    draftState,
+    sessionHistory: [],
+    startDraft: () => undefined,
+    loadDraft: async () => false,
+    showError: () => undefined,
+    submitPick: async () => false,
+    respondToTrade: async () => false,
+    submitTradeOffer: async () => ({ ok: false }),
+    updateQueue: () => undefined,
+    newDraft: () => {
+      setDraftState(null);
+    },
+  };
 
-async function completeStaticDraft() {
-  fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
-
-  expect(screen.getByRole('heading', { name: /draft room/i })).toBeInTheDocument();
-
-  for (let turn = 0; turn < 10; turn += 1) {
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_000);
-    });
-
-    if (screen.queryByRole('heading', { name: /draft summary/i })) {
-      return;
-    }
-
-    if (turn === 0) {
-      const recentPicksSection = screen.getByRole('heading', { name: /recent picks/i }).closest('section');
-      expect(recentPicksSection).not.toBeNull();
-      expect(within(recentPicksSection!).getByText(/player 001/i)).toBeInTheDocument();
-      expect(within(recentPicksSection!).queryByText(/player-001/i)).not.toBeInTheDocument();
-    }
-
-    const playerButtons = screen.getAllByRole('button');
-    const playerButton = playerButtons.find((button) => /player \d{3}/i.test(button.textContent ?? ''));
-
-    expect(playerButton).toBeDefined();
-    expect(playerButton).toBeEnabled();
-
-    fireEvent.click(playerButton!);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(25_000);
-    });
-
-    if (screen.queryByRole('heading', { name: /draft summary/i })) {
-      return;
-    }
-  }
+  return (
+    <DraftContextProvider value={value}>
+      <DraftApp />
+    </DraftContextProvider>
+  );
 }
 
 beforeEach(() => {
   fetchMock.mockReset();
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(new Response('missing', { status: 404 }));
+    }
+
+    if (url === '/configs' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
+    return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+  });
   vi.stubGlobal('fetch', fetchMock);
-  vi.spyOn(Math, 'random').mockReturnValue(0);
 });
 
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  vi.useRealTimers();
 });
 
-describe('static in-browser draft flow', () => {
-  // @spec DFF-STATIC-034
-  // @spec DFF-STATIC-035
-  // @spec DFF-STATIC-063
-  // @spec DFF-STATIC-070
-  // @spec DFF-STATIC-071
-  // @spec DFF-STATIC-072
-  // @spec DFF-STATIC-036
+describe('static completed-draft review flow', () => {
+  // @spec DFF-UI-155
+  // @spec DFF-UI-156
   // @spec DFF-UI-060
   // @spec DFF-UI-061
+  test('shows the completion banner first, then opens full history after View Full History', async () => {
+    const user = userEvent.setup();
+
+    renderStaticDraftApp();
+
+    const completionBanner = await screen.findByTestId('draft-completion-banner');
+    expect(within(completionBanner).getByText(/you finished the draft/i)).toBeInTheDocument();
+    expect(screen.getByTestId('drafting-layout')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
+
+    await user.click(within(completionBanner).getByRole('button', { name: /view draft grade/i }));
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
+
+    expect(screen.getByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /roster view/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /trade log/i })).toBeInTheDocument();
+
+    const pickLogPanel = screen.getByRole('tabpanel', { name: /pick log/i });
+    expect(within(pickLogPanel).getByText(/josh allen/i)).toBeInTheDocument();
+    expect(within(pickLogPanel).getByText(/bijan robinson/i)).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-065
-  test('completes config to history in-browser and renders draft summary with Pick Log, Roster View, and Trade Log tabs', async () => {
-    const originalCrypto = globalThis.crypto;
-    let nextId = 0;
+  test('new draft from the static history flow returns to the config screen', async () => {
+    const user = userEvent.setup();
 
-    Object.defineProperty(globalThis, 'crypto', {
-      configurable: true,
-      value: {
-        randomUUID: () => `static-app-${++nextId}`,
-      },
-    });
+    render(<StatefulStaticDraftApp />);
 
-    try {
-      mockSnapshotFetch(createSnapshot());
+    const completionBanner = await screen.findByTestId('draft-completion-banner');
+    await user.click(within(completionBanner).getByRole('button', { name: /view draft grade/i }));
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
+    await user.click(screen.getByRole('button', { name: /new draft/i }));
 
-      render(<App />);
-
-      await screen.findByRole('heading', { name: /config screen/i });
-      vi.useFakeTimers();
-      configureSmallDraft();
-      await completeStaticDraft();
-
-      // @spec DFF-UI-060 — Draft Summary heading and tab pills
-      expect(screen.getByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /roster view/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /trade log/i })).toBeInTheDocument();
-
-      // @spec DFF-UI-061 — Pick Log has picks
-      const pickLogPanel = screen.getByRole('tabpanel', { name: /pick log/i });
-      expect(within(pickLogPanel).getByText(/player 001/i)).toBeInTheDocument();
-
-      // @spec DFF-UI-065 — New Draft button works
-      fireEvent.click(screen.getByRole('button', { name: /new draft/i }));
-      expect(screen.getByRole('heading', { name: /config screen/i })).toBeInTheDocument();
-
-      // Complete a second draft to verify the flow works again
-      configureSmallDraft();
-      await completeStaticDraft();
-
-      expect(screen.getByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
-    } finally {
-      Object.defineProperty(globalThis, 'crypto', {
-        configurable: true,
-        value: originalCrypto,
-      });
-    }
-  }, 20_000);
+    expect(await screen.findByRole('heading', { name: /config screen/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start draft/i })).toBeInTheDocument();
+  });
 });

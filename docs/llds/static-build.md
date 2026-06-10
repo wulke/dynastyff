@@ -31,15 +31,15 @@ The static build actively guards this boundary at build time. The Vite config re
 Browser runtime (no server):
 ┌───────────────────────────────────────────────────┐
 │  src/ui-static/App.tsx                            │
-│                                                   │
-│  fetch('/dynastyff/data/snapshot.json')           │
+│    snapshot fetch + stale warning + full-screen   │
+│    loading/error surfaces                         │
 │         ↓                                         │
-│  InMemoryDraftContext                             │
+│  InMemoryDraftContextProvider                     │
 │    src/draft/engine.ts  ←→  src/draft/bot.ts     │
 │         ↓                                         │
 │  Shared DraftApp shell (src/ui/App.tsx)           │
 │    Config │ Drafting │ Grade Summary │ History    │
-│    (status bar + 3-column draft room)             │
+│    status bar │ completion banner │ history flow  │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -172,7 +172,7 @@ Source-specific value columns (`value_ktc`, `value_fantasycalc`, etc.) are omitt
 
 ### Loading in the static app
 
-`src/ui-static/App.tsx` issues a single `fetch` call to `./data/snapshot.json` (relative to the page base) at app mount, before any draft config is displayed. The static Vite build copies the repository snapshot file into `dist/static/data/snapshot.json`, so the browser fetch resolves without a server. The snapshot is held in React state and passed to the `InMemoryDraftContext` when a draft is created. If the fetch fails, a full-screen error is shown and the app is unusable — there is no draft without data.
+`src/ui-static/App.tsx` issues a single `fetch` call to `./data/snapshot.json` (relative to the page base) at app mount, before any draft config is displayed. The static Vite build copies the repository snapshot file into `dist/static/data/snapshot.json`, so the browser fetch resolves without a server. `src/ui-static/App.tsx` stops at loading the snapshot into React state, showing the stale-data warning, and rendering the full-screen loading/error surfaces. Once the snapshot is ready, it passes the snapshot into `InMemoryDraftContextProvider` and renders the shared `DraftApp` shell from `src/ui/App.tsx`. If the fetch fails, a full-screen error is shown and the app is unusable — there is no draft without data.
 
 ## GitHub Actions Workflows
 
@@ -230,7 +230,7 @@ The static app wires an `InMemoryDraftContext` implementation (manages in-memory
 
 Components reference `useDraftContext()` and are unaware of which implementation is active.
 
-`src/ui-static/App.tsx` is intentionally thin. It owns only snapshot loading, stale-snapshot warning state, and the full-screen loading/error surfaces. Once the snapshot is ready, it wraps `InMemoryDraftContextProvider` around the shared `DraftApp` export from `src/ui/App.tsx`.
+`src/ui-static/App.tsx` is intentionally thin. It owns only snapshot loading, stale-snapshot warning state, and the full-screen loading/error surfaces. It does not own the view-state machine, draft-room layout, completion banner, or history transition logic. Once the snapshot is ready, it wraps `InMemoryDraftContextProvider` around the shared `DraftApp` export from `src/ui/App.tsx`.
 
 All view-state decisions (`config`, `drafting`, `grade-summary`, `history`), the drafting status bar, the three-column drafting layout, the completion banner, and the `View Full History` transition are owned by `DraftApp`. This makes the static build and HTTP build render the same draft-room UX from a single source of truth.
 

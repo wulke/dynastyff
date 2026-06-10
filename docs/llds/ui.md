@@ -62,8 +62,8 @@ Issue `#13` establishes the initial frontend shell under `/src/ui`, issue `#15` 
 
 - `index.html` mounts the React app through Vite
 - `main.tsx` hydrates a single `<App />` entry point
-- `App.tsx` renders the top-level view shell while `HttpDraftContext` owns draft network effects and live draft state
-- `DraftApp` is exported from `App.tsx` as the shared app shell so alternate providers can reuse the same config, drafting, grade-summary, and history views
+- `App.tsx` exports two entry points: `DraftApp`, the shared app shell, and `App`, the HTTP entry point that wraps `DraftApp` with `HttpDraftContextProvider`
+- `DraftApp` owns the top-level view shell so both the HTTP build and the static build can reuse the same config, drafting, grade-summary, and history views
 - Tailwind CSS provides the shell styling and layout primitives
 - A Radix UI primitive is wired into the shared shell so the initial scaffold proves the dependency path works before later feature slices add dialogs, tabs, and other interactive primitives
 
@@ -79,26 +79,29 @@ At this stage, the config view is functional, the drafting view now renders the 
 ## Component Hierarchy
 
 ```
-<App>                          ← holds view shell
-  <HttpDraftContextProvider>   ← owns POST/queue/pick calls, SSE, toast state
-  <DraftsListPage />           ← view: drafts-list
-  <ConfigScreen />             ← view: config
-  <DraftView>                  ← view: drafting
-    <DraftBoard />             ← grid: rounds × teams
-    <DraftCompletionBanner />  ← modal-style overlay on completed drafts
-    <PickFeedPanel />         ← real-time pick feed
-    <AvailablePlayersPanel />  ← available players + targets queue
-    <AdvisorPanel />           ← slide-out, advise-me + grill-me
-    <TradeModal />             ← blocking modal on trade_offered SSE
-  </DraftView>
-  <DraftGradeSummaryView>      ← view: grade-summary
-  <HistoryView>                ← view: history
-    <PickLog />                ← toggle tab
-    <RosterView />             ← toggle tab
-    <TradeLog />               ← toggle tab
-  </HistoryView>
-  <Toast />                    ← global error surface
+<App>                              ← HTTP entry point
+  <HttpDraftContextProvider>       ← owns POST/queue/pick calls, SSE, toast state
+    <DraftApp />                   ← shared shell used by HTTP + static builds
+      <DraftsListPage />           ← view: drafts-list
+      <ConfigScreen />             ← view: config
+      <DraftView>                  ← view: drafting
+        <DraftBoard />             ← grid: rounds × teams
+        <DraftCompletionBanner />  ← modal-style overlay on completed drafts
+        <PickFeedPanel />          ← real-time pick feed
+        <AvailablePlayersPanel />  ← available players + targets queue
+        <AdvisorPanel />           ← slide-out, advise-me + grill-me
+        <TradeModal />             ← blocking modal on trade_offered SSE
+      </DraftView>
+      <DraftGradeSummaryView>      ← view: grade-summary
+      <HistoryView>                ← view: history
+        <PickLog />                ← toggle tab
+        <RosterView />             ← toggle tab
+        <TradeLog />               ← toggle tab
+      </HistoryView>
+      <Toast />                    ← global error surface
 ```
+
+The static build does not render `App`. `src/ui-static/App.tsx` loads the snapshot, wraps `DraftApp` with `InMemoryDraftContextProvider`, and reuses the same view-state machine and draft-room shell without the HTTP transport layer.
 
 ## State Model
 

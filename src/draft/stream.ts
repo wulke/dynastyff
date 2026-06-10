@@ -92,6 +92,7 @@ export type DraftStreamEvent =
         status: string;
         assets_sent: unknown[];
         assets_received: unknown[];
+        created_at: string;
       };
     }
   | {
@@ -196,6 +197,7 @@ export function emitTradeResolvedEvent(event: {
   status: string;
   assetsSent: unknown[];
   assetsReceived: unknown[];
+  createdAt: string;
 }): void {
   publishDraftEvent(event.draftId, {
     event: 'trade_resolved',
@@ -204,6 +206,7 @@ export function emitTradeResolvedEvent(event: {
       status: event.status,
       assets_sent: event.assetsSent,
       assets_received: event.assetsReceived,
+      created_at: event.createdAt,
     },
   });
 }

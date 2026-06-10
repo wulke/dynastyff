@@ -58,7 +58,7 @@ type PendingTradeState = {
   receivingTeamId: string;
   assetsSent: unknown[];
   assetsReceived: unknown[];
-  resolve: (status: TradeStatus) => void;
+  resolve: (result: { status: TradeStatus; createdAt: string }) => void;
   reject: (error: unknown) => void;
 };
 
@@ -225,7 +225,7 @@ export function createBotChainCoordinator({
       }
 
       try {
-        resolveTrade({
+        const { createdAt } = resolveTrade({
           databasePath,
           tradeId: pendingTrade.tradeId,
           draftId,
@@ -239,7 +239,7 @@ export function createBotChainCoordinator({
           now,
         });
 
-        pendingTrade.resolve(status);
+        pendingTrade.resolve({ status, createdAt });
         return true;
       } catch (error) {
         pendingTrade.reject(error);
@@ -324,7 +324,7 @@ export function createBotChainCoordinator({
             ? 'accepted'
             : 'declined';
 
-          resolveTrade({
+          const { createdAt } = resolveTrade({
             databasePath,
             tradeId,
             draftId,
@@ -344,6 +344,7 @@ export function createBotChainCoordinator({
             status,
             assetsSent: parsedOfferedAssets,
             assetsReceived: parsedRequestedAssets,
+            createdAt,
           });
         } catch (error) {
           console.error(`[draft] user trade offer failed for ${draftId}`, error);
@@ -373,7 +374,7 @@ async function awaitTradeResolution(
   action: BotTradeAction,
   pendingTrades: Map<string, PendingTradeState>,
 ): Promise<void> {
-  const status = await new Promise<TradeStatus>((resolve, reject) => {
+  const result = await new Promise<{ status: TradeStatus; createdAt: string }>((resolve, reject) => {
     pendingTrades.set(draftId, {
       tradeId: action.tradeId,
       pickNumber: slot.pickNumber,
@@ -400,9 +401,10 @@ async function awaitTradeResolution(
   emitTradeResolvedEvent({
     draftId,
     tradeId: action.tradeId,
-    status,
+    status: result.status,
     assetsSent: action.assetsSent,
     assetsReceived: action.assetsReceived,
+    createdAt: result.createdAt,
   });
 }
 

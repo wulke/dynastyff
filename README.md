@@ -89,8 +89,10 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
 - Successful draft creation transitions the UI into the drafting view immediately, then hydrates `GET /drafts/:id/state` in parallel with SSE so the three-column draft room can load in place
 - The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
-- `pick_made` SSE events update the already-rendered board in place without a re-fetch
+- Accepted startup-pick trades now keep each slot anchored to its original snake-order cell while an ownership badge shows the current team that controls the pick
+- `pick_made` and accepted `trade_resolved` SSE events update the already-rendered board in place without a re-fetch, including post-trade ownership changes
 - The drafting room now renders three columns at wide viewports: `Draft Board`, `Available Players`, and `Pick Feed`, with weighted widths and a persistent status bar that shows current pick progress plus whose turn it is
+- The right-hand draft log now mixes live picks with timestamped trade summaries, and the same persisted trade chronology hydrates on resume/review from `GET /drafts/:id/state`
 - Each drafting column header now includes an expand control; expanding one panel turns the other two into narrow icon strips with rotated labels, and the layout resets to the default weighted widths on page load instead of persisting accordion state
 - The `Available Players` column now uses `Available` / `Targets` tabs: the default `Available` view keeps the dynasty-sorted list, client-side position filters, live name search, draft-start skeleton rows, bot-turn disabled rows, and pick-submission error toasts
 - Clicking an enabled Available or Targets row now selects and highlights that player first, renders a shared confirmation card with position, NFL team, age, dynasty value, and ADP, and only submits the pick from a dedicated `Draft [Player Name]` action; failed submissions keep the selection active so the user can retry or cancel

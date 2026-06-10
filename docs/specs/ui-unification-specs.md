@@ -46,13 +46,13 @@ When the static build's `GET /drafts` request returns a non-OK response (includi
 
 ## App UX Baseline Lock
 
-**DFF-UI-158** `[ ]` → #111
+**DFF-UI-158** `[x]` → #111
 The test file `tests/ui-app-scaffold.test.tsx` is the authoritative UX baseline for the HTTP app build. This refactor shall not alter any assertion, helper, or test case in that file. CI shall verify the full suite passes without modification.
 
-**DFF-UI-159** `[ ]` → #111
+**DFF-UI-159** `[x]` → #111
 After the refactor, `tests/ui-static-app.test.tsx` shall include a seam test covering the static-to-drafting wiring: resolve the snapshot fetch, trigger a draft start, and assert that `data-testid="draft-status-bar"`, `data-testid="drafting-layout"`, and all three column headings ("Draft Board", "Available Players", "Pick Feed") are present in the rendered output.
 
-**DFF-UI-160** `[ ]` → #111
+**DFF-UI-160** `[x]` → #111
 The test file `tests/ui-static-history-app.test.tsx` shall be deleted. Its covered behaviors (DFF-STATIC-034, DFF-STATIC-035, DFF-STATIC-036, DFF-STATIC-063) are retired by this Epic; the underlying draft-to-history flow in the static build is now identical to the app's and is covered by `tests/ui-app-scaffold.test.tsx`.
 
 ---

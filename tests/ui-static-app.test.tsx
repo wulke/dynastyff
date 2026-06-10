@@ -280,12 +280,35 @@ describe('static snapshot app', () => {
 
   // @spec DFF-UI-154
   // @spec DFF-UI-157
-  test('renders the shared three-column drafting shell after starting a static draft even when GET /drafts returns 404', async () => {
-    mockStaticFetches(createSnapshot());
+  // @spec DFF-UI-159
+  test('resolves the snapshot fetch and renders the shared three-column drafting shell after starting a static draft', async () => {
+    const deferred = createDeferred<Response>();
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === './data/snapshot.json' && method === 'GET') {
+        return deferred.promise;
+      }
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(new Response('missing', { status: 404 }));
+      }
+
+      return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+    });
 
     render(<App />);
 
     const user = userEvent.setup();
+    deferred.resolve(
+      new Response(JSON.stringify(createSnapshot()), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
     await screen.findByRole('heading', { name: /config screen/i });
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 

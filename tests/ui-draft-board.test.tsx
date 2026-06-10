@@ -477,6 +477,57 @@ describe('draft board UI', () => {
     expect(within(tradedSlot).getByText('Owned by You')).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-163
+  test('updates traded startup slot ownership when the trade asset is identified by draft_order_id', async () => {
+    const user = userEvent.setup();
+    mockDraftStartFetches({
+      draft_order: [
+        { id: 'slot-1', pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+        { id: 'slot-2', pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        { id: 'slot-3', pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+        { id: 'slot-4', pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+        { id: 'slot-5', pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
+        { id: 'slot-6', pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
+      ],
+    });
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync({
+      draft_order: [
+        { id: 'slot-1', pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-1' },
+        { id: 'slot-2', pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-2' },
+        { id: 'slot-3', pick_number: 3, round: 1, pick_in_round: 3, team_id: 'team-3' },
+        { id: 'slot-4', pick_number: 4, round: 2, pick_in_round: 1, team_id: 'team-3' },
+        { id: 'slot-5', pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
+        { id: 'slot-6', pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
+      ],
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('trade_offered', {
+        trade_id: 'trade-slot-by-id',
+        initiating_team_id: 'team-1',
+        receiving_team_id: 'team-2',
+        assets_sent: [{ type: 'pick_slot', draft_order_id: 'slot-1', pick_number: 1 }],
+        assets_received: [{ type: 'pick_slot', draft_order_id: 'slot-2', pick_number: 2 }],
+        is_bot_to_bot: false,
+      });
+      MockEventSource.instances[0]?.emit('trade_resolved', {
+        trade_id: 'trade-slot-by-id',
+        status: 'accepted',
+        created_at: '2026-05-22T18:06:00.000Z',
+        assets_sent: [{ type: 'pick_slot', draft_order_id: 'slot-1', pick_number: 1 }],
+        assets_received: [{ type: 'pick_slot', draft_order_id: 'slot-2', pick_number: 2 }],
+      });
+    });
+
+    const tradedSlot = within(screen.getByTestId('draft-board-row-team-1')).getByTestId('draft-slot-1');
+    expect(tradedSlot).toHaveAttribute('data-team-id', 'team-2');
+    expect(within(tradedSlot).getByText('Owned by You')).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-024
   // @spec DFF-UI-024b
   test('does not render a skeleton when the current pick belongs to the user team', async () => {

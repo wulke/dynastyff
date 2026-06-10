@@ -93,7 +93,7 @@ function DraftBoardCell({ draftState, pickNumber }: { draftState: DraftState; pi
     ? draftState.draftOrder.find((entry) => entry.pickNumber === draftState.currentPickNumber) ?? null
     : null;
   const showBotSkeleton = !pick && currentSlot?.pickNumber === pickNumber && !ownerTeam?.isUser;
-  const showOwnershipBadge = canonicalTeam?.id !== null && canonicalTeam?.id !== slot.teamId;
+  const showOwnershipBadge = canonicalTeam !== null && canonicalTeam.id !== slot.teamId;
 
   return (
     <td

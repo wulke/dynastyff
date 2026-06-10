@@ -34,6 +34,7 @@ type Team = {
 };
 
 type DraftOrderSlot = {
+  draftOrderId?: string;
   pickNumber: number;
   round: number;
   pickInRound: number;
@@ -175,6 +176,7 @@ type StateSyncPayload = {
     archetype: string | null;
   }>;
   draft_order: Array<{
+    id?: string;
     pick_number: number;
     round: number;
     pick_in_round: number;
@@ -440,7 +442,12 @@ function transferDraftOrderOwnership(
 
       const draftOrderId = getTradeAssetDraftOrderId(asset);
       const pickNumber = getTradeAssetPickNumber(asset);
-      return draftOrderId !== null ? false : slot.pickNumber === pickNumber;
+
+      if (draftOrderId !== null && slot.draftOrderId === draftOrderId) {
+        return true;
+      }
+
+      return pickNumber !== null && slot.pickNumber === pickNumber;
     });
 
     return shouldTransfer ? { ...slot, teamId: toTeamId } : slot;
@@ -568,6 +575,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
       archetype: team.archetype,
     })),
     draftOrder: payload.draft_order.map((slot) => ({
+      draftOrderId: slot.id,
       pickNumber: slot.pick_number,
       round: slot.round,
       pickInRound: slot.pick_in_round,

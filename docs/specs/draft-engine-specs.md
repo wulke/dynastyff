@@ -45,7 +45,7 @@ When a trade is initiated, the system shall emit a `trade_offered` event contain
 **DFF-ENGINE-014** `[x]` → #26
 When a trade is resolved, the system shall emit a `trade_resolved` event containing: trade_id, status, assets_sent, and assets_received.
 
-**DFF-ENGINE-014b** `[ ]` → #120
+**DFF-ENGINE-014b** `[x]` → #120
 When a trade is resolved, the system shall emit `trade_resolved.created_at` using the persisted trade timestamp so clients can render the draft log in chronological order without a re-fetch.
 
 **DFF-ENGINE-015** `[x]` → #26
@@ -149,7 +149,7 @@ The system shall only allow swapping pick slots that have not yet been used (i.e
 **DFF-ENGINE-060** `[x]` → #29
 When a GET /drafts/:id/state request is received, the system shall return the same payload shape as the `state_sync` SSE event (see DFF-ENGINE-010), plus trades (id, round, initiating_team_id, receiving_team_id, assets_sent, assets_received, status)[].
 
-**DFF-ENGINE-060b** `[ ]` → #120
+**DFF-ENGINE-060b** `[x]` → #120
 When a GET /drafts/:id/state request returns trades, each trade record shall include `created_at` so the client can hydrate the draft log with persisted trade chronology.
 
 **DFF-ENGINE-061** `[x]` → #29

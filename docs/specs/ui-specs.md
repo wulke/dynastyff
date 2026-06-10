@@ -456,11 +456,11 @@ The draft grade summary view shall display the user's final roster alongside the
 
 ## Traded Startup Pick Visibility
 
-**DFF-UI-163** `[ ]` → #120
+**DFF-UI-163** `[x]` → #120
 When an accepted trade transfers an unresolved startup pick slot, the Draft Board shall keep that slot rendered in its original snake-order grid position and shall display the current owner on the cell.
 
-**DFF-UI-164** `[ ]` → #120
+**DFF-UI-164** `[x]` → #120
 When a `pick_made` SSE event is received for a traded startup pick slot, the corresponding Draft Board cell shall remain in the original draft slot while attributing the selected player to the slot's current owner.
 
-**DFF-UI-165** `[ ]` → #120
+**DFF-UI-165** `[x]` → #120
 The right-column draft log shall render trade resolutions from either hydrated `draftState.trades` or live `trade_resolved` SSE events inline with picks, newest first, with a timestamped summary describing the teams and assets exchanged.

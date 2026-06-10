@@ -12,6 +12,7 @@
 // @spec DFF-ENGINE-042
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
+import { randomUUID } from 'node:crypto';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import { createDrizzleDb } from '../db/client.js';
@@ -88,10 +89,12 @@ type CreateBotChainCoordinatorOptions = {
   random?: () => number;
   sleep?: (delayMs: number) => Promise<void>;
   decideBotAction?: (context: DecideBotActionContext) => Promise<BotAction> | BotAction;
+  idGenerator?: () => string;
 };
 
 const defaultNow = () => new Date().toISOString();
 const defaultRandom = () => Math.random();
+const defaultIdGenerator = () => randomUUID();
 const botAcceptanceThresholds = {
   win_now: 0.85,
   punt: 1.15,
@@ -153,10 +156,10 @@ export function createBotChainCoordinator({
   random = defaultRandom,
   sleep = defaultSleep,
   decideBotAction = defaultDecideBotAction,
+  idGenerator = defaultIdGenerator,
 }: CreateBotChainCoordinatorOptions): BotChainCoordinator {
   const activeChains = new Map<string, Promise<void>>();
   const pendingTrades = new Map<string, PendingTradeState>();
-  let userTradeOfferSequence = 0;
 
   async function runBotChain(draftId: string): Promise<void> {
     try {
@@ -284,8 +287,7 @@ export function createBotChainCoordinator({
         throw new TradeOfferCoordinatorError('Invalid trade offer.', 400);
       }
 
-      userTradeOfferSequence += 1;
-      const tradeId = `trade-user-offer-${userTradeOfferSequence}`;
+      const tradeId = idGenerator();
       const currentRound =
         draftState.current_pick_number === null
           ? 0

@@ -199,3 +199,79 @@ test('createBotChainCoordinator clears the pending trade when accepted trade per
     await botChain.waitForIdle(draftId);
   });
 });
+
+// @spec DFF-ENGINE-034
+test('createBotChainCoordinator can persist a user trade offer when an older sequence-style trade id already exists', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-1', 'Player One', 6000);
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 2,
+        futurePickRounds: 2,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const teams = db
+      .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number }>;
+    const botTeamId = teams.find((team) => team.is_user === 0)!.id;
+
+    db.prepare(
+      `INSERT INTO trades (
+        id, draft_id, pick_number, round, initiating_team_id, receiving_team_id, assets_sent, assets_received, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'trade-user-offer-1',
+      draftId,
+      1,
+      1,
+      teams[0]!.id,
+      botTeamId,
+      JSON.stringify([{ type: 'future_pick', year: 2027, round: 1 }]),
+      JSON.stringify([{ type: 'future_pick', year: 2027, round: 2 }]),
+      'declined',
+      '2026-05-18T20:01:00.000Z',
+    );
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      now: () => '2026-05-18T20:05:00.000Z',
+      sleep: async () => undefined,
+      idGenerator: () => 'trade-user-offer-2',
+    });
+
+    const tradeId = botChain.submitUserTradeOffer({
+      draftId,
+      targetTeamId: botTeamId,
+      offeredAssets: [{ type: 'future_pick', year: 2027, round: 1 }],
+      requestedAssets: [{ type: 'future_pick', year: 2027, round: 2 }],
+    });
+
+    assert.equal(tradeId, 'trade-user-offer-2');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const persistedTrades = db
+      .prepare('SELECT id FROM trades WHERE draft_id = ? ORDER BY created_at, id')
+      .all(draftId) as Array<{ id: string }>;
+
+    assert.deepEqual(persistedTrades, [{ id: 'trade-user-offer-1' }, { id: 'trade-user-offer-2' }]);
+  });
+});

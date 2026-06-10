@@ -418,6 +418,65 @@ describe('draft board UI', () => {
     expect(within(pickedCell).getByText('Bob')).toBeInTheDocument();
   });
 
+  // @spec DFF-UI-163
+  // @spec DFF-UI-164
+  test('keeps a traded startup slot in its original board position while updating ownership and pick attribution', async () => {
+    const user = userEvent.setup();
+    mockDraftStartFetches({
+      startup_pick_values: [
+        { global_pick_number: 1, dynasty_value: 9999 },
+        { global_pick_number: 2, dynasty_value: 9800 },
+      ],
+    });
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSync({
+      startup_pick_values: [
+        { global_pick_number: 1, dynasty_value: 9999 },
+        { global_pick_number: 2, dynasty_value: 9800 },
+      ],
+    });
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('trade_offered', {
+        trade_id: 'trade-slot-1',
+        initiating_team_id: 'team-1',
+        receiving_team_id: 'team-2',
+        assets_sent: [{ type: 'pick_slot', pick_number: 1, round: 1, pick_in_round: 1 }],
+        assets_received: [{ type: 'pick_slot', pick_number: 2, round: 1, pick_in_round: 2 }],
+        is_bot_to_bot: false,
+      });
+      MockEventSource.instances[0]?.emit('trade_resolved', {
+        trade_id: 'trade-slot-1',
+        status: 'accepted',
+        created_at: '2026-05-22T18:05:00.000Z',
+        assets_sent: [{ type: 'pick_slot', pick_number: 1, round: 1, pick_in_round: 1 }],
+        assets_received: [{ type: 'pick_slot', pick_number: 2, round: 1, pick_in_round: 2 }],
+      });
+    });
+
+    const originalRow = screen.getByTestId('draft-board-row-team-1');
+    const tradedSlot = within(originalRow).getByTestId('draft-slot-1');
+
+    expect(tradedSlot).toHaveAttribute('data-team-id', 'team-2');
+    expect(within(tradedSlot).getByText('Owned by You')).toBeInTheDocument();
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('pick_made', {
+        pick_number: 1,
+        team_id: 'team-2',
+        player_id: 'player-1',
+        is_bot: false,
+      });
+    });
+
+    expect(within(tradedSlot).getByText('Josh Allen')).toBeInTheDocument();
+    expect(within(tradedSlot).getByText('You')).toBeInTheDocument();
+    expect(within(tradedSlot).getByText('Owned by You')).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-024
   // @spec DFF-UI-024b
   test('does not render a skeleton when the current pick belongs to the user team', async () => {
@@ -757,9 +816,8 @@ describe('draft board UI', () => {
     expect(screen.getByRole('rowheader', { name: /bob/i })).toBeInTheDocument();
   });
 
-  // @spec DFF-UI-020
-  // @spec DFF-UI-021
-  test('renders an empty cell when a team has no slot in a round', async () => {
+  // @spec DFF-UI-163
+  test('keeps a canonical round cell visible when ownership moves away from the original team', async () => {
     const user = userEvent.setup();
     mockDraftStartFetches();
 
@@ -778,9 +836,7 @@ describe('draft board UI', () => {
 
     const userRow = screen.getByTestId('draft-board-row-team-2');
     expect(within(userRow).getByTestId('draft-slot-2')).toBeInTheDocument();
-
-    const cells = userRow.querySelectorAll('td');
-    expect(cells).toHaveLength(2);
-    expect(cells[1]?.textContent?.trim()).toBe('');
+    expect(within(userRow).getByTestId('draft-slot-5')).toBeInTheDocument();
+    expect(within(userRow).getByText('Owned by Bob')).toBeInTheDocument();
   });
 });

@@ -357,6 +357,74 @@ test('review button navigates to the draft history view for an in-progress draft
   expect(screen.queryByRole('heading', { name: /draft grade summary/i })).not.toBeInTheDocument();
 });
 
+// @spec DFF-UI-165
+test('review flow hydrates persisted trades from GET /drafts/:id/state into the history trade log', async () => {
+  createDraftsFetchResponse();
+
+  render(<App />);
+
+  await screen.findByRole('heading', { name: /drafts list/i });
+
+  fetchMock.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        draft_id: 'draft-in-progress-1',
+        status: 'in_progress',
+        current_pick_number: 5,
+        teams: [
+          { id: 'team-1', name: 'Bot 1', is_user: false, archetype: 'bpa' },
+          { id: 'team-2', name: 'You', is_user: true, archetype: null },
+        ],
+        draft_order: [
+          { pick_number: 1, round: 1, pick_in_round: 1, team_id: 'team-2' },
+          { pick_number: 2, round: 1, pick_in_round: 2, team_id: 'team-1' },
+        ],
+        picks: [],
+        roster_players: [],
+        team_pick_assets: [],
+        user_queue: [],
+        available_players: [],
+        trades: [
+          {
+            id: 'trade-review-1',
+            round: 1,
+            initiating_team_id: 'team-1',
+            receiving_team_id: 'team-2',
+            assets_sent: [{ type: 'pick_slot', pick_number: 1, round: 1, pick_in_round: 1 }],
+            assets_received: [{ type: 'pick_slot', pick_number: 2, round: 1, pick_in_round: 2 }],
+            status: 'accepted',
+            created_at: '2026-05-22T18:05:00.000Z',
+          },
+        ],
+        startup_pick_values: [
+          { global_pick_number: 1, dynasty_value: 9999 },
+          { global_pick_number: 2, dynasty_value: 9800 },
+        ],
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    ),
+  );
+
+  await userEvent.setup().click(
+    within(screen.getByTestId('draft-row-draft-in-progress-1')).getByRole('button', { name: /review/i }),
+  );
+
+  expect(await screen.findByRole('heading', { name: /draft summary/i })).toBeInTheDocument();
+  await userEvent.setup().click(screen.getByRole('tab', { name: /trade log/i }));
+
+  const tradeRow = within(screen.getByRole('tabpanel', { name: /trade log/i })).getByTestId(
+    'history-trade-trade-review-1',
+  );
+
+  expect(within(tradeRow).getByText('Bot 1')).toBeInTheDocument();
+  expect(within(tradeRow).getByText('You')).toBeInTheDocument();
+  expect(within(tradeRow).getByText('Startup 1.01')).toBeInTheDocument();
+  expect(within(tradeRow).getByText('Startup 1.02')).toBeInTheDocument();
+});
+
 // @spec DFF-UI-117
 test('falls back to config screen when GET /drafts fails', async () => {
   fetchMock.mockRejectedValue(new Error('Network error'));

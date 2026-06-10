@@ -162,6 +162,7 @@ function simulateCompleteDraft() {
       status: 'accepted',
       assets_sent: [{ type: 'player', player_id: 'player-1' }],
       assets_received: [{ type: 'future_pick', year: 2027, round: 1 }],
+      created_at: '2026-05-22T17:55:00.000Z',
     });
   });
 
@@ -402,12 +403,10 @@ describe('draft history view', () => {
     const userCard = within(rosterPanel).getByTestId('history-team-card-team-2');
     expect(userCard.getAttribute('data-user-team')).toBe('true');
 
-    // Team-1 (Bob) has Josh Allen (QB) — Rd 1 drafted, value 9,999
+    // Team-1 (Bob) traded away Josh Allen, so the roster view shows no QB after completion
     const bobCard = within(rosterPanel).getByTestId('history-team-card-team-1');
-    expect(within(bobCard).getByText('Josh Allen')).toBeInTheDocument();
-    expect(within(bobCard).getByText('Rd 1')).toBeInTheDocument();
-    expect(within(bobCard).getByText('9,999')).toBeInTheDocument();
-    expect(within(bobCard).getByText('QB')).toBeInTheDocument();
+    expect(within(bobCard).queryByText('Josh Allen')).not.toBeInTheDocument();
+    expect(within(bobCard).getAllByText('—').length).toBeGreaterThan(0);
 
     // Team-2 (You) has Bijan Robinson (RB) — Rd 1 drafted, value 9,500
     const youCard = within(rosterPanel).getByTestId('history-team-card-team-2');
@@ -416,11 +415,12 @@ describe('draft history view', () => {
     expect(within(youCard).getByText('9,500')).toBeInTheDocument();
     expect(within(youCard).getByText('RB')).toBeInTheDocument();
 
-    // Team-3 (Sue) has Justin Jefferson (WR) — Rd 1 drafted, and Brock Bowers (TE) — Rd 2 drafted
+    // Team-3 (Sue) receives Josh Allen via trade, while retaining both drafted players
     const sueCard = within(rosterPanel).getByTestId('history-team-card-team-3');
+    expect(within(sueCard).getByText('Josh Allen')).toBeInTheDocument();
     expect(within(sueCard).getByText('Justin Jefferson')).toBeInTheDocument();
     expect(within(sueCard).getByText('Brock Bowers')).toBeInTheDocument();
-    expect(within(sueCard).getByText('Rd 1')).toBeInTheDocument();
+    expect(within(sueCard).getAllByText('Rd 1')).toHaveLength(2);
     expect(within(sueCard).getByText('Rd 2')).toBeInTheDocument();
     expect(within(sueCard).getByText('9,700')).toBeInTheDocument();
     expect(within(sueCard).getByText('8,800')).toBeInTheDocument();

@@ -529,7 +529,7 @@ describe('pick feed panel', () => {
     const pickFeed = screen.getByTestId('pick-feed-panel');
     const tradeEntry = within(pickFeed).getByTestId('pick-feed-entry-trade-feed-1');
 
-    expect(within(tradeEntry).getByText('2026-05-22 18:05')).toBeInTheDocument();
+    expect(within(tradeEntry).getByText('2026-05-22 18:05 UTC')).toBeInTheDocument();
     expect(
       within(tradeEntry).getByText('Bob traded Startup 1.01 to You for Startup 1.02'),
     ).toBeInTheDocument();

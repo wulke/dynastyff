@@ -56,6 +56,8 @@ function getCanonicalTeamIdForSlot(
     return null;
   }
 
+  // `draftState.teams` is hydrated in original pick-position order from the server.
+  // This lets us anchor traded startup slots to their immutable snake-order coordinates.
   const teamIndex = slot.round % 2 === 1 ? slot.pickInRound - 1 : teamCount - slot.pickInRound;
   return draftState.teams[teamIndex]?.id ?? null;
 }

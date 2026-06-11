@@ -464,3 +464,45 @@ When a `pick_made` SSE event is received for a traded startup pick slot, the cor
 
 **DFF-UI-165** `[x]` → #120
 The right-column draft log shall render trade resolutions from either hydrated `draftState.trades` or live `trade_resolved` SSE events inline with picks, newest first, with a timestamped summary describing the teams and assets exchanged.
+
+---
+
+## In-Draft Derived Pick Value
+
+**DFF-UI-170** `[ ]`
+During an in-progress draft, the system shall compute an in-draft derived dynasty value for each unfilled startup pick slot using the formula `availablePlayers[G - currentPickNumber - 1]?.dynastyValue ?? 0`, where `G` is the slot's global pick number and `currentPickNumber` is the next pick number to be made. This computation shall be a pure client-side function over `DraftState` with no server round-trip.
+
+**DFF-UI-171** `[ ]`
+When displaying dynasty values for startup pick slot assets during an in-progress draft, the system shall use the derived value from DFF-UI-170 in place of the ETL-scraped `startupPickValues` entry. No blending of the two values shall occur.
+
+---
+
+## Trade Balance Summary
+
+**DFF-UI-172** `[ ]`
+The trade composer shall render a balance summary row below the asset selection panels, showing: total dynasty value offered by the user, total dynasty value requested from the target, and the net delta (received minus sent).
+
+**DFF-UI-173** `[ ]`
+The balance summary net delta shall be color-coded using semantic tokens: positive delta (`text-positive`) when the user receives more than they send; negative delta (`text-negative`) when the user sends more; zero delta (`text-muted`).
+
+**DFF-UI-174** `[ ]`
+The incoming bot trade offer modal shall render the same balance summary row as the trade composer (DFF-UI-172), driven by `pendingTrade.assetsSent` and `pendingTrade.assetsReceived` from the user's perspective.
+
+**DFF-UI-175** `[ ]`
+When computing dynasty values for the balance summary, unfilled startup pick slots shall use the in-draft derived value per DFF-UI-170 if the draft is in progress; otherwise the ETL-scraped value from `startupPickValues` shall be used.
+
+---
+
+## Post-Draft Trade Activity
+
+**DFF-UI-176** `[ ]`
+The draft grade summary view shall conditionally render a "Trade Activity" section below the existing rubric breakdown and final roster panels. This section shall only be shown when the user participated in at least one accepted trade.
+
+**DFF-UI-177** `[ ]`
+Each entry in the Trade Activity section shall display: the round the trade occurred, the initiating and receiving team names, each side's assets with dynasty values, and the net value delta from the user's perspective.
+
+**DFF-UI-178** `[ ]`
+For `pick_slot` assets in trade entries, the dynasty value shall be the dynasty value of the player ultimately drafted with that pick, resolved via the completed `picks` log and `playerCatalog`. When a pick slot was never used by draft end, its dynasty value shall be 0.
+
+**DFF-UI-179** `[ ]`
+The Trade Activity section shall display only trades involving the user's team.

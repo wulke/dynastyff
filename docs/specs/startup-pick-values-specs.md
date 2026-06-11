@@ -109,6 +109,9 @@ The bot simulator shall treat any unfilled startup pick slot owned by a bot team
 **DFF-SPKV-051** `[x]`
 When scoring a `pick_slot` asset during bot trade evaluation, the system shall compute its dynasty value by looking up the slot's global pick number in the `startupPickValues` map from `InMemoryDraftState`. A missing key shall yield `dynasty_value = 0`.
 
+**DFF-SPKV-052** `[ ]`
+When scoring a `pick_slot` asset during bot trade evaluation, the system shall use `min(ETL value, derived value)` as the effective dynasty value, where the derived value is computed using the formula `availablePlayers[G - currentPickNumber - 1]?.dynastyValue ?? 0` (see DFF-UI-170). This conservative floor prevents bots from overvaluing pick slots as the available player pool thins during the draft. Future bot archetypes may override this floor on a per-archetype basis.
+
 ---
 
 ## UI — Display

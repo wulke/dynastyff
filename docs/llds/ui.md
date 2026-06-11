@@ -223,11 +223,19 @@ Rendered after the user clicks `View Draft Grade` from the draft completion bann
 - Secondary `View Full History` CTA for the existing history tabs, plus `New Draft`
 - Team leaderboard cards so the user can compare their result against the rest of the room without leaving the page
 
+**Trade Activity section:**
+- Rendered below the rubric breakdown / final roster grid, only when the user participated in at least one accepted trade
+- Each row: round, initiating team name → receiving team name, sent assets with values, received assets with values, net delta
+- `pick_slot` dynasty values are resolved to the dynasty value of the player ultimately drafted with that pick via the `picks` log and `playerCatalog`; a pick never used by draft end yields 0
+- Net delta is color-coded with the same `text-positive` / `text-negative` / `text-muted` tokens used by the trade composer balance row
+- Only trades involving the user's team are shown
+
 **Edge Case Probe:**
 - Draft is not completed -> grade summary view is unavailable; in-progress drafts still open into the History view from Drafts List review
 - Grade-summary rubric returns `null` because roster config is missing -> the view renders an unavailable-state message instead of crashing
 - User team cannot be identified -> fall back to the first graded team while still rendering the leaderboard
 - User roster contains no players for a position -> that position renders an em dash rather than collapsing the section
+- User made zero accepted trades -> Trade Activity section is not rendered; no empty-state row is shown
 
 ## Pick Feed Panel
 
@@ -440,10 +448,17 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
 
 **Trade asset presentation:**
 - `player` assets resolve against `playerCatalog` and show player name plus position badge when metadata exists
-- `pick_slot` assets render with a distinct `STARTUP` badge plus the label `Startup R.PP`, where `PP` is zero-padded from `draftOrder.pickInRound`; the UI derives the inline dynasty value from `startupPickValues` when the payload omits it
+- `pick_slot` assets render with a distinct `STARTUP` badge plus the label `Startup R.PP`, where `PP` is zero-padded from `draftOrder.pickInRound`; the UI derives the inline dynasty value from `startupPickValues` when the payload omits it; during an in-progress draft, the derived in-draft value overrides the ETL value (see "In-Draft Derived Pick Value" below)
 - `future_pick` assets render with a `PICK` badge plus the label `<year> Round <round>`
 - Trade history reuses the same startup-pick label contract so modal and post-draft trade views stay visually aligned
 - Unknown or malformed assets degrade to a compact raw-label fallback instead of crashing the dialog
+
+**Balance summary row:**
+- Rendered below both asset panels in the trade composer and below both asset lists in the incoming bot offer modal
+- Shows three values: user's total sent dynasty value, user's total received dynasty value, and net delta (received − sent)
+- Net delta color: `text-positive` when positive, `text-negative` when negative, `text-muted` when zero
+- Pick slot values use in-draft derived values when the draft is in progress; ETL `startupPickValues` otherwise
+- Implemented as a shared presentational component driven by two `asset[]` arrays and `DraftState`
 
 **Edge Case Probe:**
 - A second `trade_offered` arrives before the first trade resolves -> the reducer replaces `pendingTrade` with the latest server truth, and the dialog re-renders from that payload
@@ -458,6 +473,27 @@ Rendered in the drafting view whenever `draftState.pendingTrade` is non-null or 
 - `POST /drafts/:id/trade-response` returns `409` because the trade already resolved elsewhere in the bot chain -> keep the modal open until the corresponding `trade_resolved` SSE arrives, avoiding premature local closure
 - Team or player metadata is missing from local state -> the dialog falls back to raw ids so the trade remains reviewable
 - User presses Escape or clicks outside the dialog -> those dismiss paths are disabled because trade acknowledgment is mandatory before the draft continues
+
+## In-Draft Derived Pick Value
+
+A pure client-side utility that computes real-time dynasty values for unfilled startup pick slots based on the current available player pool.
+
+**Formula:** for an unfilled slot at global pick number G:
+```
+derivedValue = availablePlayers[G - currentPickNumber - 1]?.dynastyValue ?? 0
+```
+`availablePlayers` is sorted by `dynastyValue` descending. The rank `G - currentPickNumber - 1` estimates which player will still be available when pick G is made by counting how many players will be taken between now and then.
+
+**Implementation:** a single exported function `computeDerivedPickValues(state: DraftState): Map<number, number>` in `draftUtils.ts` that accepts `DraftState` and returns a `Map<globalPickNumber, derivedDynastyValue>` for all unfilled slots. It is computed on demand (when the trade composer opens or a bot trade offer arrives) and is not stored in reducer state.
+
+**Usage:**
+- Trade composer and incoming offer modal: call `computeDerivedPickValues` and pass the result alongside `startupPickValues`; the derived value supersedes the ETL value for any key present in both maps during an in-progress draft
+- Bot trade evaluation: `min(ETL startupPickValue, derivedValue)` per DFF-SPKV-052
+
+**Edge Case Probe:**
+- `G - currentPickNumber - 1 < 0` (slot is at or before the current pick): should not occur for unfilled slots, but clamp rank to 0 defensively
+- `availablePlayers` is empty (all players taken): yields 0 for all remaining slots
+- Draft is not in progress (`status !== 'in_progress'`): callers fall back to ETL `startupPickValues`
 
 ## Draft History View
 

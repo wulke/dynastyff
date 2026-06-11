@@ -761,35 +761,37 @@ describe('available players list', () => {
 
     const availablePanelOnUserTurn = await screen.findByTestId('available-players-panel');
     const enabledRow = within(availablePanelOnUserTurn).getByRole('button', { name: /ceedee lamb/i });
+    const selectedAvailableRow = within(availablePanelOnUserTurn).getByTestId('available-player-row-player-wr-1');
     expect(enabledRow).toBeEnabled();
 
     await user.click(enabledRow);
-    expect(enabledRow.className).toContain('border-accent');
+    expect(selectedAvailableRow.className).toContain('border-accent');
     expect(enabledRow).toHaveAttribute('aria-pressed', 'true');
-    expect(await screen.findByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
+    expect(within(selectedAvailableRow).getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
     expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/drafts/draft-available-123/pick',
       expect.objectContaining({ method: 'POST' }),
     );
     await user.click(enabledRow);
-    expect(screen.queryByRole('button', { name: /draft ceedee lamb/i })).not.toBeInTheDocument();
+    expect(within(selectedAvailableRow).queryByRole('button', { name: /draft ceedee lamb/i })).not.toBeInTheDocument();
     expect(enabledRow).toHaveAttribute('aria-pressed', 'false');
 
     await user.click(enabledRow);
-    await user.click(await screen.findByRole('button', { name: /draft ceedee lamb/i }));
+    await user.click(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i }));
 
     await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const targetsPanel = await screen.findByTestId('targets-panel');
     expect(within(targetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
     const enabledTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
+    const selectedTargetRow = within(targetsPanel).getByTestId('target-player-row-player-rb-1');
     expect(enabledTargetRow).toBeEnabled();
     await user.click(enabledTargetRow);
-    expect(enabledTargetRow.className).toContain('border-accent');
-    expect(await screen.findByRole('button', { name: /draft bijan robinson/i })).toBeInTheDocument();
+    expect(selectedTargetRow.className).toContain('border-accent');
+    expect(await within(selectedTargetRow).findByRole('button', { name: /draft bijan robinson/i })).toBeInTheDocument();
     expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /draft bijan robinson/i }));
+    await user.click(within(selectedTargetRow).getByRole('button', { name: /draft bijan robinson/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       6,
@@ -859,13 +861,14 @@ describe('available players list', () => {
 
     const panel = await screen.findByTestId('available-players-panel');
     const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
+    const selectedRow = within(panel).getByTestId('available-player-row-player-wr-1');
     await user.click(lambRow);
-    await user.click(await screen.findByRole('button', { name: /draft ceedee lamb/i }));
+    await user.click(await within(selectedRow).findByRole('button', { name: /draft ceedee lamb/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Pick failed — player may already be taken.');
     expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
-    expect(lambRow.className).toContain('border-accent');
+    expect(within(selectedRow).getByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
+    expect(selectedRow.className).toContain('border-accent');
   });
 
   // @spec DFF-UI-080

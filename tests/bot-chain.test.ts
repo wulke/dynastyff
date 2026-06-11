@@ -5,6 +5,7 @@
 // @spec DFF-ENGINE-040
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
+// @spec DFF-SPKV-052
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,7 +14,10 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 import { initializeDatabase } from '../src/db/init.js';
-import { createBotChainCoordinator } from '../src/draft/bot-chain.js';
+import {
+  buildConservativeStartupPickValues,
+  createBotChainCoordinator,
+} from '../src/draft/bot-chain.js';
 import { createDraft } from '../src/draft/service.js';
 
 function withDatabase(
@@ -273,5 +277,123 @@ test('createBotChainCoordinator can persist a user trade offer when an older seq
       .all(draftId) as Array<{ id: string }>;
 
     assert.deepEqual(persistedTrades, [{ id: 'trade-user-offer-1' }, { id: 'trade-user-offer-2' }]);
+  });
+});
+
+// @spec DFF-SPKV-052
+test('buildConservativeStartupPickValues reduces startup pick slot values as the player pool thins', () => {
+  const startupPickValues = buildConservativeStartupPickValues({
+    currentPickNumber: 2,
+    availablePlayers: [
+      { id: 'player-1', name: 'Player One', position: 'WR', nfl_team: 'BUF', age: 25, is_rookie: false, dynasty_value: 4800, adp: 1 },
+      { id: 'player-2', name: 'Player Two', position: 'WR', nfl_team: 'BUF', age: 24, is_rookie: false, dynasty_value: 4300, adp: 2 },
+      { id: 'player-3', name: 'Player Three', position: 'WR', nfl_team: 'BUF', age: 23, is_rookie: false, dynasty_value: 4100, adp: 3 },
+    ],
+    startupPickValues: [
+      { global_pick_number: 3, dynasty_value: 5000 },
+      { global_pick_number: 5, dynasty_value: 4200 },
+    ],
+  });
+
+  assert.deepEqual([...startupPickValues.entries()], [
+    [3, 4800],
+    [5, 4100],
+  ]);
+});
+
+// @spec DFF-SPKV-052
+test('buildConservativeStartupPickValues falls back to ETL values when no derived value input is available', () => {
+  assert.deepEqual(
+    [
+      ...buildConservativeStartupPickValues({
+        currentPickNumber: null,
+        availablePlayers: [
+          { id: 'player-1', name: 'Player One', position: 'WR', nfl_team: 'BUF', age: 25, is_rookie: false, dynasty_value: 4800, adp: 1 },
+        ],
+        startupPickValues: [{ global_pick_number: 3, dynasty_value: 5000 }],
+      }).entries(),
+    ],
+    [[3, 5000]],
+  );
+
+  assert.deepEqual(
+    [
+      ...buildConservativeStartupPickValues({
+        currentPickNumber: 2,
+        availablePlayers: [],
+        startupPickValues: [{ global_pick_number: 3, dynasty_value: 5000 }],
+      }).entries(),
+    ],
+    [[3, 5000]],
+  );
+});
+
+// @spec DFF-SPKV-052
+test('createBotChainCoordinator evaluates received startup pick slots with the conservative startup value map', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-1', 'Player One', 4600);
+    seedPlayer(db, 'player-2', 'Player Two', 4400);
+    seedPlayer(db, 'player-3', 'Player Three', 4200);
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 3,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    db.prepare('UPDATE drafts SET startup_pick_values = ? WHERE id = ?').run(
+      JSON.stringify([{ globalPickNumber: 3, dynastyValue: 5000 }]),
+      draftId,
+    );
+
+    const teams = db
+      .prepare('SELECT id, is_user, pick_position FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number; pick_position: number }>;
+    const userTeamId = teams.find((team) => team.is_user === 1)!.id;
+    const botTeamId = teams.find((team) => team.is_user === 0 && team.pick_position === 2)!.id;
+
+    db.prepare("UPDATE teams SET archetype = 'balanced' WHERE id = ?").run(botTeamId);
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      now: () => '2026-05-18T20:05:00.000Z',
+      sleep: async () => undefined,
+      idGenerator: () => 'trade-user-offer-conservative',
+    });
+
+    const tradeId = botChain.submitUserTradeOffer({
+      draftId,
+      targetTeamId: botTeamId,
+      offeredAssets: [{ type: 'pick_slot', draft_order_id: 'ignored-by-parser', pick_number: 3 }],
+      requestedAssets: [{ type: 'future_pick', year: 2027, round: 1 }],
+    });
+
+    assert.equal(tradeId, 'trade-user-offer-conservative');
+    assert.notEqual(userTeamId, botTeamId);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const persistedTrade = db
+      .prepare('SELECT status FROM trades WHERE id = ?')
+      .get(tradeId) as { status: string } | undefined;
+
+    assert.deepEqual(persistedTrade, { status: 'declined' });
   });
 });

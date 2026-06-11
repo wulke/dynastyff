@@ -469,7 +469,7 @@ The right-column draft log shall render trade resolutions from either hydrated `
 
 ## In-Draft Derived Pick Value
 
-**DFF-UI-170** `[ ]`
+**DFF-UI-170** `[x]` → #131
 During an in-progress draft, the system shall compute an in-draft derived dynasty value for each unfilled startup pick slot using the formula `availablePlayers[G - currentPickNumber - 1]?.dynastyValue ?? 0`, where `G` is the slot's global pick number and `currentPickNumber` is the next pick number to be made. This computation shall be a pure client-side function over `DraftState` with no server round-trip.
 
 **DFF-UI-171** `[ ]`

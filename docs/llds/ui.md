@@ -486,6 +486,8 @@ derivedValue = availablePlayers[G - currentPickNumber - 1]?.dynastyValue ?? 0
 
 **Implementation:** a single exported function `computeDerivedPickValues(state: DraftState): Map<number, number>` in `draftUtils.ts` that accepts `DraftState` and returns a `Map<globalPickNumber, derivedDynastyValue>` for all unfilled slots. It is computed on demand (when the trade composer opens or a bot trade offer arrives) and is not stored in reducer state.
 
+Issue `#131` scope: implement and export the pure utility first. UI consumers and bot-evaluation integration can land separately while reusing the same function contract.
+
 **Usage:**
 - Trade composer and incoming offer modal: call `computeDerivedPickValues` and pass the result alongside `startupPickValues`; the derived value supersedes the ETL value for any key present in both maps during an in-progress draft
 - Bot trade evaluation: `min(ETL startupPickValue, derivedValue)` per DFF-SPKV-052

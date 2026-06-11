@@ -101,9 +101,11 @@ Bots score every tradeable asset through the same dynasty-value pipeline before 
 
 - `player`: use the player's persisted `dynasty_value`
 - `future_pick`: use the joined `pick_values` round-level `dynasty_value`
-- `pick_slot`: treat any unfilled startup draft slot still owned by a bot team as a tradeable asset and resolve its `dynasty_value` from `InMemoryDraftState.startupPickValues` by global `pick_number`
+- `pick_slot`: treat any unfilled startup draft slot still owned by a bot team as a tradeable asset and resolve its `dynasty_value` from a conservative startup-pick map keyed by global `pick_number`
 
-If a `pick_slot` global pick number is missing from `startupPickValues`, the bot scores that asset as `dynasty_value = 0`. Filled startup slots are not tradeable.
+The conservative startup-pick map starts from the draft's ETL `startupPickValues`, then applies a per-slot floor of `min(etlValue, derivedValue)` where `derivedValue = available_players[G - current_pick_number - 1]?.dynasty_value ?? 0`. If `current_pick_number` is `null` or `available_players` is empty, the bot falls back to the ETL value alone. The map-build loop is the extension point for future archetype-specific overrides.
+
+If a `pick_slot` global pick number is missing from both the ETL and derived inputs, the bot scores that asset as `dynasty_value = 0`. Filled startup slots are not tradeable.
 
 ### Trade Fallback
 

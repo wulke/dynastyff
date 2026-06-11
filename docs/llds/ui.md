@@ -320,9 +320,9 @@ Rendered within the center drafting column alongside the draft board. During bot
 
 **Shared selection flow:**
 - Clicking an enabled row in either panel selects that player instead of submitting immediately
-- A confirmation card renders beneath the panels for the selected player
-- Confirming the card submits `POST /drafts/:id/pick` and dispatches `ADVISOR_RESET`
-- Clearing or replacing the selection updates the same confirmation card state no matter which panel the row came from
+- The selected row expands inline to reveal `Draft [Name]` and `Cancel` actions directly beneath the player metadata
+- Clicking `Draft [Name]` in the expanded row submits `POST /drafts/:id/pick` and dispatches `ADVISOR_RESET`
+- Clicking `Cancel`, selecting the same row again, or choosing a different row updates the same shared selection state no matter which panel the row came from
 - If `POST /drafts/:id/pick` fails, a global toast surfaces `Pick failed — player may already be taken.`
 
 The full available player list is loaded from `GET /drafts/:id/state` at draft start or resume. Queue ranks are hydrated from `GET /drafts/:id/queue` immediately after state hydration succeeds, using `availablePlayers` / `playerCatalog` to resolve target display metadata client-side. As `pick_made` events arrive, the reducer removes picked players from both `availablePlayers` and `userQueue` client-side — no re-fetch needed.

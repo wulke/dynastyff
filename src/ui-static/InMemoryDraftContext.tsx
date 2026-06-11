@@ -70,6 +70,7 @@ function buildDraftState(
     picks: engineState.picks,
     rosterPlayers: engineState.rosterPlayers,
     teamPickAssets: engineState.teamPickAssets,
+    startupPickValues: [],
     userQueue: engineState.userQueue,
     playerCatalog,
     availablePlayers: syncedPlayers.map((player) => ({
@@ -101,6 +102,7 @@ function buildCompletedDraft(state: DraftState, completedAt: string): CompletedD
     picks: state.picks,
     rosterPlayers: state.rosterPlayers,
     teamPickAssets: state.teamPickAssets,
+    startupPickValues: state.startupPickValues,
     trades: state.trades,
   };
 }
@@ -306,6 +308,15 @@ export function InMemoryDraftContextProvider({
     return false;
   }
 
+  // @spec DFF-UI-059
+  async function submitTradeOffer(
+    _targetTeamId: string,
+    _offeredAssets: unknown[],
+    _requestedAssets: unknown[],
+  ) {
+    return { ok: false, tradeId: null };
+  }
+
   const value: DraftContextValue = {
     snapshot,
     draftState,
@@ -315,6 +326,7 @@ export function InMemoryDraftContextProvider({
     showError,
     submitPick,
     respondToTrade,
+    submitTradeOffer,
     updateQueue,
     newDraft,
   };

@@ -90,7 +90,7 @@ Route behavior:
 |---|---|---|
 | `pick_made` | `{ pick_number, team_id, player_id, is_bot }` | Every pick, user or bot |
 | `trade_offered` | `{ trade_id, initiating_team_id, receiving_team_id, assets_sent, assets_received, is_bot_to_bot }` | When a bot or the user proposes a trade |
-| `trade_resolved` | `{ trade_id, status, assets_sent, assets_received }` | After user responds to trade modal |
+| `trade_resolved` | `{ trade_id, status, assets_sent, assets_received, created_at }` | After user responds to trade modal |
 | `your_turn` | `{ pick_number, round, pick_in_round }` | When it's the user's turn to pick |
 | `draft_complete` | `{ draft_id, completed_at }` | When all picks are exhausted |
 
@@ -248,6 +248,7 @@ Returns one JSON document with:
 - `available_players` ordered by `dynasty_value` descending for the draft's pinned value context
 - `startup_pick_values` ordered by `global_pick_number`
 - `trades` ordered chronologically by `pick_number`
+- each hydrated trade includes `created_at` from SQLite so the UI can rebuild the live draft log chronology on review / resume
 
 Behavior:
 - The response shape matches the `state_sync` SSE payload and adds `trades`

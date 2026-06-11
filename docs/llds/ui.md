@@ -183,16 +183,18 @@ The grid is fixed at draft creation (`round_count × team_count` cells). Cells f
 - Filled pick: player name, position badge, drafting team name, and NFL team when available
 - Current pick (bot in progress): pulsing skeleton
 - Current pick (user turn): same waiting state copy as other unfilled future slots; no skeleton
+- Traded startup slot: the cell stays anchored to its original snake-order coordinates, while a compact owner banner shows which team currently controls that pick when the current owner differs from the original slot owner
 
 **Position badge colors:** QB=amber, RB=blue, WR=emerald, TE=purple, PICK/RDP=yellow, default=stone.
 
-Pick position in a round is derived from the snake order: odd rounds left-to-right, even rounds right-to-left.
+Pick position in a round is derived from the snake order: odd rounds left-to-right, even rounds right-to-left. Startup pick-slot trades must not change that placement model. The UI treats `draftOrder.teamId` as mutable ownership, but derives cell placement from the immutable `(round, pickInRound)` snake coordinates plus the original team ordering captured at draft creation.
 
 **Edge Case Probe:**
 - `pick_made` arrives before the first `state_sync` (empty catalog) -> `getDraftedPlayerSummary` falls back to the raw `playerId` as the name and `NA` as the position badge so the cell degrades without crashing
 - Player exists in `picks` but is absent from all `available_players` payloads -> the same fallback path keeps the cell visible instead of hiding the pick
 - Reconnect `state_sync` omits already drafted players from `available_players` -> `playerCatalog` is merged rather than replaced so prior drafted-player metadata still renders
 - Team has no pick in a given round (for example after a pick-slot trade) -> the board renders an empty `<td>` for that team/round intersection without throwing
+- An accepted trade swaps unresolved startup pick ownership before either slot is used -> the reducer updates `draftOrder` ownership immediately and the board reflects the new owner without waiting for a re-fetch
 
 ## Draft Completion Banner
 
@@ -229,13 +231,16 @@ Rendered after the user clicks `View Draft Grade` from the draft completion bann
 
 ## Pick Feed Panel
 
-A scrolling real-time feed panel rendered alongside the draft board, driven by `pick_made` SSE events processed through the `DraftContext` reducer. Every pick — bot or user — appears as a new entry at the top of the feed as it happens.
+A scrolling real-time draft log panel rendered alongside the draft board, driven by `pick_made` and `trade_resolved` events processed through the `DraftContext` reducer. Every pick or resolved trade appears as a new entry at the top of the log as it happens.
 
 **Features:**
 - Hydrates from `draftState.picks` on initial load, sorted by `pickNumber` descending so the most recent pick appears at the top
+- Hydrates persisted trades from `draftState.trades` on initial load so review/resume flows preserve the same trade history shown during the live draft
 - On draft resume or reconnect, the client catalog must be rehydrated with metadata for already drafted players as well as remaining available players so historical feed entries still resolve to player names
 - Each new `pick_made` event adds the pick to `draftState.picks` via the reducer; the feed re-renders with the new entry at the top
+- Each accepted / declined / force-declined `trade_resolved` event appends a trade record with its creation timestamp; the log renders a concise summary naming the initiating team, receiving team, and exchanged assets
 - Each entry renders as a dense single-line string in the form `Round.Pick - Player Name` (for example, `1.1 - Bijan Robinson`)
+- Trade entries render a timestamp plus a concise sentence (for example, `2026-05-22 18:05 — Team A traded Startup 1.05 to Team B for Startup 2.03`)
 - Compact list styling is preferred over card treatment: minimal padding, minimal decoration, and a simple vertical scroll region
 - Within the three-column drafting layout, the panel must stretch to the full height of the Pick Feed column; the old fixed `max-h-[28rem]` workaround is removed and scrolling is handled by an inner full-height overflow region
 - Shows an empty-state message ("No picks yet") when `draftState.picks` is empty
@@ -246,6 +251,7 @@ A scrolling real-time feed panel rendered alongside the draft board, driven by `
 - Draft has zero picks → panel shows empty state without crashing
 - Same player is picked twice (impossible in valid state but handles gracefully) → duplicate entries render, since each `pick_made` produces a unique pick record
 - Pick number is absent from `draftOrder` (should not happen in practice but handle defensively) → entry renders an em dash (`—`) in place of the `Round.Pick` prefix instead of showing incorrect coordinates
+- A persisted `GET /drafts/:id/state` payload includes trades but no live SSE replay occurs afterward → the log still renders those trade entries from the hydrated state
 
 ## 3-Column Drafting Layout And Status Bar
 

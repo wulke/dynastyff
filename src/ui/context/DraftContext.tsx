@@ -34,6 +34,7 @@ type Team = {
 };
 
 type DraftOrderSlot = {
+  draftOrderId?: string;
   pickNumber: number;
   round: number;
   pickInRound: number;
@@ -82,6 +83,7 @@ export type TradeRecord = {
   assetsSent: unknown[];
   assetsReceived: unknown[];
   status: string;
+  createdAt: string;
 };
 
 type PendingTrade = {
@@ -174,6 +176,7 @@ type StateSyncPayload = {
     archetype: string | null;
   }>;
   draft_order: Array<{
+    id?: string;
     pick_number: number;
     round: number;
     pick_in_round: number;
@@ -222,6 +225,16 @@ type StateSyncPayload = {
     global_pick_number: number;
     dynasty_value: number;
   }>;
+  trades?: Array<{
+    id: string;
+    round: number;
+    initiating_team_id: string;
+    receiving_team_id: string;
+    assets_sent: unknown;
+    assets_received: unknown;
+    status: string;
+    created_at: string;
+  }>;
 };
 
 type PickMadePayload = {
@@ -252,6 +265,7 @@ type TradeResolvedPayload = {
   status: string;
   assets_sent: unknown[];
   assets_received: unknown[];
+  created_at: string;
 };
 
 type DraftCompletePayload = {
@@ -350,6 +364,190 @@ function toUiPlayer(player: {
   };
 }
 
+type TradeAssetRecord = {
+  type?: string;
+  player_id?: string;
+  playerId?: string;
+  year?: number;
+  round?: number;
+  draft_order_id?: string;
+  draftOrderId?: string;
+  pick_number?: number;
+  pickNumber?: number;
+};
+
+// @spec DFF-UI-165
+function mapTradeRecord(record: {
+  id: string;
+  round: number;
+  initiating_team_id: string;
+  receiving_team_id: string;
+  assets_sent: unknown;
+  assets_received: unknown;
+  status: string;
+  created_at: string;
+}): TradeRecord {
+  return {
+    id: record.id,
+    round: record.round,
+    initiatingTeamId: record.initiating_team_id,
+    receivingTeamId: record.receiving_team_id,
+    assetsSent: Array.isArray(record.assets_sent) ? record.assets_sent : [],
+    assetsReceived: Array.isArray(record.assets_received) ? record.assets_received : [],
+    status: record.status,
+    createdAt: record.created_at,
+  };
+}
+
+function getTradeAssetPlayerId(asset: unknown): string | null {
+  if (!asset || typeof asset !== 'object') {
+    return null;
+  }
+
+  const candidate = asset as TradeAssetRecord;
+  return candidate.player_id ?? candidate.playerId ?? null;
+}
+
+function getTradeAssetPickNumber(asset: unknown): number | null {
+  if (!asset || typeof asset !== 'object') {
+    return null;
+  }
+
+  const candidate = asset as TradeAssetRecord;
+  return candidate.pick_number ?? candidate.pickNumber ?? null;
+}
+
+function getTradeAssetDraftOrderId(asset: unknown): string | null {
+  if (!asset || typeof asset !== 'object') {
+    return null;
+  }
+
+  const candidate = asset as TradeAssetRecord;
+  return candidate.draft_order_id ?? candidate.draftOrderId ?? null;
+}
+
+function transferDraftOrderOwnership(
+  draftOrder: DraftState['draftOrder'],
+  fromTeamId: string,
+  toTeamId: string,
+  assets: unknown[],
+): DraftState['draftOrder'] {
+  return draftOrder.map((slot) => {
+    const shouldTransfer = assets.some((asset) => {
+      const candidate = asset as TradeAssetRecord;
+
+      if (candidate?.type !== 'pick_slot' || slot.teamId !== fromTeamId) {
+        return false;
+      }
+
+      const draftOrderId = getTradeAssetDraftOrderId(asset);
+      const pickNumber = getTradeAssetPickNumber(asset);
+
+      if (draftOrderId !== null && slot.draftOrderId === draftOrderId) {
+        return true;
+      }
+
+      return pickNumber !== null && slot.pickNumber === pickNumber;
+    });
+
+    return shouldTransfer ? { ...slot, teamId: toTeamId } : slot;
+  });
+}
+
+function transferRosterOwnership(
+  rosterPlayers: DraftState['rosterPlayers'],
+  fromTeamId: string,
+  toTeamId: string,
+  assets: unknown[],
+): DraftState['rosterPlayers'] {
+  return rosterPlayers.map((entry) => {
+    const shouldTransfer = assets.some((asset) => {
+      const candidate = asset as TradeAssetRecord;
+      return candidate?.type === 'player' && entry.teamId === fromTeamId && entry.playerId === getTradeAssetPlayerId(asset);
+    });
+
+    return shouldTransfer ? { ...entry, teamId: toTeamId } : entry;
+  });
+}
+
+function transferFuturePickOwnership(
+  teamPickAssets: DraftState['teamPickAssets'],
+  fromTeamId: string,
+  toTeamId: string,
+  assets: unknown[],
+): DraftState['teamPickAssets'] {
+  return teamPickAssets.map((entry) => {
+    const shouldTransfer = assets.some((asset) => {
+      if (!asset || typeof asset !== 'object') {
+        return false;
+      }
+
+      const candidate = asset as TradeAssetRecord;
+      return (
+        candidate.type === 'future_pick' &&
+        entry.teamId === fromTeamId &&
+        entry.year === candidate.year &&
+        entry.round === candidate.round
+      );
+    });
+
+    return shouldTransfer ? { ...entry, teamId: toTeamId } : entry;
+  });
+}
+
+// @spec DFF-UI-163
+// @spec DFF-UI-164
+function applyAcceptedTradeToState(
+  draftState: DraftState,
+  pendingTrade: PendingTrade,
+  resolvedAssetsSent: unknown[],
+  resolvedAssetsReceived: unknown[],
+): DraftState {
+  const afterSentDraftOrder = transferDraftOrderOwnership(
+    draftState.draftOrder,
+    pendingTrade.initiatingTeamId,
+    pendingTrade.receivingTeamId,
+    resolvedAssetsSent,
+  );
+  const afterReceivedDraftOrder = transferDraftOrderOwnership(
+    afterSentDraftOrder,
+    pendingTrade.receivingTeamId,
+    pendingTrade.initiatingTeamId,
+    resolvedAssetsReceived,
+  );
+  const afterSentRoster = transferRosterOwnership(
+    draftState.rosterPlayers,
+    pendingTrade.initiatingTeamId,
+    pendingTrade.receivingTeamId,
+    resolvedAssetsSent,
+  );
+  const afterReceivedRoster = transferRosterOwnership(
+    afterSentRoster,
+    pendingTrade.receivingTeamId,
+    pendingTrade.initiatingTeamId,
+    resolvedAssetsReceived,
+  );
+  const afterSentFuturePicks = transferFuturePickOwnership(
+    draftState.teamPickAssets,
+    pendingTrade.initiatingTeamId,
+    pendingTrade.receivingTeamId,
+    resolvedAssetsSent,
+  );
+  const afterReceivedFuturePicks = transferFuturePickOwnership(
+    afterSentFuturePicks,
+    pendingTrade.receivingTeamId,
+    pendingTrade.initiatingTeamId,
+    resolvedAssetsReceived,
+  );
+
+  return {
+    ...draftState,
+    draftOrder: afterReceivedDraftOrder,
+    rosterPlayers: afterReceivedRoster,
+    teamPickAssets: afterReceivedFuturePicks,
+  };
+}
+
 // @spec DFF-STATIC-060
 // @spec DFF-STATIC-062
 // @spec DFF-UI-071
@@ -377,6 +575,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
       archetype: team.archetype,
     })),
     draftOrder: payload.draft_order.map((slot) => ({
+      draftOrderId: slot.id,
       pickNumber: slot.pick_number,
       round: slot.round,
       pickInRound: slot.pick_in_round,
@@ -407,7 +606,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
       rank: entry.rank,
     })),
     availablePlayers: syncedPlayers,
-    trades: existingState?.trades ?? [],
+    trades: Array.isArray(payload.trades) ? payload.trades.map(mapTradeRecord) : (existingState?.trades ?? []),
     pendingTrade: existingState?.pendingTrade ?? null,
     sseStatus: existingState?.sseStatus ?? 'connected',
     completedAt: existingState?.completedAt ?? null,
@@ -557,25 +756,37 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         return state;
       }
 
+      const pendingTrade = state.draftState.pendingTrade;
+      const nextDraftState =
+        pendingTrade && action.payload.status === 'accepted'
+          ? applyAcceptedTradeToState(
+              state.draftState,
+              pendingTrade,
+              action.payload.assets_sent,
+              action.payload.assets_received,
+            )
+          : state.draftState;
+
       return {
         ...state,
         draftState: {
-          ...state.draftState,
+          ...nextDraftState,
           pendingTrade: null,
-          trades: state.draftState.pendingTrade
+          trades: pendingTrade
             ? [
-                ...state.draftState.trades,
+                ...nextDraftState.trades,
                 {
-                  id: state.draftState.pendingTrade.tradeId,
-                  round: state.draftState.pendingTrade.round,
-                  initiatingTeamId: state.draftState.pendingTrade.initiatingTeamId,
-                  receivingTeamId: state.draftState.pendingTrade.receivingTeamId,
+                  id: pendingTrade.tradeId,
+                  round: pendingTrade.round,
+                  initiatingTeamId: pendingTrade.initiatingTeamId,
+                  receivingTeamId: pendingTrade.receivingTeamId,
                   assetsSent: action.payload.assets_sent,
                   assetsReceived: action.payload.assets_received,
                   status: action.payload.status,
+                  createdAt: action.payload.created_at,
                 },
               ]
-            : state.draftState.trades,
+            : nextDraftState.trades,
         },
       };
     case 'DRAFT_COMPLETE':

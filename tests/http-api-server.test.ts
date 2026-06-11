@@ -2565,6 +2565,7 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
         assets_sent: [{ type: 'pick', year: 2027, round: 1 }],
         assets_received: [{ type: 'player', player_id: 'player-picked' }],
         status: 'declined',
+        created_at: '2026-05-18T20:06:00.000Z',
       },
     ]);
   } finally {

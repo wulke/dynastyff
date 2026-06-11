@@ -912,6 +912,7 @@ test('GET /drafts/:id/stream pauses the bot chain for a bot-to-bot trade until P
         status: 'force_declined',
         assets_sent: [{ type: 'pick_slot', pick_number: 2 }],
         assets_received: [{ type: 'future_pick', year: 2027, round: 1 }],
+        created_at: '2026-05-18T20:05:00.000Z',
       });
       assert.deepEqual(
         database
@@ -1235,10 +1236,13 @@ test('POST /drafts/:id/trade-offer emits trade events and defers the next bot pi
       );
 
       assert.equal(offerResponse.statusCode, 202);
+      assert.match(offerResponse.jsonBody.tradeId, /^[0-9a-f-]{36}$/);
       assert.deepEqual(offerResponse.jsonBody, {
         ok: true,
-        tradeId: 'trade-user-offer-1',
+        tradeId: offerResponse.jsonBody.tradeId,
       });
+
+      const userTradeId = offerResponse.jsonBody.tradeId;
 
       releaseSleep?.();
       await botChain.waitForIdle(draftId);
@@ -1246,7 +1250,7 @@ test('POST /drafts/:id/trade-offer emits trade events and defers the next bot pi
       const offeredTrade = await readStreamEvent(stream);
       assert.equal(offeredTrade.event, 'trade_offered');
       assert.deepEqual(offeredTrade.data, {
-        trade_id: 'trade-user-offer-1',
+        trade_id: userTradeId,
         initiating_team_id: userTeamId,
         receiving_team_id: botTeamId,
         assets_sent: [{ type: 'future_pick', year: 2027, round: 1 }],
@@ -1257,10 +1261,11 @@ test('POST /drafts/:id/trade-offer emits trade events and defers the next bot pi
       const resolvedTrade = await readStreamEvent(stream);
       assert.equal(resolvedTrade.event, 'trade_resolved');
       assert.deepEqual(resolvedTrade.data, {
-        trade_id: 'trade-user-offer-1',
+        trade_id: userTradeId,
         status: 'accepted',
         assets_sent: [{ type: 'future_pick', year: 2027, round: 1 }],
         assets_received: [{ type: 'future_pick', year: 2027, round: 2 }],
+        created_at: '2026-05-18T20:05:00.000Z',
       });
 
       const botPick = await readStreamEvent(stream);

@@ -278,6 +278,7 @@ export type DraftStateSnapshot = {
     assets_sent: unknown;
     assets_received: unknown;
     status: TradeStatus;
+    created_at: string;
   }>;
 };
 
@@ -749,6 +750,7 @@ export function getDraftState({
           assets_sent: trades.assetsSent,
           assets_received: trades.assetsReceived,
           status: trades.status,
+          created_at: trades.createdAt,
         })
         .from(trades)
         .where(eq(trades.draftId, draftId))
@@ -1021,7 +1023,7 @@ export function resolveTrade({
   assetsReceived,
   status,
   now = defaultNow,
-}: ResolveTradeOptions): void {
+}: ResolveTradeOptions): { createdAt: string } {
   const { sqlite, db } = createDrizzleDb(databasePath);
   const createdAt = now();
   const parsedAssetsSent = assetsSent.map(parseTradeAsset);
@@ -1063,6 +1065,8 @@ export function resolveTrade({
         assets: parsedAssetsReceived,
       });
     });
+
+    return { createdAt };
   } finally {
     sqlite.close();
   }

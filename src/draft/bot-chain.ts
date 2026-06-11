@@ -12,6 +12,7 @@
 // @spec DFF-ENGINE-042
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
+import { randomUUID } from 'node:crypto';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import { createDrizzleDb } from '../db/client.js';
@@ -58,7 +59,7 @@ type PendingTradeState = {
   receivingTeamId: string;
   assetsSent: unknown[];
   assetsReceived: unknown[];
-  resolve: (status: TradeStatus) => void;
+  resolve: (result: { status: TradeStatus; createdAt: string }) => void;
   reject: (error: unknown) => void;
 };
 
@@ -88,10 +89,12 @@ type CreateBotChainCoordinatorOptions = {
   random?: () => number;
   sleep?: (delayMs: number) => Promise<void>;
   decideBotAction?: (context: DecideBotActionContext) => Promise<BotAction> | BotAction;
+  idGenerator?: () => string;
 };
 
 const defaultNow = () => new Date().toISOString();
 const defaultRandom = () => Math.random();
+const defaultIdGenerator = () => randomUUID();
 const botAcceptanceThresholds = {
   win_now: 0.85,
   punt: 1.15,
@@ -153,10 +156,10 @@ export function createBotChainCoordinator({
   random = defaultRandom,
   sleep = defaultSleep,
   decideBotAction = defaultDecideBotAction,
+  idGenerator = defaultIdGenerator,
 }: CreateBotChainCoordinatorOptions): BotChainCoordinator {
   const activeChains = new Map<string, Promise<void>>();
   const pendingTrades = new Map<string, PendingTradeState>();
-  let userTradeOfferSequence = 0;
 
   async function runBotChain(draftId: string): Promise<void> {
     try {
@@ -225,7 +228,7 @@ export function createBotChainCoordinator({
       }
 
       try {
-        resolveTrade({
+        const { createdAt } = resolveTrade({
           databasePath,
           tradeId: pendingTrade.tradeId,
           draftId,
@@ -239,7 +242,7 @@ export function createBotChainCoordinator({
           now,
         });
 
-        pendingTrade.resolve(status);
+        pendingTrade.resolve({ status, createdAt });
         return true;
       } catch (error) {
         pendingTrade.reject(error);
@@ -284,8 +287,7 @@ export function createBotChainCoordinator({
         throw new TradeOfferCoordinatorError('Invalid trade offer.', 400);
       }
 
-      userTradeOfferSequence += 1;
-      const tradeId = `trade-user-offer-${userTradeOfferSequence}`;
+      const tradeId = idGenerator();
       const currentRound =
         draftState.current_pick_number === null
           ? 0
@@ -324,7 +326,7 @@ export function createBotChainCoordinator({
             ? 'accepted'
             : 'declined';
 
-          resolveTrade({
+          const { createdAt } = resolveTrade({
             databasePath,
             tradeId,
             draftId,
@@ -344,6 +346,7 @@ export function createBotChainCoordinator({
             status,
             assetsSent: parsedOfferedAssets,
             assetsReceived: parsedRequestedAssets,
+            createdAt,
           });
         } catch (error) {
           console.error(`[draft] user trade offer failed for ${draftId}`, error);
@@ -373,7 +376,7 @@ async function awaitTradeResolution(
   action: BotTradeAction,
   pendingTrades: Map<string, PendingTradeState>,
 ): Promise<void> {
-  const status = await new Promise<TradeStatus>((resolve, reject) => {
+  const result = await new Promise<{ status: TradeStatus; createdAt: string }>((resolve, reject) => {
     pendingTrades.set(draftId, {
       tradeId: action.tradeId,
       pickNumber: slot.pickNumber,
@@ -400,9 +403,10 @@ async function awaitTradeResolution(
   emitTradeResolvedEvent({
     draftId,
     tradeId: action.tradeId,
-    status,
+    status: result.status,
     assetsSent: action.assetsSent,
     assetsReceived: action.assetsReceived,
+    createdAt: result.createdAt,
   });
 }
 

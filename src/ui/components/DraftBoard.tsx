@@ -44,6 +44,36 @@ function getDraftedPlayerSummary(draftState: DraftState, playerId: string): Draf
   return { id: player.id, name: player.name, position: player.position, nflTeam: player.nflTeam };
 }
 
+// @spec DFF-UI-163
+// @spec DFF-UI-164
+function getCanonicalTeamIdForSlot(
+  draftState: DraftState,
+  slot: DraftState['draftOrder'][number],
+): string | null {
+  const teamCount = draftState.teams.length;
+
+  if (teamCount === 0) {
+    return null;
+  }
+
+  // `draftState.teams` is hydrated in original pick-position order from the server.
+  // This lets us anchor traded startup slots to their immutable snake-order coordinates.
+  const teamIndex = slot.round % 2 === 1 ? slot.pickInRound - 1 : teamCount - slot.pickInRound;
+  return draftState.teams[teamIndex]?.id ?? null;
+}
+
+// @spec DFF-UI-163
+// @spec DFF-UI-164
+function getBoardSlot(
+  draftState: DraftState,
+  round: number,
+  canonicalTeamId: string,
+): DraftState['draftOrder'][number] | null {
+  return (
+    draftState.draftOrder.find((entry) => entry.round === round && getCanonicalTeamIdForSlot(draftState, entry) === canonicalTeamId) ?? null
+  );
+}
+
 // @spec DFF-UI-021
 // @spec DFF-UI-022
 // @spec DFF-UI-024
@@ -54,12 +84,18 @@ function DraftBoardCell({ draftState, pickNumber }: { draftState: DraftState; pi
 
   if (!slot) return null;
 
-  const team = draftState.teams.find((entry) => entry.id === slot.teamId) ?? null;
+  const ownerTeam = draftState.teams.find((entry) => entry.id === slot.teamId) ?? null;
+  const canonicalTeamId = getCanonicalTeamIdForSlot(draftState, slot);
+  const canonicalTeam = canonicalTeamId
+    ? draftState.teams.find((entry) => entry.id === canonicalTeamId) ?? null
+    : null;
   const pick = draftState.picks.find((entry) => entry.pickNumber === pickNumber) ?? null;
+  const pickTeam = pick ? draftState.teams.find((entry) => entry.id === pick.teamId) ?? null : null;
   const currentSlot = draftState.currentPickNumber
     ? draftState.draftOrder.find((entry) => entry.pickNumber === draftState.currentPickNumber) ?? null
     : null;
-  const showBotSkeleton = !pick && currentSlot?.pickNumber === pickNumber && !team?.isUser;
+  const showBotSkeleton = !pick && currentSlot?.pickNumber === pickNumber && !ownerTeam?.isUser;
+  const showOwnershipBadge = canonicalTeam !== null && canonicalTeam.id !== slot.teamId;
 
   return (
     <td
@@ -69,9 +105,16 @@ function DraftBoardCell({ draftState, pickNumber }: { draftState: DraftState; pi
       className="min-w-[12rem] border border-default bg-app align-top"
     >
       <div className="flex min-h-[5.5rem] flex-col justify-between px-2 py-2">
-        <p className="font-condensed text-[0.65rem] font-semibold uppercase tracking-wide text-muted tabular-nums">
-          {slot.round}.{String(slot.pickInRound).padStart(2, '0')}
-        </p>
+        <div className="space-y-1">
+          <p className="font-condensed text-[0.65rem] font-semibold uppercase tracking-wide text-muted tabular-nums">
+            {slot.round}.{String(slot.pickInRound).padStart(2, '0')}
+          </p>
+          {showOwnershipBadge ? (
+            <p className="inline-flex rounded border border-info/30 bg-info/10 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-info">
+              Owned by {ownerTeam?.name ?? slot.teamId}
+            </p>
+          ) : null}
+        </div>
 
         {pick ? (
           (() => {
@@ -80,7 +123,7 @@ function DraftBoardCell({ draftState, pickNumber }: { draftState: DraftState; pi
               <div className="space-y-1.5">
                 <div className="space-y-0.5">
                   <p className="text-sm font-semibold leading-tight text-primary">{player.name}</p>
-                  <p className="text-xs text-muted">{team?.name ?? slot.teamId}</p>
+                  <p className="text-xs text-muted">{pickTeam?.name ?? ownerTeam?.name ?? slot.teamId}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className={getPositionBadgeClass(player.position)}>{player.position}</span>
@@ -192,7 +235,7 @@ function ColumnModeDraftBoard({ draftState, onTeamHeaderClick, isInteractionBloc
                 <p className="font-condensed text-xs font-semibold text-secondary tabular-nums">Rd {round}</p>
               </th>
               {draftState.teams.map((team) => {
-                const slot = draftState.draftOrder.find((entry) => entry.round === round && entry.teamId === team.id) ?? null;
+                const slot = getBoardSlot(draftState, round, team.id);
                 return slot ? (
                   <DraftBoardCell key={slot.pickNumber} draftState={draftState} pickNumber={slot.pickNumber} />
                 ) : (
@@ -322,7 +365,7 @@ export function DraftBoard({
                     />
                   </th>
                   {rounds.map((round) => {
-                    const slot = draftState.draftOrder.find((entry) => entry.round === round && entry.teamId === team.id) ?? null;
+                    const slot = getBoardSlot(draftState, round, team.id);
                     return slot ? (
                       <DraftBoardCell key={slot.pickNumber} draftState={draftState} pickNumber={slot.pickNumber} />
                     ) : (

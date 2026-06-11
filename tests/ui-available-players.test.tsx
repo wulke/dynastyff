@@ -768,6 +768,7 @@ describe('available players list', () => {
     expect(selectedAvailableRow.className).toContain('border-accent');
     expect(enabledRow).toHaveAttribute('aria-pressed', 'true');
     expect(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
+    expect(within(selectedAvailableRow).getByText('ADP 2')).toBeInTheDocument();
     expect(within(selectedAvailableRow).getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
     expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
@@ -790,6 +791,7 @@ describe('available players list', () => {
     await user.click(enabledTargetRow);
     expect(selectedTargetRow.className).toContain('border-accent');
     expect(await within(selectedTargetRow).findByRole('button', { name: /draft bijan robinson/i })).toBeInTheDocument();
+    expect(within(selectedTargetRow).getByText('ADP 3')).toBeInTheDocument();
     expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
     await user.click(within(selectedTargetRow).getByRole('button', { name: /draft bijan robinson/i }));
 
@@ -868,6 +870,7 @@ describe('available players list', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Pick failed — player may already be taken.');
     expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
     expect(within(selectedRow).getByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
+    expect(within(selectedRow).getByText('ADP 2')).toBeInTheDocument();
     expect(selectedRow.className).toContain('border-accent');
   });
 

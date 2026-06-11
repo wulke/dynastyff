@@ -228,7 +228,10 @@ export function AvailablePlayersPanel({
         </button>
 
         {isSelected && userTurn ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-accent/30 px-2 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-accent/30 px-2 py-2">
+            <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted tabular-nums">
+              ADP {player.adp ?? 'NA'}
+            </span>
             <button
               type="button"
               onClick={() => setSelectedPlayerId(null)}

@@ -144,6 +144,40 @@ function defaultDecideBotAction(context: DecideBotActionContext): BotAction {
   };
 }
 
+// @spec DFF-SPKV-052
+export function buildConservativeStartupPickValues({
+  currentPickNumber,
+  availablePlayers,
+  startupPickValues,
+}: {
+  currentPickNumber: number | null;
+  availablePlayers: DraftAvailablePlayer[];
+  startupPickValues: Array<{
+    global_pick_number: number;
+    dynasty_value: number;
+  }>;
+}): Map<number, number> {
+  const conservativeStartupPickValues = new Map<number, number>();
+  const shouldUseDerivedValues = currentPickNumber !== null && availablePlayers.length > 0;
+
+  for (const entry of startupPickValues) {
+    const etlValue = entry.dynasty_value;
+
+    if (!shouldUseDerivedValues) {
+      conservativeStartupPickValues.set(entry.global_pick_number, etlValue);
+      continue;
+    }
+
+    const estimatedRank = Math.max(0, entry.global_pick_number - currentPickNumber - 1);
+    const derivedValue = availablePlayers[estimatedRank]?.dynasty_value ?? 0;
+
+    // Future archetypes can override this conservative floor during map construction.
+    conservativeStartupPickValues.set(entry.global_pick_number, Math.min(etlValue, derivedValue));
+  }
+
+  return conservativeStartupPickValues;
+}
+
 // @spec DFF-ENGINE-030
 // @spec DFF-ENGINE-031
 // @spec DFF-ENGINE-032
@@ -570,10 +604,11 @@ function evaluateUserTradeOffer({
     futurePickValues.set(`${asset.year}:${asset.round}`, getFuturePickDynastyValue(asset.round));
   }
 
-  const startupPickValues = new Map<number, number>();
-  for (const entry of draftState.startup_pick_values) {
-    startupPickValues.set(entry.global_pick_number, entry.dynasty_value);
-  }
+  const startupPickValues = buildConservativeStartupPickValues({
+    currentPickNumber: draftState.current_pick_number,
+    availablePlayers: draftState.available_players,
+    startupPickValues: draftState.startup_pick_values,
+  });
 
   const targetTeam = draftState.teams.find((team) => team.id === targetTeamId);
   const threshold =

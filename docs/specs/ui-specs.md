@@ -108,7 +108,7 @@ When a `pick_made` SSE event is received, the picked player shall be removed fro
 When it is not the user's turn, the Available Players list shall remain visible, the player rows shall not be interactive, and turn ownership shall continue to be communicated by the shared drafting status bar.
 
 **DFF-UI-036** `[x]` → #18
-When the user clicks a player row during their turn, the system shall select that player and render a confirmation card before POST /drafts/:id/pick is submitted.
+When the user clicks a player row during their turn, the system shall select that player and expand that row inline with `Draft [Name]` and `Cancel` actions before POST /drafts/:id/pick is submitted.
 
 ---
 
@@ -124,7 +124,7 @@ On draft-room hydration, the system shall fetch GET /drafts/:id/queue and displa
 Each Targets panel row shall display the player name, a color-coded position badge, and dynasty value.
 
 **DFF-UI-123** `[x]` → #85
-When the user clicks a Targets panel row during their turn, the system shall select that player and render the same confirmation card flow used by the Available Players list.
+When the user clicks a Targets panel row during their turn, the system shall select that player and render the same inline row expansion flow used by the Available Players list.
 
 **DFF-UI-124** `[x]` → #85
 When a `pick_made` SSE event is processed by the reducer, the picked player shall be removed from the Targets panel client-side.

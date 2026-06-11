@@ -677,7 +677,7 @@ describe('available players list', () => {
   // @spec DFF-UI-139
   // @spec DFF-UI-140
   // @spec DFF-UI-142
-  test('shows disabled rows during bot turns, then uses a toggleable shared confirmation flow for available players and targets on the user turn', async () => {
+  test('shows disabled rows during bot turns, then uses a toggleable shared inline expand flow for available players and targets on the user turn', async () => {
     const user = userEvent.setup();
 
     fetchMock.mockImplementation((input, init) => {
@@ -761,42 +761,39 @@ describe('available players list', () => {
 
     const availablePanelOnUserTurn = await screen.findByTestId('available-players-panel');
     const enabledRow = within(availablePanelOnUserTurn).getByRole('button', { name: /ceedee lamb/i });
+    const selectedAvailableRow = within(availablePanelOnUserTurn).getByTestId('available-player-row-player-wr-1');
     expect(enabledRow).toBeEnabled();
 
     await user.click(enabledRow);
-    const confirmationCard = await screen.findByTestId('pick-confirmation-card');
-    expect(enabledRow.className).toContain('border-accent');
+    expect(selectedAvailableRow.className).toContain('border-accent');
     expect(enabledRow).toHaveAttribute('aria-pressed', 'true');
-    expect(within(confirmationCard).getByText('CeeDee Lamb')).toBeInTheDocument();
-    expect(within(confirmationCard).getByText('DAL')).toBeInTheDocument();
-    expect(within(confirmationCard).getByText('Age 27')).toBeInTheDocument();
-    expect(within(confirmationCard).getByText('Dynasty 9800')).toBeInTheDocument();
-    expect(within(confirmationCard).getByText('ADP 2')).toBeInTheDocument();
+    expect(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
+    expect(within(selectedAvailableRow).getByText('ADP 2')).toBeInTheDocument();
+    expect(within(selectedAvailableRow).getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
       '/drafts/draft-available-123/pick',
       expect.objectContaining({ method: 'POST' }),
     );
     await user.click(enabledRow);
-    expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
+    expect(within(selectedAvailableRow).queryByRole('button', { name: /draft ceedee lamb/i })).not.toBeInTheDocument();
     expect(enabledRow).toHaveAttribute('aria-pressed', 'false');
 
     await user.click(enabledRow);
-    await user.click(within(await screen.findByTestId('pick-confirmation-card')).getByRole('button', { name: /draft ceedee lamb/i }));
+    await user.click(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i }));
 
     await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const targetsPanel = await screen.findByTestId('targets-panel');
     expect(within(targetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
     const enabledTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
+    const selectedTargetRow = within(targetsPanel).getByTestId('target-player-row-player-rb-1');
     expect(enabledTargetRow).toBeEnabled();
     await user.click(enabledTargetRow);
-    const targetConfirmationCard = await screen.findByTestId('pick-confirmation-card');
-    expect(enabledTargetRow.className).toContain('border-accent');
-    expect(within(targetConfirmationCard).getByText('Bijan Robinson')).toBeInTheDocument();
-    expect(within(targetConfirmationCard).getByText('ATL')).toBeInTheDocument();
-    expect(within(targetConfirmationCard).getByText('Age 23')).toBeInTheDocument();
-    expect(within(targetConfirmationCard).getByText('Dynasty 9700')).toBeInTheDocument();
-    expect(within(targetConfirmationCard).getByText('ADP 3')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /draft bijan robinson/i }));
+    expect(selectedTargetRow.className).toContain('border-accent');
+    expect(await within(selectedTargetRow).findByRole('button', { name: /draft bijan robinson/i })).toBeInTheDocument();
+    expect(within(selectedTargetRow).getByText('ADP 3')).toBeInTheDocument();
+    expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
+    await user.click(within(selectedTargetRow).getByRole('button', { name: /draft bijan robinson/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       6,
@@ -866,13 +863,15 @@ describe('available players list', () => {
 
     const panel = await screen.findByTestId('available-players-panel');
     const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
+    const selectedRow = within(panel).getByTestId('available-player-row-player-wr-1');
     await user.click(lambRow);
-    await user.click(await screen.findByRole('button', { name: /draft ceedee lamb/i }));
+    await user.click(await within(selectedRow).findByRole('button', { name: /draft ceedee lamb/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Pick failed — player may already be taken.');
-    expect(await screen.findByTestId('pick-confirmation-card')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
-    expect(lambRow.className).toContain('border-accent');
+    expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
+    expect(within(selectedRow).getByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
+    expect(within(selectedRow).getByText('ADP 2')).toBeInTheDocument();
+    expect(selectedRow.className).toContain('border-accent');
   });
 
   // @spec DFF-UI-080

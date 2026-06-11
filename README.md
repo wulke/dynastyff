@@ -239,6 +239,8 @@ src/
     main.tsx             # Vite React entry point
     index.html           # Vite HTML entry
     styles.css           # Tailwind entry stylesheet
+    utils/
+      draftUtils.ts      # Pure draft UI helpers, including derived startup pick value calculation
     components/
       DraftBoard.tsx     # Draft board grid with snake-order slot rendering
       DraftConfigScreen.tsx # League configuration form

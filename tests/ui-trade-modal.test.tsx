@@ -306,6 +306,8 @@ test('opens a blocking modal for a user-targeted trade and prevents draft-room i
 
 // @spec DFF-SPKV-060
 // @spec DFF-SPKV-061
+// @spec DFF-UI-171
+// @spec DFF-UI-174
 test('renders startup pick slots in the trade offer modal with a STARTUP badge, zero-padded label, and inline value', async () => {
   await renderDraftRoom();
 
@@ -322,9 +324,11 @@ test('renders startup pick slots in the trade offer modal with a STARTUP badge, 
 
   const dialog = screen.getByRole('dialog');
   expect(within(dialog).getByText('STARTUP')).toBeInTheDocument();
-  expect(within(dialog).getByText('Startup 2.03')).toBeInTheDocument();
-  expect(within(dialog).getByText('8,600')).toBeInTheDocument();
+  const startupAsset = within(dialog).getByText('Startup 2.03').closest('li');
+  expect(startupAsset).not.toBeNull();
+  expect(within(startupAsset as HTMLElement).getByText('0')).toBeInTheDocument();
   expect(within(dialog).getByText('2027 Round 1')).toBeInTheDocument();
+  expect(within(dialog).getByRole('region', { name: /trade balance summary/i })).toBeInTheDocument();
 });
 
 // @spec DFF-UI-053
@@ -463,6 +467,9 @@ test('renders the latest trade when a second trade_offered event arrives before 
 // @spec DFF-UI-058f
 // @spec DFF-UI-058g
 // @spec DFF-UI-058h
+// @spec DFF-UI-172
+// @spec DFF-UI-173
+// @spec DFF-UI-175
 test('clicking a bot team header opens propose mode with team switching and position filters', async () => {
   const user = await renderDraftRoom();
 
@@ -496,6 +503,19 @@ test('clicking a bot team header opens propose mode with team switching and posi
   await user.selectOptions(screen.getByLabelText(/trade partner/i), 'team-1');
   expect(screen.getByLabelText(/trade partner/i)).toHaveValue('team-1');
   expect(screen.getAllByText(/garrett wilson/i)).toHaveLength(1);
+
+  const summary = screen.getByRole('region', { name: /trade balance summary/i });
+  expect(within(summary).getByText(/^sent$/i)).toBeInTheDocument();
+  expect(within(summary).getByText(/^received$/i)).toBeInTheDocument();
+  expect(within(summary).getByText(/^net$/i)).toBeInTheDocument();
+  expect(within(summary).getAllByText('0')).toHaveLength(3);
+
+  await user.click(screen.getByRole('button', { name: /startup 1\.02/i }));
+  await user.click(screen.getByRole('button', { name: /garrett wilson/i }));
+
+  expect(within(summary).getByText('9,999')).toBeInTheDocument();
+  expect(within(summary).getByText('7,800')).toBeInTheDocument();
+  expect(within(summary).getByText('-2,199')).toHaveClass('text-negative');
 });
 
 // @spec DFF-UI-059

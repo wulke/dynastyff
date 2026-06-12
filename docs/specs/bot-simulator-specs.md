@@ -44,24 +44,38 @@ The system shall allow multiple bot teams to share the same archetype; no unique
 ## Pick Scoring
 
 **DFF-BOT-020** `[ ]`
-When computing a pick score for an available player, the system shall multiply the player's dynasty_value by the positional need multiplier and by the archetype bias multiplier.
+When computing a pick score for an available player, the system shall compute: `score = dynastyValue × valueWeight × (slotNeed × needModifier) × youthModifier + handcuffBonus + noise × random()`.
 
 **DFF-BOT-021** `[ ]`
-The system shall apply the following positional need multipliers based on the bot's current roster vs. target roster slots: 1.5× for an empty position slot, 1.2× for below-starter count, 1.0× for bench depth, and 0.6× for a saturated position.
+The system shall compute `slotNeed` using a step function: `1.0` while the bot has eligibility-weighted unfilled slots remaining for that position; `0.3` (saturation floor) once all eligible slots are filled.
 
 **DFF-BOT-022** `[ ]`
-The system shall apply the following default archetype bias multipliers, overridable via `config/archetypes.json`:
-- `rb_heavy`: RB dynasty_value × 1.4
-- `qb_early`: QB dynasty_value × 1.6 in rounds 1–4, × 1.0 in rounds 5+
-- `win_now`: players age ≤ 26 × 0.85, players age ≥ 28 × 1.15
-- `punt`: players age ≤ 24 × 1.2, players age ≥ 29 × 0.8
-- `bpa`, `balanced`: no additional multiplier
+The system shall apply the following `needModifier` and `valueWeight` per archetype:
+- `bpa`: needModifier 0.1, valueWeight 1.0 (near-pure dynasty value sort)
+- `balanced`: needModifier 1.0, valueWeight 0.8
+- `win_now`: needModifier 1.3, valueWeight 0.6
+- `punt`: needModifier 0.4, valueWeight 0.9
+- `rb_heavy`: needModifier 1.0, valueWeight 0.7; RB slot need additionally multiplied by 1.5
+- `qb_early`: needModifier 1.0, valueWeight 0.5; QB slot need additionally multiplied by 2.0 in rounds ≤ 3 only
 
 **DFF-BOT-023** `[ ]`
-The system shall treat FLEX slots as satisfiable by RB, WR, or TE when computing positional need multipliers.
+The system shall define a static `SLOT_ELIGIBILITY` map that specifies which positions can fill each roster slot type:
+- `QB` → `[QB]`
+- `RB` → `[RB]`
+- `WR` → `[WR]`
+- `TE` → `[TE]`
+- `FLEX` → `[RB, WR, TE]`
+- `SF` → `[QB, RB, WR, TE]`
+- `bench` → `[QB, RB, WR, TE]`
 
 **DFF-BOT-024** `[ ]`
-The system shall treat Superflex slots as satisfiable by QB, RB, WR, or TE when computing positional need multipliers.
+When computing `slotNeed` for a position, the system shall count all unfilled roster slots whose eligibility set includes that position, weighted by `1 / eligibilitySetSize` (fractional contribution per shared slot).
+
+**DFF-BOT-025** `[ ]`
+For the `punt` archetype, the system shall apply a `youthModifier` of `1.0 + max(0, (30 − age) / 30) × 0.4` to non-rookie players; rookies (`isRookie = true`) shall receive a flat `youthModifier` of `1.3`. All other archetypes shall use `youthModifier = 1.0`.
+
+**DFF-BOT-026** `[ ]`
+When scoring an available RB whose `nflTeam` matches the `nflTeam` of any RB already on the bot's roster, the system shall add a handcuff bonus of `0.15 × player.dynastyValue` to that player's score.
 
 ---
 

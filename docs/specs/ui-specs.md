@@ -472,23 +472,23 @@ The right-column draft log shall render trade resolutions from either hydrated `
 **DFF-UI-170** `[x]` → #131
 During an in-progress draft, the system shall compute an in-draft derived dynasty value for each unfilled startup pick slot using the formula `availablePlayers[G - currentPickNumber - 1]?.dynastyValue ?? 0`, where `G` is the slot's global pick number and `currentPickNumber` is the next pick number to be made. This computation shall be a pure client-side function over `DraftState` with no server round-trip.
 
-**DFF-UI-171** `[ ]`
+**DFF-UI-171** `[x]` → #134
 When displaying dynasty values for startup pick slot assets during an in-progress draft, the system shall use the derived value from DFF-UI-170 in place of the ETL-scraped `startupPickValues` entry. No blending of the two values shall occur.
 
 ---
 
 ## Trade Balance Summary
 
-**DFF-UI-172** `[ ]`
+**DFF-UI-172** `[x]` → #134
 The trade composer shall render a balance summary row below the asset selection panels, showing: total dynasty value offered by the user, total dynasty value requested from the target, and the net delta (received minus sent).
 
-**DFF-UI-173** `[ ]`
+**DFF-UI-173** `[x]` → #134
 The balance summary net delta shall be color-coded using semantic tokens: positive delta (`text-positive`) when the user receives more than they send; negative delta (`text-negative`) when the user sends more; zero delta (`text-muted`).
 
-**DFF-UI-174** `[ ]`
+**DFF-UI-174** `[x]` → #134
 The incoming bot trade offer modal shall render the same balance summary row as the trade composer (DFF-UI-172), driven by `pendingTrade.assetsSent` and `pendingTrade.assetsReceived` from the user's perspective.
 
-**DFF-UI-175** `[ ]`
+**DFF-UI-175** `[x]` → #134
 When computing dynasty values for the balance summary, unfilled startup pick slots shall use the in-draft derived value per DFF-UI-170 if the draft is in progress; otherwise the ETL-scraped value from `startupPickValues` shall be used.
 
 ---

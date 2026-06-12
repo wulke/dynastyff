@@ -18,6 +18,8 @@
 import * as Dialog from '@radix-ui/react-dialog';
 
 import type { DraftState, TradeResponseStatus } from '../context/DraftContext.js';
+import { computeDerivedPickValues } from '../utils/draftUtils.js';
+import { TradeBalanceSummary } from './TradeBalanceSummary.js';
 import { TradeAssetDisplay, getTradeAssetPresentation } from './tradeAssetPresentation.js';
 
 type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE';
@@ -135,7 +137,18 @@ function filterSelectableAssets(assets: SelectableTradeAsset[], filter: Position
 
 // @spec DFF-UI-051
 // @spec DFF-UI-052
-function TradeAssetList({ title, assets, draftState }: { title: string; assets: unknown[]; draftState: DraftState }) {
+// @spec DFF-UI-171
+function TradeAssetList({
+  title,
+  assets,
+  draftState,
+  derivedPickValues,
+}: {
+  title: string;
+  assets: unknown[];
+  draftState: DraftState;
+  derivedPickValues: Map<number, number>;
+}) {
   return (
     <section>
       <h3 className="font-condensed text-xs font-semibold uppercase tracking-widest text-muted">{title}</h3>
@@ -148,7 +161,7 @@ function TradeAssetList({ title, assets, draftState }: { title: string; assets: 
               key={`${title}-${index}`}
               className="rounded border border-default bg-app px-2 py-2 text-xs text-secondary"
             >
-              <TradeAssetDisplay asset={asset} draftState={draftState} />
+              <TradeAssetDisplay asset={asset} draftState={draftState} derivedPickValues={derivedPickValues} />
             </li>
           ))
         )}
@@ -200,6 +213,7 @@ function SelectableAssetSection({
   onToggleAsset: (asset: unknown) => void;
 }) {
   const filteredPlayers = filterSelectableAssets(playerAssets, filter);
+  const derivedPickValues = computeDerivedPickValues(draftState);
 
   return (
     <section>
@@ -225,7 +239,7 @@ function SelectableAssetSection({
                     : 'border-default bg-app text-secondary hover:border-strong hover:bg-surface-hover'
                 }`}
               >
-                <TradeAssetDisplay asset={entry.asset} draftState={draftState} />
+                <TradeAssetDisplay asset={entry.asset} draftState={draftState} derivedPickValues={derivedPickValues} />
               </button>
             );
           })
@@ -246,7 +260,7 @@ function SelectableAssetSection({
                   : 'border-default bg-app text-secondary hover:border-strong hover:bg-surface-hover'
               }`}
             >
-              <TradeAssetDisplay asset={entry.asset} draftState={draftState} />
+              <TradeAssetDisplay asset={entry.asset} draftState={draftState} derivedPickValues={derivedPickValues} />
             </button>
           );
         })}
@@ -259,7 +273,7 @@ function SelectableAssetSection({
               key={`${title}-selected-${index}`}
               className="rounded border border-default bg-app px-2 py-2 text-xs text-secondary"
             >
-              <TradeAssetDisplay asset={asset} draftState={draftState} />
+              <TradeAssetDisplay asset={asset} draftState={draftState} derivedPickValues={derivedPickValues} />
             </div>
           ))}
         </div>
@@ -444,6 +458,12 @@ function TradeComposerContent({
           />
         </div>
 
+        <TradeBalanceSummary
+          assetsSent={composer.offeredAssets}
+          assetsReceived={composer.requestedAssets}
+          draftState={draftState}
+        />
+
         {composer.status === 'editing' ? (
           <div className="mt-4 flex justify-end">
             <button
@@ -488,6 +508,7 @@ export function TradeModal({
   onCloseComposer,
 }: TradeModalProps) {
   const pendingTrade = draftState.pendingTrade;
+  const derivedPickValues = computeDerivedPickValues(draftState);
 
   if (!composer && !pendingTrade) return null;
 
@@ -536,9 +557,24 @@ export function TradeModal({
 
               <div className="p-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <TradeAssetList title={`${initiatingTeamName} sends`} assets={pendingTrade.assetsSent} draftState={draftState} />
-                  <TradeAssetList title={`${receivingTeamName} sends`} assets={pendingTrade.assetsReceived} draftState={draftState} />
+                  <TradeAssetList
+                    title={`${initiatingTeamName} sends`}
+                    assets={pendingTrade.assetsSent}
+                    draftState={draftState}
+                    derivedPickValues={derivedPickValues}
+                  />
+                  <TradeAssetList
+                    title={`${receivingTeamName} sends`}
+                    assets={pendingTrade.assetsReceived}
+                    draftState={draftState}
+                    derivedPickValues={derivedPickValues}
+                  />
                 </div>
+                <TradeBalanceSummary
+                  assetsSent={pendingTrade.assetsSent}
+                  assetsReceived={pendingTrade.assetsReceived}
+                  draftState={draftState}
+                />
                 <TradeModalActions draftState={draftState} onRespond={onRespond} onCounter={onCounter} />
               </div>
             </>

@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, test } from 'vitest';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, test } from 'vitest';
 
 import { TradeBalanceSummary } from '../src/ui/components/TradeBalanceSummary.js';
 import type { DraftState } from '../src/ui/context/DraftContext.js';
@@ -78,6 +78,10 @@ function createDraftState(overrides: Partial<DraftState> = {}): DraftState {
 }
 
 describe('TradeBalanceSummary', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   // @spec DFF-UI-173
   test('renders the zero-asset edge case as 0 / 0 / 0 with a muted net delta', () => {
     render(<TradeBalanceSummary assetsSent={[]} assetsReceived={[]} draftState={createDraftState()} />);
@@ -88,7 +92,7 @@ describe('TradeBalanceSummary', () => {
     expect(within(summary).getByText(/^received$/i)).toBeInTheDocument();
     expect(within(summary).getByText(/^net$/i)).toBeInTheDocument();
     expect(within(summary).getAllByText('0')).toHaveLength(3);
-    expect(within(summary).getByText('0')).toHaveClass('text-muted');
+    expect(within(summary).getAllByText('0')[2]).toHaveClass('text-muted');
   });
 
   // @spec DFF-UI-175

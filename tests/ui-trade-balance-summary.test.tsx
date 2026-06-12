@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 
 import { TradeBalanceSummary } from '../src/ui/components/TradeBalanceSummary.js';
 import type { DraftState } from '../src/ui/context/DraftContext.js';
+import { computeDerivedPickValues } from '../src/ui/utils/draftUtils.js';
 
 function createDraftState(overrides: Partial<DraftState> = {}): DraftState {
   return {
@@ -84,7 +85,16 @@ describe('TradeBalanceSummary', () => {
 
   // @spec DFF-UI-173
   test('renders the zero-asset edge case as 0 / 0 / 0 with a muted net delta', () => {
-    render(<TradeBalanceSummary assetsSent={[]} assetsReceived={[]} draftState={createDraftState()} />);
+    const draftState = createDraftState();
+
+    render(
+      <TradeBalanceSummary
+        assetsSent={[]}
+        assetsReceived={[]}
+        draftState={draftState}
+        derivedPickValues={computeDerivedPickValues(draftState)}
+      />,
+    );
 
     const summary = screen.getByRole('region', { name: /trade balance summary/i });
 
@@ -96,16 +106,37 @@ describe('TradeBalanceSummary', () => {
   });
 
   // @spec DFF-UI-175
-  test('falls back to ETL startup pick values when the draft is not in progress', () => {
+  test('uses derived pick values for startup pick slots during an in-progress draft', () => {
+    const draftState = createDraftState({ currentPickNumber: 1, picks: [] });
+
     render(
       <TradeBalanceSummary
         assetsSent={[{ type: 'pick_slot', pick_number: 2 }]}
         assetsReceived={[]}
-        draftState={createDraftState({
-          status: 'completed',
-          currentPickNumber: null,
-          completedAt: '2026-06-12T12:30:00.000Z',
-        })}
+        draftState={draftState}
+        derivedPickValues={computeDerivedPickValues(draftState)}
+      />,
+    );
+
+    const summary = screen.getByRole('region', { name: /trade balance summary/i });
+    expect(within(summary).getByText('9,999')).toBeInTheDocument();
+    expect(within(summary).getByText('-9,999')).toHaveClass('text-negative');
+  });
+
+  // @spec DFF-UI-175
+  test('falls back to ETL startup pick values when the draft is not in progress', () => {
+    const draftState = createDraftState({
+      status: 'completed',
+      currentPickNumber: null,
+      completedAt: '2026-06-12T12:30:00.000Z',
+    });
+
+    render(
+      <TradeBalanceSummary
+        assetsSent={[{ type: 'pick_slot', pick_number: 2 }]}
+        assetsReceived={[]}
+        draftState={draftState}
+        derivedPickValues={computeDerivedPickValues(draftState)}
       />,
     );
 

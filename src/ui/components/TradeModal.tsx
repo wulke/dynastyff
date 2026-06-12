@@ -199,6 +199,7 @@ function SelectableAssetSection({
   pickAssets,
   selectedAssets,
   draftState,
+  derivedPickValues,
   filter,
   onFilterChange,
   onToggleAsset,
@@ -208,12 +209,12 @@ function SelectableAssetSection({
   pickAssets: SelectableTradeAsset[];
   selectedAssets: unknown[];
   draftState: DraftState;
+  derivedPickValues: Map<number, number>;
   filter: PositionFilter;
   onFilterChange: (filter: PositionFilter) => void;
   onToggleAsset: (asset: unknown) => void;
 }) {
   const filteredPlayers = filterSelectableAssets(playerAssets, filter);
-  const derivedPickValues = computeDerivedPickValues(draftState);
 
   return (
     <section>
@@ -375,6 +376,7 @@ function TradeComposerContent({
 }) {
   const userTeam = draftState.teams.find((team) => team.isUser) ?? null;
   const targetTeam = draftState.teams.find((team) => team.id === composer.targetTeamId) ?? null;
+  const derivedPickValues = computeDerivedPickValues(draftState);
   const offeredPlayerAssets = userTeam ? buildSelectablePlayerAssets(draftState, userTeam.id) : [];
   const offeredPickAssets = userTeam ? buildSelectablePickAssets(draftState, userTeam.id) : [];
   const requestedPlayerAssets = targetTeam ? buildSelectablePlayerAssets(draftState, targetTeam.id) : [];
@@ -442,6 +444,7 @@ function TradeComposerContent({
             pickAssets={offeredPickAssets}
             selectedAssets={composer.offeredAssets}
             draftState={draftState}
+            derivedPickValues={derivedPickValues}
             filter={composer.offeredFilter}
             onFilterChange={(filter) => onComposerFilterChange('offered', filter)}
             onToggleAsset={(asset) => onToggleComposerAsset('offered', asset)}
@@ -452,6 +455,7 @@ function TradeComposerContent({
             pickAssets={requestedPickAssets}
             selectedAssets={composer.requestedAssets}
             draftState={draftState}
+            derivedPickValues={derivedPickValues}
             filter={composer.requestedFilter}
             onFilterChange={(filter) => onComposerFilterChange('requested', filter)}
             onToggleAsset={(asset) => onToggleComposerAsset('requested', asset)}
@@ -462,6 +466,7 @@ function TradeComposerContent({
           assetsSent={composer.offeredAssets}
           assetsReceived={composer.requestedAssets}
           draftState={draftState}
+          derivedPickValues={derivedPickValues}
         />
 
         {composer.status === 'editing' ? (
@@ -574,6 +579,7 @@ export function TradeModal({
                   assetsSent={pendingTrade.assetsSent}
                   assetsReceived={pendingTrade.assetsReceived}
                   draftState={draftState}
+                  derivedPickValues={derivedPickValues}
                 />
                 <TradeModalActions draftState={draftState} onRespond={onRespond} onCounter={onCounter} />
               </div>

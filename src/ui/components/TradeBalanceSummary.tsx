@@ -1,11 +1,11 @@
 import type { DraftState } from '../context/DraftContext.js';
-import { computeDerivedPickValues } from '../utils/draftUtils.js';
 import { getTradeAssetDynastyValue } from './tradeAssetPresentation.js';
 
 type TradeBalanceSummaryProps = {
   assetsSent: unknown[];
   assetsReceived: unknown[];
   draftState: DraftState;
+  derivedPickValues: Map<number, number>;
 };
 
 function formatDynastyValue(value: number): string {
@@ -34,8 +34,12 @@ function getNetDeltaClassName(netDelta: number): string {
 // @spec DFF-UI-173
 // @spec DFF-UI-174
 // @spec DFF-UI-175
-export function TradeBalanceSummary({ assetsSent, assetsReceived, draftState }: TradeBalanceSummaryProps) {
-  const derivedPickValues = computeDerivedPickValues(draftState);
+export function TradeBalanceSummary({
+  assetsSent,
+  assetsReceived,
+  draftState,
+  derivedPickValues,
+}: TradeBalanceSummaryProps) {
   const sentTotal = sumTradeAssets(assetsSent, draftState, derivedPickValues);
   const receivedTotal = sumTradeAssets(assetsReceived, draftState, derivedPickValues);
   const netDelta = receivedTotal - sentTotal;

@@ -234,10 +234,10 @@ describe('DraftGradeSummaryView', () => {
     expect(within(section).getByRole('heading', { name: /trade activity/i })).toBeInTheDocument();
     expect(within(row).getByText('Round 3')).toBeInTheDocument();
     expect(within(row).getByText('Your Team -> Team Beta')).toBeInTheDocument();
-    expect(within(row).getByText('Gamma WR')).toBeInTheDocument();
-    expect(within(row).getByText('8,100')).toBeInTheDocument();
+    expect(within(row).getByText('Startup 1.03')).toBeInTheDocument();
+    expect(within(row).getAllByText('8,100')).toHaveLength(2);
     expect(within(row).getAllByText('0')).toHaveLength(2);
-    expect(within(row).getByText('8,100')).toHaveClass('text-positive');
+    expect(within(row).getAllByText('8,100')[0]).toHaveClass('text-positive');
     expect(within(section).queryByTestId('trade-activity-row-trade-declined')).not.toBeInTheDocument();
     expect(within(section).queryByTestId('trade-activity-row-trade-other-teams')).not.toBeInTheDocument();
   });

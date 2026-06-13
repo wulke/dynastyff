@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 import { calculateDraftGradeSummaries, type DraftGradeSummaryInput } from '../../draft/grade-summary.js';
 import { getPickRoundForPlayer } from '../utils/draftUtils.js';
+import { getTradeAssetDynastyValue, getTradeAssetPresentation } from './tradeAssetPresentation.js';
 
 type DraftGradeSummaryViewProps = {
   draftState: DraftState;
@@ -26,6 +27,21 @@ type RosterPlayerSummary = {
   name: string;
   round: number;
   value: number;
+};
+
+type TradeActivityAssetSummary = {
+  label: string;
+  value: number;
+};
+
+type TradeActivityEntry = {
+  id: string;
+  round: number;
+  initiatingTeamName: string;
+  receivingTeamName: string;
+  sentAssets: TradeActivityAssetSummary[];
+  receivedAssets: TradeActivityAssetSummary[];
+  netDelta: number;
 };
 
 // @spec DFF-GRADE-003
@@ -78,6 +94,31 @@ function formatDynastyValue(value: number): string {
   return value.toLocaleString('en-US');
 }
 
+function formatSignedDynastyValue(value: number): string {
+  if (value > 0) {
+    return `+${formatDynastyValue(value)}`;
+  }
+
+  if (value < 0) {
+    return `-${formatDynastyValue(Math.abs(value))}`;
+  }
+
+  return formatDynastyValue(value);
+}
+
+// @spec DFF-UI-177
+function getTradeNetDeltaClassName(netDelta: number): string {
+  if (netDelta > 0) {
+    return 'text-positive';
+  }
+
+  if (netDelta < 0) {
+    return 'text-negative';
+  }
+
+  return 'text-muted';
+}
+
 function buildRosterGroups(draftState: DraftState, teamId: string): Record<Position, RosterPlayerSummary[]> {
   const grouped = {
     QB: [],
@@ -119,6 +160,78 @@ function buildRosterGroups(draftState: DraftState, teamId: string): Record<Posit
   return grouped;
 }
 
+// @spec DFF-UI-178
+function buildCompletedPickSlotValues(draftState: DraftState): Map<number, number> {
+  const values = new Map<number, number>();
+
+  for (const pick of draftState.picks) {
+    values.set(pick.pickNumber, draftState.playerCatalog[pick.playerId]?.dynastyValue ?? 0);
+  }
+
+  return values;
+}
+
+function getTeamName(draftState: DraftState, teamId: string): string {
+  return draftState.teams.find((team) => team.id === teamId)?.name ?? teamId;
+}
+
+// @spec DFF-UI-177
+// @spec DFF-UI-178
+function summarizeTradeAsset(
+  asset: unknown,
+  draftState: DraftState,
+  completedPickSlotValues: Map<number, number>,
+): TradeActivityAssetSummary {
+  const presentation = getTradeAssetPresentation(asset, draftState, {
+    playerLabelStyle: 'name-only',
+  });
+  const candidate = asset && typeof asset === 'object' ? asset as { type?: string; pick_number?: number; pickNumber?: number } : null;
+
+  if (candidate?.type === 'pick_slot') {
+    const pickNumber = candidate.pick_number ?? candidate.pickNumber ?? null;
+
+    return {
+      label: presentation.label,
+      value: pickNumber === null ? (getTradeAssetDynastyValue(asset, draftState) ?? 0) : (completedPickSlotValues.get(pickNumber) ?? 0),
+    };
+  }
+
+  return {
+    label: presentation.label,
+    value: getTradeAssetDynastyValue(asset, draftState) ?? 0,
+  };
+}
+
+// @spec DFF-UI-176
+// @spec DFF-UI-177
+// @spec DFF-UI-178
+// @spec DFF-UI-179
+function buildTradeActivityEntries(draftState: DraftState, userTeamId: string): TradeActivityEntry[] {
+  const completedPickSlotValues = buildCompletedPickSlotValues(draftState);
+
+  return draftState.trades
+    .filter((trade) => trade.status === 'accepted')
+    .filter((trade) => trade.initiatingTeamId === userTeamId || trade.receivingTeamId === userTeamId)
+    .map((trade) => {
+      const userSentAssets = trade.initiatingTeamId === userTeamId ? trade.assetsSent : trade.assetsReceived;
+      const userReceivedAssets = trade.initiatingTeamId === userTeamId ? trade.assetsReceived : trade.assetsSent;
+      const sentAssets = userSentAssets.map((asset) => summarizeTradeAsset(asset, draftState, completedPickSlotValues));
+      const receivedAssets = userReceivedAssets.map((asset) => summarizeTradeAsset(asset, draftState, completedPickSlotValues));
+      const sentTotal = sentAssets.reduce((total, asset) => total + asset.value, 0);
+      const receivedTotal = receivedAssets.reduce((total, asset) => total + asset.value, 0);
+
+      return {
+        id: trade.id,
+        round: trade.round,
+        initiatingTeamName: getTeamName(draftState, trade.initiatingTeamId),
+        receivingTeamName: getTeamName(draftState, trade.receivingTeamId),
+        sentAssets,
+        receivedAssets,
+        netDelta: receivedTotal - sentTotal,
+      };
+    });
+}
+
 // @spec DFF-UI-145
 // @spec DFF-UI-146
 // @spec DFF-UI-147
@@ -136,6 +249,10 @@ export function DraftGradeSummaryView({ draftState, onNewDraft, onViewHistory }:
   const userTeam = summary?.teamSummaries.find((team) => team.isUser) ?? summary?.teamSummaries[0] ?? null;
   const rosterGroups = useMemo(
     () => (userTeam ? buildRosterGroups(draftState, userTeam.teamId) : null),
+    [draftState, userTeam],
+  );
+  const tradeActivityEntries = useMemo(
+    () => (userTeam ? buildTradeActivityEntries(draftState, userTeam.teamId) : []),
     [draftState, userTeam],
   );
 
@@ -310,6 +427,78 @@ export function DraftGradeSummaryView({ draftState, onNewDraft, onViewHistory }:
           </div>
         </section>
       </div>
+
+      {tradeActivityEntries.length > 0 ? (
+        <div className="border-t border-default px-4 py-4">
+          <section
+            data-testid="grade-summary-trade-activity"
+            className="rounded-md border border-default bg-app px-3 py-3"
+          >
+            <p className="text-xs font-semibold uppercase tracking-widest text-accent">Post-Draft</p>
+            <h2 className="font-condensed text-lg font-bold text-primary">Trade Activity</h2>
+            <div className="mt-4 space-y-2">
+              {tradeActivityEntries.map((trade) => (
+                <article
+                  key={trade.id}
+                  data-testid={`trade-activity-row-${trade.id}`}
+                  className="rounded border border-default bg-surface px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-condensed text-sm font-semibold tabular-nums text-primary">Round {trade.round}</p>
+                      <p className="text-xs text-secondary">
+                        {trade.initiatingTeamName} {'->'} {trade.receivingTeamName}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-widest text-muted">Net Delta</p>
+                      <p className={`font-condensed text-lg font-bold tabular-nums ${getTradeNetDeltaClassName(trade.netDelta)}`}>
+                        {formatSignedDynastyValue(trade.netDelta)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted">Sent</p>
+                      <div className="mt-2 space-y-1">
+                        {trade.sentAssets.map((asset, index) => (
+                          <div
+                            key={`${trade.id}-sent-${index}`}
+                            className="flex items-center justify-between gap-3 rounded border border-default bg-app px-2 py-1"
+                          >
+                            <span className="text-xs text-secondary">{asset.label}</span>
+                            <span className="font-condensed text-sm font-semibold tabular-nums text-primary">
+                              {formatDynastyValue(asset.value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted">Received</p>
+                      <div className="mt-2 space-y-1">
+                        {trade.receivedAssets.map((asset, index) => (
+                          <div
+                            key={`${trade.id}-received-${index}`}
+                            className="flex items-center justify-between gap-3 rounded border border-default bg-app px-2 py-1"
+                          >
+                            <span className="text-xs text-secondary">{asset.label}</span>
+                            <span className="font-condensed text-sm font-semibold tabular-nums text-primary">
+                              {formatDynastyValue(asset.value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

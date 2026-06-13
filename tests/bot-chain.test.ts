@@ -18,6 +18,7 @@ import {
   buildConservativeStartupPickValues,
   createBotChainCoordinator,
 } from '../src/draft/bot-chain.js';
+import type { ArchetypeConfig } from '../src/draft/archetype-config.js';
 import { createDraft } from '../src/draft/service.js';
 
 function withDatabase(
@@ -395,5 +396,110 @@ test('createBotChainCoordinator evaluates received startup pick slots with the c
       .get(tradeId) as { status: string } | undefined;
 
     assert.deepEqual(persistedTrade, { status: 'declined' });
+  });
+});
+
+// @spec DFF-BOT-001
+// @spec DFF-BOT-002
+test('createBotChainCoordinator uses the injected archetype config when evaluating a user trade offer', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-1', 'Player One', 4600);
+    seedPlayer(db, 'player-2', 'Player Two', 4400);
+    seedPlayer(db, 'player-3', 'Player Three', 4200);
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 3,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    db.prepare('UPDATE drafts SET startup_pick_values = ? WHERE id = ?').run(
+      JSON.stringify([{ globalPickNumber: 3, dynastyValue: 5000 }]),
+      draftId,
+    );
+
+    const teams = db
+      .prepare('SELECT id, is_user, pick_position FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number; pick_position: number }>;
+    const botTeamId = teams.find((team) => team.is_user === 0 && team.pick_position === 2)!.id;
+
+    db.prepare("UPDATE teams SET archetype = 'balanced' WHERE id = ?").run(botTeamId);
+
+    const archetypeConfig: ArchetypeConfig = {
+      archetypes: {
+        win_now: {
+          acceptanceThreshold: 0.85,
+          preferredPositionValueFloors: { QB: 3500, RB: 3500, WR: 3500, TE: 3500 },
+          tradeAggressivenessProbability: 0.25,
+        },
+        punt: {
+          acceptanceThreshold: 1.15,
+          preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
+          tradeAggressivenessProbability: 0.35,
+        },
+        rb_heavy: {
+          acceptanceThreshold: 0.95,
+          preferredPositionValueFloors: { QB: 2000, RB: 3500, WR: 2000, TE: 2000 },
+          tradeAggressivenessProbability: 0.2,
+        },
+        qb_early: {
+          acceptanceThreshold: 0.95,
+          preferredPositionValueFloors: { QB: 4000, RB: 2000, WR: 2000, TE: 2000 },
+          tradeAggressivenessProbability: 0.2,
+        },
+        bpa: {
+          acceptanceThreshold: 1.05,
+          preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
+          tradeAggressivenessProbability: 0.1,
+        },
+        balanced: {
+          acceptanceThreshold: 0.7,
+          preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
+          tradeAggressivenessProbability: 0.15,
+        },
+      },
+    };
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      archetypeConfig,
+      now: () => '2026-05-18T20:05:00.000Z',
+      sleep: async () => undefined,
+      idGenerator: () => 'trade-user-offer-config-threshold',
+    });
+
+    const tradeId = botChain.submitUserTradeOffer({
+      draftId,
+      targetTeamId: botTeamId,
+      offeredAssets: [{ type: 'pick_slot', draft_order_id: 'ignored-by-parser', pick_number: 3 }],
+      requestedAssets: [{ type: 'future_pick', year: 2027, round: 1 }],
+    });
+
+    assert.equal(tradeId, 'trade-user-offer-config-threshold');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const persistedTrade = db
+      .prepare('SELECT status FROM trades WHERE id = ?')
+      .get(tradeId) as { status: string } | undefined;
+
+    assert.deepEqual(persistedTrade, { status: 'accepted' });
   });
 });

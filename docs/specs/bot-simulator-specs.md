@@ -9,7 +9,7 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 ## Archetype Configuration
 
 **DFF-BOT-001** `[ ]`
-The system shall load all archetype parameters (bias multipliers, aggressiveness probabilities, acceptance thresholds, value floors, and stickiness rules) from a configurable JSON file (`config/archetypes.json`) at startup.
+The system shall load archetype acceptance thresholds, preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
 
 **DFF-BOT-002** `[ ]`
 The system shall use the following default acceptance thresholds (minimum value_received / value_sent ratio for a trade to be accepted), overridable via `config/archetypes.json`:

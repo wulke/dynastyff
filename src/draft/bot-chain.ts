@@ -17,6 +17,11 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import { createDrizzleDb } from '../db/client.js';
 import { draftOrder, drafts, picks, teams, tradeStatuses } from '../db/schema.js';
+import {
+  getAcceptanceThresholdForArchetype,
+  loadStartupArchetypeConfig,
+  type ArchetypeConfig,
+} from './archetype-config.js';
 import { evaluateBotTrade } from './bot-trade.js';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
 import { getDraftState, recordPick, resolveTrade } from './service.js';
@@ -74,6 +79,7 @@ export type DecideBotActionContext = {
   draftId: string;
   slot: CurrentOpenBotSlot;
   availablePlayers: DraftAvailablePlayer[];
+  archetypeConfig: ArchetypeConfig;
 };
 
 export type BotChainCoordinator = {
@@ -85,6 +91,7 @@ export type BotChainCoordinator = {
 
 type CreateBotChainCoordinatorOptions = {
   databasePath: string;
+  archetypeConfig?: ArchetypeConfig;
   now?: () => string;
   random?: () => number;
   sleep?: (delayMs: number) => Promise<void>;
@@ -95,14 +102,6 @@ type CreateBotChainCoordinatorOptions = {
 const defaultNow = () => new Date().toISOString();
 const defaultRandom = () => Math.random();
 const defaultIdGenerator = () => randomUUID();
-const botAcceptanceThresholds = {
-  win_now: 0.85,
-  punt: 1.15,
-  rb_heavy: 0.95,
-  qb_early: 0.95,
-  bpa: 1.05,
-  balanced: 1.0,
-} as const;
 
 export class TradeOfferCoordinatorError extends Error {
   constructor(
@@ -184,8 +183,13 @@ export function buildConservativeStartupPickValues({
 // @spec DFF-ENGINE-033
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
+// @spec DFF-BOT-001
+// @spec DFF-BOT-002
+// @spec DFF-BOT-003
+// @spec DFF-BOT-040
 export function createBotChainCoordinator({
   databasePath,
+  archetypeConfig = loadStartupArchetypeConfig(),
   now = defaultNow,
   random = defaultRandom,
   sleep = defaultSleep,
@@ -221,6 +225,7 @@ export function createBotChainCoordinator({
           draftId,
           slot: refreshedSlot,
           availablePlayers,
+          archetypeConfig,
         });
 
         if (action.type === 'trade') {
@@ -352,6 +357,7 @@ export function createBotChainCoordinator({
       queueMicrotask(() => {
         try {
           const status = evaluateUserTradeOffer({
+            archetypeConfig,
             draftState,
             targetTeamId: targetTeam.id,
             assetsSent: parsedOfferedAssets,
@@ -584,11 +590,13 @@ function assetsBelongToTeam({
 }
 
 function evaluateUserTradeOffer({
+  archetypeConfig,
   draftState,
   targetTeamId,
   assetsSent,
   assetsReceived,
 }: {
+  archetypeConfig: ArchetypeConfig;
   draftState: NonNullable<ReturnType<typeof getDraftState>>;
   targetTeamId: string;
   assetsSent: SupportedTradeAsset[];
@@ -611,10 +619,7 @@ function evaluateUserTradeOffer({
   });
 
   const targetTeam = draftState.teams.find((team) => team.id === targetTeamId);
-  const threshold =
-    targetTeam?.archetype && targetTeam.archetype in botAcceptanceThresholds
-      ? botAcceptanceThresholds[targetTeam.archetype as keyof typeof botAcceptanceThresholds]
-      : botAcceptanceThresholds.balanced;
+  const threshold = getAcceptanceThresholdForArchetype(archetypeConfig, targetTeam?.archetype);
 
   return evaluateBotTrade({
     acceptanceThreshold: threshold,

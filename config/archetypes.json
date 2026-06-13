@@ -1,0 +1,64 @@
+{
+  "archetypes": {
+    "win_now": {
+      "acceptanceThreshold": 0.85,
+      "preferredPositionValueFloors": {
+        "QB": 3500,
+        "RB": 3500,
+        "WR": 3500,
+        "TE": 3500
+      },
+      "tradeAggressivenessProbability": 0.25
+    },
+    "punt": {
+      "acceptanceThreshold": 1.15,
+      "preferredPositionValueFloors": {
+        "QB": 2500,
+        "RB": 2500,
+        "WR": 2500,
+        "TE": 2500
+      },
+      "tradeAggressivenessProbability": 0.35
+    },
+    "rb_heavy": {
+      "acceptanceThreshold": 0.95,
+      "preferredPositionValueFloors": {
+        "QB": 2000,
+        "RB": 3500,
+        "WR": 2000,
+        "TE": 2000
+      },
+      "tradeAggressivenessProbability": 0.2
+    },
+    "qb_early": {
+      "acceptanceThreshold": 0.95,
+      "preferredPositionValueFloors": {
+        "QB": 4000,
+        "RB": 2000,
+        "WR": 2000,
+        "TE": 2000
+      },
+      "tradeAggressivenessProbability": 0.2
+    },
+    "bpa": {
+      "acceptanceThreshold": 1.05,
+      "preferredPositionValueFloors": {
+        "QB": 2500,
+        "RB": 2500,
+        "WR": 2500,
+        "TE": 2500
+      },
+      "tradeAggressivenessProbability": 0.1
+    },
+    "balanced": {
+      "acceptanceThreshold": 1,
+      "preferredPositionValueFloors": {
+        "QB": 2500,
+        "RB": 2500,
+        "WR": 2500,
+        "TE": 2500
+      },
+      "tradeAggressivenessProbability": 0.15
+    }
+  }
+}

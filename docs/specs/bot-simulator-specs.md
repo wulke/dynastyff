@@ -8,10 +8,10 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ## Archetype Configuration
 
-**DFF-BOT-001** `[ ]`
+**DFF-BOT-001** `[x]`
 The system shall load archetype acceptance thresholds, preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
 
-**DFF-BOT-002** `[ ]`
+**DFF-BOT-002** `[x]`
 The system shall use the following default acceptance thresholds (minimum value_received / value_sent ratio for a trade to be accepted), overridable via `config/archetypes.json`:
 - `win_now`: 0.85
 - `punt`: 1.15
@@ -20,7 +20,7 @@ The system shall use the following default acceptance thresholds (minimum value_
 - `bpa`: 1.05
 - `balanced`: 1.00
 
-**DFF-BOT-003** `[ ]`
+**DFF-BOT-003** `[x]`
 The system shall use the following default preferred-position value floors (minimum dynasty_value for a player at a preferred position to be considered available before fallback triggers), overridable via `config/archetypes.json`:
 - `win_now`: 3500
 - `punt`: 2500
@@ -91,7 +91,7 @@ The system shall support a configurable `randomness` parameter (0.0–1.0, defau
 
 ## Trade Initiation
 
-**DFF-BOT-040** `[ ]`
+**DFF-BOT-040** `[x]`
 Before each bot pick, the system shall evaluate whether to initiate a trade based on the bot's archetype trade aggressiveness probability: `win_now` 25%, `punt` 35%, `rb_heavy` 20%, `qb_early` 20%, `bpa` 10%, `balanced` 15%.
 
 **DFF-BOT-041** `[ ]`

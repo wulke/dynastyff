@@ -95,6 +95,10 @@ function formatDynastyValue(value: number): string {
 }
 
 function formatSignedDynastyValue(value: number): string {
+  if (value > 0) {
+    return `+${formatDynastyValue(value)}`;
+  }
+
   if (value < 0) {
     return `-${formatDynastyValue(Math.abs(value))}`;
   }
@@ -447,7 +451,7 @@ export function DraftGradeSummaryView({ draftState, onNewDraft, onViewHistory }:
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[0.65rem] uppercase tracking-widest text-muted">Net Delta</p>
+                      <p className="text-xs uppercase tracking-widest text-muted">Net Delta</p>
                       <p className={`font-condensed text-lg font-bold tabular-nums ${getTradeNetDeltaClassName(trade.netDelta)}`}>
                         {formatSignedDynastyValue(trade.netDelta)}
                       </p>
@@ -456,7 +460,7 @@ export function DraftGradeSummaryView({ draftState, onNewDraft, onViewHistory }:
 
                   <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div>
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-muted">Sent</p>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted">Sent</p>
                       <div className="mt-2 space-y-1">
                         {trade.sentAssets.map((asset, index) => (
                           <div
@@ -473,7 +477,7 @@ export function DraftGradeSummaryView({ draftState, onNewDraft, onViewHistory }:
                     </div>
 
                     <div>
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-muted">Received</p>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted">Received</p>
                       <div className="mt-2 space-y-1">
                         {trade.receivedAssets.map((asset, index) => (
                           <div

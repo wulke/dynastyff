@@ -235,9 +235,9 @@ describe('DraftGradeSummaryView', () => {
     expect(within(row).getByText('Round 3')).toBeInTheDocument();
     expect(within(row).getByText('Your Team -> Team Beta')).toBeInTheDocument();
     expect(within(row).getByText('Startup 1.03')).toBeInTheDocument();
-    expect(within(row).getAllByText('8,100')).toHaveLength(2);
+    expect(within(row).getByText('+8,100')).toHaveClass('text-positive');
+    expect(within(row).getByText('8,100')).toBeInTheDocument();
     expect(within(row).getAllByText('0')).toHaveLength(2);
-    expect(within(row).getAllByText('8,100')[0]).toHaveClass('text-positive');
     expect(within(section).queryByTestId('trade-activity-row-trade-declined')).not.toBeInTheDocument();
     expect(within(section).queryByTestId('trade-activity-row-trade-other-teams')).not.toBeInTheDocument();
   });
@@ -267,5 +267,32 @@ describe('DraftGradeSummaryView', () => {
 
     const row = screen.getByTestId('trade-activity-row-trade-user-even');
     expect(within(row).getByText('0')).toHaveClass('text-muted');
+  });
+
+  // @spec DFF-UI-177
+  test('renders negative net deltas with negative styling', () => {
+    render(
+      <DraftGradeSummaryView
+        draftState={createCompletedDraftState({
+          trades: [
+            {
+              id: 'trade-user-negative',
+              round: 2,
+              initiatingTeamId: 'team-user',
+              receivingTeamId: 'team-c',
+              assetsSent: [{ type: 'player', player_id: 'user-qb' }],
+              assetsReceived: [{ type: 'pick_slot', pick_number: 8 }],
+              status: 'accepted',
+              createdAt: '2026-06-12T12:16:00.000Z',
+            },
+          ],
+        })}
+        onNewDraft={vi.fn()}
+        onViewHistory={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByTestId('trade-activity-row-trade-user-negative');
+    expect(within(row).getByText('-9,000')).toHaveClass('text-negative');
   });
 });

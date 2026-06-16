@@ -15,7 +15,7 @@ Drives specs: `docs/specs/bot-simulator-specs.md`, `docs/specs/startup-pick-valu
 
 ## Bot Archetypes
 
-Archetypes are hardcoded constants. Each archetype defines a weight profile applied to pick and trade decisions.
+Archetypes are loaded from `config/archetypes.json` once at server startup. The startup loader validates all six archetypes and injects the parsed config into the bot-chain coordinator so trade evaluation and future bot decision logic share one source of truth.
 
 | Archetype | Pick Bias | Trade Aggressiveness | Asset Stickiness | Description |
 |---|---|---|---|---|
@@ -25,6 +25,16 @@ Archetypes are hardcoded constants. Each archetype defines a weight profile appl
 | `qb_early` | QB in first 3 rounds | Medium | High on starting QB | Reaches for QB early; builds around elite QB in superflex |
 | `bpa` | Pure dynasty value | Low | Low — value-driven trades only | Takes best available by dynasty value; trades when value gap is significant |
 | `balanced` | Positional need-weighted | Medium | Moderate across all positions | Reasonable facsimile of an experienced manager |
+
+### Archetype Config Shape
+
+`config/archetypes.json` stores one object per archetype with these active fields:
+
+- `acceptanceThreshold` — minimum `value_received / value_sent` ratio required for the archetype to accept an incoming trade
+- `preferredPositionValueFloors` — minimum `dynasty_value` required by position before a preferred-player fallback should trigger
+- `tradeAggressivenessProbability` — per-turn probability that the archetype evaluates a trade before picking
+
+The server loads this file once, passes the parsed object into `createBotChainCoordinator`, and the coordinator forwards the config into trade evaluation helpers. The JSON defaults match `DFF-BOT-002`, `DFF-BOT-003`, and `DFF-BOT-040`.
 
 ### Archetype Assignment
 
@@ -149,7 +159,7 @@ If all players at preferred positions are gone:
 
 | Decision | Chosen | Alternatives | Rationale |
 |---|---|---|---|
-| Archetype storage | Hardcoded constants | Database-backed profiles | Low-ceremony for v1; archetypes are logic not config; easy to replace with prompt-driven profiles later |
+| Archetype storage | Startup-loaded JSON config (`config/archetypes.json`) | Database-backed profiles | Keeps archetype tuning editable without source edits while still staying local-first and deterministic at runtime |
 | Noise model | Weighted random sampling with flattened score distribution | Top-N random pick, Gaussian jitter | Probability proportional to score captures "bots mostly pick well but not always"; configurable randomness parameter makes variance tunable |
 | Trade evaluation | Value math + archetype tilt | Pure value math | Archetype stickiness is what makes bots feel like real managers — an RB-heavy bot won't trade its best RB for equivalent value |
 | Bot-to-bot trade resolution | Single offer, accept/decline | Multi-round counter-negotiation | Sufficient realism without an unbounded negotiation loop; trade history captures all decisions for post-draft review |

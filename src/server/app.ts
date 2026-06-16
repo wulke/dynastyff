@@ -25,6 +25,7 @@ import {
   TradeOfferCoordinatorError,
   type BotChainCoordinator,
 } from '../draft/bot-chain.js';
+import type { ArchetypeConfig } from '../draft/archetype-config.js';
 import {
   draftOrder,
   drafts,
@@ -58,6 +59,7 @@ import {
 
 type CreateDraftServerOptions = {
   databasePath: string;
+  archetypeConfig?: ArchetypeConfig;
   botChain?: BotChainCoordinator;
 };
 
@@ -89,7 +91,8 @@ type SavedLeagueConfigApiRecord = {
 
 export function createDraftApp({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
 }: CreateDraftServerOptions): Express {
   const app = express();
 
@@ -195,7 +198,8 @@ export function createLeagueConfigsCreateRoute({
 // @spec DFF-ENGINE-030
 export function createDraftRoute({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
 }: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
     try {
@@ -260,7 +264,8 @@ function parseSavedLeagueConfigRosterSlots(
 // @spec DFF-ENGINE-022
 export function createDraftPickRoute({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
 }: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
     try {
@@ -308,7 +313,8 @@ export function createDraftPickRoute({
 // @spec DFF-ENGINE-043
 export function createDraftTradeResponseRoute({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
 }: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
     try {
@@ -346,7 +352,8 @@ export function createDraftTradeResponseRoute({
 // @spec DFF-ENGINE-038
 export function createDraftTradeOfferRoute({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
 }: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
     try {

@@ -4,15 +4,13 @@
 // @spec DFF-UI-103
 // @spec DFF-UI-104
 // @spec DFF-UI-144
-// @spec DFF-UI-132
 // @spec DFF-UI-165
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 import { getTradeAssetPresentation } from './tradeAssetPresentation.js';
 
 type PickFeedPanelProps = {
   draftState: DraftState;
-  headerAction?: ReactNode;
 };
 
 type DraftLogEntry =
@@ -75,9 +73,8 @@ function formatLogTimestamp(value: string): string {
 // @spec DFF-UI-101
 // @spec DFF-UI-102
 // @spec DFF-UI-144
-// @spec DFF-UI-132
 // @spec DFF-UI-165
-export function PickFeedPanel({ draftState, headerAction = null }: PickFeedPanelProps) {
+export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
   // @spec DFF-UI-101
   const feedEntries = useMemo<DraftLogEntry[]>(
     () =>
@@ -112,12 +109,9 @@ export function PickFeedPanel({ draftState, headerAction = null }: PickFeedPanel
     >
       <div className="flex items-center justify-between gap-2 border-b border-default px-3 py-2">
         <h2 className="font-condensed text-xs font-semibold uppercase tracking-widest text-muted">Pick Feed</h2>
-        <div className="flex items-center gap-2">
-          <span className="font-condensed text-[0.6rem] font-semibold uppercase tracking-widest text-muted tabular-nums">
-            {feedEntries.length} event{feedEntries.length !== 1 ? 's' : ''}
-          </span>
-          {headerAction}
-        </div>
+        <span className="font-condensed text-[0.6rem] font-semibold uppercase tracking-widest text-muted tabular-nums">
+          {feedEntries.length} event{feedEntries.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2" data-testid="pick-feed-scroll-container">

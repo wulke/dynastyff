@@ -513,7 +513,7 @@ The **Board** tab shall render the Draft Board at full available width. The Row/
 **DFF-UI-184** `[x]`
 The **Players** tab shall render the Available Players panel at full available width, including the nested **Available** and **Targets** sub-tabs (DFF-UI-140 through DFF-UI-143).
 
-**DFF-UI-185** `[ ]`
+**DFF-UI-185** `[x]`
 When the user selects a player (expanding that row inline with Draft and Cancel actions) and then switches tabs, the selection state shall be preserved. The Draft and Cancel actions shall remain available when the user returns to the **Players** tab.
 
 **DFF-UI-186** `[x]`

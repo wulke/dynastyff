@@ -638,6 +638,7 @@ describe('UI app scaffold', () => {
   });
 
   // @spec DFF-UI-180
+  // @spec DFF-UI-185
   // @spec DFF-UI-184
   // @spec DFF-UI-186
   // @spec DFF-UI-191
@@ -657,11 +658,18 @@ describe('UI app scaffold', () => {
     expect(screen.getByRole('heading', { name: /^available players$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^available$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^targets$/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /josh allen/i }));
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /draft josh allen/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /^feed$/i }));
     const pickFeedPanel = screen.getByTestId('pick-feed-panel');
     expect(pickFeedPanel).toBeInTheDocument();
     expect(screen.getByTestId('pick-feed-scroll-container').className).not.toContain('max-h-[28rem]');
+
+    await user.click(screen.getByRole('tab', { name: /^players$/i }));
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /draft josh allen/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /^roster$/i }));
     expect(screen.getByText(/coming soon/i)).toBeInTheDocument();

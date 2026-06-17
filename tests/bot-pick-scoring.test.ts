@@ -3,6 +3,8 @@
 // @spec DFF-BOT-022
 // @spec DFF-BOT-023
 // @spec DFF-BOT-024
+// @spec DFF-BOT-025
+// @spec DFF-BOT-026
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -215,4 +217,153 @@ test('scoreBotPickCandidate applies the qb_early quarterback boost only through 
   });
 
   assert.ok(roundThreeScore > roundFourScore);
+});
+
+// @spec DFF-BOT-025
+test('scoreBotPickCandidate lets punt prefer younger non-rookies over equal-value older players', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const youngerPlayer = {
+    id: 'player-young',
+    name: 'Young Receiver',
+    position: 'WR',
+    nfl_team: 'DET',
+    age: 23,
+    is_rookie: false,
+    dynasty_value: 100,
+    adp: 10,
+  };
+  const olderPlayer = {
+    id: 'player-old',
+    name: 'Old Receiver',
+    position: 'WR',
+    nfl_team: 'DET',
+    age: 30,
+    is_rookie: false,
+    dynasty_value: 100,
+    adp: 11,
+  };
+
+  const youngerScore = scoreBotPickCandidate({
+    player: youngerPlayer,
+    archetype: 'punt',
+    archetypeConfig,
+    rosterConfig: defaultRosterConfig,
+    rosteredPlayers: [],
+    round: 4,
+    randomness: 0,
+    random: () => 0,
+  });
+  const olderScore = scoreBotPickCandidate({
+    player: olderPlayer,
+    archetype: 'punt',
+    archetypeConfig,
+    rosterConfig: defaultRosterConfig,
+    rosteredPlayers: [],
+    round: 4,
+    randomness: 0,
+    random: () => 0,
+  });
+
+  assert.ok(youngerScore > olderScore);
+});
+
+// @spec DFF-BOT-025
+test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const rookieTightEnd = {
+    id: 'player-rookie',
+    name: 'Rookie Tight End',
+    position: 'TE',
+    nfl_team: 'LV',
+    age: 30,
+    is_rookie: true,
+    dynasty_value: 100,
+    adp: 15,
+  };
+  const veteranTightEnd = {
+    id: 'player-veteran',
+    name: 'Veteran Tight End',
+    position: 'TE',
+    nfl_team: 'LV',
+    age: 30,
+    is_rookie: false,
+    dynasty_value: 100,
+    adp: 16,
+  };
+
+  const rookieScore = scoreBotPickCandidate({
+    player: rookieTightEnd,
+    archetype: 'punt',
+    archetypeConfig,
+    rosterConfig: defaultRosterConfig,
+    rosteredPlayers: [],
+    round: 4,
+    randomness: 0,
+    random: () => 0,
+  });
+  const veteranScore = scoreBotPickCandidate({
+    player: veteranTightEnd,
+    archetype: 'punt',
+    archetypeConfig,
+    rosterConfig: defaultRosterConfig,
+    rosteredPlayers: [],
+    round: 4,
+    randomness: 0,
+    random: () => 0,
+  });
+
+  assert.ok(rookieScore > veteranScore);
+  assert.equal(rookieScore, veteranScore * 1.3);
+});
+
+// @spec DFF-BOT-026
+test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered running backs', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const neutralRosterConfig: DraftRosterConfig = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    FLEX: 0,
+    SF: 0,
+    bench: 0,
+  };
+  const runningBack = {
+    id: 'player-handcuff',
+    name: 'Handcuff Runner',
+    position: 'RB',
+    nfl_team: 'SF',
+    age: 24,
+    is_rookie: false,
+    dynasty_value: 100,
+    adp: 20,
+  };
+
+  const baselineScore = scoreBotPickCandidate({
+    player: runningBack,
+    archetype: 'balanced',
+    archetypeConfig,
+    rosterConfig: neutralRosterConfig,
+    rosteredPlayers: [],
+    round: 5,
+    randomness: 0,
+    random: () => 0,
+  });
+  const handcuffScore = scoreBotPickCandidate({
+    player: runningBack,
+    archetype: 'balanced',
+    archetypeConfig,
+    rosterConfig: neutralRosterConfig,
+    rosteredPlayers: [
+      {
+        position: 'RB',
+        nfl_team: 'SF',
+      },
+    ],
+    round: 5,
+    randomness: 0,
+    random: () => 0,
+  });
+
+  assert.equal(handcuffScore - baselineScore, 15);
 });

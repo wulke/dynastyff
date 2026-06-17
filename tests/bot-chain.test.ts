@@ -6,6 +6,9 @@
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
 // @spec DFF-SPKV-052
+// @spec DFF-BOT-004
+// @spec DFF-BOT-030
+// @spec DFF-BOT-031
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -47,6 +50,45 @@ function seedPlayer(
       id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
     ) VALUES (?, ?, 'WR', 'BUF', 25, 0, ?, ?)`,
   ).run(playerId, name, dynastyValue, '2026-05-18T00:00:00.000Z');
+}
+
+// @spec DFF-BOT-004
+function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig & { randomness: number } {
+  return {
+    randomness,
+    archetypes: {
+      win_now: {
+        acceptanceThreshold: 0.85,
+        preferredPositionValueFloors: { QB: 3500, RB: 3500, WR: 3500, TE: 3500 },
+        tradeAggressivenessProbability: 0.25,
+      },
+      punt: {
+        acceptanceThreshold: 1.15,
+        preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
+        tradeAggressivenessProbability: 0.35,
+      },
+      rb_heavy: {
+        acceptanceThreshold: 0.95,
+        preferredPositionValueFloors: { QB: 2000, RB: 3500, WR: 2000, TE: 2000 },
+        tradeAggressivenessProbability: 0.2,
+      },
+      qb_early: {
+        acceptanceThreshold: 0.95,
+        preferredPositionValueFloors: { QB: 4000, RB: 2000, WR: 2000, TE: 2000 },
+        tradeAggressivenessProbability: 0.2,
+      },
+      bpa: {
+        acceptanceThreshold: 1.05,
+        preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
+        tradeAggressivenessProbability: 0.1,
+      },
+      balanced: {
+        acceptanceThreshold: 1,
+        preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
+        tradeAggressivenessProbability: 0.15,
+      },
+    },
+  };
 }
 
 // @spec DFF-ENGINE-030
@@ -126,6 +168,96 @@ test('createBotChainCoordinator de-duplicates concurrent trigger calls for the s
       { pick_number: 2, player_id: 'player-2' },
       { pick_number: 3, player_id: 'player-3' },
     ]);
+  });
+});
+
+// @spec DFF-BOT-004
+// @spec DFF-BOT-030
+// @spec DFF-BOT-031
+test('createBotChainCoordinator honors randomness boundaries and the documented default pick-selection behavior', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-1', 'Player One', 100);
+    seedPlayer(db, 'player-2', 'Player Two', 1);
+    seedPlayer(db, 'player-3', 'Player Three', 1);
+
+    const createOneBotDraft = () =>
+      createDraft({
+        databasePath,
+        config: {
+          teamCount: 2,
+          rounds: 1,
+          scoringFormat: 'ppr',
+          userPickPosition: 2,
+          futurePickYears: 1,
+          futurePickRounds: 1,
+          rosterConfig: {
+            QB: 1,
+            RB: 2,
+            WR: 3,
+            TE: 1,
+            FLEX: 1,
+            SF: 1,
+            bench: 6,
+          },
+        },
+        now: () => '2026-05-18T20:00:00.000Z',
+        random: () => 0,
+      });
+
+    const topPickDraftId = createOneBotDraft();
+    const flatDistributionDraftId = createOneBotDraft();
+    const defaultRandomnessDraftId = createOneBotDraft();
+
+    const topPickCoordinator = createBotChainCoordinator({
+      databasePath,
+      archetypeConfig: buildArchetypeConfigWithRandomness(0),
+      now: () => '2026-05-18T20:05:00.000Z',
+      random: () => 0.999,
+      sleep: async () => undefined,
+    });
+
+    const flatDistributionCoordinator = createBotChainCoordinator({
+      databasePath,
+      archetypeConfig: buildArchetypeConfigWithRandomness(1),
+      now: () => '2026-05-18T20:06:00.000Z',
+      random: () => 0.5,
+      sleep: async () => undefined,
+    });
+
+    const defaultRandomnessCoordinator = createBotChainCoordinator({
+      databasePath,
+      now: () => '2026-05-18T20:07:00.000Z',
+      random: () => 0.98,
+      sleep: async () => undefined,
+    });
+
+    topPickCoordinator.trigger(topPickDraftId);
+    flatDistributionCoordinator.trigger(flatDistributionDraftId);
+    defaultRandomnessCoordinator.trigger(defaultRandomnessDraftId);
+
+    await Promise.all([
+      topPickCoordinator.waitForIdle(topPickDraftId),
+      flatDistributionCoordinator.waitForIdle(flatDistributionDraftId),
+      defaultRandomnessCoordinator.waitForIdle(defaultRandomnessDraftId),
+    ]);
+
+    const persistedPicks = db
+      .prepare(
+        `SELECT draft_id, player_id
+         FROM picks
+         WHERE draft_id IN (?, ?, ?)
+         ORDER BY draft_id`,
+      )
+      .all(topPickDraftId, flatDistributionDraftId, defaultRandomnessDraftId) as Array<{
+      draft_id: string;
+      player_id: string;
+    }>;
+
+    const playerByDraftId = new Map(persistedPicks.map((pick) => [pick.draft_id, pick.player_id]));
+
+    assert.equal(playerByDraftId.get(topPickDraftId), 'player-1');
+    assert.equal(playerByDraftId.get(flatDistributionDraftId), 'player-2');
+    assert.equal(playerByDraftId.get(defaultRandomnessDraftId), 'player-2');
   });
 });
 

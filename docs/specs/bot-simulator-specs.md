@@ -11,6 +11,9 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 **DFF-BOT-001** `[x]`
 The system shall load archetype acceptance thresholds, preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
 
+**DFF-BOT-004** `[ ]`
+The system shall load a global bot-pick `randomness` parameter (`0.0–1.0`, default `0.3`) from `config/archetypes.json`, and `createBotChainCoordinator` shall allow a direct `randomness` option to override that startup-loaded value.
+
 **DFF-BOT-002** `[x]`
 The system shall use the following default acceptance thresholds (minimum value_received / value_sent ratio for a trade to be accepted), overridable via `config/archetypes.json`:
 - `win_now`: 0.85

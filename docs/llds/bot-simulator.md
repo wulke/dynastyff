@@ -30,11 +30,12 @@ Archetypes are loaded from `config/archetypes.json` once at server startup. The 
 
 `config/archetypes.json` stores one object per archetype with these active fields:
 
+- `randomness` — global score-flattening factor for bot pick sampling (`0.0–1.0`, default `0.3`)
 - `acceptanceThreshold` — minimum `value_received / value_sent` ratio required for the archetype to accept an incoming trade
 - `preferredPositionValueFloors` — minimum `dynasty_value` required by position before a preferred-player fallback should trigger
 - `tradeAggressivenessProbability` — per-turn probability that the archetype evaluates a trade before picking
 
-The server loads this file once, passes the parsed object into `createBotChainCoordinator`, and the coordinator forwards the config into trade evaluation helpers. The JSON defaults match `DFF-BOT-002`, `DFF-BOT-003`, and `DFF-BOT-040`.
+The server loads this file once, passes the parsed object into `createBotChainCoordinator`, and the coordinator forwards the config into pick-selection and trade-evaluation helpers. `createBotChainCoordinator` may also receive a direct `randomness` override for tests or future runtime tuning; that override takes precedence over the startup-loaded config value. The JSON defaults match `DFF-BOT-002`, `DFF-BOT-003`, `DFF-BOT-031`, and `DFF-BOT-040`.
 
 ### Archetype Assignment
 
@@ -111,7 +112,7 @@ For RB players only: if the candidate's `nflTeam` matches the `nflTeam` of any R
 
 ### Noise
 
-After scoring, the bot does not deterministically take the top player. It selects via weighted random sampling where probability is proportional to score. A global `randomness` setting (0.0–1.0, default 0.3) flattens the score distribution — at 0.0 the top player is always taken; at 1.0 all scored players are equally likely.
+After scoring, the bot does not deterministically take the top player. It selects via weighted random sampling where probability is proportional to score. A global `randomness` setting (0.0–1.0, default 0.3) flattens the score distribution before sampling — at 0.0 the top player is always taken; at 1.0 all scored players are equally likely.
 
 ## Trade Decision Flow
 

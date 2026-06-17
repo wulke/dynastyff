@@ -78,7 +78,9 @@ All settings are configurable on the league config screen before starting a draf
 
 The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs fully offline.
 
-Bot archetype tuning lives in `config/archetypes.json`. The API server loads that file once at startup for trade acceptance thresholds, preferred-position value floors, trade aggressiveness defaults, and the bot-pick `randomness` factor (`0.0–1.0`, default `0.3`) that flattens weighted pick selection.
+Bot archetype tuning lives in `config/archetypes.json`. The API server loads that file once at startup for trade acceptance thresholds, pick-scoring `needModifier`/`valueWeight` pairs, preferred-position value floors, trade aggressiveness defaults, and the bot-pick `randomness` factor (`0.0–1.0`, default `0.3`) that flattens weighted pick selection.
+
+The live bot chain now scores players against the draft's configured roster slots with a static `SLOT_ELIGIBILITY` map (`QB`, `RB`, `WR`, `TE`, `FLEX`, `SF`, `bench`). Positional need is the fractional sum of all still-open eligible slots using `1 / eligibilitySetSize` per slot, with a `0.3` saturation floor once every eligible slot is filled. `rb_heavy` still gets an extra `1.5x` RB need boost, and `qb_early` doubles QB need through round 3 only.
 
 ## UI Scaffold
 
@@ -232,6 +234,7 @@ src/
     schema.ts            # Shared Drizzle table definitions
   draft/
     bot-chain.ts         # Server-side bot chain coordinator for delayed bot turns and paused trade acknowledgements
+    bot-pick-scoring.ts  # Config-backed slot-need scoring helpers for live bot picks
     bot.ts               # Pure bot pick selection for the static/browser draft flow
     engine.ts            # Pure in-memory draft engine for the static/browser draft flow
     invariant.ts         # Shared invariant error for pure draft modules

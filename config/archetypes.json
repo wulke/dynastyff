@@ -3,63 +3,75 @@
   "archetypes": {
     "win_now": {
       "acceptanceThreshold": 0.85,
+      "needModifier": 1.3,
       "preferredPositionValueFloors": {
         "QB": 3500,
         "RB": 3500,
         "WR": 3500,
         "TE": 3500
       },
-      "tradeAggressivenessProbability": 0.25
+      "tradeAggressivenessProbability": 0.25,
+      "valueWeight": 0.6
     },
     "punt": {
       "acceptanceThreshold": 1.15,
+      "needModifier": 0.4,
       "preferredPositionValueFloors": {
         "QB": 2500,
         "RB": 2500,
         "WR": 2500,
         "TE": 2500
       },
-      "tradeAggressivenessProbability": 0.35
+      "tradeAggressivenessProbability": 0.35,
+      "valueWeight": 0.9
     },
     "rb_heavy": {
       "acceptanceThreshold": 0.95,
+      "needModifier": 1.0,
       "preferredPositionValueFloors": {
         "QB": 2000,
         "RB": 3500,
         "WR": 2000,
         "TE": 2000
       },
-      "tradeAggressivenessProbability": 0.2
+      "tradeAggressivenessProbability": 0.2,
+      "valueWeight": 0.7
     },
     "qb_early": {
       "acceptanceThreshold": 0.95,
+      "needModifier": 1.0,
       "preferredPositionValueFloors": {
         "QB": 4000,
         "RB": 2000,
         "WR": 2000,
         "TE": 2000
       },
-      "tradeAggressivenessProbability": 0.2
+      "tradeAggressivenessProbability": 0.2,
+      "valueWeight": 0.5
     },
     "bpa": {
       "acceptanceThreshold": 1.05,
+      "needModifier": 0.1,
       "preferredPositionValueFloors": {
         "QB": 2500,
         "RB": 2500,
         "WR": 2500,
         "TE": 2500
       },
-      "tradeAggressivenessProbability": 0.1
+      "tradeAggressivenessProbability": 0.1,
+      "valueWeight": 1.0
     },
     "balanced": {
       "acceptanceThreshold": 1,
+      "needModifier": 1.0,
       "preferredPositionValueFloors": {
         "QB": 2500,
         "RB": 2500,
         "WR": 2500,
         "TE": 2500
       },
-      "tradeAggressivenessProbability": 0.15
+      "tradeAggressivenessProbability": 0.15,
+      "valueWeight": 0.8
     }
   }
 }

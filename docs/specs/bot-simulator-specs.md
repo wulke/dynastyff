@@ -9,7 +9,7 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 ## Archetype Configuration
 
 **DFF-BOT-001** `[x]`
-The system shall load archetype acceptance thresholds, preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
+The system shall load archetype acceptance thresholds, pick-scoring modifiers (`needModifier`, `valueWeight`), preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
 
 **DFF-BOT-004** `[x]`
 The system shall load a global bot-pick `randomness` parameter (`0.0–1.0`, default `0.3`) from `config/archetypes.json`, and `createBotChainCoordinator` shall allow a direct `randomness` option to override that startup-loaded value.
@@ -49,10 +49,10 @@ The system shall allow multiple bot teams to share the same archetype; no unique
 **DFF-BOT-020** `[ ]`
 When computing a pick score for an available player, the system shall compute: `score = dynastyValue × valueWeight × (slotNeed × needModifier) × youthModifier + handcuffBonus + noise × random()`.
 
-**DFF-BOT-021** `[ ]`
-The system shall compute `slotNeed` using a step function: `1.0` while the bot has eligibility-weighted unfilled slots remaining for that position; `0.3` (saturation floor) once all eligible slots are filled.
+**DFF-BOT-021** `[x]`
+The system shall compute `slotNeed` as the sum of eligibility-weighted unfilled slots for that position, and shall step to `0.3` (saturation floor) once all eligible slots are filled.
 
-**DFF-BOT-022** `[ ]`
+**DFF-BOT-022** `[x]`
 The system shall apply the following `needModifier` and `valueWeight` per archetype:
 - `bpa`: needModifier 0.1, valueWeight 1.0 (near-pure dynasty value sort)
 - `balanced`: needModifier 1.0, valueWeight 0.8
@@ -61,7 +61,7 @@ The system shall apply the following `needModifier` and `valueWeight` per archet
 - `rb_heavy`: needModifier 1.0, valueWeight 0.7; RB slot need additionally multiplied by 1.5
 - `qb_early`: needModifier 1.0, valueWeight 0.5; QB slot need additionally multiplied by 2.0 in rounds ≤ 3 only
 
-**DFF-BOT-023** `[ ]`
+**DFF-BOT-023** `[x]`
 The system shall define a static `SLOT_ELIGIBILITY` map that specifies which positions can fill each roster slot type:
 - `QB` → `[QB]`
 - `RB` → `[RB]`
@@ -71,7 +71,7 @@ The system shall define a static `SLOT_ELIGIBILITY` map that specifies which pos
 - `SF` → `[QB, RB, WR, TE]`
 - `bench` → `[QB, RB, WR, TE]`
 
-**DFF-BOT-024** `[ ]`
+**DFF-BOT-024** `[x]`
 When computing `slotNeed` for a position, the system shall count all unfilled roster slots whose eligibility set includes that position, weighted by `1 / eligibilitySetSize` (fractional contribution per shared slot).
 
 **DFF-BOT-025** `[ ]`

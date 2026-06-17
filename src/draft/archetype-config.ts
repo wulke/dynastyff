@@ -13,8 +13,10 @@ type ReadFile = (path: string, encoding: BufferEncoding) => string;
 
 export type ArchetypeProfileConfig = {
   acceptanceThreshold: number;
+  needModifier: number;
   preferredPositionValueFloors: Record<PlayerPosition, number>;
   tradeAggressivenessProbability: number;
+  valueWeight: number;
 };
 
 export type ArchetypeConfig = {
@@ -101,6 +103,7 @@ function parseArchetypeConfig(rawConfig: string, configPath: string): ArchetypeC
 
     archetypes[archetype] = {
       acceptanceThreshold: readNumber(candidate.acceptanceThreshold, configPath, `${archetype}.acceptanceThreshold`),
+      needModifier: readNumber(candidate.needModifier, configPath, `${archetype}.needModifier`),
       preferredPositionValueFloors: readPositionFloors(
         candidate.preferredPositionValueFloors,
         configPath,
@@ -111,6 +114,7 @@ function parseArchetypeConfig(rawConfig: string, configPath: string): ArchetypeC
         configPath,
         `${archetype}.tradeAggressivenessProbability`,
       ),
+      valueWeight: readNumber(candidate.valueWeight, configPath, `${archetype}.valueWeight`),
     };
   }
 

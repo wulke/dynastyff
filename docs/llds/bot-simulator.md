@@ -32,6 +32,8 @@ Archetypes are loaded from `config/archetypes.json` once at server startup. The 
 
 - `randomness` — global score-flattening factor for bot pick sampling (`0.0–1.0`, default `0.3`)
 - `acceptanceThreshold` — minimum `value_received / value_sent` ratio required for the archetype to accept an incoming trade
+- `needModifier` — archetype multiplier applied to `slotNeed`
+- `valueWeight` — archetype multiplier applied to `dynastyValue`
 - `preferredPositionValueFloors` — minimum `dynasty_value` required by position before a preferred-player fallback should trigger
 - `tradeAggressivenessProbability` — per-turn probability that the archetype evaluates a trade before picking
 
@@ -84,10 +86,10 @@ The map is a static constant extensible for future slot types (e.g. IDP).
 For each available player, compute `slotNeed` based on eligibility-weighted unfilled slots:
 
 1. For each unfilled slot whose eligibility set includes the player's position, add `1 / eligibilitySetSize` to a running total
-2. If the total > 0: `slotNeed = 1.0` (need exists)
+2. If the total > 0: `slotNeed = total`
 3. If the total = 0: `slotNeed = 0.3` (saturation floor — bench depth still has some value)
 
-`rosterConfig` (QB/RB/WR/TE/FLEX/SF/bench counts) must be passed into the scoring function to determine total slot counts; a bot's current roster entries are diffed against these counts to determine unfilled slots.
+`rosterConfig` (QB/RB/WR/TE/FLEX/SF/bench counts) must be passed into the scoring function to determine total slot counts; a bot's current roster entries are diffed against these counts to determine unfilled slots. When rostered players could fit multiple slot types, assignment is greedy: fill the most restrictive eligible slots first so shared slots such as `FLEX`, `SF`, and `bench` stay open as long as possible.
 
 ### Archetype Need Modifier
 

@@ -183,6 +183,11 @@ async function renderAppToConfig() {
   await screen.findByRole('heading', { name: /config screen/i });
 }
 
+async function openPlayersTab(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('tab', { name: /^players$/i }));
+  return screen.findByTestId('available-players-panel');
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
   MockEventSource.instances = [];
@@ -241,6 +246,7 @@ describe('available players list', () => {
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
+    await user.click(await screen.findByRole('tab', { name: /^players$/i }));
 
     expect(await screen.findByTestId('available-players-loading')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith('/drafts/draft-available-123/state');
@@ -348,6 +354,7 @@ describe('available players list', () => {
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
+    await user.click(await screen.findByRole('tab', { name: /^players$/i }));
 
     await user.click(await screen.findByRole('button', { name: /^targets$/i }));
     const panel = await screen.findByTestId('targets-panel');
@@ -408,7 +415,7 @@ describe('available players list', () => {
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
-    const playersPanel = await screen.findByTestId('available-players-panel');
+    const playersPanel = await openPlayersTab(user);
     expect(within(playersPanel).getByText('CeeDee Lamb')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const targetsPanel = await screen.findByTestId('targets-panel');
@@ -476,6 +483,7 @@ describe('available players list', () => {
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
+    await user.click(await screen.findByRole('tab', { name: /^players$/i }));
 
     await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const panel = await screen.findByTestId('targets-panel');
@@ -528,7 +536,7 @@ describe('available players list', () => {
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
-    const panel = await screen.findByTestId('available-players-panel');
+    const panel = await openPlayersTab(user);
     expect(within(panel).getByText('Bijan Robinson')).toBeInTheDocument();
 
     act(() => {
@@ -587,6 +595,7 @@ describe('available players list', () => {
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
+    await user.click(await screen.findByRole('tab', { name: /^players$/i }));
 
     await user.click(screen.getByRole('button', { name: /^targets$/i }));
     const panel = await screen.findByTestId('targets-panel');
@@ -645,6 +654,7 @@ describe('available players list', () => {
 
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
+    await user.click(await screen.findByRole('tab', { name: /^players$/i }));
 
     expect(await screen.findByTestId('available-players-loading')).toBeInTheDocument();
 
@@ -731,7 +741,7 @@ describe('available players list', () => {
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
-    const panel = await screen.findByTestId('available-players-panel');
+    const panel = await openPlayersTab(user);
     const statusBar = await screen.findByTestId('draft-status-bar');
     expect(within(statusBar).getByText('Bob')).toBeInTheDocument();
     expect(within(panel).queryByText('Bot is picking…')).not.toBeInTheDocument();
@@ -861,7 +871,7 @@ describe('available players list', () => {
     await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
-    const panel = await screen.findByTestId('available-players-panel');
+    const panel = await openPlayersTab(user);
     const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
     const selectedRow = within(panel).getByTestId('available-player-row-player-wr-1');
     await user.click(lambRow);

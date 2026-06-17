@@ -10,11 +10,13 @@ Drives specs: `docs/specs/ui-specs.md`, `docs/specs/ui-unification-specs.md`
 
 - Render the Drafts List page as the app entry point when persisted drafts exist
 - Render the League Config screen and persist saved configs to SQLite via the backend
+- Render the tabbed drafting view (Board / Players / Feed / Roster tabs) with a persistent status bar above the tab strip
 - Render the Draft Board grid and keep it in sync with SSE events
 - Render the Available Players list and Targets panel with shared pick-selection behavior
+- Render the Team Roster panel showing a single team's picks in draft-log style with a team dropdown
 - Open and close the Advisor slide-out panel, managing advise-me and grill-me interactions
 - Render the Draft History view with pick log, roster view, and trade log
-- Render the Pick Feed panel with real-time pick updates alongside the draft board
+- Render the Pick Feed panel with real-time pick updates as the Feed tab
 - Display inline loading states and surface errors via a global toast
 - Handle SSE connect, reconnect, and disconnect gracefully
 
@@ -72,7 +74,7 @@ At this stage, the config view is functional, the drafting view now renders the 
 - Drafts list: fetched from `GET /drafts` on mount; shows all persisted drafts with Resume/Review CTAs
 - Config screen: league settings form + `Start Draft` calls `startDraft()` on the active draft context; when `DraftContextValue.snapshot` is non-null, the form header also shows snapshot player count, pick-values count, and export date
 - Draft board: renders immediately after draft creation, keeps the live SSE status badge, and hydrates the grid in place from `state_sync` / `pick_made` events
-- Draft completion banner: renders over the Draft Board when `draft_complete` arrives, keeps the board visible behind the overlay, and exposes `View Draft Grade`
+- Draft completion banner: renders over the full drafting view when `draft_complete` arrives, keeps the status bar and tab strip beneath the overlay, and exposes `View Draft Grade`
 - Grade summary shell: becomes visible after the user opens a completed draft from the completion banner or Drafts List review flow, then exposes `View Full History` and `New Draft`
 - History shell: becomes visible after the user clicks `View Full History`, then exposes `New Draft`
 
@@ -85,10 +87,13 @@ At this stage, the config view is functional, the drafting view now renders the 
       <DraftsListPage />           ← view: drafts-list
       <ConfigScreen />             ← view: config
       <DraftView>                  ← view: drafting
-        <DraftBoard />             ← grid: rounds × teams
+        <DraftStatusBar />         ← persistent above tab strip; always visible
+        <DraftTabStrip />          ← 4-tab nav: Board | Players | Feed | Roster
+        <DraftBoard />             ← tab: Board — full-width grid: rounds × teams
+        <AvailablePlayersPanel />  ← tab: Players — available players + targets queue
+        <PickFeedPanel />          ← tab: Feed — real-time pick feed
+        <TeamRosterPanel />        ← tab: Roster — single-team draft-log view (new)
         <DraftCompletionBanner />  ← modal-style overlay on completed drafts
-        <PickFeedPanel />          ← real-time pick feed
-        <AvailablePlayersPanel />  ← available players + targets queue
         <AdvisorPanel />           ← slide-out, advise-me + grill-me
         <TradeModal />             ← blocking modal on trade_offered SSE
       </DraftView>
@@ -198,12 +203,12 @@ Pick position in a round is derived from the snake order: odd rounds left-to-rig
 
 ## Draft Completion Banner
 
-A blocking banner rendered only after the draft reaches `status: 'completed'`. It overlays the Draft Board container instead of navigating away immediately, so the final board remains visible in the background.
+A blocking banner rendered only after the draft reaches `status: 'completed'`. It overlays the full drafting view instead of navigating away immediately, so the status bar, tab strip, and active panel remain visible in the background.
 
 **Features:**
 - Triggered by the `draft_complete` SSE event after the reducer marks the draft completed
 - Displays a congratulatory heading, the user's team name, and a single `View Draft Grade` CTA
-- Keeps the Draft Board grid visible but non-interactive beneath a translucent overlay
+- Keeps the active drafting tab visible but non-interactive beneath a translucent overlay
 - Does not expose a dismiss or close affordance; the only in-flow exit is `View Draft Grade`
 - Leaves the existing history data in `draftState`, so clicking the CTA swaps the view shell to the already-hydrated grade summary view
 
@@ -250,7 +255,7 @@ A scrolling real-time draft log panel rendered alongside the draft board, driven
 - Each entry renders as a dense single-line string in the form `Round.Pick - Player Name` (for example, `1.1 - Bijan Robinson`)
 - Trade entries render a timestamp plus a concise sentence (for example, `2026-05-22 18:05 — Team A traded Startup 1.05 to Team B for Startup 2.03`)
 - Compact list styling is preferred over card treatment: minimal padding, minimal decoration, and a simple vertical scroll region
-- Within the three-column drafting layout, the panel must stretch to the full height of the Pick Feed column; the old fixed `max-h-[28rem]` workaround is removed and scrolling is handled by an inner full-height overflow region
+- Within the tabbed drafting layout, the panel must stretch to the available tab body height; the old fixed `max-h-[28rem]` workaround is removed and scrolling is handled by an inner full-height overflow region
 - Shows an empty-state message ("No picks yet") when `draftState.picks` is empty
 - Foundation for the Pick Log tab in the History View (#21), but with a more compressed presentation tailored to live draft review
 
@@ -261,37 +266,45 @@ A scrolling real-time draft log panel rendered alongside the draft board, driven
 - Pick number is absent from `draftOrder` (should not happen in practice but handle defensively) → entry renders an em dash (`—`) in place of the `Round.Pick` prefix instead of showing incorrect coordinates
 - A persisted `GET /drafts/:id/state` payload includes trades but no live SSE replay occurs afterward → the log still renders those trade entries from the hydrated state
 
-## 3-Column Drafting Layout And Status Bar
+## Tabbed Drafting View And Status Bar
 
-The drafting room is scaffolded as a three-column workspace at `xl` breakpoints and above. The board remains the primary surface on the left, with Available Players in the center and Pick Feed on the right.
+The drafting room is a single-pane tabbed workspace. The 3-column expand/collapse layout is removed. Four tabs — **Board**, **Players**, **Feed**, **Roster** — replace the three fixed columns. The drafting status bar sits above the tab strip and is always visible.
 
-**Layout:**
-- At `1280px+`, render the drafting view as three columns in a single row: Draft Board, Available Players, Pick Feed
-- Use weighted track widths of `2fr / 1.5fr / 1fr`
-- Below `xl`, stack the drafting surfaces vertically in their existing mobile-friendly order
-- Each column header includes an expand control that targets its own panel
-- The default page-load state keeps all three panels visible at their weighted widths
-- Expand/collapse state remains component-local UI state and is never persisted to `localStorage`
-- When a column is expanded, it becomes the single wide panel and the other two columns collapse into narrow vertical strips
-- Each collapsed strip renders a panel icon plus a rotated panel label so the destination remains identifiable
-- Clicking a collapsed strip expands that panel and collapses whichever panel was previously expanded
-- Clicking the expand control for a panel that is already expanded is an intentional no-op; the room does not offer an in-place control to return to the default weighted layout
-- Only one panel may be expanded at a time
-- Width changes animate with an approximately `200ms` transition on the drafting layout container
+**Tab strip:**
+- Render four tabs with short labels: Board | Players | Feed | Roster
+- Default to the **Board** tab on load or resume
+- Active tab is visually distinguished with the amber accent treatment used elsewhere in the UI
+- Tab strip is a component-local UI state; active tab is not persisted to `localStorage`
+
+**Board tab:**
+- Full-width `DraftBoard` component
+- Row/Column layout toggle preserved (DFF-UI-088 through DFF-UI-091)
+
+**Players tab:**
+- Full-width `AvailablePlayersPanel` with nested Available / Targets sub-tabs
+- Player selection state (expanded row with Draft / Cancel actions) persists across tab switches so the user does not lose their selection when briefly switching away
+
+**Feed tab:**
+- Full-width `PickFeedPanel`
+- No height constraint; panel scrolls independently within the available viewport height
+
+**Roster tab:**
+- Render a placeholder panel with the copy `Coming soon`
+- Full single-team roster content is deferred to a follow-up issue
 
 **Status bar:**
-- Render a persistent status bar above the columns while the draft is open
-- Display the current pick as `Pick N of Total`
-- Display turn ownership as `Your turn` when the current slot belongs to the user, otherwise show the current bot team name
-- Treat the status bar as the only turn-status surface in the drafting room; remove the old header badges from Draft Board and Available Players
+- Rendered above the tab strip; always visible regardless of active tab
+- Displays: current pick as `Pick N of Total`, turn ownership as `Your turn` or the current bot team name
+- Remains the single turn-status surface in the drafting room
+
+**Trade modal and completion banner:**
+- Both overlay the entire drafting view including the status bar and tab strip (full-screen blocking behavior is unchanged)
 
 **Edge Case Probe:**
-- `currentPickNumber` is `null` after the draft ends -> status bar falls back to the completed pick count and `Draft complete`
-- Current draft slot is missing from `draftOrder` -> status bar still renders the pick progress and falls back to `Draft room active`
-- Current team lookup fails for a non-user slot -> status bar falls back to `Draft room active` instead of rendering an empty label
-- User refreshes while a panel is expanded -> the layout resets to the default weighted three-column arrangement
-- User expands one panel and then clicks a collapsed strip -> the newly clicked strip becomes the only expanded panel
-- User clicks the expand control for the panel that is already expanded -> the expanded state remains unchanged
+- `currentPickNumber` is `null` after the draft ends → status bar falls back to the completed pick count and `Draft complete`
+- Current draft slot is missing from `draftOrder` → status bar renders pick progress and falls back to `Draft room active`
+- User selects a player on the Players tab, switches to Board, then switches back → selected player row is still expanded with Draft / Cancel actions
+- User opens the Roster tab before follow-up roster work lands → the placeholder renders `Coming soon` without crashing
 
 ## Available Players And Targets Panels
 

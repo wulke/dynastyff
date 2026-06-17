@@ -89,13 +89,13 @@ Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under
 - `src/ui/context/DraftContext.tsx` owns the HTTP draft lifecycle and exposes `useDraftContext()` for all draft data and actions
 - `src/ui/App.tsx` now exports `DraftApp` as the shared provider-agnostic app shell, while `App` continues to wrap it in the HTTP context for the default UI entrypoint
 - `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
-- Successful draft creation transitions the UI into the drafting view immediately, then hydrates `GET /drafts/:id/state` in parallel with SSE so the three-column draft room can load in place
+- Successful draft creation transitions the UI into the drafting view immediately, then hydrates `GET /drafts/:id/state` in parallel with SSE so the tabbed draft room can load in place
 - The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
 - Accepted startup-pick trades now keep each slot anchored to its original snake-order cell while an ownership badge shows the current team that controls the pick
 - `pick_made` and accepted `trade_resolved` SSE events update the already-rendered board in place without a re-fetch, including post-trade ownership changes
-- The drafting room now renders three columns at wide viewports: `Draft Board`, `Available Players`, and `Pick Feed`, with weighted widths and a persistent status bar that shows current pick progress plus whose turn it is
+- The drafting room now renders a persistent `Draft Status` bar above a four-tab single-pane workspace: `Board`, `Players`, `Feed`, and `Roster`
 - The right-hand draft log now mixes live picks with timestamped trade summaries, and the same persisted trade chronology hydrates on resume/review from `GET /drafts/:id/state`
-- Each drafting column header now includes an expand control; expanding one panel turns the other two into narrow icon strips with rotated labels, and the layout resets to the default weighted widths on page load instead of persisting accordion state
+- `Board` shows the full-width draft board and keeps the row/column layout toggle, `Players` shows the full-width available-players panel with its nested `Available` / `Targets` tabs, `Feed` shows the full-width scrolling pick feed, and `Roster` currently renders a `Coming soon` stub for follow-up work
 - The `Available Players` column now uses `Available` / `Targets` tabs: the default `Available` view keeps the dynasty-sorted list, client-side position filters, live name search, draft-start skeleton rows, bot-turn disabled rows, and pick-submission error toasts
 - Clicking an enabled Available or Targets row now selects and highlights that player first, renders a shared confirmation card with position, NFL team, age, dynasty value, and ADP, and only submits the pick from a dedicated `Draft [Player Name]` action; failed submissions keep the selection active so the user can retry or cancel
 - The `Targets` tab hydrates from `GET /drafts/:id/queue`, shows queued players in ascending rank order with position badges and dynasty values, removes picked targets on live `pick_made` events, and shares the same confirmation flow plus bot-turn disabled state
@@ -142,7 +142,7 @@ Current static app behavior:
 
 - `src/ui-static/App.tsx` now owns only snapshot loading, the stale-data banner, and full-screen loading/error states before handing off to the shared `DraftApp` shell from `src/ui/App.tsx`
 - When the active draft context carries a snapshot, the shared config screen shows snapshot player count, pick-values count, and export date above the form
-- The static build now renders the same drafting UI as the HTTP app: draft status bar, three-column layout (`Draft Board`, `Available Players`, `Pick Feed`), and column expand/collapse controls
+- The static build now renders the same drafting UI as the HTTP app: draft status bar plus the tabbed `Board` / `Players` / `Feed` / `Roster` workspace
 - When a static draft completes, the Draft Board stays visible behind the shared completion banner; `View Draft Grade` opens the grade summary, and `View Full History` drills into the shared history tabs
 - The static build has no Express server, so its bootstrap `GET /drafts` request falls back silently to the config screen via the static context's no-op `showError`
 - Bot turns in the static build resolve locally with a visible `1.5–3s` delay before each pick

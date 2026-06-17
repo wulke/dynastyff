@@ -376,36 +376,23 @@ When the GET /drafts request returns an empty array, the system shall render the
 
 ## 3-Column Drafting Layout
 
-**DFF-UI-130** `[x]`
-The drafting view shall render three columns in a row at viewport widths of 1280px and above: Draft Board (left), Available Players (center), Pick Feed (right).
+> **Superseded by DFF-UI-180 through DFF-UI-192.** The 3-column expand/collapse layout is replaced by a single-pane tabbed view. Specs DFF-UI-130 through DFF-UI-137 are retired.
 
-**DFF-UI-131** `[x]`
-The default column widths shall be weighted: Draft Board `2fr`, Available Players `1.5fr`, Pick Feed `1fr`. All three columns shall render at their default widths on load.
-
-**DFF-UI-132** `[x]` → #99
-Each column header shall include an expand button. When clicked, the column shall expand to occupy the available viewport width and the other two columns shall collapse to narrow icon strips. Clicking the expand button for the already-expanded column shall leave that column expanded.
-
-**DFF-UI-133** `[x]` → #99
-Only one column may be expanded at a time. Expanding a column shall automatically collapse any previously expanded column to a strip.
-
-**DFF-UI-134** `[x]` → #99
-A collapsed column strip shall display an identifying icon and a rotated panel label (e.g. "Draft Board", "Available Players", "Pick Feed").
-
-**DFF-UI-135** `[x]` → #99
-Clicking a collapsed strip shall expand that column. If another column is currently expanded, it shall collapse to a strip.
-
-**DFF-UI-136** `[x]` → #99
-The expanded/collapsed state shall not be persisted to localStorage. On every page load all three columns shall render at their default weighted widths.
-
-**DFF-UI-137** `[x]` → #99
-Column width transitions shall be animated with a CSS transition of approximately 200ms.
+~~**DFF-UI-130**~~
+~~**DFF-UI-131**~~
+~~**DFF-UI-132**~~
+~~**DFF-UI-133**~~
+~~**DFF-UI-134**~~
+~~**DFF-UI-135**~~
+~~**DFF-UI-136**~~
+~~**DFF-UI-137**~~
 
 ---
 
 ## Drafting Status Bar
 
 **DFF-UI-138** `[x]`
-A persistent status bar shall be rendered above the three columns during the drafting view. It shall display: the current pick number out of total picks, and whose turn it is ("Your turn" or the current bot team name).
+A persistent status bar shall be rendered above the tab strip during the drafting view and shall remain visible regardless of which tab is active. It shall display: the current pick number out of total picks, and whose turn it is ("Your turn" or the current bot team name).
 
 **DFF-UI-139** `[x]`
 The turn-status badge ("Your turn" / "Bot is picking…") shall be removed from the Draft Board header and the Available Players panel header. The status bar shall be the single location for turn status in the drafting view.
@@ -506,3 +493,46 @@ For `pick_slot` assets in trade entries, the dynasty value shall be the dynasty 
 
 **DFF-UI-179** `[ ]`
 The Trade Activity section shall display only trades involving the user's team.
+
+---
+
+## Tabbed Drafting View
+
+**DFF-UI-180** `[x]`
+The drafting view shall render a single full-width pane with a tab strip containing four tabs: **Board**, **Players**, **Feed**, and **Roster**. The 3-column expand/collapse layout is removed.
+
+**DFF-UI-181** `[x]`
+The drafting status bar (DFF-UI-138) shall be rendered above the tab strip and shall remain visible regardless of the active tab.
+
+**DFF-UI-182** `[x]`
+The **Board** tab shall be the default selected tab when the drafting view loads or is resumed.
+
+**DFF-UI-183** `[x]`
+The **Board** tab shall render the Draft Board at full available width. The Row/Column layout toggle (DFF-UI-088) shall be preserved.
+
+**DFF-UI-184** `[x]`
+The **Players** tab shall render the Available Players panel at full available width, including the nested **Available** and **Targets** sub-tabs (DFF-UI-140 through DFF-UI-143).
+
+**DFF-UI-185** `[ ]`
+When the user selects a player (expanding that row inline with Draft and Cancel actions) and then switches tabs, the selection state shall be preserved. The Draft and Cancel actions shall remain available when the user returns to the **Players** tab.
+
+**DFF-UI-186** `[x]`
+The **Feed** tab shall render the Pick Feed panel at full available width. All existing Pick Feed behavior (DFF-UI-101 through DFF-UI-104) shall be preserved.
+
+**DFF-UI-187** `[D]`
+Deferred to a follow-up issue. The initial tabbed drafting view ships only a placeholder `Roster` tab stub.
+
+**DFF-UI-188** `[D]`
+Deferred to a follow-up issue. The initial tabbed drafting view does not yet include the roster team dropdown.
+
+**DFF-UI-189** `[D]`
+Deferred to a follow-up issue. The initial tabbed drafting view does not yet render roster pick rows.
+
+**DFF-UI-190** `[D]`
+Deferred to a follow-up issue. The initial tabbed drafting view does not yet include live roster-tab pick updates.
+
+**DFF-UI-191** `[x]`
+The Trade modal shall overlay the entire drafting view including the status bar and tab strip, consistent with its existing behavior (DFF-UI-050).
+
+**DFF-UI-192** `[x]`
+The draft completion banner (DFF-UI-003 through DFF-UI-007) shall overlay the entire drafting view including the status bar and tab strip, consistent with its existing behavior.

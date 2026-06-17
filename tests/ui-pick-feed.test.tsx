@@ -231,7 +231,7 @@ describe('pick feed panel', () => {
   // @spec DFF-UI-100
   // @spec DFF-UI-104
   // @spec DFF-UI-144
-  test('renders a pick feed panel alongside the draft board with full-column scroll behavior and empty state', async () => {
+  test('renders a pick feed panel in the Feed tab with full-pane scroll behavior and empty state', async () => {
     const user = userEvent.setup();
     mockAppBootstrapAndDraftCreation();
 
@@ -240,9 +240,10 @@ describe('pick feed panel', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSync();
 
-    // Pick feed panel should be rendered alongside the draft board
+    await user.click(screen.getByRole('tab', { name: /^feed$/i }));
+
+    // Pick feed panel should be rendered in the Feed tab
     const pickFeed = screen.getByTestId('pick-feed-panel');
-    expect(screen.getByTestId('pick-feed-column').className).toContain('flex');
     expect(pickFeed).toBeInTheDocument();
     expect(pickFeed.className).toContain('h-full');
     expect(pickFeed.className).toContain('flex-col');

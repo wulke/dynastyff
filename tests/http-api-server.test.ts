@@ -564,6 +564,7 @@ test('POST /drafts auto-starts the bot chain when the first open slot belongs to
 
     const botChain = createBotChainCoordinator({
       databasePath,
+      randomness: 0,
       now: () => '2026-05-22T19:00:00.000Z',
       random: () => 0,
       sleep: async () => undefined,
@@ -811,6 +812,7 @@ test('POST /drafts/:id/pick triggers consecutive bot picks with a 3-5 second del
     const delayCalls: number[] = [];
     const botChain = createBotChainCoordinator({
       databasePath,
+      randomness: 0,
       random: () => 0.5,
       sleep: async (delayMs) => {
         delayCalls.push(delayMs);
@@ -906,6 +908,7 @@ test('POST /drafts/:id/pick completes the draft automatically when the bot chain
     });
     const botChain = createBotChainCoordinator({
       databasePath,
+      randomness: 0,
       sleep: async () => undefined,
     });
 
@@ -1425,7 +1428,7 @@ test('POST /drafts/:id/trade-offer returns 400 when the target team is invalid',
       offeredAssets: [],
       requestedAssets: [],
     }, {
-      botChain: createBotChainCoordinator({ databasePath }),
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
     });
 
     assert.equal(response.statusCode, 400);
@@ -1451,7 +1454,7 @@ test('POST /drafts/:id/trade-offer returns 400 when the target team is the user 
       offeredAssets: [{ type: 'player', player_id: 'player-user-1' }],
       requestedAssets: [{ type: 'player', player_id: 'player-bot-1' }],
     }, {
-      botChain: createBotChainCoordinator({ databasePath }),
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
     });
 
     assert.equal(response.statusCode, 400);
@@ -1482,7 +1485,7 @@ test('POST /drafts/:id/trade-offer returns 400 when offered assets are not on th
       offeredAssets: [{ type: 'player', player_id: 'player-bot-1' }],
       requestedAssets: [{ type: 'player', player_id: 'player-bot-2' }],
     }, {
-      botChain: createBotChainCoordinator({ databasePath }),
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
     });
 
     assert.equal(response.statusCode, 400);
@@ -1513,7 +1516,7 @@ test('POST /drafts/:id/trade-offer returns 400 when requested assets are not on 
       offeredAssets: [{ type: 'player', player_id: 'player-user-1' }],
       requestedAssets: [{ type: 'player', player_id: 'player-user-2' }],
     }, {
-      botChain: createBotChainCoordinator({ databasePath }),
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
     });
 
     assert.equal(response.statusCode, 400);
@@ -1566,7 +1569,7 @@ test('POST /drafts/:id/trade-offer returns 400 when required fields are missing'
       targetTeamId: 'team-1',
       offeredAssets: [],
     }, {
-      botChain: createBotChainCoordinator({ databasePath }),
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
     });
 
     assert.equal(response.statusCode, 400);

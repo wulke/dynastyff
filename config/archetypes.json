@@ -1,4 +1,5 @@
 {
+  "randomness": 0.3,
   "archetypes": {
     "win_now": {
       "acceptanceThreshold": 0.85,

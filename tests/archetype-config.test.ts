@@ -1,6 +1,7 @@
 // @spec DFF-BOT-001
 // @spec DFF-BOT-002
 // @spec DFF-BOT-003
+// @spec DFF-BOT-004
 // @spec DFF-BOT-040
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,12 +16,14 @@ import {
 // @spec DFF-BOT-001
 // @spec DFF-BOT-002
 // @spec DFF-BOT-003
+// @spec DFF-BOT-004
 // @spec DFF-BOT-040
 test('loadArchetypeConfigFile reads the documented default archetype parameters from config/archetypes.json', () => {
   const config = loadArchetypeConfigFile();
 
   assert.equal(defaultArchetypesConfigPath, path.resolve(process.cwd(), 'config', 'archetypes.json'));
   assert.deepEqual(config, {
+    randomness: 0.3,
     archetypes: {
       win_now: {
         acceptanceThreshold: 0.85,
@@ -57,6 +60,7 @@ test('loadArchetypeConfigFile reads the documented default archetype parameters 
 });
 
 // @spec DFF-BOT-001
+// @spec DFF-BOT-004
 test('createArchetypeConfigLoader memoizes the startup config read', () => {
   let readCount = 0;
   const loader = createArchetypeConfigLoader({
@@ -65,6 +69,7 @@ test('createArchetypeConfigLoader memoizes the startup config read', () => {
       readCount += 1;
 
       return JSON.stringify({
+        randomness: 0.3,
         archetypes: {
           win_now: {
             acceptanceThreshold: 0.85,

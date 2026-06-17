@@ -18,6 +18,7 @@ export type ArchetypeProfileConfig = {
 };
 
 export type ArchetypeConfig = {
+  randomness: number;
   archetypes: Record<TeamArchetype, ArchetypeProfileConfig>;
 };
 
@@ -31,6 +32,7 @@ export const defaultArchetypesConfigPath = path.resolve(process.cwd(), 'config',
 // @spec DFF-BOT-001
 // @spec DFF-BOT-002
 // @spec DFF-BOT-003
+// @spec DFF-BOT-004
 // @spec DFF-BOT-040
 export function loadArchetypeConfigFile({
   configPath = defaultArchetypesConfigPath,
@@ -41,6 +43,7 @@ export function loadArchetypeConfigFile({
 }
 
 // @spec DFF-BOT-001
+// @spec DFF-BOT-004
 export function createArchetypeConfigLoader(
   options: LoadArchetypeConfigOptions = {},
 ): () => ArchetypeConfig {
@@ -70,6 +73,7 @@ export function getAcceptanceThresholdForArchetype(
 // @spec DFF-BOT-001
 // @spec DFF-BOT-002
 // @spec DFF-BOT-003
+// @spec DFF-BOT-004
 // @spec DFF-BOT-040
 function parseArchetypeConfig(rawConfig: string, configPath: string): ArchetypeConfig {
   let parsedConfig: unknown;
@@ -110,7 +114,10 @@ function parseArchetypeConfig(rawConfig: string, configPath: string): ArchetypeC
     };
   }
 
-  return { archetypes };
+  return {
+    randomness: readUnitIntervalNumber(parsedConfig.randomness, configPath, 'randomness'),
+    archetypes,
+  };
 }
 
 // @spec DFF-BOT-003
@@ -139,6 +146,17 @@ function readNumber(value: unknown, configPath: string, fieldPath: string): numb
   }
 
   return value;
+}
+
+// @spec DFF-BOT-004
+function readUnitIntervalNumber(value: unknown, configPath: string, fieldPath: string): number {
+  const parsedValue = readNumber(value, configPath, fieldPath);
+
+  if (parsedValue < 0 || parsedValue > 1) {
+    throw new Error(`[draft] Invalid archetype config at ${configPath}: ${fieldPath} must be between 0.0 and 1.0.`);
+  }
+
+  return parsedValue;
 }
 
 // @spec DFF-BOT-001

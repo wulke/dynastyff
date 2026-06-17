@@ -78,7 +78,7 @@ All settings are configurable on the league config screen before starting a draf
 
 The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs fully offline.
 
-Bot archetype tuning lives in `config/archetypes.json`. The API server loads that file once at startup for trade acceptance thresholds, preferred-position value floors, and trade aggressiveness defaults.
+Bot archetype tuning lives in `config/archetypes.json`. The API server loads that file once at startup for trade acceptance thresholds, preferred-position value floors, trade aggressiveness defaults, and the bot-pick `randomness` factor (`0.0–1.0`, default `0.3`) that flattens weighted pick selection.
 
 ## UI Scaffold
 

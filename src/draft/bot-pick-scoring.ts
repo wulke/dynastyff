@@ -3,6 +3,8 @@
 // @spec DFF-BOT-022
 // @spec DFF-BOT-023
 // @spec DFF-BOT-024
+// @spec DFF-BOT-025
+// @spec DFF-BOT-026
 import type { DraftAvailablePlayer } from './available-players.js';
 import type { ArchetypeConfig } from './archetype-config.js';
 import type { DraftRosterConfig } from './roster-config.js';
@@ -15,6 +17,10 @@ type RosteredPlayer = Pick<DraftAvailablePlayer, 'position' | 'nfl_team'>;
 
 const SATURATION_FLOOR = 0.3;
 const SLOT_PRIORITY: RosterSlot[] = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SF', 'bench'];
+const PUNT_ROOKIE_YOUTH_MODIFIER = 1.3;
+const PUNT_YOUTH_AGE_BASELINE = 30;
+const PUNT_YOUTH_MODIFIER_RANGE = 0.4;
+const HANDCUFF_BONUS_MULTIPLIER = 0.15;
 
 // @spec DFF-BOT-023
 export const SLOT_ELIGIBILITY: Record<RosterSlot, readonly PlayerPosition[]> = {
@@ -54,6 +60,8 @@ type SlotInstance = {
 // @spec DFF-BOT-021
 // @spec DFF-BOT-022
 // @spec DFF-BOT-024
+// @spec DFF-BOT-025
+// @spec DFF-BOT-026
 export function scoreBotPickCandidate({
   player,
   archetype,
@@ -81,7 +89,14 @@ export function scoreBotPickCandidate({
     slotNeed *= 2;
   }
 
-  return player.dynasty_value * profile.valueWeight * (slotNeed * profile.needModifier) + randomness * random();
+  const youthModifier = getYouthModifier(player, archetype);
+  const handcuffBonus = getHandcuffBonus(player, rosteredPlayers);
+
+  return (
+    player.dynasty_value * profile.valueWeight * (slotNeed * profile.needModifier) * youthModifier +
+    handcuffBonus +
+    randomness * random()
+  );
 }
 
 // @spec DFF-BOT-021
@@ -142,6 +157,39 @@ function sortRosteredPositionsForAssignment(rosteredPositions: PlayerPosition[])
 // @spec DFF-BOT-024
 function getEligibleSlotCount(position: PlayerPosition): number {
   return SLOT_PRIORITY.filter((slot) => SLOT_ELIGIBILITY[slot].includes(position)).length;
+}
+
+// @spec DFF-BOT-025
+function getYouthModifier(player: DraftAvailablePlayer, archetype: TeamArchetype): number {
+  if (archetype !== 'punt') {
+    return 1;
+  }
+
+  if (player.is_rookie) {
+    return PUNT_ROOKIE_YOUTH_MODIFIER;
+  }
+
+  if (player.age === null) {
+    return 1;
+  }
+
+  return (
+    1 +
+    Math.max(0, (PUNT_YOUTH_AGE_BASELINE - player.age) / PUNT_YOUTH_AGE_BASELINE) * PUNT_YOUTH_MODIFIER_RANGE
+  );
+}
+
+// @spec DFF-BOT-026
+function getHandcuffBonus(player: DraftAvailablePlayer, rosteredPlayers: RosteredPlayer[]): number {
+  if (player.position !== 'RB' || player.nfl_team === null) {
+    return 0;
+  }
+
+  return rosteredPlayers.some(
+    (rosteredPlayer) => rosteredPlayer.position === 'RB' && rosteredPlayer.nfl_team === player.nfl_team,
+  )
+    ? player.dynasty_value * HANDCUFF_BONUS_MULTIPLIER
+    : 0;
 }
 
 // @spec DFF-BOT-023

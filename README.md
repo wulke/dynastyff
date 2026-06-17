@@ -80,7 +80,7 @@ The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs
 
 Bot archetype tuning lives in `config/archetypes.json`. The API server loads that file once at startup for trade acceptance thresholds, pick-scoring `needModifier`/`valueWeight` pairs, preferred-position value floors, trade aggressiveness defaults, and the bot-pick `randomness` factor (`0.0–1.0`, default `0.3`) that flattens weighted pick selection.
 
-The live bot chain now scores players against the draft's configured roster slots with a static `SLOT_ELIGIBILITY` map (`QB`, `RB`, `WR`, `TE`, `FLEX`, `SF`, `bench`). Positional need is the fractional sum of all still-open eligible slots using `1 / eligibilitySetSize` per slot, with a `0.3` saturation floor once every eligible slot is filled. `rb_heavy` still gets an extra `1.5x` RB need boost, and `qb_early` doubles QB need through round 3 only.
+The live bot chain now scores players against the draft's configured roster slots with a static `SLOT_ELIGIBILITY` map (`QB`, `RB`, `WR`, `TE`, `FLEX`, `SF`, `bench`). Positional need is the fractional sum of all still-open eligible slots using `1 / eligibilitySetSize` per slot, with a `0.3` saturation floor once every eligible slot is filled. `rb_heavy` still gets an extra `1.5x` RB need boost, `qb_early` doubles QB need through round 3 only, `punt` applies an age-based youth modifier with a flat rookie boost, and same-team RB handcuffs add a small additive bonus.
 
 ## UI Scaffold
 

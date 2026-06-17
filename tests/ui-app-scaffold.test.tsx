@@ -590,11 +590,13 @@ describe('UI app scaffold', () => {
     ).toBeInTheDocument();
   });
 
-  // @spec DFF-UI-130
-  // @spec DFF-UI-131
   // @spec DFF-UI-138
   // @spec DFF-UI-139
-  test('renders the drafting status bar and three weighted columns with a single turn-status surface', async () => {
+  // @spec DFF-UI-180
+  // @spec DFF-UI-181
+  // @spec DFF-UI-182
+  // @spec DFF-UI-183
+  test('renders the drafting status bar above a tabbed single-pane layout with the Board tab selected by default', async () => {
     const user = userEvent.setup();
     setupDraftLifecycleFetches();
 
@@ -609,108 +611,87 @@ describe('UI app scaffold', () => {
     expect(statusBar).toHaveTextContent('Pick 2 of 6');
     expect(statusBar).toHaveTextContent('Your turn');
 
-    const layout = screen.getByTestId('drafting-layout');
-    expect(layout.className).toContain('xl:grid');
-    expect(layout.className).toContain('xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]');
+    const tabList = screen.getByRole('tablist', { name: /draft view tabs/i });
+    const boardTab = within(tabList).getByRole('tab', { name: /^board$/i });
+    const playersTab = within(tabList).getByRole('tab', { name: /^players$/i });
+    const feedTab = within(tabList).getByRole('tab', { name: /^feed$/i });
+    const rosterTab = within(tabList).getByRole('tab', { name: /^roster$/i });
 
-    const draftBoardColumn = screen.getByTestId('draft-board-column');
-    const availablePlayersColumn = screen.getByTestId('available-players-column');
-    const pickFeedColumn = screen.getByTestId('pick-feed-column');
-    expect(within(draftBoardColumn).getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
-    expect(within(availablePlayersColumn).getByRole('heading', { name: /available players/i })).toBeInTheDocument();
-    expect(within(pickFeedColumn).getByRole('heading', { name: /pick feed/i })).toBeInTheDocument();
+    expect(boardTab).toHaveAttribute('aria-selected', 'true');
+    expect(boardTab.className).toContain('bg-accent');
+    expect(playersTab).toHaveAttribute('aria-selected', 'false');
+    expect(feedTab).toHaveAttribute('aria-selected', 'false');
+    expect(rosterTab).toHaveAttribute('aria-selected', 'false');
+    expect(statusBar.compareDocumentPosition(tabList)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(screen.getByRole('heading', { name: /draft board/i })).toBeInTheDocument();
+    expect(screen.getByTestId('layout-toggle')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^available players$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^pick feed$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
 
     expect(screen.getByText(/^Your turn$/i)).toBe(statusBar.querySelector('[data-testid="draft-status-turn"]'));
     expect(screen.queryByText(/bot is picking…/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /expand draft board/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /expand available players/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /expand pick feed/i })).not.toBeInTheDocument();
   });
 
-  // @spec DFF-UI-132
-  // @spec DFF-UI-133
-  // @spec DFF-UI-134
-  // @spec DFF-UI-135
-  // @spec DFF-UI-136
-  // @spec DFF-UI-137
-  test('supports single-column expansion with collapsed strips and a 200ms layout transition', async () => {
+  // @spec DFF-UI-180
+  // @spec DFF-UI-184
+  // @spec DFF-UI-186
+  // @spec DFF-UI-191
+  // @spec DFF-UI-192
+  test('switches between draft tabs, preserves nested players tabs, and keeps full-view overlays above the tab shell', async () => {
     const user = userEvent.setup();
-    const localStorageSetItemSpy = vi.spyOn(Storage.prototype, 'setItem');
-    fetchMock.mockImplementation((input, init) => {
-      const url = String(input);
+    setupDraftLifecycleFetches();
 
-      if (url === '/drafts' && !init?.method) {
-        return Promise.resolve(
-          new Response(JSON.stringify([]), {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }),
-        );
-      }
-
-      if (url === '/drafts' && init?.method === 'POST') {
-        return Promise.resolve(
-          new Response(JSON.stringify({ draftId: 'draft-123' }), {
-            status: 201,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }),
-        );
-      }
-
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-
-    const firstRender = render(<App />);
-    await screen.findByRole('heading', { name: /config screen/i });
+    await renderAppToConfig();
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     act(() => {
       MockEventSource.instances[0]?.emit('state_sync', createDraftingState());
     });
 
-    const layout = await screen.findByTestId('drafting-layout');
-    expect(layout).toHaveAttribute('data-expanded-column', 'none');
-    expect(layout.className).toContain('xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]');
-    expect(layout.className).toContain('duration-200');
-
-    expect(screen.getByRole('button', { name: /expand draft board/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /expand available players/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /expand pick feed/i })).toBeInTheDocument();
-
-    const expandAvailablePlayersButton = screen.getByRole('button', { name: /expand available players/i });
-    await user.click(expandAvailablePlayersButton);
-
-    expect(layout).toHaveAttribute('data-expanded-column', 'available-players');
-    expect(screen.getByTestId('draft-board-collapsed-strip')).toHaveTextContent('Draft Board');
-    expect(screen.getByTestId('pick-feed-collapsed-strip')).toHaveTextContent('Pick Feed');
-    expect(screen.queryByRole('heading', { name: /^draft board$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /^pick feed$/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /^players$/i }));
     expect(screen.getByRole('heading', { name: /^available players$/i })).toBeInTheDocument();
-    await user.click(expandAvailablePlayersButton);
-    expect(layout).toHaveAttribute('data-expanded-column', 'available-players');
+    expect(screen.getByRole('button', { name: /^available$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^targets$/i })).toBeInTheDocument();
 
-    await user.click(screen.getByTestId('pick-feed-collapsed-strip'));
+    await user.click(screen.getByRole('tab', { name: /^feed$/i }));
+    const pickFeedPanel = screen.getByTestId('pick-feed-panel');
+    expect(pickFeedPanel).toBeInTheDocument();
+    expect(screen.getByTestId('pick-feed-scroll-container').className).not.toContain('max-h-[28rem]');
 
-    expect(layout).toHaveAttribute('data-expanded-column', 'pick-feed');
-    expect(screen.getByTestId('draft-board-collapsed-strip')).toHaveTextContent('Draft Board');
-    expect(screen.getByTestId('available-players-collapsed-strip')).toHaveTextContent('Available Players');
-    expect(screen.queryByRole('heading', { name: /^available players$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /^pick feed$/i })).toBeInTheDocument();
-    expect(localStorageSetItemSpy).not.toHaveBeenCalled();
-
-    firstRender.unmount();
-    render(<App />);
-    await screen.findByRole('heading', { name: /config screen/i });
-    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    await user.click(screen.getByRole('tab', { name: /^roster$/i }));
+    expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
 
     act(() => {
-      MockEventSource.instances[1]?.emit('state_sync', createDraftingState());
+      MockEventSource.instances[0]?.emit('trade_offered', {
+        trade_id: 'trade-user-149',
+        initiating_team_id: 'team-1',
+        receiving_team_id: 'team-2',
+        assets_sent: [{ type: 'player', player_id: 'player-1' }],
+        assets_received: [{ type: 'player', player_id: 'player-2' }],
+        is_bot_to_bot: false,
+      });
     });
 
-    const remountedLayout = await screen.findByTestId('drafting-layout');
-    expect(remountedLayout).toHaveAttribute('data-expanded-column', 'none');
-    expect(remountedLayout.className).toContain('xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]');
+    expect(screen.getByTestId('trade-modal-overlay').className).toContain('fixed');
+    expect(screen.getByTestId('trade-modal-overlay').className).toContain('inset-0');
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', createDraftingState({ status: 'completed', current_pick_number: null }));
+    });
+    act(() => {
+      MockEventSource.instances[0]?.emit('draft_complete', {
+        draft_id: 'draft-123',
+        completed_at: '2026-05-21T18:00:00.000Z',
+      });
+    });
+
+    expect(screen.getByTestId('draft-completion-banner').className).toContain('fixed');
+    expect(screen.getByTestId('draft-completion-banner').className).toContain('inset-0');
   });
 
   // @spec DFF-UI-138

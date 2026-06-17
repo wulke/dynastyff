@@ -281,7 +281,10 @@ describe('static snapshot app', () => {
   // @spec DFF-UI-154
   // @spec DFF-UI-157
   // @spec DFF-UI-159
-  test('resolves the snapshot fetch and renders the shared three-column drafting shell after starting a static draft', async () => {
+  // @spec DFF-UI-180
+  // @spec DFF-UI-181
+  // @spec DFF-UI-182
+  test('resolves the snapshot fetch and renders the shared tabbed drafting shell after starting a static draft', async () => {
     const deferred = createDeferred<Response>();
     fetchMock.mockImplementation((input, init) => {
       const url = String(input);
@@ -313,9 +316,10 @@ describe('static snapshot app', () => {
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
     expect(await screen.findByTestId('draft-status-bar')).toBeInTheDocument();
-    expect(screen.getByTestId('drafting-layout')).toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: /draft view tabs/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^board$/i })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('heading', { name: /^draft board$/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /^available players$/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /^pick feed$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^available players$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^pick feed$/i })).not.toBeInTheDocument();
   });
 });

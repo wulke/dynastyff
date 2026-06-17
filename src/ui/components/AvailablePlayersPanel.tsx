@@ -17,8 +17,7 @@
 // @spec DFF-UI-141
 // @spec DFF-UI-142
 // @spec DFF-UI-143
-// @spec DFF-UI-132
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 
 import { useDraftContext, type DraftState } from '../context/DraftContext.js';
 import { getPositionBadgeClass } from './positionBadge.js';
@@ -26,7 +25,6 @@ import { getPositionBadgeClass } from './positionBadge.js';
 type AvailablePlayersPanelProps = {
   draftState: DraftState;
   isInteractionBlocked?: boolean;
-  headerAction?: ReactNode;
 };
 
 type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'Picks';
@@ -151,7 +149,6 @@ function AvailablePlayersLoadingState() {
 export function AvailablePlayersPanel({
   draftState,
   isInteractionBlocked = false,
-  headerAction = null,
 }: AvailablePlayersPanelProps) {
   const { submitPick } = useDraftContext();
   const [activeTab, setActiveTab] = useState<AvailablePlayersTab>('available');
@@ -267,7 +264,6 @@ export function AvailablePlayersPanel({
           </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2" aria-label="Available players views">
-          {headerAction}
           <button
             type="button"
             aria-pressed={activeTab === 'available'}

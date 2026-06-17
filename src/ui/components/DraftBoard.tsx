@@ -12,17 +12,15 @@
 // @spec DFF-UI-090
 // @spec DFF-UI-091
 // @spec DFF-UI-092
-// @spec DFF-UI-132
 // @spec DFF-UI-139
 // @spec DFF-UI-056
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
 import { getPositionBadgeClass } from './positionBadge.js';
 
 type DraftBoardProps = {
   draftState: DraftState;
   isInteractionBlocked?: boolean;
-  headerAction?: ReactNode;
   onTeamHeaderClick?: (teamId: string) => void;
 };
 
@@ -268,7 +266,6 @@ function ColumnModeDraftBoard({ draftState, onTeamHeaderClick, isInteractionBloc
 export function DraftBoard({
   draftState,
   isInteractionBlocked = false,
-  headerAction = null,
   onTeamHeaderClick,
 }: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((a, b) => a - b);
@@ -297,7 +294,6 @@ export function DraftBoard({
               Connecting…
             </span>
           ) : null}
-          {headerAction}
           <button
             type="button"
             data-testid="layout-toggle"

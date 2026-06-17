@@ -19,14 +19,6 @@
 // @spec DFF-UI-013
 // @spec DFF-UI-116
 // @spec DFF-UI-115
-// @spec DFF-UI-130
-// @spec DFF-UI-131
-// @spec DFF-UI-132
-// @spec DFF-UI-133
-// @spec DFF-UI-134
-// @spec DFF-UI-135
-// @spec DFF-UI-136
-// @spec DFF-UI-137
 // @spec DFF-UI-138
 // @spec DFF-UI-139
 // @spec DFF-UI-056
@@ -40,7 +32,15 @@
 // @spec DFF-UI-145
 // @spec DFF-UI-146
 // @spec DFF-UI-149
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+// @spec DFF-UI-180
+// @spec DFF-UI-181
+// @spec DFF-UI-182
+// @spec DFF-UI-183
+// @spec DFF-UI-184
+// @spec DFF-UI-186
+// @spec DFF-UI-191
+// @spec DFF-UI-192
+import { useState, useEffect, useRef } from 'react';
 import {
   HttpDraftContextProvider,
   useDraftContext,
@@ -67,6 +67,7 @@ type DraftStatusSummary = {
 };
 
 type Theme = 'ember' | 'volt' | 'pitch';
+type DraftTabId = 'board' | 'players' | 'feed' | 'roster';
 
 const THEMES: { id: Theme; label: string }[] = [
   { id: 'ember', label: 'Ember' },
@@ -113,15 +114,6 @@ function AppHeader() {
   );
 }
 
-type DraftColumnId = 'draft-board' | 'available-players' | 'pick-feed';
-
-type DraftColumnDefinition = {
-  id: DraftColumnId;
-  label: string;
-  testId: string;
-  renderIcon: () => ReactNode;
-};
-
 type SavedLeagueConfigApiRecord = {
   id: string;
   name: string;
@@ -149,67 +141,12 @@ type SavedLeagueConfig = {
   config: ConfigFormState;
 };
 
-const DRAFT_COLUMNS: DraftColumnDefinition[] = [
-  {
-    id: 'draft-board',
-    label: 'Draft Board',
-    testId: 'draft-board-column',
-    renderIcon: () => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <rect width="18" height="18" x="3" y="3" rx="2" />
-        <path d="M3 9h18M9 21V9" />
-      </svg>
-    ),
-  },
-  {
-    id: 'available-players',
-    label: 'Available Players',
-    testId: 'available-players-column',
-    renderIcon: () => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M19 8v6M22 11h-6" />
-      </svg>
-    ),
-  },
-  {
-    id: 'pick-feed',
-    label: 'Pick Feed',
-    testId: 'pick-feed-column',
-    renderIcon: () => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M12 20V10" />
-        <path d="m18 20-6-6-6 6" />
-        <path d="M6 4h12" />
-      </svg>
-    ),
-  },
+const DRAFT_TABS: { id: DraftTabId; label: string }[] = [
+  { id: 'board', label: 'Board' },
+  { id: 'players', label: 'Players' },
+  { id: 'feed', label: 'Feed' },
+  { id: 'roster', label: 'Roster' },
 ];
-
-// @spec DFF-UI-131
-// @spec DFF-UI-133
-// @spec DFF-UI-137
-function getDraftingLayoutClass(expandedColumn: DraftColumnId | null): string {
-  if (expandedColumn === 'draft-board') {
-    return 'grid w-full gap-6 transition-[grid-template-columns] duration-200 ease-out xl:grid-cols-[minmax(0,4fr)_minmax(4.5rem,0.45fr)_minmax(4.5rem,0.45fr)]';
-  }
-
-  if (expandedColumn === 'available-players') {
-    return 'grid w-full gap-6 transition-[grid-template-columns] duration-200 ease-out xl:grid-cols-[minmax(4.5rem,0.45fr)_minmax(0,4fr)_minmax(4.5rem,0.45fr)]';
-  }
-
-  if (expandedColumn === 'pick-feed') {
-    return 'grid w-full gap-6 transition-[grid-template-columns] duration-200 ease-out xl:grid-cols-[minmax(4.5rem,0.45fr)_minmax(4.5rem,0.45fr)_minmax(0,4fr)]';
-  }
-
-  return 'grid w-full gap-6 transition-[grid-template-columns] duration-200 ease-out xl:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]';
-}
-
-// @spec DFF-UI-132
-function getExpandButtonLabel(columnLabel: string): string {
-  return `Expand ${columnLabel}`;
-}
 
 // @spec DFF-UI-011
 function isSavedLeagueConfigApiRecord(value: unknown): value is SavedLeagueConfigApiRecord {
@@ -270,58 +207,49 @@ function toSavedLeagueConfig(record: SavedLeagueConfigApiRecord): SavedLeagueCon
   };
 }
 
-// @spec DFF-UI-132
-function ExpandColumnButton({
-  label,
-  disabled = false,
-  onClick,
-}: {
-  label: string;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={getExpandButtonLabel(label)}
-      disabled={disabled}
-      onClick={onClick}
-      className="rounded border border-default p-1.5 text-muted transition hover:border-strong hover:text-secondary disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M15 3h6v6" />
-        <path d="M9 21H3v-6" />
-        <path d="m21 3-7 7" />
-        <path d="m3 21 7-7" />
-      </svg>
-    </button>
-  );
+// @spec DFF-UI-180
+function getDraftTabButtonClass(isActive: boolean): string {
+  if (isActive) {
+    return 'rounded border border-accent bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg transition';
+  }
+
+  return 'rounded border border-default px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-strong hover:text-secondary';
 }
 
-// @spec DFF-UI-134
-// @spec DFF-UI-135
-function CollapsedColumnStrip({
-  column,
-  onExpand,
+// @spec DFF-UI-180
+// @spec DFF-UI-181
+// @spec DFF-UI-182
+function DraftTabStrip({
+  activeTab,
+  onTabChange,
+  disabled = false,
 }: {
-  column: DraftColumnDefinition;
-  onExpand: () => void;
+  activeTab: DraftTabId;
+  onTabChange: (nextTab: DraftTabId) => void;
+  disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      data-testid={`${column.id}-collapsed-strip`}
-      aria-label={getExpandButtonLabel(column.label)}
-      onClick={onExpand}
-      className="flex h-full min-h-[20rem] w-full items-center justify-center rounded-md border border-default bg-surface px-2 py-4 text-muted transition duration-200 hover:border-strong hover:text-secondary"
+    <div
+      role="tablist"
+      aria-label="Draft view tabs"
+      className="flex flex-wrap items-center gap-2 rounded-md border border-default bg-surface px-3 py-2"
     >
-      <span className="flex flex-col items-center gap-3">
-        <span className="rounded border border-default p-1.5 text-muted">{column.renderIcon()}</span>
-        <span className="[writing-mode:vertical-rl] rotate-180 text-[0.6rem] font-semibold uppercase tracking-widest">
-          {column.label}
-        </span>
-      </span>
-    </button>
+      {DRAFT_TABS.map((tab) => (
+        <button
+          key={tab.id}
+          id={`draft-tab-${tab.id}`}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          aria-controls={`draft-tabpanel-${tab.id}`}
+          disabled={disabled}
+          onClick={() => onTabChange(tab.id)}
+          className={getDraftTabButtonClass(activeTab === tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -419,7 +347,7 @@ function ViewShell({ eyebrow, title, description, statusBadge, actionLabel, onAc
 function DraftCompletionBanner({ teamName, onViewGrade }: DraftCompletionBannerProps) {
   return (
     <div
-      className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       aria-label="Draft completion banner"
       data-testid="draft-completion-banner"
     >
@@ -486,6 +414,25 @@ function DraftStatusBar({ draftState }: { draftState: DraftState }) {
         >
           {status.turnLabel}
         </div>
+      </div>
+    </section>
+  );
+}
+
+// @spec DFF-UI-180
+function DraftRosterStub() {
+  return (
+    <section
+      id="draft-tabpanel-roster"
+      role="tabpanel"
+      aria-labelledby="draft-tab-roster"
+      className="rounded-md border border-default bg-surface"
+    >
+      <div className="border-b border-default px-3 py-2">
+        <h2 className="font-condensed text-lg font-semibold text-primary">Roster</h2>
+      </div>
+      <div className="px-3 py-6">
+        <p className="text-sm text-muted">Coming soon</p>
       </div>
     </section>
   );
@@ -593,7 +540,7 @@ export function DraftApp() {
   const [savedConfigs, setSavedConfigs] = useState<SavedLeagueConfig[]>([]);
   const [selectedSavedConfigId, setSelectedSavedConfigId] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [expandedColumn, setExpandedColumn] = useState<DraftColumnId | null>(null);
+  const [activeDraftTab, setActiveDraftTab] = useState<DraftTabId>('board');
   const [dismissedTradeId, setDismissedTradeId] = useState<string | null>(null);
   const [tradeComposer, setTradeComposer] = useState<TradeComposerState | null>(null);
   const [composerTradeId, setComposerTradeId] = useState<string | null>(null);
@@ -608,6 +555,13 @@ export function DraftApp() {
       setDismissedTradeId(null);
     }
   }, [draftState?.pendingTrade]);
+
+  // @spec DFF-UI-182
+  useEffect(() => {
+    if (draftState?.draftId) {
+      setActiveDraftTab('board');
+    }
+  }, [draftState?.draftId]);
 
   // @spec DFF-UI-059c
   useEffect(() => {
@@ -731,8 +685,7 @@ export function DraftApp() {
     setDismissedTradeId(null);
     setTradeComposer(null);
     setComposerTradeId(null);
-    // @spec DFF-UI-136
-    setExpandedColumn(null);
+    setActiveDraftTab('board');
 
     try {
       await startDraft(safeConfig);
@@ -974,6 +927,7 @@ export function DraftApp() {
               setShowDraftsList(false);
               setShowGradeSummary(false);
               setShowHistory(false);
+              setActiveDraftTab('board');
             }}
             onNavigateToReview={(draftStatus) => {
               setShowDraftsList(false);
@@ -1002,88 +956,69 @@ export function DraftApp() {
         ) : null}
 
         {/* @spec DFF-UI-100 */}
-        {/* @spec DFF-UI-130 */}
-        {/* @spec DFF-UI-131 */}
-        {/* @spec DFF-UI-132 */}
-        {/* @spec DFF-UI-133 */}
-        {/* @spec DFF-UI-134 */}
-        {/* @spec DFF-UI-135 */}
-        {/* @spec DFF-UI-136 */}
-        {/* @spec DFF-UI-137 */}
         {/* @spec DFF-UI-138 */}
         {/* @spec DFF-UI-139 */}
+        {/* @spec DFF-UI-180 */}
+        {/* @spec DFF-UI-181 */}
+        {/* @spec DFF-UI-182 */}
+        {/* @spec DFF-UI-183 */}
+        {/* @spec DFF-UI-184 */}
+        {/* @spec DFF-UI-186 */}
+        {/* @spec DFF-UI-191 */}
+        {/* @spec DFF-UI-192 */}
         {!showDraftsListLoading && view === 'drafting' && draftState ? (
-          <div className="flex w-full flex-col gap-6">
+          <div className="flex w-full flex-col gap-4">
             <DraftStatusBar draftState={draftState} />
-            <div
-              data-testid="drafting-layout"
-              data-expanded-column={expandedColumn ?? 'none'}
-              className={getDraftingLayoutClass(expandedColumn)}
-            >
-              {DRAFT_COLUMNS.map((column) => {
-                const isCollapsed = expandedColumn !== null && expandedColumn !== column.id;
-
-                return (
-                  <div
-                    key={column.id}
-                    data-testid={column.testId}
-                    className={`min-w-0 transition-all duration-200 ${column.id === 'draft-board' ? 'relative' : ''} ${
-                      column.id === 'pick-feed' && !isCollapsed ? 'flex' : ''
-                    }`}
-                  >
-                    {isCollapsed ? (
-                      <CollapsedColumnStrip column={column} onExpand={() => setExpandedColumn(column.id)} />
-                    ) : column.id === 'draft-board' ? (
-                      <>
-                        <DraftBoard
-                          draftState={draftState}
-                          isInteractionBlocked={isDraftInteractionBlocked}
-                          onTeamHeaderClick={handleOpenTradeComposer}
-                          headerAction={
-                            <ExpandColumnButton
-                              label={column.label}
-                              disabled={showTradeModal || showComposerModal}
-                              onClick={() => setExpandedColumn(column.id)}
-                            />
-                          }
-                        />
-                        {showCompletionBanner ? (
-                          <DraftCompletionBanner
-                            teamName={completionBannerTeamName}
-                            onViewGrade={() => {
-                              setShowGradeSummary(true);
-                            }}
-                          />
-                        ) : null}
-                      </>
-                    ) : column.id === 'available-players' ? (
-                        <AvailablePlayersPanel
-                          draftState={draftState}
-                          isInteractionBlocked={showTradeModal || showComposerModal}
-                          headerAction={
-                            <ExpandColumnButton
-                              label={column.label}
-                              disabled={showTradeModal || showComposerModal}
-                              onClick={() => setExpandedColumn(column.id)}
-                            />
-                          }
-                        />
-                    ) : (
-                      <PickFeedPanel
-                        draftState={draftState}
-                        headerAction={
-                          <ExpandColumnButton
-                            label={column.label}
-                            disabled={showTradeModal || showComposerModal}
-                            onClick={() => setExpandedColumn(column.id)}
-                          />
-                        }
-                      />
-                    )}
-                  </div>
-                );
-              })}
+            <DraftTabStrip
+              activeTab={activeDraftTab}
+              onTabChange={setActiveDraftTab}
+              disabled={isDraftInteractionBlocked}
+            />
+            <div className="min-h-0">
+              <div
+                id="draft-tabpanel-board"
+                role="tabpanel"
+                aria-labelledby="draft-tab-board"
+                hidden={activeDraftTab !== 'board'}
+                className="min-h-0"
+              >
+                <DraftBoard
+                  draftState={draftState}
+                  isInteractionBlocked={isDraftInteractionBlocked}
+                  onTeamHeaderClick={handleOpenTradeComposer}
+                />
+              </div>
+              <div
+                id="draft-tabpanel-players"
+                role="tabpanel"
+                aria-labelledby="draft-tab-players"
+                hidden={activeDraftTab !== 'players'}
+                className="min-h-0"
+              >
+                <AvailablePlayersPanel
+                  draftState={draftState}
+                  isInteractionBlocked={showTradeModal || showComposerModal}
+                />
+              </div>
+              <div
+                id="draft-tabpanel-feed"
+                role="tabpanel"
+                aria-labelledby="draft-tab-feed"
+                hidden={activeDraftTab !== 'feed'}
+                className="min-h-0"
+              >
+                <PickFeedPanel draftState={draftState} />
+              </div>
+              {activeDraftTab === 'roster' ? <DraftRosterStub /> : null}
             </div>
+            {showCompletionBanner ? (
+              <DraftCompletionBanner
+                teamName={completionBannerTeamName}
+                onViewGrade={() => {
+                  setShowGradeSummary(true);
+                }}
+              />
+            ) : null}
             <TradeModal
               draftState={draftState}
               isOpen={showTradeModal || showComposerModal}

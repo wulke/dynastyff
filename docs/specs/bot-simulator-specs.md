@@ -9,7 +9,7 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 ## Archetype Configuration
 
 **DFF-BOT-001** `[x]`
-The system shall load archetype acceptance thresholds, preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
+The system shall load archetype acceptance thresholds, pick-scoring modifiers (`needModifier`, `valueWeight`), preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
 
 **DFF-BOT-004** `[x]`
 The system shall load a global bot-pick `randomness` parameter (`0.0–1.0`, default `0.3`) from `config/archetypes.json`, and `createBotChainCoordinator` shall allow a direct `randomness` option to override that startup-loaded value.
@@ -50,7 +50,7 @@ The system shall allow multiple bot teams to share the same archetype; no unique
 When computing a pick score for an available player, the system shall compute: `score = dynastyValue × valueWeight × (slotNeed × needModifier) × youthModifier + handcuffBonus + noise × random()`.
 
 **DFF-BOT-021** `[ ]`
-The system shall compute `slotNeed` using a step function: `1.0` while the bot has eligibility-weighted unfilled slots remaining for that position; `0.3` (saturation floor) once all eligible slots are filled.
+The system shall compute `slotNeed` as the sum of eligibility-weighted unfilled slots for that position, and shall step to `0.3` (saturation floor) once all eligible slots are filled.
 
 **DFF-BOT-022** `[ ]`
 The system shall apply the following `needModifier` and `valueWeight` per archetype:

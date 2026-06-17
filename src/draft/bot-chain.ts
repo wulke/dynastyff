@@ -92,6 +92,7 @@ export type BotChainCoordinator = {
 type CreateBotChainCoordinatorOptions = {
   databasePath: string;
   archetypeConfig?: ArchetypeConfig;
+  randomness?: number;
   now?: () => string;
   random?: () => number;
   sleep?: (delayMs: number) => Promise<void>;
@@ -124,22 +125,78 @@ function defaultSleep(delayMs: number): Promise<void> {
   });
 }
 
-// @spec DFF-ENGINE-032
-function selectHighestValuePlayer(availablePlayers: DraftAvailablePlayer[]): string {
-  const bestPlayer = availablePlayers[0];
+type WeightedPickCandidate = {
+  id: string;
+  score: number;
+};
+
+// @spec DFF-BOT-030
+// @spec DFF-BOT-031
+function selectWeightedRandomPlayer(
+  scoredPlayers: WeightedPickCandidate[],
+  randomness: number,
+  random: () => number,
+): string {
+  const bestPlayer = scoredPlayers[0];
 
   if (!bestPlayer) {
     throw new Error('Cannot process a bot pick without an available player.');
   }
 
-  return bestPlayer.id;
+  if (randomness === 0 || scoredPlayers.length === 1) {
+    return bestPlayer.id;
+  }
+
+  const weightedPlayers = scoredPlayers.map((player) => ({
+    id: player.id,
+    weight: Math.max(player.score, 0) * (1 - randomness) + randomness,
+  }));
+  const totalWeight = weightedPlayers.reduce((sum, player) => sum + player.weight, 0);
+
+  if (totalWeight <= 0) {
+    return bestPlayer.id;
+  }
+
+  let threshold = random() * totalWeight;
+
+  for (const player of weightedPlayers) {
+    threshold -= player.weight;
+
+    if (threshold < 0) {
+      return player.id;
+    }
+  }
+
+  return weightedPlayers[weightedPlayers.length - 1]!.id;
+}
+
+// @spec DFF-BOT-031
+function normalizeBotPickRandomness(randomness: number): number {
+  if (randomness < 0 || randomness > 1 || Number.isNaN(randomness)) {
+    throw new Error('[draft] Invalid bot-pick randomness: expected a number between 0.0 and 1.0.');
+  }
+
+  return randomness;
 }
 
 // @spec DFF-ENGINE-032
-function defaultDecideBotAction(context: DecideBotActionContext): BotAction {
+// @spec DFF-BOT-030
+// @spec DFF-BOT-031
+function defaultDecideBotAction(
+  context: DecideBotActionContext,
+  randomness: number,
+  random: () => number,
+): BotAction {
   return {
     type: 'pick',
-    playerId: selectHighestValuePlayer(context.availablePlayers),
+    playerId: selectWeightedRandomPlayer(
+      context.availablePlayers.map((player) => ({
+        id: player.id,
+        score: player.dynasty_value,
+      })),
+      randomness,
+      random,
+    ),
   };
 }
 
@@ -186,18 +243,25 @@ export function buildConservativeStartupPickValues({
 // @spec DFF-BOT-001
 // @spec DFF-BOT-002
 // @spec DFF-BOT-003
+// @spec DFF-BOT-004
+// @spec DFF-BOT-030
+// @spec DFF-BOT-031
 // @spec DFF-BOT-040
 export function createBotChainCoordinator({
   databasePath,
   archetypeConfig = loadStartupArchetypeConfig(),
+  randomness,
   now = defaultNow,
   random = defaultRandom,
   sleep = defaultSleep,
-  decideBotAction = defaultDecideBotAction,
+  decideBotAction,
   idGenerator = defaultIdGenerator,
 }: CreateBotChainCoordinatorOptions): BotChainCoordinator {
   const activeChains = new Map<string, Promise<void>>();
   const pendingTrades = new Map<string, PendingTradeState>();
+  const botPickRandomness = normalizeBotPickRandomness(randomness ?? archetypeConfig.randomness);
+  const resolvedDecideBotAction =
+    decideBotAction ?? ((context: DecideBotActionContext) => defaultDecideBotAction(context, botPickRandomness, random));
 
   async function runBotChain(draftId: string): Promise<void> {
     try {
@@ -221,7 +285,7 @@ export function createBotChainCoordinator({
         }
 
         const availablePlayers = getAvailablePlayersForDraft({ databasePath, draftId });
-        const action = await decideBotAction({
+        const action = await resolvedDecideBotAction({
           draftId,
           slot: refreshedSlot,
           availablePlayers,

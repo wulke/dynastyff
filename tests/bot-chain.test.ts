@@ -131,6 +131,7 @@ test('createBotChainCoordinator de-duplicates concurrent trigger calls for the s
 
     const botChain = createBotChainCoordinator({
       databasePath,
+      randomness: 0,
       now: () => '2026-05-18T20:05:00.000Z',
       sleep: async () => {
         sleepCalls += 1;
@@ -178,7 +179,7 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
   await withDatabase(async (db, databasePath) => {
     seedPlayer(db, 'player-1', 'Player One', 100);
     seedPlayer(db, 'player-2', 'Player Two', 1);
-    seedPlayer(db, 'player-3', 'Player Three', 1);
+    seedPlayer(db, 'player-3', 'Player Zebra', 1);
 
     const createOneBotDraft = () =>
       createDraft({
@@ -205,7 +206,7 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
       });
 
     const topPickDraftId = createOneBotDraft();
-    const flatDistributionDraftId = createOneBotDraft();
+    const coordinatorOverrideDraftId = createOneBotDraft();
     const defaultRandomnessDraftId = createOneBotDraft();
 
     const topPickCoordinator = createBotChainCoordinator({
@@ -218,7 +219,8 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
 
     const flatDistributionCoordinator = createBotChainCoordinator({
       databasePath,
-      archetypeConfig: buildArchetypeConfigWithRandomness(1),
+      archetypeConfig: buildArchetypeConfigWithRandomness(0),
+      randomness: 1,
       now: () => '2026-05-18T20:06:00.000Z',
       random: () => 0.5,
       sleep: async () => undefined,
@@ -232,12 +234,12 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
     });
 
     topPickCoordinator.trigger(topPickDraftId);
-    flatDistributionCoordinator.trigger(flatDistributionDraftId);
+    flatDistributionCoordinator.trigger(coordinatorOverrideDraftId);
     defaultRandomnessCoordinator.trigger(defaultRandomnessDraftId);
 
     await Promise.all([
       topPickCoordinator.waitForIdle(topPickDraftId),
-      flatDistributionCoordinator.waitForIdle(flatDistributionDraftId),
+      flatDistributionCoordinator.waitForIdle(coordinatorOverrideDraftId),
       defaultRandomnessCoordinator.waitForIdle(defaultRandomnessDraftId),
     ]);
 
@@ -248,7 +250,7 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
          WHERE draft_id IN (?, ?, ?)
          ORDER BY draft_id`,
       )
-      .all(topPickDraftId, flatDistributionDraftId, defaultRandomnessDraftId) as Array<{
+      .all(topPickDraftId, coordinatorOverrideDraftId, defaultRandomnessDraftId) as Array<{
       draft_id: string;
       player_id: string;
     }>;
@@ -256,7 +258,7 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
     const playerByDraftId = new Map(persistedPicks.map((pick) => [pick.draft_id, pick.player_id]));
 
     assert.equal(playerByDraftId.get(topPickDraftId), 'player-1');
-    assert.equal(playerByDraftId.get(flatDistributionDraftId), 'player-2');
+    assert.equal(playerByDraftId.get(coordinatorOverrideDraftId), 'player-2');
     assert.equal(playerByDraftId.get(defaultRandomnessDraftId), 'player-2');
   });
 });
@@ -575,6 +577,7 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
     db.prepare("UPDATE teams SET archetype = 'balanced' WHERE id = ?").run(botTeamId);
 
     const archetypeConfig: ArchetypeConfig = {
+      randomness: 0.3,
       archetypes: {
         win_now: {
           acceptanceThreshold: 0.85,

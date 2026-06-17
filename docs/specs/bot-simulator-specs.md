@@ -11,7 +11,7 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 **DFF-BOT-001** `[x]`
 The system shall load archetype acceptance thresholds, preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
 
-**DFF-BOT-004** `[ ]`
+**DFF-BOT-004** `[x]`
 The system shall load a global bot-pick `randomness` parameter (`0.0–1.0`, default `0.3`) from `config/archetypes.json`, and `createBotChainCoordinator` shall allow a direct `randomness` option to override that startup-loaded value.
 
 **DFF-BOT-002** `[x]`
@@ -84,10 +84,10 @@ When scoring an available RB whose `nflTeam` matches the `nflTeam` of any RB alr
 
 ## Noise and Selection
 
-**DFF-BOT-030** `[ ]`
+**DFF-BOT-030** `[x]`
 When selecting a player to draft, the system shall use weighted random sampling where each player's selection probability is proportional to their computed pick score.
 
-**DFF-BOT-031** `[ ]`
+**DFF-BOT-031** `[x]`
 The system shall support a configurable `randomness` parameter (0.0–1.0, default 0.3) that flattens the score distribution: at 0.0 the highest-scored player is always selected; at 1.0 all available players are equally likely.
 
 ---

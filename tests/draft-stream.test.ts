@@ -167,7 +167,7 @@ async function invokePickRoute(
   databasePath: string,
   draftId: string,
   body: unknown,
-  botChain = createBotChainCoordinator({ databasePath }),
+  botChain = createBotChainCoordinator({ databasePath, randomness: 0 }),
 ) {
   const route = createDraftPickRoute({ databasePath, botChain });
   const request = { body, params: { id: draftId } } as unknown as Request;
@@ -193,7 +193,7 @@ async function invokeTradeResponseRoute(
   databasePath: string,
   draftId: string,
   body: unknown,
-  botChain = createBotChainCoordinator({ databasePath }),
+  botChain = createBotChainCoordinator({ databasePath, randomness: 0 }),
 ) {
   const route = createDraftTradeResponseRoute({ databasePath, botChain });
   const request = { body, params: { id: draftId } } as unknown as Request;
@@ -219,7 +219,7 @@ async function invokeTradeOfferRoute(
   databasePath: string,
   draftId: string,
   body: unknown,
-  botChain = createBotChainCoordinator({ databasePath }),
+  botChain = createBotChainCoordinator({ databasePath, randomness: 0 }),
 ) {
   const route = createDraftTradeOfferRoute({ databasePath, botChain });
   const request = { body, params: { id: draftId } } as unknown as Request;
@@ -742,6 +742,7 @@ test('GET /drafts/:id/stream emits bot pick_made events and draft_complete when 
     });
     const botChain = createBotChainCoordinator({
       databasePath,
+      randomness: 0,
       now: () => '2026-05-18T20:05:00.000Z',
       sleep: async () => undefined,
     });

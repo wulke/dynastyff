@@ -22,9 +22,10 @@ import {
   loadStartupArchetypeConfig,
   type ArchetypeConfig,
 } from './archetype-config.js';
+import { scoreBotPickCandidate } from './bot-pick-scoring.js';
 import { evaluateBotTrade } from './bot-trade.js';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
-import { getDraftState, recordPick, resolveTrade } from './service.js';
+import { getDraftState, recordPick, resolveTrade, type DraftStateSnapshot } from './service.js';
 import { emitTradeOfferedEvent, emitTradeResolvedEvent } from './stream.js';
 
 type TradeStatus = (typeof tradeStatuses)[number];
@@ -80,6 +81,7 @@ export type DecideBotActionContext = {
   slot: CurrentOpenBotSlot;
   availablePlayers: DraftAvailablePlayer[];
   archetypeConfig: ArchetypeConfig;
+  draftState?: DraftStateSnapshot;
 };
 
 export type BotChainCoordinator = {
@@ -187,12 +189,37 @@ function defaultDecideBotAction(
   randomness: number,
   random: () => number,
 ): BotAction {
+  const draftState = context.draftState;
+  const team = draftState?.teams.find((draftTeam) => draftTeam.id === context.slot.teamId);
+  const rosteredPlayerIds = new Set(
+    draftState?.roster_players
+      .filter((rosterPlayer) => rosterPlayer.team_id === context.slot.teamId)
+      .map((rosterPlayer) => rosterPlayer.player_id) ?? [],
+  );
+  const playersById = new Map(
+    [...(draftState?.available_players ?? []), ...(draftState?.drafted_players ?? [])].map((player) => [player.id, player]),
+  );
+  const rosteredPlayers = [...rosteredPlayerIds]
+    .map((playerId) => playersById.get(playerId))
+    .filter((player): player is DraftAvailablePlayer => Boolean(player));
+
   return {
     type: 'pick',
     playerId: selectWeightedRandomPlayer(
       context.availablePlayers.map((player) => ({
         id: player.id,
-        score: player.dynasty_value,
+        score: draftState
+          ? scoreBotPickCandidate({
+              player,
+              archetype: team?.archetype ?? 'balanced',
+              archetypeConfig: context.archetypeConfig,
+              rosterConfig: draftState.roster_config,
+              rosteredPlayers,
+              round: context.slot.round,
+              randomness,
+              random,
+            })
+          : player.dynasty_value,
       })),
       randomness,
       random,
@@ -284,12 +311,19 @@ export function createBotChainCoordinator({
           return;
         }
 
-        const availablePlayers = getAvailablePlayersForDraft({ databasePath, draftId });
+        const draftState = getDraftState({ databasePath, draftId });
+
+        if (!draftState) {
+          return;
+        }
+
+        const availablePlayers = draftState.available_players;
         const action = await resolvedDecideBotAction({
           draftId,
           slot: refreshedSlot,
           availablePlayers,
           archetypeConfig,
+          draftState,
         });
 
         if (action.type === 'trade') {

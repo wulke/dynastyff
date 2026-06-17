@@ -81,7 +81,7 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     nfl_team: 'CIN',
     age: 24,
     is_rookie: false,
-    dynasty_value: 100,
+    dynasty_value: 120,
     adp: 1,
   };
   const rbPlayer = {

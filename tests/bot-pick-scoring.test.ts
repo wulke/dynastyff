@@ -70,6 +70,45 @@ test('calculateSlotNeed falls back to the 0.3 saturation floor once all eligible
 });
 
 // @spec DFF-BOT-020
+// @spec DFF-BOT-021
+// @spec DFF-BOT-024
+test('calculateSlotNeed assigns constrained positions before shared slots when rostered players compete for FLEX', () => {
+  assert.equal(
+    calculateSlotNeed({
+      position: 'RB',
+      rosterConfig: {
+        QB: 0,
+        RB: 0,
+        WR: 1,
+        TE: 0,
+        FLEX: 1,
+        SF: 0,
+        bench: 0,
+      },
+      rosteredPositions: ['WR'],
+    }),
+    1 / 3,
+  );
+
+  assert.equal(
+    calculateSlotNeed({
+      position: 'RB',
+      rosterConfig: {
+        QB: 0,
+        RB: 0,
+        WR: 1,
+        TE: 0,
+        FLEX: 1,
+        SF: 0,
+        bench: 0,
+      },
+      rosteredPositions: ['RB', 'WR'],
+    }),
+    0.3,
+  );
+});
+
+// @spec DFF-BOT-020
 // @spec DFF-BOT-022
 // @spec DFF-BOT-024
 test('scoreBotPickCandidate produces different archetype preferences for the same player pool', () => {

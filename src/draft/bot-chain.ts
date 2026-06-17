@@ -81,7 +81,7 @@ export type DecideBotActionContext = {
   slot: CurrentOpenBotSlot;
   availablePlayers: DraftAvailablePlayer[];
   archetypeConfig: ArchetypeConfig;
-  draftState?: DraftStateSnapshot;
+  draftState: DraftStateSnapshot;
 };
 
 export type BotChainCoordinator = {
@@ -190,14 +190,14 @@ function defaultDecideBotAction(
   random: () => number,
 ): BotAction {
   const draftState = context.draftState;
-  const team = draftState?.teams.find((draftTeam) => draftTeam.id === context.slot.teamId);
+  const team = draftState.teams.find((draftTeam) => draftTeam.id === context.slot.teamId);
   const rosteredPlayerIds = new Set(
-    draftState?.roster_players
+    draftState.roster_players
       .filter((rosterPlayer) => rosterPlayer.team_id === context.slot.teamId)
-      .map((rosterPlayer) => rosterPlayer.player_id) ?? [],
+      .map((rosterPlayer) => rosterPlayer.player_id),
   );
   const playersById = new Map(
-    [...(draftState?.available_players ?? []), ...(draftState?.drafted_players ?? [])].map((player) => [player.id, player]),
+    [...draftState.available_players, ...draftState.drafted_players].map((player) => [player.id, player]),
   );
   const rosteredPlayers = [...rosteredPlayerIds]
     .map((playerId) => playersById.get(playerId))
@@ -208,18 +208,16 @@ function defaultDecideBotAction(
     playerId: selectWeightedRandomPlayer(
       context.availablePlayers.map((player) => ({
         id: player.id,
-        score: draftState
-          ? scoreBotPickCandidate({
-              player,
-              archetype: team?.archetype ?? 'balanced',
-              archetypeConfig: context.archetypeConfig,
-              rosterConfig: draftState.roster_config,
-              rosteredPlayers,
-              round: context.slot.round,
-              randomness,
-              random,
-            })
-          : player.dynasty_value,
+        score: scoreBotPickCandidate({
+          player,
+          archetype: team?.archetype ?? 'balanced',
+          archetypeConfig: context.archetypeConfig,
+          rosterConfig: draftState.roster_config,
+          rosteredPlayers,
+          round: context.slot.round,
+          randomness,
+          random,
+        }),
       })),
       randomness,
       random,

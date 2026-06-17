@@ -89,7 +89,7 @@ For each available player, compute `slotNeed` based on eligibility-weighted unfi
 2. If the total > 0: `slotNeed = total`
 3. If the total = 0: `slotNeed = 0.3` (saturation floor — bench depth still has some value)
 
-`rosterConfig` (QB/RB/WR/TE/FLEX/SF/bench counts) must be passed into the scoring function to determine total slot counts; a bot's current roster entries are diffed against these counts to determine unfilled slots.
+`rosterConfig` (QB/RB/WR/TE/FLEX/SF/bench counts) must be passed into the scoring function to determine total slot counts; a bot's current roster entries are diffed against these counts to determine unfilled slots. When rostered players could fit multiple slot types, assignment is greedy: fill the most restrictive eligible slots first so shared slots such as `FLEX`, `SF`, and `bench` stay open as long as possible.
 
 ### Archetype Need Modifier
 

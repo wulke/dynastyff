@@ -46,7 +46,7 @@ The system shall allow multiple bot teams to share the same archetype; no unique
 
 ## Pick Scoring
 
-**DFF-BOT-020** `[x]`
+**DFF-BOT-020** `[ ]`
 When computing a pick score for an available player, the system shall compute: `score = dynastyValue × valueWeight × (slotNeed × needModifier) × youthModifier + handcuffBonus + noise × random()`.
 
 **DFF-BOT-021** `[x]`

@@ -11,7 +11,7 @@ Drives specs: `docs/specs/bot-simulator-specs.md`, `docs/specs/startup-pick-valu
 - Determine whether to attempt a trade or make a pick for the current bot turn
 - If trading: identify the best trade partner and construct a value-positive offer per the bot's archetype
 - During the bot chain, proactively target the user's team with trade offers when value and archetype fit justify it
-- If picking: select a player using dynasty value × positional need multiplier × noise, prioritizing team needs and depth over blind BPA
+- If picking: select a player using dynasty value as the primary driver, with positional need, position bias, youth bias, and handcuff fit acting only as a bounded tiebreaker — not something that can override a real value gap
 - Evaluate incoming trade offers from other bots (accept/decline based on archetype and value threshold)
 - Evaluate user counter-offers with the same dynasty-value and stickiness rules used for all incoming offers
 
@@ -32,9 +32,9 @@ Archetypes are loaded from `config/archetypes.json` once at server startup. The 
 
 `config/archetypes.json` stores one object per archetype with these active fields:
 
-- `randomness` — global score-flattening factor for bot pick sampling (`0.0–1.0`, default `0.3`)
+- `randomness` — global noise factor for bot pick sampling (`0.0–1.0`, default `0.3`); jitters sampling weight by up to `± randomness × 100%` of score
 - `acceptanceThreshold` — minimum `value_received / value_sent` ratio required for the archetype to accept an incoming trade
-- `needModifier` — archetype multiplier applied to `slotNeed`
+- `needModifier` — archetype need-bias band half-width (`0.0–1.0`); bounds how far need/position/youth/handcuff bias can move a player's score away from pure dynasty value (see Need Bias Band below)
 - `valueWeight` — archetype multiplier applied to `dynastyValue`
 - `preferredPositionValueFloors` — minimum `dynasty_value` required by position before a preferred-player fallback should trigger
 - `tradeAggressivenessProbability` — per-turn probability that the archetype evaluates a trade before picking
@@ -57,11 +57,12 @@ evaluate trade opportunity
             │
             ▼
     score available players:
-    dynastyValue × valueWeight × (slotNeed × needModifier) × youthModifier
-    + handcuffBonus + noise × random()
+    dynastyValue × valueWeight × needFactor
+    (needFactor bounded to archetype's need-bias band; see Need Bias Band)
             │
             ▼
-    apply noise: weighted random selection from top-scored players
+    apply noise: weighted random selection from top-scored players,
+    sampling weight jittered by ± randomness × 100% of score
             │
             ▼
     return player_id
@@ -93,30 +94,35 @@ For each available player, compute `slotNeed` based on eligibility-weighted unfi
 
 `rosterConfig` (QB/RB/WR/TE/FLEX/SF/bench counts) must be passed into the scoring function to determine total slot counts; a bot's current roster entries are diffed against these counts to determine unfilled slots. When rostered players could fit multiple slot types, assignment is greedy: fill the most restrictive eligible slots first so shared slots such as `FLEX`, `SF`, and `bench` stay open as long as possible.
 
-### Archetype Need Modifier
+### Need Bias Band (value-first, need as tiebreaker)
 
-Applied as a multiplier on `slotNeed`. Position-specific overrides apply on top:
+`slotNeed` (and the position/youth/handcuff signals below) never multiply `dynastyValue` directly — they only nudge the score within a bounded band sized per archetype by `needModifier`. This replaces the unbounded `slotNeed × needModifier` multiplier that let need overpower value and produce unrealistic positional reaches.
 
-| Archetype | `needModifier` | `valueWeight` | Position Override |
+1. **Normalize** `slotNeed` to `0–1`: `normalizedNeed = clamp(slotNeed / NEED_NORMALIZATION_CAP, 0, 1)`, where `NEED_NORMALIZATION_CAP = 2.0` (a raw `slotNeed` of 2.0 or higher already represents "high need" and saturates).
+2. **Compute archetype bias signals**, each `0–1`, only the ones relevant to the archetype/player are computed:
+   - `positionBias` — `rb_heavy`: `1.0` if player is `RB`, else `0`. `qb_early`: `1.0` if player is `QB` and `round ≤ 3`, else `0`.
+   - `youthBias` (`punt` only) — `1.0` for rookies; otherwise `clamp((30 − age) / 30, 0, 1)`.
+   - `handcuffBias` — `1.0` if the candidate RB's `nflTeam` matches the `nflTeam` of an already-rostered RB, else `0`.
+3. **Combine**: `combinedBias = max(normalizedNeed, positionBias, youthBias, handcuffBias)` (whichever signals apply to that archetype/player).
+4. **Map to a bounded multiplier**: `needFactor = 1 + (combinedBias − 0.5) × 2 × needModifier`, clamped to `[1 − needModifier, 1 + needModifier]`.
+5. **Score**: `score = dynastyValue × valueWeight × needFactor`.
+
+`needModifier` is now a band half-width (`0.0–1.0`), not a raw multiplier:
+
+| Archetype | `needModifier` (band) | `valueWeight` | Bias signals folded into the band |
 |---|---|---|---|
-| `bpa` | 0.1 | 1.0 | — |
-| `balanced` | 1.0 | 0.8 | — |
-| `win_now` | 1.3 | 0.6 | — |
-| `punt` | 0.4 | 0.9 | — |
-| `rb_heavy` | 1.0 | 0.7 | RB slot need × 1.5 |
-| `qb_early` | 1.0 | 0.5 | QB slot need × 2.0 in rounds ≤ 3 |
+| `bpa` | 0.05 | 1.0 | needBias only — near-pure dynasty value sort |
+| `balanced` | 0.25 | 0.8 | needBias only |
+| `win_now` | 0.25 | 0.6 | needBias only |
+| `punt` | 0.25 | 0.9 | needBias, youthBias |
+| `rb_heavy` | 0.25 | 0.7 | needBias, positionBias (RB) |
+| `qb_early` | 0.25 | 0.5 | needBias, positionBias (QB, rounds ≤ 3) |
 
-### Youth Modifier (punt only)
-
-For `punt` archetype: `youthModifier = 1.0 + max(0, (30 − age) / 30) × 0.4`. Rookies (`isRookie = true`) use a flat `youthModifier = 1.3`. All other archetypes: `youthModifier = 1.0`.
-
-### Handcuff Bonus
-
-For RB players only: if the candidate's `nflTeam` matches the `nflTeam` of any RB already on the bot's roster, add `0.15 × player.dynastyValue` to the player's score. This is additive — it only flips a pick decision when two players are within ~15% in value.
+No archetype can move a player's score by more than `± needModifier × 100%` of its pure `dynastyValue × valueWeight` baseline — a real value gap larger than that band always wins.
 
 ### Noise
 
-After scoring, the bot does not deterministically take the top player. It selects via weighted random sampling where probability is proportional to score. A global `randomness` setting (0.0–1.0, default 0.3) flattens the score distribution before sampling — at 0.0 the top player is always taken; at 1.0 all scored players are equally likely.
+After scoring, the bot does not deterministically take the top player. It selects via weighted random sampling where the sampling weight is the player's score jittered by a percentage of its own magnitude: `weight = max(score, 0) × (1 + randomness × (random() − 0.5) × 2)`, floored at `0`. Because the jitter scales with score, the `randomness` setting (0.0–1.0, default 0.3) has a consistent effect regardless of dynasty-value scale — at `0.0` the top-scored player is always taken; at `1.0` any scored player can occasionally jump to the top of the sample.
 
 ## Trade Decision Flow
 
@@ -198,12 +204,12 @@ If all players at preferred positions are gone:
 | Decision | Chosen | Alternatives | Rationale |
 |---|---|---|---|
 | Archetype storage | Startup-loaded JSON config (`config/archetypes.json`) | Database-backed profiles | Keeps archetype tuning editable without source edits while still staying local-first and deterministic at runtime |
-| Noise model | Weighted random sampling with flattened score distribution | Top-N random pick, Gaussian jitter | Probability proportional to score captures "bots mostly pick well but not always"; configurable randomness parameter makes variance tunable |
+| Noise model | Weighted random sampling, score-relative percentage jitter | Top-N random pick, Gaussian jitter, additive jitter | Probability proportional to score captures "bots mostly pick well but not always"; jitter must scale with score or it's invisible at dynasty-value magnitude (the bug that motivated this change — see #160) |
 | Trade evaluation | Value math + archetype tilt | Pure value math | Archetype stickiness is what makes bots feel like real managers — an RB-heavy bot won't trade its best RB for equivalent value |
 | Bot-to-bot trade resolution | Single offer, accept/decline | Multi-round counter-negotiation | Sufficient realism without an unbounded negotiation loop; trade history captures all decisions for post-draft review |
-| Positional need model | Step function (1.0 need / 0.3 floor) + eligibility-weighted fractional slots | Continuous 4-step scale, binary need/no-need | Step function is predictable and tunable; noise covers close-call variance; fractional slot weighting handles FLEX/SF correctly without over-engineering |
-| Handcuff bonus | Additive +0.15 × dynastyValue for same-team RBs | Multiplicative boost | Additive caps the effect — only flips picks when players are within ~15% value; multiplicative could let a worthless handcuff beat a legitimately better player |
-| Punt youth bias | youthModifier formula on age + flat rookie boost | Age-bracket cutoffs (≤24 / ≥29) | Smooth formula avoids cliff edges at age boundaries; flat rookie bonus handles missing age data |
+| Positional need model | Step function (1.0 need / 0.3 floor) + eligibility-weighted fractional slots, normalized and bounded into a per-archetype need-bias band | Continuous 4-step scale, binary need/no-need, unbounded multiplier (original design) | Step function is predictable and tunable; the unbounded multiplier let need overpower dynasty value and produce unrealistic reaches (#160), so it now only nudges score within a bounded band — value always wins a real gap |
+| Handcuff bonus | Bias signal folded into the need-bias band (capped at the archetype's `needModifier` band width) | Flat additive +0.15 × dynastyValue (original design) | The flat additive version was itself unbounded relative to value at small `dynastyValue` deltas; folding it into the same bounded band keeps every non-value signal under one consistent cap |
+| Punt youth bias | Bias signal (age-based, folded into the need-bias band) + flat rookie boost | Age-bracket cutoffs (≤24 / ≥29); standalone unbounded youthModifier multiplier (original design) | Smooth formula avoids cliff edges at age boundaries; folding it into the bounded band (rather than a separate ×1.0–1.4 multiplier) prevents it from stacking with need to override value |
 
 ## Open Questions
 

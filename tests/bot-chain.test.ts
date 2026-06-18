@@ -52,6 +52,79 @@ function seedPlayer(
   ).run(playerId, name, dynastyValue, '2026-05-18T00:00:00.000Z');
 }
 
+function seedCustomPlayer(
+  db: Database.Database,
+  options: {
+    id: string;
+    name: string;
+    position: 'QB' | 'RB' | 'WR' | 'TE';
+    age: number;
+    dynastyValue: number;
+  },
+): void {
+  db.prepare(
+    `INSERT INTO players (
+      id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+    ) VALUES (?, ?, ?, 'BUF', ?, 0, ?, ?)`,
+  ).run(
+    options.id,
+    options.name,
+    options.position,
+    options.age,
+    options.dynastyValue,
+    '2026-05-18T00:00:00.000Z',
+  );
+}
+
+function assignDraftedPlayerToTeam(
+  db: Database.Database,
+  options: {
+    draftId: string;
+    teamId: string;
+    playerId: string;
+    slotIndex: number;
+    pickedAt: string;
+  },
+): void {
+  const draftSlot = db
+    .prepare(
+      `SELECT id, pick_number, round
+       FROM draft_order
+       WHERE draft_id = ? AND team_id = ?
+       ORDER BY pick_number
+       LIMIT 1 OFFSET ?`,
+    )
+    .get(options.draftId, options.teamId, options.slotIndex) as
+    | { id: string; pick_number: number; round: number }
+    | undefined;
+
+  assert.ok(draftSlot);
+
+  db.prepare(
+    `INSERT INTO picks (
+      id, draft_id, draft_order_id, team_id, player_id, pick_number, round, picked_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    `pick-${options.draftId}-${options.playerId}`,
+    options.draftId,
+    draftSlot.id,
+    options.teamId,
+    options.playerId,
+    draftSlot.pick_number,
+    draftSlot.round,
+    options.pickedAt,
+  );
+
+  db.prepare(
+    'INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)',
+  ).run(
+    `roster-${options.draftId}-${options.playerId}`,
+    options.draftId,
+    options.teamId,
+    options.playerId,
+  );
+}
+
 // @spec DFF-BOT-004
 function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig & { randomness: number } {
   return {
@@ -660,5 +733,136 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
       .get(tradeId) as { status: string } | undefined;
 
     assert.deepEqual(persistedTrade, { status: 'accepted' });
+  });
+});
+
+// @spec DFF-BOT-050
+// @spec DFF-BOT-051
+test('createBotChainCoordinator declines user trade offers that request receiving-bot protected assets', async () => {
+  await withDatabase(async (db, databasePath) => {
+    const scenarios = [
+      {
+        archetype: 'rb_heavy',
+        requestedPlayerId: 'rb-elite-1',
+        offeredAssets: [{ type: 'future_pick', year: 2027, round: 1 }],
+        botPlayerIds: ['rb-elite-1', 'rb-elite-2', 'wr-depth-1'],
+        userPlayerIds: ['user-chip-1'],
+        players: [
+          { id: 'rb-elite-1', name: 'RB Elite One', position: 'RB' as const, age: 25, dynastyValue: 6200 },
+          { id: 'rb-elite-2', name: 'RB Elite Two', position: 'RB' as const, age: 24, dynastyValue: 5900 },
+          { id: 'wr-depth-1', name: 'WR Depth One', position: 'WR' as const, age: 26, dynastyValue: 4300 },
+          { id: 'user-chip-1', name: 'User Chip One', position: 'WR' as const, age: 24, dynastyValue: 6100 },
+        ],
+      },
+      {
+        archetype: 'qb_early',
+        requestedPlayerId: 'qb-anchor-1',
+        offeredAssets: [{ type: 'future_pick', year: 2027, round: 1 }],
+        botPlayerIds: ['qb-anchor-1', 'qb-depth-1', 'wr-depth-2'],
+        userPlayerIds: ['user-chip-2'],
+        players: [
+          { id: 'qb-anchor-1', name: 'QB Anchor One', position: 'QB' as const, age: 26, dynastyValue: 7000 },
+          { id: 'qb-depth-1', name: 'QB Depth One', position: 'QB' as const, age: 24, dynastyValue: 4800 },
+          { id: 'wr-depth-2', name: 'WR Depth Two', position: 'WR' as const, age: 25, dynastyValue: 4100 },
+          { id: 'user-chip-2', name: 'User Chip Two', position: 'WR' as const, age: 23, dynastyValue: 6100 },
+        ],
+      },
+      {
+        archetype: 'win_now',
+        requestedPlayerId: 'vet-stud-1',
+        offeredAssets: [{ type: 'future_pick', year: 2027, round: 1 }],
+        botPlayerIds: ['vet-stud-1', 'young-core-1'],
+        userPlayerIds: ['user-chip-3'],
+        players: [
+          { id: 'vet-stud-1', name: 'Vet Stud One', position: 'WR' as const, age: 29, dynastyValue: 5100 },
+          { id: 'young-core-1', name: 'Young Core One', position: 'WR' as const, age: 24, dynastyValue: 4200 },
+          { id: 'user-chip-3', name: 'User Chip Three', position: 'RB' as const, age: 23, dynastyValue: 6100 },
+        ],
+      },
+    ] as const;
+
+    for (const scenario of scenarios) {
+      for (const player of scenario.players) {
+        seedCustomPlayer(db, player);
+      }
+    }
+
+    for (const [index, scenario] of scenarios.entries()) {
+      const draftId = createDraft({
+        databasePath,
+        config: {
+          teamCount: 2,
+          rounds: 3,
+          scoringFormat: 'ppr',
+          userPickPosition: 1,
+          futurePickYears: 1,
+          futurePickRounds: 1,
+          rosterConfig: {
+            QB: 1,
+            RB: 2,
+            WR: 3,
+            TE: 1,
+            FLEX: 1,
+            SF: 1,
+            bench: 6,
+          },
+        },
+        now: () => `2026-05-18T20:0${index}:00.000Z`,
+        random: () => 0,
+      });
+
+      const teams = db
+        .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+        .all(draftId) as Array<{ id: string; is_user: number }>;
+      const userTeamId = teams.find((team) => team.is_user === 1)!.id;
+      const botTeamId = teams.find((team) => team.is_user === 0)!.id;
+
+      db.prepare('UPDATE teams SET archetype = ? WHERE id = ?').run(scenario.archetype, botTeamId);
+
+      for (const [slotIndex, playerId] of scenario.botPlayerIds.entries()) {
+        assignDraftedPlayerToTeam(db, {
+          draftId,
+          teamId: botTeamId,
+          playerId,
+          slotIndex,
+          pickedAt: `2026-05-18T20:1${index}:00.000Z`,
+        });
+      }
+
+      for (const [slotIndex, playerId] of scenario.userPlayerIds.entries()) {
+        assignDraftedPlayerToTeam(db, {
+          draftId,
+          teamId: userTeamId,
+          playerId,
+          slotIndex,
+          pickedAt: `2026-05-18T20:2${index}:00.000Z`,
+        });
+      }
+
+      const botChain = createBotChainCoordinator({
+        databasePath,
+        archetypeConfig: buildArchetypeConfigWithRandomness(0.3),
+        now: () => `2026-05-18T21:0${index}:00.000Z`,
+        sleep: async () => undefined,
+        idGenerator: () => `trade-protected-${scenario.archetype}`,
+      });
+
+      const tradeId = botChain.submitUserTradeOffer({
+        draftId,
+        targetTeamId: botTeamId,
+        offeredAssets: scenario.offeredAssets,
+        requestedAssets: [{ type: 'player', player_id: scenario.requestedPlayerId }],
+      });
+
+      assert.equal(tradeId, `trade-protected-${scenario.archetype}`);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const persistedTrade = db
+        .prepare('SELECT status FROM trades WHERE id = ?')
+        .get(tradeId) as { status: string } | undefined;
+
+      assert.deepEqual(persistedTrade, { status: 'declined' });
+    }
   });
 });

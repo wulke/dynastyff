@@ -124,14 +124,18 @@ Before picking, a bot evaluates whether to trade. Steps:
 
 1. **Check trade aggressiveness**: each archetype has a base probability of attempting a trade evaluation per turn (e.g. `win_now`: 25%, `punt`: 35%, `bpa`: 10%)
 2. **Identify want**: the highest-value player on any team that fits the bot's archetype bias and positional stickiness rules
-3. **Identify fodder**: assets the bot is willing to move — determined by archetype stickiness (e.g. `rb_heavy` will not include top RBs in fodder)
+3. **Identify fodder**: assets the bot is willing to move — determined by archetype stickiness. Protected players are computed from the initiating bot's current roster before offer assembly:
+   - `rb_heavy`: exclude the top-2 RBs by `dynasty_value`
+   - `qb_early`: exclude the highest-value QB on roster
+   - `win_now`: exclude proven starters (`age >= 27` and `dynasty_value >= 4000`)
+   - non-player assets are unaffected by stickiness
 4. **Construct offer**: assemble fodder assets that match or slightly exceed the target asset's dynasty value per the bot's archetype tilt
 5. **Score the offer**: if offer value ≥ target value × archetype acceptance threshold, submit to draft engine; otherwise skip and pick
 
 ### Evaluating an Incoming Trade (bot receiving from another bot)
 
 1. Sum dynasty value of assets received vs. assets sent
-2. Apply archetype tilt: does the incoming asset fit the bot's positional preference? Does the outgoing asset violate stickiness rules?
+2. Apply archetype tilt: does the incoming asset fit the bot's positional preference? Does any outgoing player asset appear in the receiving bot's protected-asset set for its archetype?
 3. Accept if: value received ≥ value sent × acceptance threshold AND no stickiness violation
 4. Decline otherwise
 

@@ -100,7 +100,7 @@ Before each bot pick, the system shall evaluate whether to initiate a trade base
 **DFF-BOT-041** `[ ]`
 When a bot evaluates a trade, the system shall scan all other teams' rosters and pick slots to identify the highest-value asset that fits the bot's archetype preference and does not violate its stickiness rules.
 
-**DFF-BOT-042** `[ ]`
+**DFF-BOT-042** `[x]`
 The system shall apply the following stickiness rules: `rb_heavy` shall not include its top-2 RBs as trade fodder; `qb_early` shall not include its starting QB as trade fodder; `win_now` shall not include proven starters (age ≥ 27, dynasty_value ≥ 4000) as trade fodder.
 
 **DFF-BOT-043** `[ ]`
@@ -113,10 +113,10 @@ If no trade offer can be constructed that meets the value threshold, the system 
 
 ## Trade Evaluation (Receiving Bot)
 
-**DFF-BOT-050** `[ ]`
+**DFF-BOT-050** `[x]`
 When a bot receives a trade offer from another bot, the system shall accept the trade if: the total dynasty value received meets or exceeds the total dynasty value sent multiplied by the receiving bot's acceptance threshold (see DFF-BOT-002), and no stickiness rule is violated for assets being sent.
 
-**DFF-BOT-051** `[ ]`
+**DFF-BOT-051** `[x]`
 If a trade offer violates a receiving bot's stickiness rules for any outgoing asset, the system shall decline the trade regardless of value math.
 
 ---

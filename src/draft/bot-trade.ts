@@ -1,3 +1,5 @@
+import type { TeamArchetype } from './engine.js';
+
 export type PlayerTradeAsset = {
   type: 'player';
   player_id: string;
@@ -35,6 +37,8 @@ type BuildTradeableBotAssetsOptions = TradeValueContext & {
   draftOrder: DraftSlotOwnership[];
   usedPickNumbers: Set<number>;
   rosterPlayerIds: string[];
+  archetype?: TeamArchetype | null;
+  rosterPlayers?: TradeEvaluationPlayer[];
   futurePickAssets: Array<{ year: number; round: number }>;
 };
 
@@ -45,6 +49,8 @@ type SummarizeBotTradeOptions = TradeValueContext & {
 
 type EvaluateBotTradeOptions = SummarizeBotTradeOptions & {
   acceptanceThreshold: number;
+  archetype?: TeamArchetype | null;
+  rosterPlayers?: TradeEvaluationPlayer[];
 };
 
 export type ScoredBotTradeAsset = {
@@ -52,21 +58,36 @@ export type ScoredBotTradeAsset = {
   dynastyValue: number;
 };
 
+export type TradeEvaluationPlayer = {
+  id: string;
+  position: string;
+  age: number | null;
+  dynastyValue: number;
+};
+
 // @spec DFF-SPKV-050
 // @spec DFF-SPKV-051
+// @spec DFF-BOT-042
 export function buildTradeableBotAssets({
   teamId,
   draftOrder,
   usedPickNumbers,
   rosterPlayerIds,
+  archetype,
+  rosterPlayers = [],
   futurePickAssets,
   playerValues,
   futurePickValues,
   startupPickValues,
 }: BuildTradeableBotAssetsOptions): ScoredBotTradeAsset[] {
   const tradeableAssets: ScoredBotTradeAsset[] = [];
+  const protectedPlayerIds = getProtectedPlayerIds(archetype, rosterPlayers);
 
   for (const playerId of rosterPlayerIds) {
+    if (protectedPlayerIds.has(playerId)) {
+      continue;
+    }
+
     const asset: PlayerTradeAsset = { type: 'player', player_id: playerId };
     tradeableAssets.push({
       asset,
@@ -146,6 +167,8 @@ export function summarizeBotTrade({
 
 // @spec DFF-SPKV-050
 // @spec DFF-SPKV-051
+// @spec DFF-BOT-050
+// @spec DFF-BOT-051
 export function evaluateBotTrade({
   acceptanceThreshold,
   assetsSent,
@@ -153,7 +176,15 @@ export function evaluateBotTrade({
   playerValues,
   futurePickValues,
   startupPickValues,
+  archetype,
+  rosterPlayers = [],
 }: EvaluateBotTradeOptions): boolean {
+  const protectedPlayerIds = getProtectedPlayerIds(archetype, rosterPlayers);
+
+  if (assetsSent.some((asset) => asset.type === 'player' && protectedPlayerIds.has(asset.player_id))) {
+    return false;
+  }
+
   const summary = summarizeBotTrade({
     assetsSent,
     assetsReceived,
@@ -186,4 +217,40 @@ function sumAssetValues(assets: BotTradeAsset[], context: TradeValueContext): nu
 // @spec DFF-SPKV-051
 function toFuturePickValueKey(year: number, round: number): string {
   return `${year}:${round}`;
+}
+
+// @spec DFF-BOT-042
+// @spec DFF-BOT-050
+// @spec DFF-BOT-051
+function getProtectedPlayerIds(
+  archetype: TeamArchetype | null | undefined,
+  rosterPlayers: TradeEvaluationPlayer[],
+): Set<string> {
+  if (archetype === 'rb_heavy') {
+    return new Set(
+      rosterPlayers
+        .filter((player) => player.position === 'RB')
+        .sort((left, right) => right.dynastyValue - left.dynastyValue || left.id.localeCompare(right.id))
+        .slice(0, 2)
+        .map((player) => player.id),
+    );
+  }
+
+  if (archetype === 'qb_early') {
+    const startingQuarterback = rosterPlayers
+      .filter((player) => player.position === 'QB')
+      .sort((left, right) => right.dynastyValue - left.dynastyValue || left.id.localeCompare(right.id))[0];
+
+    return new Set(startingQuarterback ? [startingQuarterback.id] : []);
+  }
+
+  if (archetype === 'win_now') {
+    return new Set(
+      rosterPlayers
+        .filter((player) => (player.age ?? 0) >= 27 && player.dynastyValue >= 4000)
+        .map((player) => player.id),
+    );
+  }
+
+  return new Set();
 }

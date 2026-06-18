@@ -82,6 +82,8 @@ Bot archetype tuning lives in `config/archetypes.json`. The API server loads tha
 
 The live bot chain now scores players against the draft's configured roster slots with a static `SLOT_ELIGIBILITY` map (`QB`, `RB`, `WR`, `TE`, `FLEX`, `SF`, `bench`). Positional need is the fractional sum of all still-open eligible slots using `1 / eligibilitySetSize` per slot, with a `0.3` saturation floor once every eligible slot is filled. `rb_heavy` still gets an extra `1.5x` RB need boost, `qb_early` doubles QB need through round 3 only, `punt` applies an age-based youth modifier with a flat rookie boost, and same-team RB handcuffs add a small additive bonus.
 
+Live user-submitted trade evaluation now enforces archetype stickiness on outgoing bot player assets. `rb_heavy` bots protect their top-two RBs, `qb_early` bots protect their highest-value QB, and `win_now` bots protect proven starters (`age >= 27` and `dynasty_value >= 4000`) when evaluating incoming offers. The trade-fodder helper applies the same protection rules for future bot-initiated trade wiring.
+
 ## UI Scaffold
 
 Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under `/src/ui`:

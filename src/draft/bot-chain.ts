@@ -716,6 +716,24 @@ function evaluateUserTradeOffer({
 
   const targetTeam = draftState.teams.find((team) => team.id === targetTeamId);
   const threshold = getAcceptanceThresholdForArchetype(archetypeConfig, targetTeam?.archetype);
+  const playersById = new Map(
+    [...draftState.available_players, ...draftState.drafted_players].map((player) => [player.id, player]),
+  );
+  const receivingRosterPlayers = draftState.roster_players
+    .filter((rosterPlayer) => rosterPlayer.team_id === targetTeamId)
+    .map((rosterPlayer) => {
+      const player = playersById.get(rosterPlayer.player_id);
+
+      return player
+        ? {
+            id: player.id,
+            position: player.position,
+            age: player.age,
+            dynastyValue: player.dynasty_value,
+          }
+        : null;
+    })
+    .filter((player): player is NonNullable<typeof player> => player !== null);
 
   return evaluateBotTrade({
     acceptanceThreshold: threshold,
@@ -724,6 +742,8 @@ function evaluateUserTradeOffer({
     playerValues,
     futurePickValues,
     startupPickValues,
+    archetype: targetTeam?.archetype,
+    rosterPlayers: receivingRosterPlayers,
   });
 }
 

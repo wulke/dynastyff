@@ -199,6 +199,8 @@ The trade-response route is the HTTP entry point for persisted trade execution:
 - Delegates the resolved status to the pending bot-chain trade execution state
 - Emits `trade_resolved` only after the persistence step succeeds, then allows the bot chain to continue
 
+For bot-to-user offers initiated during the bot chain, this route remains the accept / decline entry point. Counter-offers do not travel through a special `status`; the UI converts `Counter` into a new `POST /drafts/:id/trade-offer` request against the same bot, and the coordinator resolves the original pending bot offer as declined before evaluating the new user proposal.
+
 Accepted trades execute as one SQLite transaction:
 
 1. Insert the `trades` row
@@ -226,6 +228,13 @@ User-trade lifecycle:
 4. Route evaluates the offer asynchronously using the same startup/future/player dynasty values already used by the trade subsystem
 5. Accepted proposals persist through the same transactional trade-resolution path as bot-originated accepted trades; declined proposals persist a declined `trades` row without asset transfers
 6. `trade_resolved` emits after persistence succeeds, then the bot chain becomes eligible to resume
+
+If the route is used as a counter against a pending bot-to-user offer:
+
+1. The pending bot offer is first persisted as `declined`
+2. The bot chain stays paused while the new counter is evaluated
+3. The route emits a fresh `trade_offered` event for the counter proposal
+4. The counter resolves through the existing accept / decline persistence path, then the bot chain becomes eligible to resume
 
 The route does not wait for trade evaluation before returning. The browser learns the eventual accept / decline outcome over SSE.
 

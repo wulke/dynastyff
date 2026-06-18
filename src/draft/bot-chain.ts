@@ -23,7 +23,7 @@ import {
   type ArchetypeConfig,
 } from './archetype-config.js';
 import { scoreBotPickCandidate } from './bot-pick-scoring.js';
-import { evaluateBotTrade } from './bot-trade.js';
+import { evaluateBotTrade, findBotToUserTradeOffer } from './bot-trade.js';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
 import { getDraftState, recordPick, resolveTrade, type DraftStateSnapshot } from './service.js';
 import { emitTradeOfferedEvent, emitTradeResolvedEvent } from './stream.js';
@@ -188,9 +188,12 @@ function defaultDecideBotAction(
   context: DecideBotActionContext,
   randomness: number,
   random: () => number,
+  idGenerator: () => string,
 ): BotAction {
   const draftState = context.draftState;
   const team = draftState.teams.find((draftTeam) => draftTeam.id === context.slot.teamId);
+  const userTeam = draftState.teams.find((draftTeam) => draftTeam.is_user);
+  const botArchetype = team?.archetype ?? 'balanced';
   const rosteredPlayerIds = new Set(
     draftState.roster_players
       .filter((rosterPlayer) => rosterPlayer.team_id === context.slot.teamId)
@@ -203,6 +206,91 @@ function defaultDecideBotAction(
     .map((playerId) => playersById.get(playerId))
     .filter((player): player is DraftAvailablePlayer => Boolean(player));
 
+  const userRosteredPlayerIds = new Set(
+    draftState.roster_players
+      .filter((rosterPlayer) => rosterPlayer.team_id === userTeam?.id)
+      .map((rosterPlayer) => rosterPlayer.player_id),
+  );
+  const userRosteredPlayers = [...userRosteredPlayerIds]
+    .map((playerId) => playersById.get(playerId))
+    .filter((player): player is DraftAvailablePlayer => Boolean(player));
+  const draftOrderOwnership = draftState.draft_order.map((slot) => ({
+    draftOrderId: `${draftState.draft_id}:${slot.pick_number}`,
+    teamId: slot.team_id,
+    pickNumber: slot.pick_number,
+  }));
+  const usedPickNumbers = new Set(draftState.picks.map((pick) => pick.pick_number));
+  const playerValues = new Map(
+    [...draftState.available_players, ...draftState.drafted_players].map((player) => [player.id, player.dynasty_value]),
+  );
+  const futurePickValues = new Map<string, number>();
+  for (const asset of draftState.team_pick_assets) {
+    futurePickValues.set(`${asset.year}:${asset.round}`, getFuturePickDynastyValue(asset.round));
+  }
+  const proactiveOfferRounds = draftState.trades
+    .filter(
+      (trade) => trade.initiating_team_id === context.slot.teamId && userTeam?.id === trade.receiving_team_id,
+    )
+    .map((trade) => trade.round);
+  const proactiveTradeProbability =
+    context.archetypeConfig.archetypes[botArchetype].tradeAggressivenessProbability;
+
+  if (userTeam && userRosteredPlayers.length > 0 && random() < proactiveTradeProbability) {
+    const proposal = findBotToUserTradeOffer({
+      currentRound: context.slot.round,
+      recentBotToUserOfferRounds: proactiveOfferRounds,
+      botTeam: {
+        teamId: context.slot.teamId,
+        archetype: botArchetype,
+        rosterPlayerIds: [...rosteredPlayerIds],
+        rosterPlayers: rosteredPlayers.map((player) => ({
+          id: player.id,
+          position: player.position,
+          age: player.age,
+          dynastyValue: player.dynasty_value,
+        })),
+        futurePickAssets: draftState.team_pick_assets
+          .filter((asset) => asset.team_id === context.slot.teamId)
+          .map((asset) => ({ year: asset.year, round: asset.round })),
+      },
+      userTeam: {
+        teamId: userTeam.id,
+        archetype: null,
+        rosterPlayerIds: [...userRosteredPlayerIds],
+        rosterPlayers: userRosteredPlayers.map((player) => ({
+          id: player.id,
+          position: player.position,
+          age: player.age,
+          dynastyValue: player.dynasty_value,
+        })),
+        futurePickAssets: draftState.team_pick_assets
+          .filter((asset) => asset.team_id === userTeam.id)
+          .map((asset) => ({ year: asset.year, round: asset.round })),
+      },
+      draftOrder: draftOrderOwnership,
+      usedPickNumbers,
+      playerValues,
+      futurePickValues,
+      startupPickValues: buildConservativeStartupPickValues({
+        currentPickNumber: draftState.current_pick_number,
+        availablePlayers: draftState.available_players,
+        startupPickValues: draftState.startup_pick_values,
+      }),
+    });
+
+    if (proposal) {
+      return {
+        type: 'trade',
+        tradeId: idGenerator(),
+        initiatingTeamId: context.slot.teamId,
+        receivingTeamId: userTeam.id,
+        assetsSent: proposal.assetsSent,
+        assetsReceived: proposal.assetsReceived,
+        isBotToBot: false,
+      };
+    }
+  }
+
   return {
     type: 'pick',
     playerId: selectWeightedRandomPlayer(
@@ -210,7 +298,7 @@ function defaultDecideBotAction(
         id: player.id,
         score: scoreBotPickCandidate({
           player,
-          archetype: team?.archetype ?? 'balanced',
+          archetype: botArchetype,
           archetypeConfig: context.archetypeConfig,
           rosterConfig: draftState.roster_config,
           rosteredPlayers,
@@ -286,7 +374,8 @@ export function createBotChainCoordinator({
   const pendingTrades = new Map<string, PendingTradeState>();
   const botPickRandomness = normalizeBotPickRandomness(randomness ?? archetypeConfig.randomness);
   const resolvedDecideBotAction =
-    decideBotAction ?? ((context: DecideBotActionContext) => defaultDecideBotAction(context, botPickRandomness, random));
+    decideBotAction ??
+    ((context: DecideBotActionContext) => defaultDecideBotAction(context, botPickRandomness, random, idGenerator));
 
   async function runBotChain(draftId: string): Promise<void> {
     try {
@@ -387,10 +476,6 @@ export function createBotChainCoordinator({
       }
     },
     submitUserTradeOffer({ draftId, targetTeamId, offeredAssets, requestedAssets }) {
-      if (pendingTrades.has(draftId)) {
-        throw new TradeOfferCoordinatorError('A trade is already pending for this draft.', 409);
-      }
-
       const draftState = getDraftState({ databasePath, draftId });
 
       if (!draftState) {
@@ -399,6 +484,18 @@ export function createBotChainCoordinator({
 
       const userTeam = draftState.teams.find((team) => team.is_user);
       const targetTeam = draftState.teams.find((team) => team.id === targetTeamId);
+      const pendingTrade = pendingTrades.get(draftId);
+
+      if (pendingTrade) {
+        const isCounterToPendingBotOffer =
+          Boolean(userTeam) &&
+          pendingTrade.initiatingTeamId === targetTeamId &&
+          pendingTrade.receivingTeamId === userTeam?.id;
+
+        if (!isCounterToPendingBotOffer) {
+          throw new TradeOfferCoordinatorError('A trade is already pending for this draft.', 409);
+        }
+      }
 
       if (!userTeam || !targetTeam || targetTeam.is_user) {
         throw new TradeOfferCoordinatorError('Invalid trade offer.', 400);
@@ -428,17 +525,46 @@ export function createBotChainCoordinator({
           ? 0
           : draftState.draft_order.find((slot) => slot.pick_number === draftState.current_pick_number)?.round ?? 0;
 
-      pendingTrades.set(draftId, {
-        tradeId,
-        pickNumber: draftState.current_pick_number ?? 0,
-        round: currentRound,
-        initiatingTeamId: userTeam.id,
-        receivingTeamId: targetTeam.id,
-        assetsSent: parsedOfferedAssets,
-        assetsReceived: parsedRequestedAssets,
-        resolve: () => undefined,
-        reject: () => undefined,
-      });
+      if (pendingTrade) {
+        const { createdAt } = resolveTrade({
+          databasePath,
+          tradeId: pendingTrade.tradeId,
+          draftId,
+          pickNumber: pendingTrade.pickNumber,
+          round: pendingTrade.round,
+          initiatingTeamId: pendingTrade.initiatingTeamId,
+          receivingTeamId: pendingTrade.receivingTeamId,
+          assetsSent: pendingTrade.assetsSent,
+          assetsReceived: pendingTrade.assetsReceived,
+          status: 'declined',
+          now,
+        });
+
+        pendingTrades.set(draftId, {
+          tradeId,
+          pickNumber: draftState.current_pick_number ?? 0,
+          round: currentRound,
+          initiatingTeamId: userTeam.id,
+          receivingTeamId: targetTeam.id,
+          assetsSent: parsedOfferedAssets,
+          assetsReceived: parsedRequestedAssets,
+          resolve: () => undefined,
+          reject: () => undefined,
+        });
+        pendingTrade.resolve({ status: 'declined', createdAt });
+      } else {
+        pendingTrades.set(draftId, {
+          tradeId,
+          pickNumber: draftState.current_pick_number ?? 0,
+          round: currentRound,
+          initiatingTeamId: userTeam.id,
+          receivingTeamId: targetTeam.id,
+          assetsSent: parsedOfferedAssets,
+          assetsReceived: parsedRequestedAssets,
+          resolve: () => undefined,
+          reject: () => undefined,
+        });
+      }
 
       emitTradeOfferedEvent({
         draftId,

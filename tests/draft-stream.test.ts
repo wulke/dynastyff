@@ -167,7 +167,7 @@ async function invokePickRoute(
   databasePath: string,
   draftId: string,
   body: unknown,
-  botChain = createBotChainCoordinator({ databasePath, randomness: 0 }),
+  botChain = createBotChainCoordinator({ databasePath, randomness: 0, random: () => 0.99 }),
 ) {
   const route = createDraftPickRoute({ databasePath, botChain });
   const request = { body, params: { id: draftId } } as unknown as Request;
@@ -743,6 +743,7 @@ test('GET /drafts/:id/stream emits bot pick_made events and draft_complete when 
     const botChain = createBotChainCoordinator({
       databasePath,
       randomness: 0,
+      random: () => 0.99,
       now: () => '2026-05-18T20:05:00.000Z',
       sleep: async () => undefined,
     });
@@ -930,6 +931,363 @@ test('GET /drafts/:id/stream pauses the bot chain for a bot-to-bot trade until P
 
       const draftComplete = await readStreamEvent(stream);
       assert.equal(draftComplete.event, 'draft_complete');
+    } finally {
+      stream.close();
+    }
+  });
+});
+
+// @spec DFF-BOT-046
+// @spec DFF-ENGINE-038b
+test('GET /drafts/:id/stream emits a proactive bot-to-user trade offer and pauses the bot chain until the user responds', async () => {
+  await withDraftServer(async ({ databasePath, database }) => {
+    seedPlayer(database, 'player-1', 'Player One');
+    database.prepare('UPDATE players SET dynasty_value = 7200 WHERE id = ?').run('player-1');
+    seedPlayer(database, 'player-2', 'Player Two');
+    database.prepare('UPDATE players SET dynasty_value = 7100 WHERE id = ?').run('player-2');
+    seedPlayer(database, 'player-3', 'Player Three');
+    database.prepare('UPDATE players SET dynasty_value = 7000 WHERE id = ?').run('player-3');
+    seedPlayer(database, 'player-4', 'Player Four');
+    database.prepare('UPDATE players SET dynasty_value = 6900 WHERE id = ?').run('player-4');
+    seedPlayer(database, 'player-user-qb', 'User Quarterback');
+    database.prepare('UPDATE players SET position = ?, dynasty_value = ? WHERE id = ?').run('QB', 7000, 'player-user-qb');
+    seedPlayer(database, 'player-bot-wr', 'Bot Wideout');
+    database.prepare('UPDATE players SET position = ?, dynasty_value = ? WHERE id = ?').run('WR', 3300, 'player-bot-wr');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 2,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const teams = database
+      .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number }>;
+    const userTeamId = teams.find((team) => team.is_user === 1)!.id;
+    const botTeamId = teams.find((team) => team.is_user === 0)!.id;
+    database.prepare("UPDATE teams SET archetype = 'qb_early' WHERE id = ?").run(botTeamId);
+
+    const userFutureSlot = database
+      .prepare(
+        `SELECT id, pick_number, round
+         FROM draft_order
+         WHERE draft_id = ? AND team_id = ?
+         ORDER BY pick_number DESC
+         LIMIT 1`,
+      )
+      .get(draftId, userTeamId) as { id: string; pick_number: number; round: number };
+    database.prepare(
+      `INSERT INTO picks (
+        id, draft_id, draft_order_id, team_id, player_id, pick_number, round, picked_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'pick-user-qb',
+      draftId,
+      userFutureSlot.id,
+      userTeamId,
+      'player-user-qb',
+      userFutureSlot.pick_number,
+      userFutureSlot.round,
+      '2026-05-18T19:58:00.000Z',
+    );
+    database.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+      'roster-user-qb',
+      draftId,
+      userTeamId,
+      'player-user-qb',
+    );
+
+    const botFutureSlot = database
+      .prepare(
+        `SELECT id, pick_number, round
+         FROM draft_order
+         WHERE draft_id = ? AND team_id = ?
+         ORDER BY pick_number DESC
+         LIMIT 1`,
+      )
+      .get(draftId, botTeamId) as { id: string; pick_number: number; round: number };
+    database.prepare(
+      `INSERT INTO picks (
+        id, draft_id, draft_order_id, team_id, player_id, pick_number, round, picked_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'pick-bot-wr',
+      draftId,
+      botFutureSlot.id,
+      botTeamId,
+      'player-bot-wr',
+      botFutureSlot.pick_number,
+      botFutureSlot.round,
+      '2026-05-18T19:59:00.000Z',
+    );
+    database.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+      'roster-bot-wr',
+      draftId,
+      botTeamId,
+      'player-bot-wr',
+    );
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      randomness: 0,
+      now: () => '2026-05-18T20:05:00.000Z',
+      random: () => 0,
+      sleep: async () => undefined,
+    });
+    const stream = await connectToDraftStream(databasePath, draftId);
+    assertSseConnection(stream);
+
+    try {
+      await readStreamEvent(stream);
+
+      const pickResponse = await invokePickRoute(
+        databasePath,
+        draftId,
+        { playerId: 'player-1' },
+        botChain,
+      );
+
+      assert.equal(pickResponse.statusCode, 200);
+
+      const userPick = await readStreamEvent(stream);
+      assert.equal(userPick.event, 'pick_made');
+
+      const offeredTrade = await readStreamEvent(stream);
+      assert.equal(offeredTrade.event, 'trade_offered');
+      assert.deepEqual(offeredTrade.data, {
+        trade_id: (offeredTrade.data as { trade_id: string }).trade_id,
+        initiating_team_id: botTeamId,
+        receiving_team_id: userTeamId,
+        assets_sent: [
+          { type: 'pick_slot', draft_order_id: `${draftId}:2`, pick_number: 2 },
+          { type: 'future_pick', year: 2027, round: 2 },
+          { type: 'player', player_id: 'player-bot-wr' },
+        ],
+        assets_received: [{ type: 'player', player_id: 'player-user-qb' }],
+        is_bot_to_bot: false,
+      });
+      assert.equal(stream.events.length, 0);
+
+      const tradeResponse = await invokeTradeResponseRoute(
+        databasePath,
+        draftId,
+        { status: 'declined' },
+        botChain,
+      );
+
+      await botChain.waitForIdle(draftId);
+
+      assert.equal(tradeResponse.statusCode, 200);
+      assert.deepEqual(tradeResponse.jsonBody, { ok: true });
+
+      const resolvedTrade = await readStreamEvent(stream);
+      assert.equal(resolvedTrade.event, 'trade_resolved');
+      assert.deepEqual((resolvedTrade.data as { status: string }).status, 'declined');
+
+      const botPick = await readStreamEvent(stream);
+      assert.equal(botPick.event, 'pick_made');
+    } finally {
+      stream.close();
+    }
+  });
+});
+
+// @spec DFF-BOT-047
+// @spec DFF-ENGINE-038c
+test('POST /drafts/:id/trade-offer treats a user counter as a replacement for the pending bot-to-user offer', async () => {
+  await withDraftServer(async ({ databasePath, database }) => {
+    seedPlayer(database, 'player-1', 'Player One');
+    database.prepare('UPDATE players SET dynasty_value = 7200 WHERE id = ?').run('player-1');
+    seedPlayer(database, 'player-2', 'Player Two');
+    database.prepare('UPDATE players SET dynasty_value = 7100 WHERE id = ?').run('player-2');
+    seedPlayer(database, 'player-3', 'Player Three');
+    database.prepare('UPDATE players SET dynasty_value = 7000 WHERE id = ?').run('player-3');
+    seedPlayer(database, 'player-4', 'Player Four');
+    database.prepare('UPDATE players SET dynasty_value = 6900 WHERE id = ?').run('player-4');
+    seedPlayer(database, 'player-user-qb', 'User Quarterback');
+    database.prepare('UPDATE players SET position = ?, dynasty_value = ? WHERE id = ?').run('QB', 7000, 'player-user-qb');
+    seedPlayer(database, 'player-bot-wr', 'Bot Wideout');
+    database.prepare('UPDATE players SET position = ?, dynasty_value = ? WHERE id = ?').run('WR', 3300, 'player-bot-wr');
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 2,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const teams = database
+      .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number }>;
+    const userTeamId = teams.find((team) => team.is_user === 1)!.id;
+    const botTeamId = teams.find((team) => team.is_user === 0)!.id;
+    database.prepare("UPDATE teams SET archetype = 'qb_early' WHERE id = ?").run(botTeamId);
+
+    const userFutureSlot = database
+      .prepare(
+        `SELECT id, pick_number, round
+         FROM draft_order
+         WHERE draft_id = ? AND team_id = ?
+         ORDER BY pick_number DESC
+         LIMIT 1`,
+      )
+      .get(draftId, userTeamId) as { id: string; pick_number: number; round: number };
+    database.prepare(
+      `INSERT INTO picks (
+        id, draft_id, draft_order_id, team_id, player_id, pick_number, round, picked_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'pick-user-qb-counter',
+      draftId,
+      userFutureSlot.id,
+      userTeamId,
+      'player-user-qb',
+      userFutureSlot.pick_number,
+      userFutureSlot.round,
+      '2026-05-18T19:58:00.000Z',
+    );
+    database.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+      'roster-user-qb-counter',
+      draftId,
+      userTeamId,
+      'player-user-qb',
+    );
+
+    const botFutureSlot = database
+      .prepare(
+        `SELECT id, pick_number, round
+         FROM draft_order
+         WHERE draft_id = ? AND team_id = ?
+         ORDER BY pick_number DESC
+         LIMIT 1`,
+      )
+      .get(draftId, botTeamId) as { id: string; pick_number: number; round: number };
+    database.prepare(
+      `INSERT INTO picks (
+        id, draft_id, draft_order_id, team_id, player_id, pick_number, round, picked_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'pick-bot-wr-counter',
+      draftId,
+      botFutureSlot.id,
+      botTeamId,
+      'player-bot-wr',
+      botFutureSlot.pick_number,
+      botFutureSlot.round,
+      '2026-05-18T19:59:00.000Z',
+    );
+    database.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+      'roster-bot-wr-counter',
+      draftId,
+      botTeamId,
+      'player-bot-wr',
+    );
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      randomness: 0,
+      now: () => '2026-05-18T20:05:00.000Z',
+      random: () => 0,
+      sleep: async () => undefined,
+    });
+    const stream = await connectToDraftStream(databasePath, draftId);
+    assertSseConnection(stream);
+
+    try {
+      await readStreamEvent(stream);
+
+      const pickResponse = await invokePickRoute(
+        databasePath,
+        draftId,
+        { playerId: 'player-1' },
+        botChain,
+      );
+
+      assert.equal(pickResponse.statusCode, 200);
+      await readStreamEvent(stream);
+
+      const initialOffer = await readStreamEvent(stream);
+      assert.equal(initialOffer.event, 'trade_offered');
+
+      const counterResponse = await invokeTradeOfferRoute(
+        databasePath,
+        draftId,
+        {
+          targetTeamId: botTeamId,
+          offeredAssets: [{ type: 'player', player_id: 'player-user-qb' }],
+          requestedAssets: [{ type: 'future_pick', year: 2027, round: 1 }],
+        },
+        botChain,
+      );
+
+      assert.equal(counterResponse.statusCode, 202);
+
+      const firstFollowUpEvent = await readStreamEvent(stream);
+      const secondFollowUpEvent = await readStreamEvent(stream);
+      const counterOffered =
+        firstFollowUpEvent.event === 'trade_offered' ? firstFollowUpEvent : secondFollowUpEvent;
+      const originalResolved =
+        firstFollowUpEvent.event === 'trade_resolved' ? firstFollowUpEvent : secondFollowUpEvent;
+
+      assert.equal(counterOffered.event, 'trade_offered');
+      assert.deepEqual(counterOffered.data, {
+        trade_id: (counterOffered.data as { trade_id: string }).trade_id,
+        initiating_team_id: userTeamId,
+        receiving_team_id: botTeamId,
+        assets_sent: [{ type: 'player', player_id: 'player-user-qb' }],
+        assets_received: [{ type: 'future_pick', year: 2027, round: 1 }],
+        is_bot_to_bot: false,
+      });
+
+      assert.equal(originalResolved.event, 'trade_resolved');
+      assert.deepEqual(originalResolved.data, {
+        trade_id: (initialOffer.data as { trade_id: string }).trade_id,
+        status: 'declined',
+        assets_sent: [
+          { type: 'pick_slot', draft_order_id: `${draftId}:2`, pick_number: 2 },
+          { type: 'future_pick', year: 2027, round: 2 },
+          { type: 'player', player_id: 'player-bot-wr' },
+        ],
+        assets_received: [{ type: 'player', player_id: 'player-user-qb' }],
+        created_at: '2026-05-18T20:05:00.000Z',
+      });
+
+      const counterResolved = await readStreamEvent(stream);
+      assert.equal(counterResolved.event, 'trade_resolved');
+      assert.deepEqual((counterResolved.data as { status: string }).status, 'accepted');
     } finally {
       stream.close();
     }
@@ -1204,6 +1562,7 @@ test('POST /drafts/:id/trade-offer emits trade events and defers the next bot pi
     const botChain = createBotChainCoordinator({
       databasePath,
       now: () => '2026-05-18T20:05:00.000Z',
+      random: () => 0.99,
       sleep: async () => {
         await sleepGate;
       },

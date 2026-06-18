@@ -909,6 +909,7 @@ test('POST /drafts/:id/pick completes the draft automatically when the bot chain
     const botChain = createBotChainCoordinator({
       databasePath,
       randomness: 0,
+      random: () => 0.99,
       sleep: async () => undefined,
     });
 

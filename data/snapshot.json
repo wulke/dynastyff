@@ -1,508 +1,498 @@
 {
-  "exportedAt": "2026-06-17T19:46:30.297Z",
+  "exportedAt": "2026-06-18T21:03:08.201Z",
   "players": [
     {
-      "id": "377728de-d450-4ed1-b38c-80b1fcae8fb6",
+      "id": "b78361fe-c648-41a6-bc71-3c2ca6b32e46",
       "name": "Josh Allen",
       "position": "QB",
       "nflTeam": "BUF",
       "age": 30.1,
       "isRookie": false,
-      "dynastyValue": 9983,
+      "dynastyValue": 9982,
       "adp": 1
     },
     {
-      "id": "d754da17-b407-4a48-89f4-5bd67c2708c0",
+      "id": "f94a4526-ca89-4542-9839-77248f428e94",
       "name": "Bijan Robinson",
       "position": "RB",
       "nflTeam": "ATL",
       "age": 24.4,
       "isRookie": false,
-      "dynastyValue": 9793,
+      "dynastyValue": 9810,
       "adp": 8
     },
     {
-      "id": "a2fe66e1-d0ab-4243-8848-0ed7a0c3309d",
+      "id": "de882267-ba41-45ff-9120-f8fe4e467b83",
       "name": "Ja'Marr Chase",
       "position": "WR",
       "nflTeam": "CIN",
       "age": 26.3,
       "isRookie": false,
-      "dynastyValue": 9433,
+      "dynastyValue": 9559,
       "adp": 4
     },
     {
-      "id": "0a7ab435-4289-4fca-bac2-32fa20fd8cb3",
+      "id": "295877c8-8017-4ca4-a4e4-84da40005a87",
       "name": "Jahmyr Gibbs",
       "position": "RB",
       "nflTeam": "DET",
       "age": 24.2,
       "isRookie": false,
-      "dynastyValue": 9410,
+      "dynastyValue": 9418,
       "adp": 11
     },
     {
-      "id": "be1c076c-dd6c-4a54-a890-0e3f89f465f8",
+      "id": "c7762acb-5b93-4666-be50-9880cab0ad68",
       "name": "Jaxon Smith-Njigba",
       "position": "WR",
       "nflTeam": "SEA",
       "age": 24.3,
       "isRookie": false,
-      "dynastyValue": 9047,
+      "dynastyValue": 8891,
       "adp": 30
     },
     {
-      "id": "3f34e242-f8d4-4dca-b8ec-313d0678c535",
+      "id": "f656c256-682e-4c7a-bbe6-a92593569910",
       "name": "Drake Maye",
       "position": "QB",
       "nflTeam": "NEP",
       "age": 23.8,
       "isRookie": false,
-      "dynastyValue": 8844,
+      "dynastyValue": 8866,
       "adp": 24
     },
     {
-      "id": "55a37bb8-30e6-4aa4-9458-023c5cc0290d",
+      "id": "d9c4ed70-f327-41d9-b9f3-4e35e9ba5062",
       "name": "Puka Nacua",
       "position": "WR",
       "nflTeam": "LAR",
       "age": 25,
       "isRookie": false,
-      "dynastyValue": 8383,
+      "dynastyValue": 8335,
       "adp": 17
     },
     {
-      "id": "ee2602f1-3bdb-4223-9510-b7b413bb012b",
+      "id": "7eb268f8-6727-453b-87b8-46144a340ee1",
       "name": "Brock Bowers",
       "position": "TE",
       "nflTeam": "LVR",
       "age": 23.5,
       "isRookie": false,
-      "dynastyValue": 7914,
+      "dynastyValue": 7915,
       "adp": 11
     },
     {
-      "id": "aa4a37b9-76f1-4b86-855d-f27a9771cdf4",
-      "name": "Amon-Ra St. Brown",
-      "position": "WR",
-      "nflTeam": "DET",
-      "age": 26.6,
-      "isRookie": false,
-      "dynastyValue": 7219,
-      "adp": 16
-    },
-    {
-      "id": "2d1cc608-2efa-4b09-ab90-dc704d81b18d",
+      "id": "ae971e65-bffb-42e3-9747-9490300bca36",
       "name": "Caleb Williams",
       "position": "QB",
       "nflTeam": "CHI",
       "age": 24.6,
       "isRookie": false,
-      "dynastyValue": 7207,
+      "dynastyValue": 7221,
       "adp": 24
     },
     {
-      "id": "b8d6efdf-0718-481b-925e-edb330592814",
+      "id": "61d9e6ee-6424-42af-a949-7e36f0294f90",
       "name": "Justin Jefferson",
       "position": "WR",
       "nflTeam": "MIN",
       "age": 27,
       "isRookie": false,
-      "dynastyValue": 7131,
+      "dynastyValue": 7202,
       "adp": 9
     },
     {
-      "id": "d1ee3424-f67b-49bd-93f6-82b30776382a",
-      "name": "Lamar Jackson",
-      "position": "QB",
-      "nflTeam": "BAL",
-      "age": 29.4,
+      "id": "9850a765-1546-4fe1-b28b-88b2c0417238",
+      "name": "Amon-Ra St. Brown",
+      "position": "WR",
+      "nflTeam": "DET",
+      "age": 26.6,
       "isRookie": false,
-      "dynastyValue": 7042,
-      "adp": 3
+      "dynastyValue": 7186,
+      "adp": 16
     },
     {
-      "id": "e33aea98-e8aa-4eec-84fb-538c66fca98a",
+      "id": "b397dc71-8cbc-42f6-a976-86a0becfe945",
       "name": "Trey McBride",
       "position": "TE",
       "nflTeam": "ARI",
       "age": 26.6,
       "isRookie": false,
-      "dynastyValue": 7031,
+      "dynastyValue": 7109,
       "adp": 18
     },
     {
-      "id": "bbdcb7fd-39c0-4283-b888-3260f6939a06",
-      "name": "Ashton Jeanty",
-      "position": "RB",
-      "nflTeam": "LVR",
-      "age": 22.5,
-      "isRookie": false,
-      "dynastyValue": 7019,
-      "adp": 19
-    },
-    {
-      "id": "f5a7a911-693f-41e5-8d88-08e1d77f475f",
+      "id": "e27cdbd5-5612-409d-b09b-17e026e67d37",
       "name": "Jayden Daniels",
       "position": "QB",
       "nflTeam": "WAS",
       "age": 25.5,
       "isRookie": false,
-      "dynastyValue": 6935,
+      "dynastyValue": 7026,
       "adp": 3
     },
     {
-      "id": "aec9ec1e-a972-4b5d-b11c-999dabfc1702",
-      "name": "Malik Nabers",
-      "position": "WR",
-      "nflTeam": "NYG",
-      "age": 22.9,
+      "id": "7b69924f-e5a2-4775-9c27-fd95012918ea",
+      "name": "Lamar Jackson",
+      "position": "QB",
+      "nflTeam": "BAL",
+      "age": 29.4,
       "isRookie": false,
-      "dynastyValue": 6849,
-      "adp": 12
+      "dynastyValue": 7024,
+      "adp": 3
     },
     {
-      "id": "f43c4b4e-c498-488c-8e2e-5ba4c1eeb484",
+      "id": "04db93b5-2cac-427a-8c7b-2d6b22601bd4",
+      "name": "Ashton Jeanty",
+      "position": "RB",
+      "nflTeam": "LVR",
+      "age": 22.5,
+      "isRookie": false,
+      "dynastyValue": 7022,
+      "adp": 19
+    },
+    {
+      "id": "4fd2525d-8a95-4b07-8b28-bfe0f5fc99ab",
       "name": "Joe Burrow",
       "position": "QB",
       "nflTeam": "CIN",
       "age": 29.5,
       "isRookie": false,
-      "dynastyValue": 6796,
+      "dynastyValue": 6837,
       "adp": 7
     },
     {
-      "id": "3d21d6bb-22b8-426f-99c9-1442c11ef466",
+      "id": "3bbc0934-24c5-44f2-a647-1cda2e95c7a5",
+      "name": "Malik Nabers",
+      "position": "WR",
+      "nflTeam": "NYG",
+      "age": 22.9,
+      "isRookie": false,
+      "dynastyValue": 6783,
+      "adp": 12
+    },
+    {
+      "id": "22433120-af7e-4030-aaef-d1735c1930fd",
       "name": "Jeremiyah Love",
       "position": "RB",
       "nflTeam": "ARI",
       "age": 21,
       "isRookie": true,
-      "dynastyValue": 6702,
+      "dynastyValue": 6716,
       "adp": 8
     },
     {
-      "id": "57d882f6-a496-4744-bf4c-533ecac91833",
+      "id": "a3d028f8-8fd8-4014-8be7-bbd1b6b1d88e",
       "name": "CeeDee Lamb",
       "position": "WR",
       "nflTeam": "DAL",
       "age": 27.2,
       "isRookie": false,
-      "dynastyValue": 6329,
+      "dynastyValue": 6400,
       "adp": 13
     },
     {
-      "id": "3eb70778-7bbc-4ef6-a49e-e1fbdf743c94",
+      "id": "11582813-bc3f-4e67-bcdf-f1b4e6be1c86",
       "name": "De'Von Achane",
       "position": "RB",
       "nflTeam": "MIA",
       "age": 24.7,
       "isRookie": false,
-      "dynastyValue": 6109,
+      "dynastyValue": 6111,
       "adp": 27
     },
     {
-      "id": "859dad97-c84e-4667-829a-0a7e55635da5",
+      "id": "bbcbdc42-4c89-429e-b47e-f54c53583ec0",
       "name": "Justin Herbert",
       "position": "QB",
       "nflTeam": "LAC",
       "age": 28.3,
       "isRookie": false,
-      "dynastyValue": 6022,
+      "dynastyValue": 6054,
       "adp": 27
     },
     {
-      "id": "e34eff7e-499b-4a6c-8777-ccdda1c0dce6",
+      "id": "707399db-aba2-4ee4-809d-a794c40e7327",
       "name": "Drake London",
       "position": "WR",
       "nflTeam": "ATL",
       "age": 24.9,
       "isRookie": false,
-      "dynastyValue": 5966,
+      "dynastyValue": 5935,
       "adp": 24
     },
     {
-      "id": "c944fe43-4b13-440b-9456-c9150d0be709",
-      "name": "Omarion Hampton",
-      "position": "RB",
-      "nflTeam": "LAC",
-      "age": 23.2,
-      "isRookie": false,
-      "dynastyValue": 5858,
-      "adp": 36
-    },
-    {
-      "id": "199d3750-aa81-40e4-90a6-65e9b2c4fec0",
+      "id": "b13b096c-82c7-4457-b63f-b19f535988ba",
       "name": "Patrick Mahomes",
       "position": "QB",
       "nflTeam": "KCC",
       "age": 30.8,
       "isRookie": false,
-      "dynastyValue": 5838,
+      "dynastyValue": 5886,
       "adp": 15
     },
     {
-      "id": "8ef6358e-a67b-4f1d-afbc-baf492a80482",
+      "id": "ccb87b62-b7b6-4faf-8f66-323b8b58566f",
+      "name": "Omarion Hampton",
+      "position": "RB",
+      "nflTeam": "LAC",
+      "age": 23.2,
+      "isRookie": false,
+      "dynastyValue": 5854,
+      "adp": 36
+    },
+    {
+      "id": "2fc256c1-0c16-4d79-bb1c-a33033e2164f",
       "name": "Jalen Hurts",
       "position": "QB",
       "nflTeam": "PHI",
       "age": 27.9,
       "isRookie": false,
-      "dynastyValue": 5550,
+      "dynastyValue": 5652,
       "adp": 8
     },
     {
-      "id": "b1e6a0de-b120-4fba-8829-05ffbee199d5",
+      "id": "07b8532a-4f73-42ad-a97b-a24be1f0955b",
       "name": "Jaxson Dart",
       "position": "QB",
       "nflTeam": "NYG",
       "age": 23.1,
       "isRookie": false,
-      "dynastyValue": 5481,
-      "adp": 78
+      "dynastyValue": 5484,
+      "adp": 77
     },
     {
-      "id": "7e1e0b04-40a7-48c8-a753-9789011bb5e7",
+      "id": "9fa2a24a-0925-4260-bfe8-895b7cf4a91a",
       "name": "Colston Loveland",
       "position": "TE",
       "nflTeam": "CHI",
       "age": 22.2,
       "isRookie": false,
-      "dynastyValue": 5431,
+      "dynastyValue": 5400,
       "adp": 64
     },
     {
-      "id": "51d52e91-f493-455f-a78f-894fe6e95154",
+      "id": "69d7b418-0ea8-4bc3-92eb-3f532d61325f",
       "name": "Tetairoa McMillan",
       "position": "WR",
       "nflTeam": "CAR",
       "age": 23.2,
       "isRookie": false,
-      "dynastyValue": 5359,
+      "dynastyValue": 5337,
       "adp": 46
     },
     {
-      "id": "68ed0dfa-64ef-4f68-8eb9-dfb86ca85fca",
-      "name": "Trevor Lawrence",
-      "position": "QB",
-      "nflTeam": "JAC",
-      "age": 26.7,
-      "isRookie": false,
-      "dynastyValue": 5181,
-      "adp": 46
-    },
-    {
-      "id": "acbe90cd-dcab-4c33-a451-e7b9748317d0",
+      "id": "4d7ad959-18f6-45f4-884b-236f3afc9d57",
       "name": "Jonathan Taylor",
       "position": "RB",
       "nflTeam": "IND",
       "age": 27.4,
       "isRookie": false,
-      "dynastyValue": 5179,
-      "adp": 44
+      "dynastyValue": 5196,
+      "adp": 43
     },
     {
-      "id": "f24a2c9f-0c91-4dbb-bffb-eb782c8c1e55",
+      "id": "0370c7f7-dd32-4f69-bafc-285cab13fe8b",
+      "name": "Trevor Lawrence",
+      "position": "QB",
+      "nflTeam": "JAC",
+      "age": 26.7,
+      "isRookie": false,
+      "dynastyValue": 5162,
+      "adp": 46
+    },
+    {
+      "id": "9088bab5-0dfa-4369-9057-0be74560fd04",
       "name": "James Cook",
       "position": "RB",
       "nflTeam": "BUF",
       "age": 26.7,
       "isRookie": false,
-      "dynastyValue": 5050,
+      "dynastyValue": 5131,
       "adp": 58
     },
     {
-      "id": "6f967ec4-4822-405b-8578-7c4dc2e14b85",
+      "id": "34b262f3-a677-41cc-a748-343bec2f4ee3",
       "name": "Bo Nix",
       "position": "QB",
       "nflTeam": "DEN",
       "age": 26.3,
       "isRookie": false,
-      "dynastyValue": 4948,
-      "adp": 24
+      "dynastyValue": 4969,
+      "adp": 25
     },
     {
-      "id": "63a873ec-bd4e-48f8-bd80-bbeec8d0e735",
-      "name": "Tyler Warren",
-      "position": "TE",
-      "nflTeam": "IND",
-      "age": 24.1,
-      "isRookie": false,
-      "dynastyValue": 4937,
-      "adp": 59
-    },
-    {
-      "id": "2d04fa30-ff3e-4bfb-9799-434edf1fd5fc",
+      "id": "2fc28cee-f61a-42fe-a499-cf07cb72d1d1",
       "name": "Emeka Egbuka",
       "position": "WR",
       "nflTeam": "TBB",
       "age": 23.7,
       "isRookie": false,
-      "dynastyValue": 4909,
+      "dynastyValue": 4928,
       "adp": 65
     },
     {
-      "id": "14b952f9-6c62-44d2-bdbe-b6d8fe2dc295",
+      "id": "af4f96cb-360a-4102-8e56-21b7968a29ab",
       "name": "Carnell Tate",
       "position": "WR",
       "nflTeam": "TEN",
       "age": 21.4,
       "isRookie": true,
-      "dynastyValue": 4892,
-      "adp": 23
+      "dynastyValue": 4891,
+      "adp": 24
     },
     {
-      "id": "0d87bb2d-6ddf-46b3-8bfe-c42ef6275cef",
+      "id": "db366ede-b252-443c-84b5-b62f6b7ccec9",
+      "name": "Tyler Warren",
+      "position": "TE",
+      "nflTeam": "IND",
+      "age": 24.1,
+      "isRookie": false,
+      "dynastyValue": 4802,
+      "adp": 59
+    },
+    {
+      "id": "80915373-0834-4bad-adec-df00105ed986",
       "name": "George Pickens",
       "position": "WR",
       "nflTeam": "DAL",
       "age": 25.3,
       "isRookie": false,
-      "dynastyValue": 4694,
+      "dynastyValue": 4764,
       "adp": 80
     },
     {
-      "id": "4a1a32b4-4804-4f42-b6f3-ced52ca19d96",
+      "id": "d6dbde16-e18d-472b-a179-91363a62df40",
       "name": "Fernando Mendoza",
       "position": "QB",
       "nflTeam": "LVR",
       "age": 22.7,
       "isRookie": true,
-      "dynastyValue": 4673,
-      "adp": 29
+      "dynastyValue": 4685,
+      "adp": 32
     },
     {
-      "id": "8894b997-119d-4b29-b7dd-f36032c2ac21",
+      "id": "edd307ee-dfdc-41f2-bbc6-c21cf3d07c58",
       "name": "Brock Purdy",
       "position": "QB",
       "nflTeam": "SFO",
       "age": 26.5,
       "isRookie": false,
-      "dynastyValue": 4614,
+      "dynastyValue": 4626,
       "adp": 39
     },
     {
-      "id": "f283d817-42f6-4fee-ab81-dc9cd713e390",
-      "name": "Garrett Wilson",
-      "position": "WR",
-      "nflTeam": "NYJ",
-      "age": 25.9,
-      "isRookie": false,
-      "dynastyValue": 4391,
-      "adp": 39
-    },
-    {
-      "id": "fde73427-247e-4505-a14e-e0b2a56e1ac7",
+      "id": "0c1f92fd-32b1-4aed-8c91-14b1ce68ba4c",
       "name": "Nico Collins",
       "position": "WR",
       "nflTeam": "HOU",
       "age": 27.2,
       "isRookie": false,
-      "dynastyValue": 4372,
+      "dynastyValue": 4390,
       "adp": 23
     },
     {
-      "id": "0504c3ad-b5f8-419f-908e-f24f3aa47fbb",
+      "id": "66cb81b6-97d6-4371-ac2c-3bd80a8f9f96",
+      "name": "Garrett Wilson",
+      "position": "WR",
+      "nflTeam": "NYJ",
+      "age": 25.9,
+      "isRookie": false,
+      "dynastyValue": 4322,
+      "adp": 39
+    },
+    {
+      "id": "c4e4734e-47f6-4ed7-b7f5-1b0fae875609",
       "name": "Chris Olave",
       "position": "WR",
       "nflTeam": "NOS",
       "age": 26,
       "isRookie": false,
-      "dynastyValue": 4204,
+      "dynastyValue": 4248,
       "adp": 79
     },
     {
-      "id": "132e6c49-2f05-4857-bb33-a0259f5d69a1",
-      "name": "Jordyn Tyson",
-      "position": "WR",
-      "nflTeam": "NOS",
-      "age": 21.8,
-      "isRookie": true,
-      "dynastyValue": 4161,
-      "adp": 32
-    },
-    {
-      "id": "2be910e8-bd6e-4827-a6b2-9c96dd97b1e3",
-      "name": "Kenneth Walker III",
-      "position": "RB",
-      "nflTeam": "KCC",
-      "age": 25.6,
-      "isRookie": false,
-      "dynastyValue": 4159,
-      "adp": 63
-    },
-    {
-      "id": "f25fa3fe-ce0c-4310-af67-16552fb5674a",
-      "name": "Breece Hall",
-      "position": "RB",
-      "nflTeam": "NYJ",
-      "age": 25,
-      "isRookie": false,
-      "dynastyValue": 4132,
-      "adp": 47
-    },
-    {
-      "id": "3d2a2e5d-9f5e-429b-b9b8-80dd406e8f91",
+      "id": "6a058f6e-7857-4a6b-a4c2-c9a4403c9a53",
       "name": "Jordan Love",
       "position": "QB",
       "nflTeam": "GBP",
       "age": 27.6,
       "isRookie": false,
-      "dynastyValue": 4131,
-      "adp": 40
+      "dynastyValue": 4188,
+      "adp": 41
     },
     {
-      "id": "70ac74ee-6eba-4bf8-b30c-aca765272b0f",
+      "id": "3ace47ec-ae24-4007-b4cc-7583458bbe2e",
+      "name": "Jordyn Tyson",
+      "position": "WR",
+      "nflTeam": "NOS",
+      "age": 21.8,
+      "isRookie": true,
+      "dynastyValue": 4177,
+      "adp": 34
+    },
+    {
+      "id": "f8f38121-d91e-4b23-a550-904dfd794594",
+      "name": "Kenneth Walker III",
+      "position": "RB",
+      "nflTeam": "KCC",
+      "age": 25.7,
+      "isRookie": false,
+      "dynastyValue": 4148,
+      "adp": 63
+    },
+    {
+      "id": "a5baae18-3c18-4eb8-b259-15150224138b",
+      "name": "Breece Hall",
+      "position": "RB",
+      "nflTeam": "NYJ",
+      "age": 25,
+      "isRookie": false,
+      "dynastyValue": 4120,
+      "adp": 47
+    },
+    {
+      "id": "25e39548-b3cb-403c-bf56-91a9427cd46a",
       "name": "Ladd McConkey",
       "position": "WR",
       "nflTeam": "LAC",
       "age": 24.6,
       "isRookie": false,
-      "dynastyValue": 4093,
+      "dynastyValue": 4094,
       "adp": 31
     },
     {
-      "id": "86a1e1c7-000f-4573-9c36-773a8b0deaae",
-      "name": "Quinshon Judkins",
-      "position": "RB",
-      "nflTeam": "CLE",
-      "age": 22.6,
-      "isRookie": false,
-      "dynastyValue": 4083,
-      "adp": 65
-    },
-    {
-      "id": "ebf84097-f0e2-4722-81b3-9466a8c0869b",
+      "id": "ddaf82db-87dc-422e-81ba-44aa5effab17",
       "name": "Christian McCaffrey",
       "position": "RB",
       "nflTeam": "SFO",
       "age": 30,
       "isRookie": false,
-      "dynastyValue": 4079,
+      "dynastyValue": 4065,
       "adp": 51
     },
     {
-      "id": "0fadb141-1de9-4b1f-b83a-2386f2928b35",
-      "name": "Luther Burden",
-      "position": "WR",
-      "nflTeam": "CHI",
-      "age": 22.5,
+      "id": "34984a15-2b91-4292-9d87-8c7a0ed56752",
+      "name": "Quinshon Judkins",
+      "position": "RB",
+      "nflTeam": "CLE",
+      "age": 22.6,
       "isRookie": false,
-      "dynastyValue": 3997,
-      "adp": 97
+      "dynastyValue": 4055,
+      "adp": 65
     },
     {
-      "id": "065ede4f-8874-4734-993f-2a0f566525cc",
+      "id": "db11cbb0-f1da-4415-bc30-ca0c7a8ccd44",
       "name": "TreVeyon Henderson",
       "position": "RB",
       "nflTeam": "NEP",
       "age": 23.6,
       "isRookie": false,
-      "dynastyValue": 3991,
+      "dynastyValue": 4016,
       "adp": 48
     },
     {
-      "id": "75bcd9bf-e11b-435a-a37b-3f2b1f9852c0",
+      "id": "4e46030c-8ee7-4055-9405-91f342997a24",
       "name": "Cam Ward",
       "position": "QB",
       "nflTeam": "TEN",
@@ -512,567 +502,567 @@
       "adp": 53
     },
     {
-      "id": "c8d40c35-3c11-42ae-9644-a04ea1ec1a64",
+      "id": "9a523842-be46-450d-829b-52dd6964189d",
+      "name": "Luther Burden",
+      "position": "WR",
+      "nflTeam": "CHI",
+      "age": 22.5,
+      "isRookie": false,
+      "dynastyValue": 3977,
+      "adp": 96
+    },
+    {
+      "id": "7f40e52c-b0f8-4d9e-8a64-e429c64da2b3",
       "name": "DeVonta Smith",
       "position": "WR",
       "nflTeam": "PHI",
       "age": 27.6,
       "isRookie": false,
-      "dynastyValue": 3959,
+      "dynastyValue": 3967,
       "adp": 67
     },
     {
-      "id": "449ffb16-416a-4d44-be55-ed2c077c8688",
-      "name": "Rome Odunze",
-      "position": "WR",
-      "nflTeam": "CHI",
-      "age": 24,
-      "isRookie": false,
-      "dynastyValue": 3898,
-      "adp": 61
-    },
-    {
-      "id": "ec03c2e9-ffd5-406e-b9d9-3e13795e336f",
+      "id": "39c8e118-2dce-4606-869b-cdb5b225658c",
       "name": "Dak Prescott",
       "position": "QB",
       "nflTeam": "DAL",
       "age": 32.9,
       "isRookie": false,
-      "dynastyValue": 3886,
+      "dynastyValue": 3942,
       "adp": 51
     },
     {
-      "id": "0a870227-8e03-46c0-9b77-a8fb800d1242",
-      "name": "Makai Lemon",
-      "position": "WR",
-      "nflTeam": "PHI",
-      "age": 22,
-      "isRookie": true,
-      "dynastyValue": 3830,
-      "adp": 36
-    },
-    {
-      "id": "6742c0c0-014e-4cbd-93ca-810e4f631e7e",
+      "id": "983eb55a-6fde-479d-9600-d8befa386675",
       "name": "Chase Brown",
       "position": "RB",
       "nflTeam": "CIN",
       "age": 26.2,
       "isRookie": false,
-      "dynastyValue": 3819,
+      "dynastyValue": 3882,
       "adp": 56
     },
     {
-      "id": "8246b942-0ff8-4abb-94ff-171f34f37427",
+      "id": "a4ed844d-d02c-42cf-9079-b05a2caeafaa",
+      "name": "Rome Odunze",
+      "position": "WR",
+      "nflTeam": "CHI",
+      "age": 24,
+      "isRookie": false,
+      "dynastyValue": 3877,
+      "adp": 61
+    },
+    {
+      "id": "5e58302a-7346-48bc-bd97-5613d9a57e97",
+      "name": "Makai Lemon",
+      "position": "WR",
+      "nflTeam": "PHI",
+      "age": 22,
+      "isRookie": true,
+      "dynastyValue": 3847,
+      "adp": 37
+    },
+    {
+      "id": "4a6143c3-14ed-43f6-acc4-1da0d9d63227",
       "name": "Saquon Barkley",
       "position": "RB",
       "nflTeam": "PHI",
       "age": 29.4,
       "isRookie": false,
-      "dynastyValue": 3818,
+      "dynastyValue": 3846,
       "adp": 27
     },
     {
-      "id": "6d060f30-91f5-4f72-83c5-56f809c7fd00",
+      "id": "68c06c76-8dec-4619-bac2-8d827bafa90f",
       "name": "A.J. Brown",
       "position": "WR",
       "nflTeam": "NEP",
       "age": 29,
       "isRookie": false,
-      "dynastyValue": 3778,
+      "dynastyValue": 3793,
       "adp": 41
     },
     {
-      "id": "5b9ee5ae-086f-4be7-8649-e6fbabab70da",
-      "name": "Jadarian Price",
-      "position": "RB",
-      "nflTeam": "SEA",
-      "age": 22.7,
-      "isRookie": true,
-      "dynastyValue": 3681,
-      "adp": 41
-    },
-    {
-      "id": "a8f673e9-bdf4-490e-99f3-5448c33b6b4f",
+      "id": "b5cb3c8c-4799-417a-b1e8-d6ba43bec8e5",
       "name": "Tucker Kraft",
       "position": "TE",
       "nflTeam": "GBP",
       "age": 25.6,
       "isRookie": false,
-      "dynastyValue": 3655,
+      "dynastyValue": 3690,
       "adp": 91
     },
     {
-      "id": "cd570196-4875-47a8-b41c-f3fe5164aae3",
-      "name": "Harold Fannin",
-      "position": "TE",
-      "nflTeam": "CLE",
-      "age": 21.9,
-      "isRookie": false,
-      "dynastyValue": 3607,
-      "adp": 140
-    },
-    {
-      "id": "3ce9591b-a994-45a1-bf64-32de44e58918",
-      "name": "Kyren Williams",
-      "position": "RB",
-      "nflTeam": "LAR",
-      "age": 25.8,
-      "isRookie": false,
-      "dynastyValue": 3589,
-      "adp": 50
-    },
-    {
-      "id": "e3273904-31d9-4b6b-94a3-5685024ebe9f",
-      "name": "Marvin Harrison Jr.",
-      "position": "WR",
-      "nflTeam": "ARI",
-      "age": 23.8,
-      "isRookie": false,
-      "dynastyValue": 3569,
-      "adp": 36
-    },
-    {
-      "id": "f6b7393f-0888-4c96-b8ac-164cc5808e8a",
-      "name": "Brian Thomas Jr.",
-      "position": "WR",
-      "nflTeam": "JAC",
-      "age": 23.7,
-      "isRookie": false,
-      "dynastyValue": 3527,
-      "adp": 22
-    },
-    {
-      "id": "08f0af9d-4aa5-4473-9951-7564c4bdbbdd",
-      "name": "Tyler Shough",
-      "position": "QB",
-      "nflTeam": "NOS",
-      "age": 26.7,
-      "isRookie": false,
-      "dynastyValue": 3521,
-      "adp": 124
-    },
-    {
-      "id": "7253d1ea-dbe4-4308-a17a-ae13272b803b",
-      "name": "Baker Mayfield",
-      "position": "QB",
-      "nflTeam": "TBB",
-      "age": 31.2,
-      "isRookie": false,
-      "dynastyValue": 3505,
-      "adp": 38
-    },
-    {
-      "id": "dda50c8b-49df-42f5-8f9c-224f40a29879",
-      "name": "Tee Higgins",
-      "position": "WR",
-      "nflTeam": "CIN",
-      "age": 27.4,
-      "isRookie": false,
-      "dynastyValue": 3496,
-      "adp": 51
-    },
-    {
-      "id": "1ecc466f-923f-4195-a0e7-8c87858eaeb2",
+      "id": "8a8ae693-4efc-4c9e-99ea-d4ec24a9d07c",
       "name": "Rashee Rice",
       "position": "WR",
       "nflTeam": "KCC",
       "age": 26.2,
       "isRookie": false,
-      "dynastyValue": 3477,
+      "dynastyValue": 3673,
       "adp": 50
     },
     {
-      "id": "591cf9f0-5379-4324-9579-a6475402e1ec",
+      "id": "03641bbf-35a1-4feb-87f2-64613d3e6816",
+      "name": "Jadarian Price",
+      "position": "RB",
+      "nflTeam": "SEA",
+      "age": 22.7,
+      "isRookie": true,
+      "dynastyValue": 3668,
+      "adp": 43
+    },
+    {
+      "id": "2701378e-d709-4788-9366-6f6613fc5e5c",
+      "name": "Marvin Harrison Jr.",
+      "position": "WR",
+      "nflTeam": "ARI",
+      "age": 23.8,
+      "isRookie": false,
+      "dynastyValue": 3603,
+      "adp": 36
+    },
+    {
+      "id": "d372c1d9-8dc1-466b-a7d3-9bf4790039ee",
+      "name": "Harold Fannin",
+      "position": "TE",
+      "nflTeam": "CLE",
+      "age": 21.9,
+      "isRookie": false,
+      "dynastyValue": 3576,
+      "adp": 139
+    },
+    {
+      "id": "7688d830-c4dc-46a4-ad7c-a2ee059f5b97",
+      "name": "Kyren Williams",
+      "position": "RB",
+      "nflTeam": "LAR",
+      "age": 25.8,
+      "isRookie": false,
+      "dynastyValue": 3559,
+      "adp": 50
+    },
+    {
+      "id": "3180539d-6e1c-44c6-9ecb-38813b1d34d4",
+      "name": "Tyler Shough",
+      "position": "QB",
+      "nflTeam": "NOS",
+      "age": 26.7,
+      "isRookie": false,
+      "dynastyValue": 3515,
+      "adp": 124
+    },
+    {
+      "id": "62aee189-cc56-4b19-9f3a-6b86ae22134b",
+      "name": "Baker Mayfield",
+      "position": "QB",
+      "nflTeam": "TBB",
+      "age": 31.2,
+      "isRookie": false,
+      "dynastyValue": 3504,
+      "adp": 39
+    },
+    {
+      "id": "c16421b9-9dd8-476c-ae79-4009c651af0c",
+      "name": "Tee Higgins",
+      "position": "WR",
+      "nflTeam": "CIN",
+      "age": 27.4,
+      "isRookie": false,
+      "dynastyValue": 3495,
+      "adp": 51
+    },
+    {
+      "id": "8c280c27-ba9f-4855-8255-cd52ecd6aa66",
+      "name": "Brian Thomas Jr.",
+      "position": "WR",
+      "nflTeam": "JAC",
+      "age": 23.7,
+      "isRookie": false,
+      "dynastyValue": 3493,
+      "adp": 23
+    },
+    {
+      "id": "f8fd377b-e971-4c55-a30a-2a9e9ec72df0",
       "name": "Bucky Irving",
       "position": "RB",
       "nflTeam": "TBB",
       "age": 23.8,
       "isRookie": false,
-      "dynastyValue": 3448,
+      "dynastyValue": 3486,
       "adp": 41
     },
     {
-      "id": "66b4cc7e-b13c-483b-81e8-565dc226b1a2",
-      "name": "Zay Flowers",
-      "position": "WR",
-      "nflTeam": "BAL",
-      "age": 25.8,
-      "isRookie": false,
-      "dynastyValue": 3446,
-      "adp": 71
-    },
-    {
-      "id": "c6bb6bde-f22e-4d0c-9c00-5111ea5753fd",
-      "name": "C.J. Stroud",
-      "position": "QB",
-      "nflTeam": "HOU",
-      "age": 24.7,
-      "isRookie": false,
-      "dynastyValue": 3442,
-      "adp": 37
-    },
-    {
-      "id": "41a510e3-b81c-478f-b0a9-8ffa2ba6618d",
+      "id": "36d06f53-18d9-4620-9815-fa8e26cce034",
       "name": "Cam Skattebo",
       "position": "RB",
       "nflTeam": "NYG",
       "age": 24.4,
       "isRookie": false,
-      "dynastyValue": 3431,
-      "adp": 100
+      "dynastyValue": 3454,
+      "adp": 99
     },
     {
-      "id": "9dfd0c6c-73a5-4792-81fd-a07ca0569e58",
+      "id": "530a51d1-fa2f-47db-95cf-707d9d8f4a35",
+      "name": "Zay Flowers",
+      "position": "WR",
+      "nflTeam": "BAL",
+      "age": 25.8,
+      "isRookie": false,
+      "dynastyValue": 3452,
+      "adp": 70
+    },
+    {
+      "id": "9e2f3323-92da-46c4-9832-b41559a37f0a",
+      "name": "C.J. Stroud",
+      "position": "QB",
+      "nflTeam": "HOU",
+      "age": 24.7,
+      "isRookie": false,
+      "dynastyValue": 3450,
+      "adp": 37
+    },
+    {
+      "id": "7c9313cb-a3f4-435b-b7dd-cde2ff84f40c",
       "name": "Jared Goff",
       "position": "QB",
       "nflTeam": "DET",
       "age": 31.7,
       "isRookie": false,
-      "dynastyValue": 3392,
+      "dynastyValue": 3414,
       "adp": 52
     },
     {
-      "id": "7db1964f-13a4-47fc-abb6-657d9ab1028c",
+      "id": "6a4aeec9-aa64-4bd0-8cd4-89d99fb4baf6",
       "name": "Jaylen Waddle",
       "position": "WR",
       "nflTeam": "DEN",
       "age": 27.6,
       "isRookie": false,
-      "dynastyValue": 3324,
+      "dynastyValue": 3349,
       "adp": 83
     },
     {
-      "id": "3ec54d9c-5123-4d34-b723-01ef40c0979d",
-      "name": "Javonte Williams",
-      "position": "RB",
-      "nflTeam": "DAL",
-      "age": 26.1,
-      "isRookie": false,
-      "dynastyValue": 3273,
-      "adp": 141
-    },
-    {
-      "id": "6136e4b7-a8d7-4c84-9ea0-2ef6f37c17ad",
+      "id": "0c7fab75-8eae-48dc-89e2-8c9b3b7cfd9f",
       "name": "Sam LaPorta",
       "position": "TE",
       "nflTeam": "DET",
       "age": 25.4,
       "isRookie": false,
-      "dynastyValue": 3246,
+      "dynastyValue": 3281,
       "adp": 48
     },
     {
-      "id": "7c842085-80e7-469f-b904-682671fd2a5b",
+      "id": "13c32337-5fa8-4b2b-be31-841779f9b581",
+      "name": "Javonte Williams",
+      "position": "RB",
+      "nflTeam": "DAL",
+      "age": 26.2,
+      "isRookie": false,
+      "dynastyValue": 3257,
+      "adp": 141
+    },
+    {
+      "id": "2df1cd12-2116-48ef-bf25-358e306bc0ef",
       "name": "Jameson Williams",
       "position": "WR",
       "nflTeam": "DET",
       "age": 25.2,
       "isRookie": false,
-      "dynastyValue": 3195,
+      "dynastyValue": 3215,
       "adp": 78
     },
     {
-      "id": "55e3e756-8891-4320-bc35-f483503b5691",
+      "id": "44d3df28-831d-4dc6-a232-b51e664f0eae",
       "name": "Travis Etienne",
       "position": "RB",
       "nflTeam": "NOS",
       "age": 27.4,
       "isRookie": false,
-      "dynastyValue": 3186,
+      "dynastyValue": 3191,
       "adp": 119
     },
     {
-      "id": "8ac5a593-040c-4958-ab6d-4344b42e77c1",
-      "name": "Kyle Pitts",
-      "position": "TE",
-      "nflTeam": "ATL",
-      "age": 25.7,
-      "isRookie": false,
-      "dynastyValue": 3185,
-      "adp": 104
-    },
-    {
-      "id": "04f0a1c7-df82-4168-9360-a767ee46ea37",
+      "id": "da5dfc5e-7407-4599-97fe-139bf9ef9c94",
       "name": "Kenyon Sadiq",
       "position": "TE",
       "nflTeam": "NYJ",
       "age": 21.3,
       "isRookie": true,
-      "dynastyValue": 3184,
-      "adp": 52
+      "dynastyValue": 3174,
+      "adp": 56
     },
     {
-      "id": "cbcb50d2-093f-4a4e-af14-428387c59918",
+      "id": "a8a3705a-6561-4ab2-adea-8ada92696b88",
       "name": "KC Concepcion",
       "position": "WR",
       "nflTeam": "CLE",
       "age": 21.7,
       "isRookie": true,
-      "dynastyValue": 3115,
-      "adp": 46
+      "dynastyValue": 3122,
+      "adp": 49
     },
     {
-      "id": "dccec116-b832-468f-93d4-9b5e0f18355e",
+      "id": "150dac39-d072-49b2-860e-7020c97027c0",
       "name": "Sam Darnold",
       "position": "QB",
       "nflTeam": "SEA",
       "age": 29,
       "isRookie": false,
-      "dynastyValue": 3070,
+      "dynastyValue": 3072,
       "adp": 99
     },
     {
-      "id": "ebe9da01-d865-4d74-b7aa-e2198f38a292",
+      "id": "7468a4c6-247f-44fb-8c73-6f91a81a3bc6",
       "name": "Bryce Young",
       "position": "QB",
       "nflTeam": "CAR",
       "age": 24.9,
       "isRookie": false,
-      "dynastyValue": 2996,
+      "dynastyValue": 3053,
       "adp": 69
     },
     {
-      "id": "16463292-b8aa-4b3e-b83f-1669dee9ce21",
+      "id": "bfcfc2cd-d0d5-4bb7-9e24-e19550d37e2a",
+      "name": "Kyle Pitts",
+      "position": "TE",
+      "nflTeam": "ATL",
+      "age": 25.7,
+      "isRookie": false,
+      "dynastyValue": 3053,
+      "adp": 104
+    },
+    {
+      "id": "26be1693-585b-45cb-a611-9a78bd7b024d",
       "name": "Kyler Murray",
       "position": "QB",
       "nflTeam": "MIN",
       "age": 28.9,
       "isRookie": false,
-      "dynastyValue": 2889,
-      "adp": 37
+      "dynastyValue": 2873,
+      "adp": 38
     },
     {
-      "id": "74b29bc0-9ae4-45c5-8bc8-c48b7dfdaf99",
+      "id": "193d9327-d6b3-40d7-aa92-cef60ea039d9",
       "name": "Derrick Henry",
       "position": "RB",
       "nflTeam": "BAL",
       "age": 32.4,
       "isRookie": false,
-      "dynastyValue": 2871,
+      "dynastyValue": 2865,
       "adp": 61
     },
     {
-      "id": "38aae914-e42a-44e9-8772-2753c13278a3",
+      "id": "c40ec65d-eff7-479e-a0ea-6ecfc5943e91",
       "name": "Josh Jacobs",
       "position": "RB",
       "nflTeam": "GBP",
-      "age": 28.3,
+      "age": 28.4,
       "isRookie": false,
-      "dynastyValue": 2772,
+      "dynastyValue": 2737,
       "adp": 61
     },
     {
-      "id": "0a68e1ab-c9c8-4610-bf61-c15b66057962",
+      "id": "ac5d5922-aaff-41f9-9a69-c06c818c38a4",
       "name": "Bhayshul Tuten",
       "position": "RB",
       "nflTeam": "JAC",
       "age": 23.3,
       "isRookie": false,
-      "dynastyValue": 2582,
-      "adp": 117
+      "dynastyValue": 2580,
+      "adp": 116
     },
     {
-      "id": "7fef026d-dcd2-40d1-8de9-b8c754b4f4cb",
+      "id": "12f6e3cf-dad4-4560-a459-049df5e4fb75",
+      "name": "Daniel Jones",
+      "position": "QB",
+      "nflTeam": "IND",
+      "age": 29.1,
+      "isRookie": false,
+      "dynastyValue": 2550,
+      "adp": 157
+    },
+    {
+      "id": "8a548420-80eb-4a28-b37b-be79765fa766",
       "name": "Omar Cooper Jr.",
       "position": "WR",
       "nflTeam": "NYJ",
       "age": 22.5,
       "isRookie": true,
-      "dynastyValue": 2554,
-      "adp": 63
-    },
-    {
-      "id": "46caa087-eebf-419b-a23c-bce96d8e95d1",
-      "name": "Eli Stowers",
-      "position": "TE",
-      "nflTeam": "PHI",
-      "age": 23.2,
-      "isRookie": true,
-      "dynastyValue": 2539,
+      "dynastyValue": 2542,
       "adp": 66
     },
     {
-      "id": "33ece6ad-a333-4413-92be-59756d958282",
+      "id": "49feb948-eed9-42ea-9c9b-e8deda466dc3",
       "name": "Matthew Stafford",
       "position": "QB",
       "nflTeam": "LAR",
       "age": 38.4,
       "isRookie": false,
-      "dynastyValue": 2515,
+      "dynastyValue": 2520,
       "adp": 107
     },
     {
-      "id": "8f698c1b-4479-4a2a-9f6e-1f28b29ee793",
-      "name": "Daniel Jones",
-      "position": "QB",
-      "nflTeam": "IND",
-      "age": 29,
-      "isRookie": false,
-      "dynastyValue": 2503,
-      "adp": 157
+      "id": "fde8b72b-7368-438e-af14-352ce732b162",
+      "name": "Eli Stowers",
+      "position": "TE",
+      "nflTeam": "PHI",
+      "age": 23.2,
+      "isRookie": true,
+      "dynastyValue": 2514,
+      "adp": 69
     },
     {
-      "id": "f274036d-b23a-4162-ab43-f557346158cc",
+      "id": "0b7f006d-9dba-42ac-9fec-0870dde906d8",
       "name": "Malik Willis",
       "position": "QB",
       "nflTeam": "MIA",
       "age": 27.1,
       "isRookie": false,
-      "dynastyValue": 2489,
-      "adp": 256
+      "dynastyValue": 2498,
+      "adp": 254
     },
     {
-      "id": "1212fe0a-2de6-4c5d-8185-ffefd1fbd320",
-      "name": "Alec Pierce",
-      "position": "WR",
-      "nflTeam": "IND",
-      "age": 26.1,
-      "isRookie": false,
-      "dynastyValue": 2486,
-      "adp": 209
-    },
-    {
-      "id": "86c0d619-feda-4ddd-9d8a-625e912176d7",
+      "id": "5bc6804b-1f41-4c96-9fa3-7cd6b515d313",
       "name": "Ty Simpson",
       "position": "QB",
       "nflTeam": "LAR",
       "age": 23.5,
       "isRookie": true,
-      "dynastyValue": 2475,
-      "adp": 49
+      "dynastyValue": 2495,
+      "adp": 55
     },
     {
-      "id": "5c9bad17-3d5b-4436-9b47-9a15082e292d",
-      "name": "Christian Watson",
+      "id": "a0023a30-814f-4896-8ad1-5949a137e7f0",
+      "name": "Alec Pierce",
       "position": "WR",
-      "nflTeam": "GBP",
-      "age": 27.1,
+      "nflTeam": "IND",
+      "age": 26.1,
       "isRookie": false,
-      "dynastyValue": 2303,
-      "adp": 220
+      "dynastyValue": 2483,
+      "adp": 207
     },
     {
-      "id": "422c9cc1-b860-4c49-8021-fbf18f5e6744",
+      "id": "f4bd4a80-7f0a-4aed-b69f-532099bc5be7",
       "name": "D.J. Moore",
       "position": "WR",
       "nflTeam": "BUF",
       "age": 29.2,
       "isRookie": false,
-      "dynastyValue": 2283,
+      "dynastyValue": 2282,
       "adp": 82
     },
     {
-      "id": "14ef12f6-111e-4f30-9993-802c14b56fb9",
-      "name": "Jordan Addison",
+      "id": "82d886d7-1f5e-4031-8f72-b6e0dd4f0d6c",
+      "name": "Christian Watson",
       "position": "WR",
-      "nflTeam": "MIN",
-      "age": 24.4,
+      "nflTeam": "GBP",
+      "age": 27.1,
       "isRookie": false,
-      "dynastyValue": 2240,
-      "adp": 85
+      "dynastyValue": 2264,
+      "adp": 218
     },
     {
-      "id": "d8fa0eca-edad-43cf-ae7e-11889e484fde",
+      "id": "f721f0e3-cae6-4163-baf4-f67e7ac9e94e",
       "name": "Denzel Boston",
       "position": "WR",
       "nflTeam": "CLE",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 2232,
-      "adp": 68
+      "dynastyValue": 2240,
+      "adp": 72
     },
     {
-      "id": "08e20376-d2c2-4f38-9614-b80694d62021",
+      "id": "b9698da9-383c-4026-a05f-8a2880cf71c2",
+      "name": "Jordan Addison",
+      "position": "WR",
+      "nflTeam": "MIN",
+      "age": 24.4,
+      "isRookie": false,
+      "dynastyValue": 2239,
+      "adp": 85
+    },
+    {
+      "id": "8c93fa68-8960-45d9-9b32-923f11751fa0",
       "name": "Terry McLaurin",
       "position": "WR",
       "nflTeam": "WAS",
       "age": 30.8,
       "isRookie": false,
-      "dynastyValue": 2226,
+      "dynastyValue": 2208,
       "adp": 81
     },
     {
-      "id": "2b2e7b7e-aace-4227-8a7c-1b3d5a4b0759",
+      "id": "d2ba3d7f-e02b-49d1-aaf4-c0f861645655",
       "name": "D'Andre Swift",
       "position": "RB",
       "nflTeam": "CHI",
       "age": 27.4,
       "isRookie": false,
-      "dynastyValue": 2190,
+      "dynastyValue": 2183,
       "adp": 104
     },
     {
-      "id": "334d342f-5205-4c5a-8b28-6291722645b0",
-      "name": "RJ Harvey",
-      "position": "RB",
-      "nflTeam": "DEN",
-      "age": 25.4,
-      "isRookie": false,
-      "dynastyValue": 2106,
-      "adp": 70
-    },
-    {
-      "id": "4631b79c-792c-48d4-af62-c0b57308cabf",
+      "id": "36cc7103-edf4-4373-a661-60d5f7629ae4",
       "name": "Parker Washington",
       "position": "WR",
       "nflTeam": "JAC",
       "age": 24.2,
       "isRookie": false,
-      "dynastyValue": 2091,
-      "adp": 270
+      "dynastyValue": 2088,
+      "adp": 266
     },
     {
-      "id": "dcada2d2-afbc-4f09-ad79-da023e515817",
-      "name": "Oronde Gadsden",
-      "position": "TE",
-      "nflTeam": "LAC",
-      "age": 23,
-      "isRookie": false,
-      "dynastyValue": 2075,
-      "adp": 185
-    },
-    {
-      "id": "fe79f34a-4530-4c3d-b6f8-a0fa50ee372b",
-      "name": "Matthew Golden",
-      "position": "WR",
-      "nflTeam": "GBP",
-      "age": 22.9,
-      "isRookie": false,
-      "dynastyValue": 2058,
-      "adp": 84
-    },
-    {
-      "id": "d6afef52-094f-4099-a4c5-fabc2b41ced0",
+      "id": "0f7a9fe4-2756-4a72-bcb2-5af1f57c06d4",
       "name": "Michael Wilson",
       "position": "WR",
       "nflTeam": "ARI",
       "age": 26.3,
       "isRookie": false,
-      "dynastyValue": 2057,
-      "adp": 224
+      "dynastyValue": 2076,
+      "adp": 223
     },
     {
-      "id": "a1a28f65-3e2c-49b1-bc40-48e0915fa4ca",
+      "id": "0f678cb3-3efa-4e83-a1e1-a217ec729a3d",
+      "name": "Matthew Golden",
+      "position": "WR",
+      "nflTeam": "GBP",
+      "age": 22.9,
+      "isRookie": false,
+      "dynastyValue": 2067,
+      "adp": 84
+    },
+    {
+      "id": "92f8c249-482b-4caa-96fc-dfdcc6a39d18",
+      "name": "Oronde Gadsden",
+      "position": "TE",
+      "nflTeam": "LAC",
+      "age": 23,
+      "isRookie": false,
+      "dynastyValue": 2063,
+      "adp": 184
+    },
+    {
+      "id": "b7978a31-53c0-45a0-ae45-d333b81d0233",
+      "name": "RJ Harvey",
+      "position": "RB",
+      "nflTeam": "DEN",
+      "age": 25.4,
+      "isRookie": false,
+      "dynastyValue": 2059,
+      "adp": 70
+    },
+    {
+      "id": "352f268c-64c6-4636-99b6-a4d10cd2a7b3",
       "name": "DK Metcalf",
       "position": "WR",
       "nflTeam": "PIT",
       "age": 28.5,
       "isRookie": false,
-      "dynastyValue": 2023,
+      "dynastyValue": 2026,
       "adp": 78
     },
     {
-      "id": "37ced683-65d5-43a3-b1b7-a3156892196b",
-      "name": "Josh Downs",
-      "position": "WR",
-      "nflTeam": "IND",
-      "age": 24.8,
-      "isRookie": false,
-      "dynastyValue": 2016,
-      "adp": 112
-    },
-    {
-      "id": "9298370e-3fd5-47ba-9766-e0e1a1a9c0ef",
+      "id": "b0ec101b-623d-4b48-86aa-04785c45881c",
       "name": "David Montgomery",
       "position": "RB",
       "nflTeam": "HOU",
@@ -1082,747 +1072,757 @@
       "adp": 106
     },
     {
-      "id": "2806079a-40f0-48c1-877d-20a35f6280e1",
+      "id": "72c9930a-ce52-4d0a-b4a4-5a994f4b2704",
+      "name": "Josh Downs",
+      "position": "WR",
+      "nflTeam": "IND",
+      "age": 24.8,
+      "isRookie": false,
+      "dynastyValue": 2010,
+      "adp": 112
+    },
+    {
+      "id": "1b73d187-9742-460f-9e16-a331d50bc030",
       "name": "Jonah Coleman",
       "position": "RB",
       "nflTeam": "DEN",
       "age": 22.8,
       "isRookie": true,
-      "dynastyValue": 2008,
-      "adp": 66
+      "dynastyValue": 1986,
+      "adp": 71
     },
     {
-      "id": "36cbe38f-fc5f-4be7-835f-0fe51c625e81",
-      "name": "Isaiah Likely",
-      "position": "TE",
-      "nflTeam": "NYG",
-      "age": 26.2,
-      "isRookie": false,
-      "dynastyValue": 1995,
-      "adp": 128
-    },
-    {
-      "id": "9b6958b1-690a-4bbc-9cf2-b9200a21ea4d",
-      "name": "Wan'Dale Robinson",
-      "position": "WR",
-      "nflTeam": "TEN",
-      "age": 25.4,
-      "isRookie": false,
-      "dynastyValue": 1950,
-      "adp": 174
-    },
-    {
-      "id": "0d474d92-5007-4f46-abc6-029edc077ee2",
-      "name": "Davante Adams",
-      "position": "WR",
-      "nflTeam": "LAR",
-      "age": 33.5,
-      "isRookie": false,
-      "dynastyValue": 1928,
-      "adp": 97
-    },
-    {
-      "id": "601104c9-0ac1-4a8b-97ee-746916f25a5d",
-      "name": "Jake Ferguson",
-      "position": "TE",
-      "nflTeam": "DAL",
-      "age": 27.4,
-      "isRookie": false,
-      "dynastyValue": 1925,
-      "adp": 129
-    },
-    {
-      "id": "0cdd827d-3d53-4dc5-9d69-861122ae4388",
-      "name": "Mike Evans",
-      "position": "WR",
-      "nflTeam": "SFO",
-      "age": 32.8,
-      "isRookie": false,
-      "dynastyValue": 1923,
-      "adp": 94
-    },
-    {
-      "id": "9416dc1c-5f9a-4f56-ae01-9be9ef1e9259",
-      "name": "Quentin Johnston",
-      "position": "WR",
-      "nflTeam": "LAC",
-      "age": 24.8,
-      "isRookie": false,
-      "dynastyValue": 1907,
-      "adp": 183
-    },
-    {
-      "id": "3d93fb79-e947-4946-abb3-1bb21f68b47c",
-      "name": "Travis Hunter",
-      "position": "WR",
-      "nflTeam": "JAC",
-      "age": 23.1,
-      "isRookie": false,
-      "dynastyValue": 1907,
-      "adp": 52
-    },
-    {
-      "id": "e74443cd-5406-4309-b1f9-5be260b085d3",
+      "id": "4c6473e4-6c7e-4475-9772-c68788fa4991",
       "name": "George Kittle",
       "position": "TE",
       "nflTeam": "SFO",
       "age": 32.7,
       "isRookie": false,
-      "dynastyValue": 1897,
+      "dynastyValue": 1971,
       "adp": 63
     },
     {
-      "id": "b83810bd-755c-4023-b2c6-9145ad8c6cdd",
+      "id": "a01643ac-6487-41e6-af95-7e21e6943d8a",
+      "name": "Davante Adams",
+      "position": "WR",
+      "nflTeam": "LAR",
+      "age": 33.5,
+      "isRookie": false,
+      "dynastyValue": 1956,
+      "adp": 97
+    },
+    {
+      "id": "fcea75e9-5d00-4f56-8ccd-d9f69b9d2dd9",
+      "name": "Wan'Dale Robinson",
+      "position": "WR",
+      "nflTeam": "TEN",
+      "age": 25.4,
+      "isRookie": false,
+      "dynastyValue": 1955,
+      "adp": 174
+    },
+    {
+      "id": "500e2910-218d-425b-b54f-814a5639ea81",
+      "name": "Mike Evans",
+      "position": "WR",
+      "nflTeam": "SFO",
+      "age": 32.8,
+      "isRookie": false,
+      "dynastyValue": 1931,
+      "adp": 94
+    },
+    {
+      "id": "24d0b8c0-5c47-490d-ae0a-a64f783ec448",
+      "name": "Travis Hunter",
+      "position": "WR",
+      "nflTeam": "JAC",
+      "age": 23.1,
+      "isRookie": false,
+      "dynastyValue": 1923,
+      "adp": 53
+    },
+    {
+      "id": "90a2779f-3dc7-4c7c-ba4d-c981430a2f06",
+      "name": "Quentin Johnston",
+      "position": "WR",
+      "nflTeam": "LAC",
+      "age": 24.8,
+      "isRookie": false,
+      "dynastyValue": 1922,
+      "adp": 182
+    },
+    {
+      "id": "6e2ecc45-1d19-42b8-94c9-3162d7467839",
       "name": "Chuba Hubbard",
       "position": "RB",
       "nflTeam": "CAR",
       "age": 27,
       "isRookie": false,
-      "dynastyValue": 1894,
+      "dynastyValue": 1905,
       "adp": 83
     },
     {
-      "id": "07be407d-d82a-43d7-9a20-4d469a8cc9e5",
+      "id": "d4682246-5b5b-4c6d-ae82-da8d1d948666",
+      "name": "Isaiah Likely",
+      "position": "TE",
+      "nflTeam": "NYG",
+      "age": 26.2,
+      "isRookie": false,
+      "dynastyValue": 1899,
+      "adp": 128
+    },
+    {
+      "id": "50ff2023-fab6-49fe-9d86-d8e85edb2a00",
       "name": "Kyle Monangai",
       "position": "RB",
       "nflTeam": "CHI",
       "age": 24,
       "isRookie": false,
-      "dynastyValue": 1862,
-      "adp": 204
+      "dynastyValue": 1874,
+      "adp": 203
     },
     {
-      "id": "0ef52733-6dad-47d9-992b-0a2a4214fe1d",
+      "id": "1c0c5be7-fb6f-49fe-bca5-8eabd530d03d",
+      "name": "Jake Ferguson",
+      "position": "TE",
+      "nflTeam": "DAL",
+      "age": 27.4,
+      "isRookie": false,
+      "dynastyValue": 1864,
+      "adp": 129
+    },
+    {
+      "id": "00e1a209-7c05-4cb5-903d-a99d79258130",
       "name": "Ricky Pearsall",
       "position": "WR",
       "nflTeam": "SFO",
       "age": 25.8,
       "isRookie": false,
-      "dynastyValue": 1841,
+      "dynastyValue": 1850,
       "adp": 98
     },
     {
-      "id": "0d409aaf-2264-4271-a59e-e9df8190844a",
-      "name": "Dalton Kincaid",
-      "position": "TE",
-      "nflTeam": "BUF",
-      "age": 26.7,
-      "isRookie": false,
-      "dynastyValue": 1839,
-      "adp": 104
-    },
-    {
-      "id": "af3f56f0-2b48-4482-9ad0-f3684c612c97",
+      "id": "374755d4-21fa-4e67-93e4-6959eb93bd47",
       "name": "Michael Pittman",
       "position": "WR",
       "nflTeam": "PIT",
       "age": 28.7,
       "isRookie": false,
-      "dynastyValue": 1828,
+      "dynastyValue": 1825,
       "adp": 127
     },
     {
-      "id": "f3b2c91b-cdf4-4b66-9fe4-06b830dcadfa",
+      "id": "f962bdec-bab4-4663-aed8-e96c21568387",
       "name": "Xavier Worthy",
       "position": "WR",
       "nflTeam": "KCC",
       "age": 23.1,
       "isRookie": false,
-      "dynastyValue": 1813,
+      "dynastyValue": 1823,
       "adp": 71
     },
     {
-      "id": "cde434d0-e90c-45bb-a3eb-e0fdfd78a329",
+      "id": "e0462792-2bf9-4385-a3b7-96a23410adbd",
       "name": "Jayden Higgins",
       "position": "WR",
       "nflTeam": "HOU",
       "age": 23.5,
       "isRookie": false,
-      "dynastyValue": 1812,
+      "dynastyValue": 1815,
       "adp": 104
     },
     {
-      "id": "76c909da-23ae-486b-a960-75ffd19e17de",
+      "id": "17acf942-c033-47ea-ba04-84278373687f",
       "name": "Chris Bell",
       "position": "WR",
       "nflTeam": "MIA",
       "age": 22,
       "isRookie": true,
-      "dynastyValue": 1789,
-      "adp": 88
+      "dynastyValue": 1788,
+      "adp": 92
     },
     {
-      "id": "586588be-621e-44ff-b6c5-2b19e7859341",
+      "id": "98dcb985-4f92-46ce-965b-52253f2c11c5",
       "name": "Jaylen Warren",
       "position": "RB",
       "nflTeam": "PIT",
       "age": 27.6,
       "isRookie": false,
-      "dynastyValue": 1763,
+      "dynastyValue": 1768,
       "adp": 135
     },
     {
-      "id": "07c18bfd-016e-4ef1-b62e-3867915b6342",
+      "id": "1f4f3bdd-e459-4a51-80ce-0b412ba02f55",
       "name": "Jayden Reed",
       "position": "WR",
       "nflTeam": "GBP",
       "age": 26.1,
       "isRookie": false,
-      "dynastyValue": 1757,
+      "dynastyValue": 1753,
       "adp": 117
     },
     {
-      "id": "641a5c50-87f7-4812-bc94-8dec92f974b9",
+      "id": "7d628784-dc80-4975-a369-9904f70887b6",
       "name": "Nicholas Singleton",
       "position": "RB",
       "nflTeam": "TEN",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 1749,
-      "adp": 80
+      "dynastyValue": 1732,
+      "adp": 85
     },
     {
-      "id": "4dd4ec20-b139-40bf-a243-5750b382cb5c",
+      "id": "e63b6830-611d-40c3-af26-1b86a7c7b347",
       "name": "Antonio Williams",
       "position": "WR",
       "nflTeam": "WAS",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 1712,
-      "adp": 89
+      "dynastyValue": 1729,
+      "adp": 93
     },
     {
-      "id": "38bb1b9c-4c4c-4550-8cc4-916f7098e774",
+      "id": "d1bebcc6-14e4-4a35-ab8c-4db6c14fa874",
       "name": "Zach Charbonnet",
       "position": "RB",
       "nflTeam": "SEA",
       "age": 25.4,
       "isRookie": false,
-      "dynastyValue": 1711,
-      "adp": 126
+      "dynastyValue": 1726,
+      "adp": 125
     },
     {
-      "id": "7f9bb856-0629-49f3-832c-0b049c1053b9",
+      "id": "e27e1469-6f47-4c6a-aeab-a38d0fef26a1",
       "name": "Blake Corum",
       "position": "RB",
       "nflTeam": "LAR",
       "age": 25.6,
       "isRookie": false,
-      "dynastyValue": 1705,
-      "adp": 198
+      "dynastyValue": 1717,
+      "adp": 197
     },
     {
-      "id": "9b3f0b00-f8fc-4fdc-9647-5dd983766789",
-      "name": "Germie Bernard",
-      "position": "WR",
-      "nflTeam": "PIT",
-      "age": 22.5,
-      "isRookie": true,
-      "dynastyValue": 1677,
-      "adp": 89
+      "id": "1bf59441-2f8a-4235-b2ba-22e95bc48647",
+      "name": "Dalton Kincaid",
+      "position": "TE",
+      "nflTeam": "BUF",
+      "age": 26.7,
+      "isRookie": false,
+      "dynastyValue": 1697,
+      "adp": 104
     },
     {
-      "id": "6d495c65-e317-45c4-8f15-7dde01b30280",
+      "id": "4de44516-155a-4db2-8bb6-c3ce919fc872",
       "name": "Rico Dowdle",
       "position": "RB",
       "nflTeam": "PIT",
       "age": 28,
       "isRookie": false,
-      "dynastyValue": 1665,
-      "adp": 198
+      "dynastyValue": 1676,
+      "adp": 197
     },
     {
-      "id": "0e994c85-0365-4580-b951-9bbef71d9f97",
+      "id": "f5405647-bfee-43f0-9c69-7bb40bf1f0ea",
+      "name": "Germie Bernard",
+      "position": "WR",
+      "nflTeam": "PIT",
+      "age": 22.5,
+      "isRookie": true,
+      "dynastyValue": 1669,
+      "adp": 93
+    },
+    {
+      "id": "c69496ba-7ff9-4eea-a592-a91289bc5165",
       "name": "Jonathon Brooks",
       "position": "RB",
       "nflTeam": "CAR",
       "age": 22.9,
       "isRookie": false,
-      "dynastyValue": 1615,
-      "adp": 205
+      "dynastyValue": 1600,
+      "adp": 204
     },
     {
-      "id": "862b72d1-79af-42dd-a1e2-e634bc56547e",
+      "id": "d76d0662-ee35-47d3-80f6-eca843db6436",
       "name": "Michael Penix Jr.",
       "position": "QB",
       "nflTeam": "ATL",
       "age": 26.1,
       "isRookie": false,
       "dynastyValue": 1591,
-      "adp": 66
+      "adp": 67
     },
     {
-      "id": "38c42c8f-80cc-4995-807a-db26938a9856",
+      "id": "f60d9749-506b-4b2f-921a-02530969e515",
       "name": "Courtland Sutton",
       "position": "WR",
       "nflTeam": "DEN",
       "age": 30.7,
       "isRookie": false,
-      "dynastyValue": 1577,
-      "adp": 98
+      "dynastyValue": 1576,
+      "adp": 99
     },
     {
-      "id": "57622ec9-cc4f-45c8-b4e2-cf0e38c430f7",
+      "id": "997861e3-a528-4bf3-81c9-a4d60d2635e4",
       "name": "Romeo Doubs",
       "position": "WR",
       "nflTeam": "NEP",
       "age": 26.2,
       "isRookie": false,
-      "dynastyValue": 1565,
-      "adp": 200
+      "dynastyValue": 1560,
+      "adp": 199
     },
     {
-      "id": "bf9e4997-2054-483d-a82a-6aa256f0709a",
-      "name": "Jakobi Meyers",
-      "position": "WR",
-      "nflTeam": "JAC",
-      "age": 29.6,
-      "isRookie": false,
-      "dynastyValue": 1516,
-      "adp": 128
-    },
-    {
-      "id": "e1e8352d-bf65-46f7-807f-29074c3e7e5a",
+      "id": "a58e5b0b-a1b4-41a9-be28-367cde82ea63",
       "name": "Brenton Strange",
       "position": "TE",
       "nflTeam": "JAC",
       "age": 25.5,
       "isRookie": false,
-      "dynastyValue": 1505,
-      "adp": 152
+      "dynastyValue": 1493,
+      "adp": 153
     },
     {
-      "id": "aaadcc5d-1154-473b-ae7b-f113ea7fe3f5",
-      "name": "Jalen Coker",
+      "id": "588175f8-9665-4bda-911b-684dee6d760b",
+      "name": "Jakobi Meyers",
       "position": "WR",
-      "nflTeam": "CAR",
-      "age": 24.6,
+      "nflTeam": "JAC",
+      "age": 29.6,
       "isRookie": false,
-      "dynastyValue": 1469,
-      "adp": 204
+      "dynastyValue": 1482,
+      "adp": 128
     },
     {
-      "id": "d870c044-7203-47e9-b8cc-0e19c95bbffb",
-      "name": "Jalen McMillan",
-      "position": "WR",
-      "nflTeam": "TBB",
-      "age": 24.5,
-      "isRookie": false,
-      "dynastyValue": 1469,
-      "adp": 177
-    },
-    {
-      "id": "5ab9c8aa-b542-441b-8d07-5af9472d8b0d",
-      "name": "Jacory Croskey-Merritt",
-      "position": "RB",
-      "nflTeam": "WAS",
-      "age": 25.2,
-      "isRookie": false,
-      "dynastyValue": 1463,
-      "adp": 186
-    },
-    {
-      "id": "d8a2408e-1cff-4161-aa90-ab0274e80ab8",
+      "id": "89e3ba61-8fee-4a86-b63a-cbf2ae90dd18",
       "name": "Chris Godwin",
       "position": "WR",
       "nflTeam": "TBB",
       "age": 30.3,
       "isRookie": false,
-      "dynastyValue": 1461,
+      "dynastyValue": 1478,
       "adp": 120
     },
     {
-      "id": "24fe1a20-d2b3-468c-903c-9ac68c2d08ca",
+      "id": "3ff34698-069c-4e84-af77-751510da1a90",
+      "name": "Jalen Coker",
+      "position": "WR",
+      "nflTeam": "CAR",
+      "age": 24.6,
+      "isRookie": false,
+      "dynastyValue": 1477,
+      "adp": 203
+    },
+    {
+      "id": "a4e08d3d-6e17-4335-8c26-eb7312167b71",
+      "name": "Jalen McMillan",
+      "position": "WR",
+      "nflTeam": "TBB",
+      "age": 24.5,
+      "isRookie": false,
+      "dynastyValue": 1465,
+      "adp": 177
+    },
+    {
+      "id": "967ba1b9-0353-4883-9fcc-c74a137a7c03",
       "name": "Elijah Sarratt",
       "position": "WR",
       "nflTeam": "BAL",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 1451,
-      "adp": 118
+      "dynastyValue": 1460,
+      "adp": 123
     },
     {
-      "id": "46a0bb32-8c9b-499e-8dd4-512cf0047283",
-      "name": "Zachariah Branch",
-      "position": "WR",
-      "nflTeam": "ATL",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 1441,
-      "adp": 109
-    },
-    {
-      "id": "0f4dc238-5879-46e0-b1ac-c950b1aabd7e",
-      "name": "Kenneth Gainwell",
+      "id": "03eb4b23-897c-4087-98c7-e90bc6051582",
+      "name": "Jacory Croskey-Merritt",
       "position": "RB",
-      "nflTeam": "TBB",
-      "age": 27.3,
+      "nflTeam": "WAS",
+      "age": 25.2,
       "isRookie": false,
-      "dynastyValue": 1440,
-      "adp": 286
+      "dynastyValue": 1457,
+      "adp": 186
     },
     {
-      "id": "ed2fcd0d-2c07-4718-8b40-02de422d9ab8",
-      "name": "Rhamondre Stevenson",
-      "position": "RB",
-      "nflTeam": "NEP",
-      "age": 28.3,
-      "isRookie": false,
-      "dynastyValue": 1437,
-      "adp": 159
-    },
-    {
-      "id": "dc44de4b-afb8-4d1d-b74a-0858fbd03a05",
-      "name": "Emmett Johnson",
-      "position": "RB",
-      "nflTeam": "KCC",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 1434,
-      "adp": 89
-    },
-    {
-      "id": "8d9cb19b-7bdf-4e67-b1d9-82746a527dde",
-      "name": "J.K. Dobbins",
-      "position": "RB",
-      "nflTeam": "DEN",
-      "age": 27.5,
-      "isRookie": false,
-      "dynastyValue": 1424,
-      "adp": 162
-    },
-    {
-      "id": "7044a1c2-d563-4d8e-a35e-3b5ec594f415",
+      "id": "0686e49b-8ec7-42a5-a4eb-da01f7494132",
       "name": "Stefon Diggs",
       "position": "WR",
       "nflTeam": "FA",
       "age": 32.6,
       "isRookie": false,
-      "dynastyValue": 1421,
-      "adp": 147
+      "dynastyValue": 1454,
+      "adp": 148
     },
     {
-      "id": "81c75749-33ad-4f96-aee4-9845b35688bb",
-      "name": "Mark Andrews",
-      "position": "TE",
-      "nflTeam": "BAL",
-      "age": 30.8,
+      "id": "4cedeee6-c9e3-4a8c-99c3-efecba36fa50",
+      "name": "Rhamondre Stevenson",
+      "position": "RB",
+      "nflTeam": "NEP",
+      "age": 28.3,
       "isRookie": false,
-      "dynastyValue": 1418,
-      "adp": 103
+      "dynastyValue": 1449,
+      "adp": 159
     },
     {
-      "id": "c8f22734-9c44-4e4c-96dc-ba50e962ff71",
+      "id": "c347afef-7e4b-495e-b652-ed4b8bb3d3bd",
+      "name": "Emmett Johnson",
+      "position": "RB",
+      "nflTeam": "KCC",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 1447,
+      "adp": 94
+    },
+    {
+      "id": "b2565db9-7933-4f64-93ab-c8cfd3c4e51e",
+      "name": "Kenneth Gainwell",
+      "position": "RB",
+      "nflTeam": "TBB",
+      "age": 27.3,
+      "isRookie": false,
+      "dynastyValue": 1435,
+      "adp": 282
+    },
+    {
+      "id": "4c6b852c-25ed-4801-9767-d0d489918bac",
+      "name": "Zachariah Branch",
+      "position": "WR",
+      "nflTeam": "ATL",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 1434,
+      "adp": 112
+    },
+    {
+      "id": "c0e67b65-8dcb-4ae6-bc44-d1a639c0a5fe",
+      "name": "J.K. Dobbins",
+      "position": "RB",
+      "nflTeam": "DEN",
+      "age": 27.5,
+      "isRookie": false,
+      "dynastyValue": 1427,
+      "adp": 162
+    },
+    {
+      "id": "4eb50b8f-7299-43e5-99d1-cf8dead686d9",
       "name": "De'Zhaun Stribling",
       "position": "WR",
       "nflTeam": "SFO",
       "age": 23.5,
       "isRookie": true,
-      "dynastyValue": 1411,
-      "adp": 102
+      "dynastyValue": 1414,
+      "adp": 105
     },
     {
-      "id": "e734db25-cf16-4c78-b94c-4aab14193a56",
-      "name": "Tony Pollard",
-      "position": "RB",
-      "nflTeam": "TEN",
-      "age": 29.1,
-      "isRookie": false,
-      "dynastyValue": 1407,
-      "adp": 124
-    },
-    {
-      "id": "9102d62e-b9f2-482c-b23e-8e1ecb881ea2",
-      "name": "Malachi Fields",
-      "position": "WR",
-      "nflTeam": "NYG",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 1386,
-      "adp": 107
-    },
-    {
-      "id": "fbfeee0d-8203-46f2-bc57-50c16029d8e5",
-      "name": "Tua Tagovailoa",
-      "position": "QB",
-      "nflTeam": "ATL",
-      "age": 28.3,
-      "isRookie": false,
-      "dynastyValue": 1384,
-      "adp": 91
-    },
-    {
-      "id": "c059a70f-c760-4b2b-8b43-aa46e427ee96",
-      "name": "T.J. Hockenson",
+      "id": "6f653165-958d-4d69-b5d0-8d2eea59f572",
+      "name": "Mark Andrews",
       "position": "TE",
-      "nflTeam": "MIN",
-      "age": 29,
+      "nflTeam": "BAL",
+      "age": 30.8,
       "isRookie": false,
-      "dynastyValue": 1366,
-      "adp": 80
+      "dynastyValue": 1408,
+      "adp": 104
     },
     {
-      "id": "2bcbdd57-3f87-497f-894e-9caf5d44ee97",
-      "name": "AJ Barner",
-      "position": "TE",
-      "nflTeam": "SEA",
-      "age": 24.1,
-      "isRookie": false,
-      "dynastyValue": 1362,
-      "adp": 248
-    },
-    {
-      "id": "4eee53b2-78ac-4bb8-98b6-e611fadc37d3",
-      "name": "Rachaad White",
-      "position": "RB",
-      "nflTeam": "WAS",
-      "age": 27.4,
-      "isRookie": false,
-      "dynastyValue": 1358,
-      "adp": 166
-    },
-    {
-      "id": "0fd09ee2-6012-465a-9e07-f76cff5b6fb2",
-      "name": "Chigoziem Okonkwo",
-      "position": "TE",
-      "nflTeam": "WAS",
-      "age": 26.8,
-      "isRookie": false,
-      "dynastyValue": 1351,
-      "adp": 183
-    },
-    {
-      "id": "43a22e20-0efb-499e-abef-96b8384c9454",
-      "name": "Khalil Shakir",
-      "position": "WR",
-      "nflTeam": "BUF",
-      "age": 26.4,
-      "isRookie": false,
-      "dynastyValue": 1347,
-      "adp": 122
-    },
-    {
-      "id": "77f849f4-a114-442b-a910-9d5e4437e47c",
-      "name": "Shedeur Sanders",
-      "position": "QB",
-      "nflTeam": "CLE",
-      "age": 24.4,
-      "isRookie": false,
-      "dynastyValue": 1340,
-      "adp": 148
-    },
-    {
-      "id": "4ed234f6-f105-4c76-85d4-4d3a5b675062",
+      "id": "e1b007aa-d73f-4c6c-b9d2-fd183cd21c83",
       "name": "J.J. McCarthy",
       "position": "QB",
       "nflTeam": "MIN",
       "age": 23.4,
       "isRookie": false,
-      "dynastyValue": 1337,
-      "adp": 58
+      "dynastyValue": 1400,
+      "adp": 59
     },
     {
-      "id": "e2250826-14b0-4f65-baa4-cc6bbb838af1",
-      "name": "Kaytron Allen",
-      "position": "RB",
-      "nflTeam": "WAS",
+      "id": "121262a0-b106-48ff-bfdb-593870daa90f",
+      "name": "Tua Tagovailoa",
+      "position": "QB",
+      "nflTeam": "ATL",
+      "age": 28.3,
+      "isRookie": false,
+      "dynastyValue": 1396,
+      "adp": 92
+    },
+    {
+      "id": "88a3b353-d98c-4d75-b188-13ba3c897936",
+      "name": "Malachi Fields",
+      "position": "WR",
+      "nflTeam": "NYG",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 1326,
-      "adp": 98
+      "dynastyValue": 1395,
+      "adp": 112
     },
     {
-      "id": "78a190a7-bf03-488b-bc40-c0e75bb82874",
+      "id": "dda141d5-2e70-46e2-81ca-32ae3152a029",
+      "name": "Tony Pollard",
+      "position": "RB",
+      "nflTeam": "TEN",
+      "age": 29.1,
+      "isRookie": false,
+      "dynastyValue": 1383,
+      "adp": 124
+    },
+    {
+      "id": "fd40c2a5-8b38-4d46-9539-cdb8d5d2f9f5",
+      "name": "Rachaad White",
+      "position": "RB",
+      "nflTeam": "WAS",
+      "age": 27.4,
+      "isRookie": false,
+      "dynastyValue": 1377,
+      "adp": 166
+    },
+    {
+      "id": "f9cdf3dc-4d09-4d31-b292-db03cd82fa40",
+      "name": "AJ Barner",
+      "position": "TE",
+      "nflTeam": "SEA",
+      "age": 24.1,
+      "isRookie": false,
+      "dynastyValue": 1360,
+      "adp": 247
+    },
+    {
+      "id": "6874d9d3-80af-4b04-a221-9f59048fdb11",
+      "name": "T.J. Hockenson",
+      "position": "TE",
+      "nflTeam": "MIN",
+      "age": 29,
+      "isRookie": false,
+      "dynastyValue": 1339,
+      "adp": 81
+    },
+    {
+      "id": "18419596-95f7-449d-96b7-e98307982773",
+      "name": "Khalil Shakir",
+      "position": "WR",
+      "nflTeam": "BUF",
+      "age": 26.4,
+      "isRookie": false,
+      "dynastyValue": 1338,
+      "adp": 122
+    },
+    {
+      "id": "66b5f3c6-14c3-493e-89b2-2594ebcadf64",
+      "name": "Chigoziem Okonkwo",
+      "position": "TE",
+      "nflTeam": "WAS",
+      "age": 26.8,
+      "isRookie": false,
+      "dynastyValue": 1333,
+      "adp": 182
+    },
+    {
+      "id": "3df6cbaf-3091-4c45-8773-9e25faf9b317",
       "name": "Chris Brazzell II",
       "position": "WR",
       "nflTeam": "CAR",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 1311,
+      "dynastyValue": 1323,
+      "adp": 110
+    },
+    {
+      "id": "92998bd1-451d-4e98-a3b1-7a8c33cc73af",
+      "name": "Kaytron Allen",
+      "position": "RB",
+      "nflTeam": "WAS",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 1314,
       "adp": 104
     },
     {
-      "id": "4435c019-752f-42f7-a96d-1fb8d62e03cf",
-      "name": "Travis Kelce",
-      "position": "TE",
-      "nflTeam": "KCC",
-      "age": 36.7,
+      "id": "083fce6e-1452-4157-9e3d-b9f0992c90af",
+      "name": "Shedeur Sanders",
+      "position": "QB",
+      "nflTeam": "CLE",
+      "age": 24.4,
       "isRookie": false,
-      "dynastyValue": 1295,
-      "adp": 114
+      "dynastyValue": 1310,
+      "adp": 149
     },
     {
-      "id": "72563bf9-cbb0-44d7-9071-6b95fa4e211b",
+      "id": "21c0783c-518d-41a3-a2d7-d6af8f588a6f",
       "name": "Tyler Allgeier",
       "position": "RB",
       "nflTeam": "ARI",
       "age": 26.2,
       "isRookie": false,
-      "dynastyValue": 1284,
+      "dynastyValue": 1291,
       "adp": 184
     },
     {
-      "id": "ed06fbe9-343d-4777-ae96-e0ea0507243f",
+      "id": "be60cd3f-9f35-44ca-8da7-2df38f970166",
       "name": "Jacoby Brissett",
       "position": "QB",
       "nflTeam": "ARI",
       "age": 33.5,
       "isRookie": false,
-      "dynastyValue": 1282,
-      "adp": 280
+      "dynastyValue": 1285,
+      "adp": 276
     },
     {
-      "id": "61e1c24e-58ab-4b82-af8e-cb65f5a57c12",
+      "id": "6bd13659-247d-423f-80ab-00ec3fb9cfea",
+      "name": "Travis Kelce",
+      "position": "TE",
+      "nflTeam": "KCC",
+      "age": 36.7,
+      "isRookie": false,
+      "dynastyValue": 1282,
+      "adp": 115
+    },
+    {
+      "id": "6bb2efc0-2b51-47e6-8d64-807f61927db0",
       "name": "Dylan Sampson",
       "position": "RB",
       "nflTeam": "CLE",
       "age": 21.8,
       "isRookie": false,
-      "dynastyValue": 1279,
+      "dynastyValue": 1276,
       "adp": 145
     },
     {
-      "id": "f8b32aba-9f47-43af-b6cc-1a5a9ec0fdb4",
-      "name": "Jordan Mason",
-      "position": "RB",
-      "nflTeam": "MIN",
-      "age": 27.1,
-      "isRookie": false,
-      "dynastyValue": 1277,
-      "adp": 146
-    },
-    {
-      "id": "171421a2-986a-467c-8adb-19be7f3e7a0c",
-      "name": "Ted Hurst",
-      "position": "WR",
-      "nflTeam": "TBB",
-      "age": 22,
-      "isRookie": true,
-      "dynastyValue": 1270,
-      "adp": 106
-    },
-    {
-      "id": "7243c42e-c27c-477e-82f1-89ff32a2be73",
-      "name": "Dallas Goedert",
-      "position": "TE",
-      "nflTeam": "PHI",
-      "age": 31.4,
-      "isRookie": false,
-      "dynastyValue": 1266,
-      "adp": 152
-    },
-    {
-      "id": "383f2e7f-7057-459c-8b8b-2a2f55c71f23",
+      "id": "3c5f9b07-8847-4577-8bf5-299c9b598e09",
       "name": "Woody Marks",
       "position": "RB",
       "nflTeam": "HOU",
       "age": 25.5,
       "isRookie": false,
-      "dynastyValue": 1261,
+      "dynastyValue": 1271,
       "adp": 184
     },
     {
-      "id": "03c7215c-4e30-4cae-8a3a-fb2ec4666640",
-      "name": "Rashid Shaheed",
+      "id": "e4f85c33-eff8-42ed-bd1b-cdb5c6e79ed0",
+      "name": "Ted Hurst",
       "position": "WR",
-      "nflTeam": "SEA",
-      "age": 27.8,
-      "isRookie": false,
-      "dynastyValue": 1257,
-      "adp": 163
+      "nflTeam": "TBB",
+      "age": 22,
+      "isRookie": true,
+      "dynastyValue": 1267,
+      "adp": 111
     },
     {
-      "id": "1b6a787d-e459-4231-a9a4-de3cbf6ce072",
+      "id": "182391d4-1e42-4f55-b5df-1221d3da0a5a",
+      "name": "Jordan Mason",
+      "position": "RB",
+      "nflTeam": "MIN",
+      "age": 27.1,
+      "isRookie": false,
+      "dynastyValue": 1266,
+      "adp": 145
+    },
+    {
+      "id": "7668e6be-5a19-47ae-9929-10462a2dc492",
       "name": "Gunnar Helm",
       "position": "TE",
       "nflTeam": "TEN",
       "age": 23.8,
       "isRookie": false,
-      "dynastyValue": 1255,
+      "dynastyValue": 1259,
       "adp": 209
     },
     {
-      "id": "8753602c-8586-4ca8-b982-167fa3d37fa2",
+      "id": "359062d1-f0f4-4faa-8464-a33d7ed2d02a",
+      "name": "Rashid Shaheed",
+      "position": "WR",
+      "nflTeam": "SEA",
+      "age": 27.8,
+      "isRookie": false,
+      "dynastyValue": 1259,
+      "adp": 163
+    },
+    {
+      "id": "20b2498e-e9ff-4ef7-85b0-a1021d30e611",
+      "name": "Dallas Goedert",
+      "position": "TE",
+      "nflTeam": "PHI",
+      "age": 31.4,
+      "isRookie": false,
+      "dynastyValue": 1257,
+      "adp": 152
+    },
+    {
+      "id": "b8bec931-c351-4ac1-8174-4c8de5363e59",
       "name": "Tre Harris",
       "position": "WR",
       "nflTeam": "LAC",
       "age": 24.3,
       "isRookie": false,
-      "dynastyValue": 1243,
-      "adp": 121
+      "dynastyValue": 1240,
+      "adp": 122
     },
     {
-      "id": "b6997459-f3f6-4e5b-9c22-d23bc08563b8",
-      "name": "Skyler Bell",
-      "position": "WR",
-      "nflTeam": "BUF",
-      "age": 24,
-      "isRookie": true,
-      "dynastyValue": 1223,
-      "adp": 118
-    },
-    {
-      "id": "22cd973a-798a-4139-80c4-26078216038c",
+      "id": "da5a1a7f-a522-40d2-8458-f98f27b8e21b",
       "name": "Tyrone Tracy",
       "position": "RB",
       "nflTeam": "NYG",
       "age": 26.6,
       "isRookie": false,
-      "dynastyValue": 1222,
+      "dynastyValue": 1233,
       "adp": 123
     },
     {
-      "id": "7ce4b851-411b-466d-97ca-834862752cc6",
+      "id": "fef66219-5ff4-4ba8-b226-28f4722ae56e",
       "name": "Isaac TeSlaa",
       "position": "WR",
       "nflTeam": "DET",
       "age": 24.3,
       "isRookie": false,
-      "dynastyValue": 1217,
+      "dynastyValue": 1222,
       "adp": 185
     },
     {
-      "id": "e458128b-af01-4386-8b73-0896edb3ddac",
-      "name": "Carson Beck",
-      "position": "QB",
-      "nflTeam": "ARI",
-      "age": -1,
+      "id": "d918bc92-e3c4-4d09-8a2f-c33c3909d67e",
+      "name": "Skyler Bell",
+      "position": "WR",
+      "nflTeam": "BUF",
+      "age": 24,
       "isRookie": true,
-      "dynastyValue": 1201,
-      "adp": 95
+      "dynastyValue": 1218,
+      "adp": 125
     },
     {
-      "id": "94f7d622-140d-453b-827c-a8b65d04bc73",
-      "name": "Jaylin Noel",
-      "position": "WR",
-      "nflTeam": "HOU",
-      "age": 23.8,
-      "isRookie": false,
-      "dynastyValue": 1195,
-      "adp": 155
-    },
-    {
-      "id": "3a8a656e-49c2-483a-bdfe-0a20f60dbb36",
-      "name": "Tyreek Hill",
-      "position": "WR",
-      "nflTeam": "FA",
-      "age": 32.3,
-      "isRookie": false,
-      "dynastyValue": 1193,
-      "adp": 96
-    },
-    {
-      "id": "cfde113b-8b19-47e4-b0e5-ee5386ef0a6d",
+      "id": "45b70cf9-e415-4c7b-a631-0a0c77fff28d",
       "name": "Mike Washington Jr.",
       "position": "RB",
       "nflTeam": "LVR",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 1191,
-      "adp": 117
+      "dynastyValue": 1202,
+      "adp": 119
     },
     {
-      "id": "c5dcb7a5-2e76-4eeb-a32f-d02c5f6d3381",
+      "id": "c77da38d-b1a5-4a04-949e-cdd61ad52e62",
+      "name": "Carson Beck",
+      "position": "QB",
+      "nflTeam": "ARI",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 1197,
+      "adp": 105
+    },
+    {
+      "id": "40067407-4fa8-4ae1-b119-299d5c13e594",
+      "name": "Jaylin Noel",
+      "position": "WR",
+      "nflTeam": "HOU",
+      "age": 23.8,
+      "isRookie": false,
+      "dynastyValue": 1191,
+      "adp": 156
+    },
+    {
+      "id": "ea2aea83-46b8-4223-ab1d-d9ccd0882c8c",
+      "name": "Jerry Jeudy",
+      "position": "WR",
+      "nflTeam": "CLE",
+      "age": 27.2,
+      "isRookie": false,
+      "dynastyValue": 1189,
+      "adp": 101
+    },
+    {
+      "id": "97fb1dc3-b153-4f9b-b69a-02ed06c60a84",
       "name": "Braelon Allen",
       "position": "RB",
       "nflTeam": "NYJ",
@@ -1832,687 +1832,707 @@
       "adp": 168
     },
     {
-      "id": "931562b1-0997-4abb-9f9b-c5e40dfa7b5f",
+      "id": "9f86fa96-f97b-45c5-a69d-2a5e0f62c358",
+      "name": "Tyreek Hill",
+      "position": "WR",
+      "nflTeam": "FA",
+      "age": 32.3,
+      "isRookie": false,
+      "dynastyValue": 1181,
+      "adp": 97
+    },
+    {
+      "id": "05423a86-d079-4126-86dc-62d1dffae0d7",
       "name": "Chris Rodriguez",
       "position": "RB",
       "nflTeam": "JAC",
       "age": 25.7,
       "isRookie": false,
-      "dynastyValue": 1184,
-      "adp": 253
+      "dynastyValue": 1175,
+      "adp": 252
     },
     {
-      "id": "128217e9-13ed-4ccc-9ec3-775e96e07fd2",
-      "name": "Jerry Jeudy",
-      "position": "WR",
-      "nflTeam": "CLE",
-      "age": 27.2,
-      "isRookie": false,
-      "dynastyValue": 1183,
-      "adp": 100
-    },
-    {
-      "id": "6eb7aa2f-87cd-43d5-b615-3b54b263a5d5",
+      "id": "dd1c3798-1ed0-4dd8-8f1b-c400d76884bc",
       "name": "Terrance Ferguson",
       "position": "TE",
       "nflTeam": "LAR",
       "age": 23.3,
       "isRookie": false,
-      "dynastyValue": 1178,
-      "adp": 135
+      "dynastyValue": 1165,
+      "adp": 136
     },
     {
-      "id": "808bb6fb-4546-4097-adb0-e79e8ccac044",
+      "id": "03d02f4e-e9eb-4e6a-8715-20e4160bbbb1",
       "name": "Ja'Kobi Lane",
       "position": "WR",
       "nflTeam": "BAL",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 1168,
-      "adp": 140
+      "dynastyValue": 1162,
+      "adp": 148
     },
     {
-      "id": "fc059e10-5be3-4305-bce9-ae9e38e49b27",
+      "id": "73e598d4-cda2-4285-bbb3-4e35bb89c260",
       "name": "Max Klare",
       "position": "TE",
       "nflTeam": "LAR",
       "age": 22.9,
       "isRookie": true,
-      "dynastyValue": 1166,
-      "adp": 113
-    },
-    {
-      "id": "509da4e8-2343-46d9-83cb-17a3042a76e4",
-      "name": "Keaton Mitchell",
-      "position": "RB",
-      "nflTeam": "LAC",
-      "age": 24.4,
-      "isRookie": false,
       "dynastyValue": 1147,
-      "adp": 231
+      "adp": 120
     },
     {
-      "id": "12fe829b-da3a-4245-aa52-a838b6813e70",
-      "name": "Tory Horton",
-      "position": "WR",
-      "nflTeam": "SEA",
-      "age": 23.6,
-      "isRookie": false,
-      "dynastyValue": 1140,
-      "adp": 198
-    },
-    {
-      "id": "a130fa7b-6faa-405d-b3bf-64d76a841dad",
-      "name": "Geno Smith",
-      "position": "QB",
-      "nflTeam": "NYJ",
-      "age": 35.7,
-      "isRookie": false,
-      "dynastyValue": 1132,
-      "adp": 116
-    },
-    {
-      "id": "137472ef-2859-4df7-9362-d79c9b358454",
-      "name": "Tyjae Spears",
-      "position": "RB",
-      "nflTeam": "TEN",
-      "age": 25,
-      "isRookie": false,
-      "dynastyValue": 1132,
-      "adp": 160
-    },
-    {
-      "id": "58d20982-9fcc-4cbc-aad0-788d2ea2b802",
-      "name": "Tank Bigsby",
-      "position": "RB",
-      "nflTeam": "PHI",
-      "age": 24.8,
-      "isRookie": false,
-      "dynastyValue": 1127,
-      "adp": 159
-    },
-    {
-      "id": "03485c95-f94d-496a-a0d9-fc4db28747c3",
-      "name": "Jauan Jennings",
-      "position": "WR",
-      "nflTeam": "MIN",
-      "age": 28.9,
-      "isRookie": false,
-      "dynastyValue": 1125,
-      "adp": 137
-    },
-    {
-      "id": "011c396f-ab89-47a9-b45a-6d6e1bd9e67f",
+      "id": "65f8ae56-48f6-404b-905d-4d7a9cdd40d2",
       "name": "Tank Dell",
       "position": "WR",
       "nflTeam": "HOU",
       "age": 26.6,
       "isRookie": false,
-      "dynastyValue": 1116,
+      "dynastyValue": 1146,
       "adp": 222
     },
     {
-      "id": "a011d7f4-496f-4f02-940e-4da182352d38",
+      "id": "893daf63-ac99-48a3-a657-920a1ff25d49",
+      "name": "Geno Smith",
+      "position": "QB",
+      "nflTeam": "NYJ",
+      "age": 35.7,
+      "isRookie": false,
+      "dynastyValue": 1140,
+      "adp": 116
+    },
+    {
+      "id": "8f0ac366-3396-468c-a2e2-5372a30ddaee",
+      "name": "Tory Horton",
+      "position": "WR",
+      "nflTeam": "SEA",
+      "age": 23.6,
+      "isRookie": false,
+      "dynastyValue": 1134,
+      "adp": 198
+    },
+    {
+      "id": "96c05064-231a-4b35-b722-b8a327d894c1",
+      "name": "Keaton Mitchell",
+      "position": "RB",
+      "nflTeam": "LAC",
+      "age": 24.4,
+      "isRookie": false,
+      "dynastyValue": 1131,
+      "adp": 231
+    },
+    {
+      "id": "4a07dfa9-1fc0-4936-ab86-87d12d06baad",
+      "name": "Jauan Jennings",
+      "position": "WR",
+      "nflTeam": "MIN",
+      "age": 28.9,
+      "isRookie": false,
+      "dynastyValue": 1130,
+      "adp": 138
+    },
+    {
+      "id": "1e24c6ed-59be-47d0-9ce8-247bf71f1e06",
+      "name": "Tyjae Spears",
+      "position": "RB",
+      "nflTeam": "TEN",
+      "age": 25,
+      "isRookie": false,
+      "dynastyValue": 1130,
+      "adp": 160
+    },
+    {
+      "id": "1b4b98f4-bbca-400f-96b2-b2324b508c7b",
+      "name": "Tank Bigsby",
+      "position": "RB",
+      "nflTeam": "PHI",
+      "age": 24.8,
+      "isRookie": false,
+      "dynastyValue": 1126,
+      "adp": 159
+    },
+    {
+      "id": "400a7a50-27a5-40ac-95c1-4c70b5aa516c",
       "name": "Jalen Nailor",
       "position": "WR",
       "nflTeam": "LVR",
       "age": 27.3,
       "isRookie": false,
-      "dynastyValue": 1103,
-      "adp": 287
+      "dynastyValue": 1110,
+      "adp": 285
     },
     {
-      "id": "603f8190-1086-437b-b033-64a3b244d52b",
+      "id": "87e17aff-9a39-4101-9293-b43376e48a14",
       "name": "Troy Franklin",
       "position": "WR",
       "nflTeam": "DEN",
       "age": 23.4,
       "isRookie": false,
-      "dynastyValue": 1098,
+      "dynastyValue": 1102,
       "adp": 228
     },
     {
-      "id": "cae69146-d767-49d9-bb2b-c8b2952ee87e",
-      "name": "Keon Coleman",
-      "position": "WR",
-      "nflTeam": "BUF",
-      "age": 23.1,
-      "isRookie": false,
-      "dynastyValue": 1092,
-      "adp": 129
-    },
-    {
-      "id": "51e07797-a042-4d7c-8332-6340fc3c351d",
-      "name": "Mac Jones",
-      "position": "QB",
-      "nflTeam": "SFO",
-      "age": 27.8,
-      "isRookie": false,
-      "dynastyValue": 1088,
-      "adp": 275
-    },
-    {
-      "id": "c1fdbc8d-c55a-432b-91fc-fc64fc0791a7",
-      "name": "Deebo Samuel",
-      "position": "WR",
-      "nflTeam": "FA",
-      "age": 30.4,
-      "isRookie": false,
-      "dynastyValue": 1086,
-      "adp": 143
-    },
-    {
-      "id": "bfcdc159-3a95-47e4-9e21-7fb1110512a8",
+      "id": "d464ea31-fbe1-4769-a7bd-6046b9ff18ec",
       "name": "Isiah Pacheco",
       "position": "RB",
       "nflTeam": "DET",
       "age": 27.3,
       "isRookie": false,
-      "dynastyValue": 1086,
+      "dynastyValue": 1089,
       "adp": 122
     },
     {
-      "id": "5d6132e8-244a-454a-8f3d-2e3824850635",
-      "name": "Jack Bech",
+      "id": "af58cf13-1bcf-44f5-81e8-28bd6079b62e",
+      "name": "Keon Coleman",
       "position": "WR",
-      "nflTeam": "LVR",
-      "age": 23.5,
+      "nflTeam": "BUF",
+      "age": 23.1,
       "isRookie": false,
-      "dynastyValue": 1078,
-      "adp": 138
+      "dynastyValue": 1088,
+      "adp": 130
     },
     {
-      "id": "cbb6d3f5-b462-44e9-afdf-e25b8111c5b1",
-      "name": "Brandon Aiyuk",
-      "position": "WR",
-      "nflTeam": "SFO",
-      "age": 28.2,
-      "isRookie": false,
-      "dynastyValue": 1072,
-      "adp": 121
-    },
-    {
-      "id": "c06bf2e2-04a9-492a-8440-4270c15cdc5c",
+      "id": "bfe33273-9c3f-4fa7-ac37-a7737e542bb8",
       "name": "David Njoku",
       "position": "TE",
       "nflTeam": "LAC",
       "age": 29.9,
       "isRookie": false,
-      "dynastyValue": 1067,
-      "adp": 110
+      "dynastyValue": 1079,
+      "adp": 111
     },
     {
-      "id": "ae427bcd-dd42-4a21-8974-a6c2addbd347",
-      "name": "Brian Robinson",
-      "position": "RB",
-      "nflTeam": "ATL",
-      "age": 27.2,
+      "id": "6f459657-2b64-460b-8f21-ecafc82efe08",
+      "name": "Mac Jones",
+      "position": "QB",
+      "nflTeam": "SFO",
+      "age": 27.8,
       "isRookie": false,
-      "dynastyValue": 1065,
-      "adp": 137
+      "dynastyValue": 1073,
+      "adp": 273
     },
     {
-      "id": "6dc98c61-fffe-4ecc-bf86-f62ad3f9bf30",
-      "name": "Aaron Jones",
-      "position": "RB",
-      "nflTeam": "MIN",
-      "age": 31.5,
-      "isRookie": false,
-      "dynastyValue": 1063,
-      "adp": 133
-    },
-    {
-      "id": "99e111cb-fc7c-44da-8d5a-6d89de2b24ae",
-      "name": "Kayshon Boutte",
+      "id": "17be0570-dc4d-406a-83a1-07574156e089",
+      "name": "Jack Bech",
       "position": "WR",
-      "nflTeam": "NEP",
-      "age": 24.1,
+      "nflTeam": "LVR",
+      "age": 23.5,
       "isRookie": false,
-      "dynastyValue": 1063,
-      "adp": 256
+      "dynastyValue": 1072,
+      "adp": 139
     },
     {
-      "id": "bbc368a0-b10f-4629-acd0-6c2f4e04fda0",
+      "id": "2bff4bca-588f-489e-905b-c64ed496e019",
       "name": "Malik Washington",
       "position": "WR",
       "nflTeam": "MIA",
       "age": 25.4,
       "isRookie": false,
-      "dynastyValue": 1063,
+      "dynastyValue": 1070,
       "adp": 246
     },
     {
-      "id": "aa25bc7f-c9fd-477a-a52d-d8d54c2c1759",
+      "id": "475f52d8-0f88-423f-bc1f-8a3725b71000",
       "name": "Kaleb Johnson",
       "position": "RB",
       "nflTeam": "PIT",
       "age": 22.8,
       "isRookie": false,
-      "dynastyValue": 1062,
-      "adp": 76
+      "dynastyValue": 1068,
+      "adp": 77
     },
     {
-      "id": "8d23458e-0c26-4765-aed0-67e342938212",
-      "name": "Juwan Johnson",
-      "position": "TE",
-      "nflTeam": "NOS",
-      "age": 29.8,
+      "id": "f0a94950-a8e0-4b72-baf4-0a9591c1cb70",
+      "name": "Brandon Aiyuk",
+      "position": "WR",
+      "nflTeam": "SFO",
+      "age": 28.2,
       "isRookie": false,
-      "dynastyValue": 1056,
-      "adp": 214
+      "dynastyValue": 1067,
+      "adp": 122
     },
     {
-      "id": "f4c630c8-44a4-4f8b-94bd-b1c0b6d6728a",
+      "id": "37bfaf36-76ba-470d-b000-4c11fca3a214",
+      "name": "Brian Robinson",
+      "position": "RB",
+      "nflTeam": "ATL",
+      "age": 27.2,
+      "isRookie": false,
+      "dynastyValue": 1067,
+      "adp": 137
+    },
+    {
+      "id": "359a690a-b255-4492-ae93-2e199b659836",
+      "name": "Aaron Jones",
+      "position": "RB",
+      "nflTeam": "MIN",
+      "age": 31.5,
+      "isRookie": false,
+      "dynastyValue": 1059,
+      "adp": 134
+    },
+    {
+      "id": "1fea2434-2ab2-449c-bb26-3c0ab957bdcb",
       "name": "Adonai Mitchell",
       "position": "WR",
       "nflTeam": "NYJ",
       "age": 23.7,
       "isRookie": false,
-      "dynastyValue": 1049,
+      "dynastyValue": 1052,
       "adp": 204
     },
     {
-      "id": "36902dad-fa57-4619-b810-9b488c17e402",
-      "name": "Deshaun Watson",
-      "position": "QB",
-      "nflTeam": "CLE",
-      "age": 30.8,
+      "id": "8fa50868-bb96-4ba4-8f8c-8030595fee56",
+      "name": "Deebo Samuel",
+      "position": "WR",
+      "nflTeam": "FA",
+      "age": 30.4,
       "isRookie": false,
-      "dynastyValue": 1040,
-      "adp": 273
+      "dynastyValue": 1051,
+      "adp": 144
     },
     {
-      "id": "6becca35-b6e4-42bc-b1ac-f9f5c9918c5f",
+      "id": "e3369a23-b9db-420a-8f30-65cc579663df",
+      "name": "Juwan Johnson",
+      "position": "TE",
+      "nflTeam": "NOS",
+      "age": 29.8,
+      "isRookie": false,
+      "dynastyValue": 1046,
+      "adp": 214
+    },
+    {
+      "id": "ec84afd2-a2b7-4536-92bc-9793bb0367b5",
+      "name": "Kayshon Boutte",
+      "position": "WR",
+      "nflTeam": "NEP",
+      "age": 24.1,
+      "isRookie": false,
+      "dynastyValue": 1040,
+      "adp": 255
+    },
+    {
+      "id": "6d8d0694-ff1a-4895-8823-def16d95de7d",
       "name": "Hunter Henry",
       "position": "TE",
       "nflTeam": "NEP",
       "age": 31.5,
       "isRookie": false,
-      "dynastyValue": 1039,
+      "dynastyValue": 1037,
       "adp": 178
     },
     {
-      "id": "b27a9ee8-f39b-4fed-bf5d-b60e2f62785e",
-      "name": "Tre Tucker",
-      "position": "WR",
-      "nflTeam": "LVR",
-      "age": 25.3,
+      "id": "5a7fbf33-f028-48c2-967a-02be9348fb8d",
+      "name": "Deshaun Watson",
+      "position": "QB",
+      "nflTeam": "CLE",
+      "age": 30.8,
       "isRookie": false,
-      "dynastyValue": 1018,
-      "adp": 252
+      "dynastyValue": 1035,
+      "adp": 271
     },
     {
-      "id": "199da474-60dc-4490-9796-80815692c964",
-      "name": "Elic Ayomanor",
-      "position": "WR",
-      "nflTeam": "TEN",
-      "age": 23,
-      "isRookie": false,
-      "dynastyValue": 1010,
-      "adp": 185
-    },
-    {
-      "id": "29ad3a24-a7c9-474b-81e5-64c47aea8a4d",
+      "id": "8a870b64-e3fd-469f-9649-d3ab4bcb95ee",
       "name": "Dalton Schultz",
       "position": "TE",
       "nflTeam": "HOU",
       "age": 29.9,
       "isRookie": false,
-      "dynastyValue": 1002,
-      "adp": 205
+      "dynastyValue": 1032,
+      "adp": 206
     },
     {
-      "id": "762e09ba-9b62-404d-9806-6e3294618894",
-      "name": "Cade Otton",
-      "position": "TE",
-      "nflTeam": "TBB",
-      "age": 27.2,
+      "id": "dd9bc583-933a-4753-a035-85b9272f93bb",
+      "name": "Tre Tucker",
+      "position": "WR",
+      "nflTeam": "LVR",
+      "age": 25.3,
       "isRookie": false,
-      "dynastyValue": 982,
-      "adp": 165
+      "dynastyValue": 1016,
+      "adp": 251
     },
     {
-      "id": "f22fe2ad-c802-4da0-98d2-769e95c356f4",
-      "name": "Anthony Richardson",
-      "position": "QB",
-      "nflTeam": "IND",
-      "age": 24.1,
+      "id": "a33a960a-cd23-430a-868d-4dd1f6f605d0",
+      "name": "Elic Ayomanor",
+      "position": "WR",
+      "nflTeam": "TEN",
+      "age": 23,
       "isRookie": false,
-      "dynastyValue": 979,
-      "adp": 126
+      "dynastyValue": 1003,
+      "adp": 186
     },
     {
-      "id": "916ae558-1de8-43a5-a538-66390f0d9e47",
+      "id": "d07bcebd-329e-4e2c-9cd4-565b9d7e6b10",
       "name": "Pat Bryant",
       "position": "WR",
       "nflTeam": "DEN",
       "age": 23.5,
       "isRookie": false,
-      "dynastyValue": 970,
-      "adp": 171
+      "dynastyValue": 985,
+      "adp": 172
     },
     {
-      "id": "879b24c1-d493-4c6f-bc02-6eb53980f835",
+      "id": "fcf6e184-0e06-4766-87e6-aaefecbeb7bd",
       "name": "Mason Taylor",
       "position": "TE",
       "nflTeam": "NYJ",
       "age": 22.1,
       "isRookie": false,
-      "dynastyValue": 968,
-      "adp": 118
+      "dynastyValue": 977,
+      "adp": 119
     },
     {
-      "id": "d3c1cece-9148-4f88-a604-488ac36bbcac",
-      "name": "Elijah Arroyo",
+      "id": "e5e3643c-4411-4955-a0c9-ad75ab4d2456",
+      "name": "Cade Otton",
       "position": "TE",
-      "nflTeam": "SEA",
-      "age": 23.2,
+      "nflTeam": "TBB",
+      "age": 27.2,
       "isRookie": false,
-      "dynastyValue": 959,
-      "adp": 139
+      "dynastyValue": 969,
+      "adp": 166
     },
     {
-      "id": "e476a7cd-1316-4c54-9db4-1b60f4fa7442",
-      "name": "Tahj Washington",
-      "position": "WR",
-      "nflTeam": "MIA",
-      "age": 25.1,
-      "isRookie": false,
-      "dynastyValue": 959,
-      "adp": 340
-    },
-    {
-      "id": "96a29d5b-be03-4605-bf9c-b7b40bc46d9c",
+      "id": "d507a2df-24e7-434e-bb3e-d4f429d182c9",
       "name": "Aaron Rodgers",
       "position": "QB",
       "nflTeam": "PIT",
       "age": 42.5,
       "isRookie": false,
-      "dynastyValue": 958,
+      "dynastyValue": 964,
       "adp": 160
     },
     {
-      "id": "8c9263bd-548d-4bed-a5b9-67b1a722e51b",
-      "name": "Kyle Williams",
-      "position": "WR",
-      "nflTeam": "NEP",
-      "age": 23.6,
+      "id": "7c8b54b7-5adf-4f53-b0c5-301f8665fd52",
+      "name": "Anthony Richardson",
+      "position": "QB",
+      "nflTeam": "IND",
+      "age": 24.1,
       "isRookie": false,
-      "dynastyValue": 953,
-      "adp": 136
+      "dynastyValue": 962,
+      "adp": 127
     },
     {
-      "id": "d7d6fa2c-387c-4443-a04d-fe65eecb9da9",
+      "id": "82a3b04c-2097-481b-903b-b0900fe78904",
       "name": "Alvin Kamara",
       "position": "RB",
       "nflTeam": "NOS",
       "age": 30.9,
       "isRookie": false,
-      "dynastyValue": 952,
-      "adp": 100
+      "dynastyValue": 960,
+      "adp": 101
     },
     {
-      "id": "6da5744e-4ee5-4ee3-ad1e-74546e1428ed",
-      "name": "Trey Benson",
-      "position": "RB",
-      "nflTeam": "ARI",
-      "age": 23.9,
+      "id": "b2f3685c-f6af-40b3-a6bb-2fe2eeaf8221",
+      "name": "Tahj Washington",
+      "position": "WR",
+      "nflTeam": "MIA",
+      "age": 25.1,
+      "isRookie": false,
+      "dynastyValue": 958,
+      "adp": 340
+    },
+    {
+      "id": "9b2ed2a1-ec17-4eb0-841c-439a4d55be84",
+      "name": "Dyami Brown",
+      "position": "WR",
+      "nflTeam": "WAS",
+      "age": 26.6,
       "isRookie": false,
       "dynastyValue": 947,
-      "adp": 131
+      "adp": 273
     },
     {
-      "id": "e5bfe673-6193-49da-a9f4-565d2afcdcb2",
-      "name": "Dontayvion Wicks",
-      "position": "WR",
-      "nflTeam": "PHI",
-      "age": 25,
-      "isRookie": false,
-      "dynastyValue": 943,
-      "adp": 251
-    },
-    {
-      "id": "967f55ad-a903-46d2-b48a-cab57b7e8db8",
+      "id": "fb41bc25-2837-495f-9bf9-35b62dffb9c9",
       "name": "Ollie Gordon",
       "position": "RB",
       "nflTeam": "MIA",
       "age": 22.4,
       "isRookie": false,
-      "dynastyValue": 920,
+      "dynastyValue": 936,
       "adp": 208
     },
     {
-      "id": "1884c4f8-c5c7-4364-8dc5-c9b7e34cf240",
+      "id": "75a3054f-e540-45c8-ad6c-47465845c228",
+      "name": "Kyle Williams",
+      "position": "WR",
+      "nflTeam": "NEP",
+      "age": 23.6,
+      "isRookie": false,
+      "dynastyValue": 933,
+      "adp": 137
+    },
+    {
+      "id": "04c41fd9-58df-4ea4-ae1b-7ab6f7aa2837",
+      "name": "Dontayvion Wicks",
+      "position": "WR",
+      "nflTeam": "PHI",
+      "age": 25,
+      "isRookie": false,
+      "dynastyValue": 931,
+      "adp": 251
+    },
+    {
+      "id": "83fe98a4-377e-4974-be2b-cca56c94b979",
+      "name": "Trey Benson",
+      "position": "RB",
+      "nflTeam": "ARI",
+      "age": 23.9,
+      "isRookie": false,
+      "dynastyValue": 923,
+      "adp": 131
+    },
+    {
+      "id": "288e5dcb-0132-4b31-9697-014230550d3a",
+      "name": "Elijah Arroyo",
+      "position": "TE",
+      "nflTeam": "SEA",
+      "age": 23.2,
+      "isRookie": false,
+      "dynastyValue": 917,
+      "adp": 140
+    },
+    {
+      "id": "bb83ad0d-dc64-45c1-b1ab-82422e310296",
       "name": "Demond Claiborne",
       "position": "RB",
       "nflTeam": "MIN",
       "age": -1,
       "isRookie": true,
       "dynastyValue": 913,
-      "adp": 125
+      "adp": 129
     },
     {
-      "id": "a0ceee37-8254-4521-bd09-bc13085c420a",
-      "name": "Kirk Cousins",
-      "position": "QB",
-      "nflTeam": "LVR",
-      "age": 37.8,
-      "isRookie": false,
-      "dynastyValue": 903,
-      "adp": 225
-    },
-    {
-      "id": "7262b6e4-9b99-427c-bf3a-4464016fb300",
+      "id": "cb73d32a-07d1-46f3-936b-4062b5756aed",
       "name": "Drew Allar",
       "position": "QB",
       "nflTeam": "PIT",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 902,
-      "adp": 118
+      "dynastyValue": 911,
+      "adp": 126
     },
     {
-      "id": "c0886928-ce11-4527-8be7-a039c5cbcbd4",
+      "id": "318857ef-5a4e-494a-b250-87a6655a493b",
       "name": "MarShawn Lloyd",
       "position": "RB",
       "nflTeam": "GBP",
       "age": 25.4,
       "isRookie": false,
-      "dynastyValue": 901,
+      "dynastyValue": 907,
       "adp": 208
     },
     {
-      "id": "13796cf0-76a0-494f-b598-689fa8f8ef4d",
+      "id": "62a822ec-14f2-4a9a-a499-a1307d50796d",
+      "name": "Kirk Cousins",
+      "position": "QB",
+      "nflTeam": "LVR",
+      "age": 37.8,
+      "isRookie": false,
+      "dynastyValue": 902,
+      "adp": 225
+    },
+    {
+      "id": "75766ae3-ffb0-4693-9786-64c86a46e380",
       "name": "Chimere Dike",
       "position": "WR",
       "nflTeam": "TEN",
       "age": 24.5,
       "isRookie": false,
-      "dynastyValue": 896,
+      "dynastyValue": 891,
       "adp": 265
     },
     {
-      "id": "797cdf57-7c25-43b7-81fe-61477f0140d2",
+      "id": "ccef586f-e478-486b-a41a-f1a8954174e6",
       "name": "Jordan James",
       "position": "RB",
       "nflTeam": "SFO",
       "age": 22.2,
       "isRookie": false,
-      "dynastyValue": 887,
+      "dynastyValue": 879,
       "adp": 214
     },
     {
-      "id": "1995554f-de00-4ae0-bfec-9ef9952d9b94",
-      "name": "Jake Tonges",
-      "position": "TE",
-      "nflTeam": "SFO",
-      "age": 26.9,
-      "isRookie": false,
-      "dynastyValue": 885,
-      "adp": 199
-    },
-    {
-      "id": "da306fa1-ea2d-4592-afe9-be9342a876d7",
-      "name": "Pat Freiermuth",
-      "position": "TE",
-      "nflTeam": "PIT",
-      "age": 27.6,
-      "isRookie": false,
-      "dynastyValue": 879,
-      "adp": 167
-    },
-    {
-      "id": "8475c344-b425-403e-9d0b-4999ee41bced",
-      "name": "Jaylen Wright",
-      "position": "RB",
-      "nflTeam": "MIA",
-      "age": 23.2,
-      "isRookie": false,
-      "dynastyValue": 878,
-      "adp": 182
-    },
-    {
-      "id": "9458b75e-b833-4537-b4fe-746819d0a819",
-      "name": "Kimani Vidal",
-      "position": "RB",
-      "nflTeam": "LAC",
-      "age": 24.8,
-      "isRookie": false,
-      "dynastyValue": 869,
-      "adp": 298
-    },
-    {
-      "id": "2de9199a-1138-4ee2-b0f4-619a3b9501c1",
+      "id": "7fd8e35c-f072-4c35-9ae4-05de78485a25",
       "name": "Sean Tucker",
       "position": "RB",
       "nflTeam": "TBB",
       "age": 24.6,
       "isRookie": false,
-      "dynastyValue": 867,
+      "dynastyValue": 872,
       "adp": 242
     },
     {
-      "id": "7fb7feb5-7a2c-47e5-9f80-75a572738162",
+      "id": "d98f6ca1-2cf5-4e80-82c3-d69d6f960d9c",
+      "name": "Jake Tonges",
+      "position": "TE",
+      "nflTeam": "SFO",
+      "age": 26.9,
+      "isRookie": false,
+      "dynastyValue": 871,
+      "adp": 203
+    },
+    {
+      "id": "f56a5243-4936-49fa-9039-d5e4b04ddeb1",
       "name": "Justin Fields",
       "position": "QB",
       "nflTeam": "KCC",
       "age": 27.3,
       "isRookie": false,
-      "dynastyValue": 866,
-      "adp": 79
+      "dynastyValue": 868,
+      "adp": 81
     },
     {
-      "id": "d78c5e7a-8985-45e6-b6bf-ca83654c4ebe",
-      "name": "Cade Klubnik",
-      "position": "QB",
-      "nflTeam": "NYJ",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 848,
-      "adp": 152
-    },
-    {
-      "id": "c27749aa-1daf-42f0-b638-943c8c6b50bc",
-      "name": "Jaydon Blue",
+      "id": "9aaef655-7278-40fa-a4e4-3eea6ef14bf5",
+      "name": "Kimani Vidal",
       "position": "RB",
-      "nflTeam": "DAL",
-      "age": 22.4,
+      "nflTeam": "LAC",
+      "age": 24.8,
       "isRookie": false,
-      "dynastyValue": 847,
-      "adp": 143
+      "dynastyValue": 868,
+      "adp": 296
     },
     {
-      "id": "27ab62f5-4d25-4e84-ae14-f14472365170",
-      "name": "Jalen Milroe",
-      "position": "QB",
-      "nflTeam": "SEA",
-      "age": 23.5,
-      "isRookie": false,
-      "dynastyValue": 842,
-      "adp": 129
-    },
-    {
-      "id": "d15807c6-0857-46e6-8af5-7f212de6a830",
-      "name": "Theo Johnson",
-      "position": "TE",
-      "nflTeam": "NYG",
-      "age": 25.3,
-      "isRookie": false,
-      "dynastyValue": 838,
-      "adp": 191
-    },
-    {
-      "id": "aa6bae3c-6a73-4f49-a6da-d906635cda8c",
+      "id": "1eae11a9-e213-43b6-88de-1986817e3eef",
       "name": "Kaelon Black",
       "position": "RB",
       "nflTeam": "SFO",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 837,
-      "adp": 122
+      "dynastyValue": 856,
+      "adp": 127
     },
     {
-      "id": "7b376a99-a4d0-4a0a-aefa-196cd31b4f7d",
+      "id": "cfe6b778-87ac-4e7e-86f8-e56e69d37d00",
+      "name": "Jaylen Wright",
+      "position": "RB",
+      "nflTeam": "MIA",
+      "age": 23.2,
+      "isRookie": false,
+      "dynastyValue": 849,
+      "adp": 182
+    },
+    {
+      "id": "1ee9c0a4-c6ad-4089-bd36-5b87d519cf00",
+      "name": "Theo Johnson",
+      "position": "TE",
+      "nflTeam": "NYG",
+      "age": 25.3,
+      "isRookie": false,
+      "dynastyValue": 849,
+      "adp": 192
+    },
+    {
+      "id": "2bdfa276-e450-4d47-93c4-29d88922160a",
+      "name": "Jaydon Blue",
+      "position": "RB",
+      "nflTeam": "DAL",
+      "age": 22.4,
+      "isRookie": false,
+      "dynastyValue": 845,
+      "adp": 144
+    },
+    {
+      "id": "fd3179ee-d8db-4ad1-88bd-7a183128e036",
+      "name": "Cade Klubnik",
+      "position": "QB",
+      "nflTeam": "NYJ",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 844,
+      "adp": 158
+    },
+    {
+      "id": "6858714b-2f33-4b87-867d-72887c322ab2",
+      "name": "Pat Freiermuth",
+      "position": "TE",
+      "nflTeam": "PIT",
+      "age": 27.6,
+      "isRookie": false,
+      "dynastyValue": 840,
+      "adp": 168
+    },
+    {
+      "id": "59c6490a-f870-45ed-8557-b82223f9ebd4",
       "name": "Greg Dulcich",
       "position": "TE",
       "nflTeam": "MIA",
       "age": 26.2,
       "isRookie": false,
-      "dynastyValue": 829,
-      "adp": 291
+      "dynastyValue": 838,
+      "adp": 289
     },
     {
-      "id": "24163ec1-d234-4ebc-a6a7-73c4c15a1453",
-      "name": "Tommy Tremble",
-      "position": "TE",
-      "nflTeam": "CAR",
-      "age": 26,
+      "id": "64d5a796-c502-4cf8-9a52-12c8a6ee38cb",
+      "name": "Jalen Milroe",
+      "position": "QB",
+      "nflTeam": "SEA",
+      "age": 23.5,
       "isRookie": false,
-      "dynastyValue": 818,
-      "adp": 307
+      "dynastyValue": 834,
+      "adp": 131
     },
     {
-      "id": "bb3ee5b1-47a4-4f60-8df1-09e62a90e6bc",
+      "id": "413a637b-8213-4441-a280-a9b9507cdfe1",
       "name": "Michael Mayer",
       "position": "TE",
       "nflTeam": "LVR",
       "age": 25,
       "isRookie": false,
-      "dynastyValue": 799,
-      "adp": 227
+      "dynastyValue": 814,
+      "adp": 228
     },
     {
-      "id": "244edaea-0791-4465-af95-062ccca805db",
-      "name": "Najee Harris",
-      "position": "RB",
-      "nflTeam": "FA",
-      "age": 28.3,
-      "isRookie": false,
-      "dynastyValue": 778,
-      "adp": 161
-    },
-    {
-      "id": "01f5fadd-4125-42d0-aaca-060f4bb6a6b6",
-      "name": "Oscar Delp",
+      "id": "bfb8c722-9128-448e-8b7a-51bb0c371341",
+      "name": "Tommy Tremble",
       "position": "TE",
-      "nflTeam": "NOS",
-      "age": 22.9,
-      "isRookie": true,
-      "dynastyValue": 766,
-      "adp": 110
+      "nflTeam": "CAR",
+      "age": 26,
+      "isRookie": false,
+      "dynastyValue": 814,
+      "adp": 307
     },
     {
-      "id": "1ff7c529-1691-41e3-94a2-4be04b9fcb0f",
+      "id": "08aaca20-0f59-49fd-990f-0a4b76075cc5",
+      "name": "DJ Giddens",
+      "position": "RB",
+      "nflTeam": "IND",
+      "age": 22.8,
+      "isRookie": false,
+      "dynastyValue": 779,
+      "adp": 180
+    },
+    {
+      "id": "e05c1ba1-08fa-4761-a519-852de3eda2cd",
+      "name": "Rasheen Ali",
+      "position": "RB",
+      "nflTeam": "BAL",
+      "age": 25.3,
+      "isRookie": false,
+      "dynastyValue": 771,
+      "adp": 379
+    },
+    {
+      "id": "15be98d0-b110-4a86-8823-cf1d94014bb4",
       "name": "Kevin Coleman",
       "position": "WR",
       "nflTeam": "MIA",
       "age": 22.8,
       "isRookie": true,
-      "dynastyValue": 764,
-      "adp": 226
+      "dynastyValue": 770,
+      "adp": 232
     },
     {
-      "id": "1d59e438-035c-4530-bcb7-37dcb360a033",
+      "id": "f1aad138-cc19-483f-87c6-b39ae9e5d60f",
+      "name": "Oscar Delp",
+      "position": "TE",
+      "nflTeam": "NOS",
+      "age": 22.9,
+      "isRookie": true,
+      "dynastyValue": 765,
+      "adp": 120
+    },
+    {
+      "id": "996b8891-1661-4812-b729-8ddf85f6199c",
       "name": "Emanuel Wilson",
       "position": "RB",
       "nflTeam": "SEA",
@@ -2522,177 +2542,167 @@
       "adp": 281
     },
     {
-      "id": "f7f44ca7-d22b-4bc3-84a6-3b83d26be4ff",
-      "name": "Kameron Johnson",
-      "position": "WR",
-      "nflTeam": "TBB",
-      "age": 24.2,
-      "isRookie": false,
-      "dynastyValue": 760,
-      "adp": 0
-    },
-    {
-      "id": "91bc4ff5-ea92-497f-be38-65e60d0bf6f6",
-      "name": "Justin Joly",
-      "position": "TE",
-      "nflTeam": "DEN",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 759,
-      "adp": 158
-    },
-    {
-      "id": "292a65b9-f445-429f-ae7f-63c0cb36b973",
-      "name": "DJ Giddens",
+      "id": "551d318c-3e3e-436a-b5e2-c984c4cf8c73",
+      "name": "Najee Harris",
       "position": "RB",
-      "nflTeam": "IND",
-      "age": 22.8,
+      "nflTeam": "FA",
+      "age": 28.3,
       "isRookie": false,
-      "dynastyValue": 756,
-      "adp": 179
+      "dynastyValue": 754,
+      "adp": 161
     },
     {
-      "id": "949748ac-8232-4c2a-9590-64864a8c1975",
+      "id": "bdbeec72-9c63-40fe-b1de-bc750057cd6d",
       "name": "Darnell Mooney",
       "position": "WR",
       "nflTeam": "NYG",
       "age": 28.6,
       "isRookie": false,
-      "dynastyValue": 742,
-      "adp": 169
-    },
-    {
-      "id": "52e4dbb5-1cf7-4d37-b5e2-3c1d959e3e00",
-      "name": "Marvin Mims",
-      "position": "WR",
-      "nflTeam": "DEN",
-      "age": 24.2,
-      "isRookie": false,
-      "dynastyValue": 733,
+      "dynastyValue": 749,
       "adp": 170
     },
     {
-      "id": "7bd3bbff-be27-4349-8279-9e82b4f5867c",
+      "id": "29ae661a-f72c-42e8-920c-64e76d451730",
+      "name": "Justin Joly",
+      "position": "TE",
+      "nflTeam": "DEN",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 747,
+      "adp": 164
+    },
+    {
+      "id": "53cf7a25-3d80-41f5-bf44-6e1c2b049cb5",
+      "name": "Kameron Johnson",
+      "position": "WR",
+      "nflTeam": "TBB",
+      "age": 24.2,
+      "isRookie": false,
+      "dynastyValue": 747,
+      "adp": 0
+    },
+    {
+      "id": "ac887944-cb43-4921-95b3-56917e1518d1",
       "name": "Calvin Ridley",
       "position": "WR",
       "nflTeam": "TEN",
       "age": 31.5,
       "isRookie": false,
-      "dynastyValue": 726,
+      "dynastyValue": 746,
       "adp": 125
     },
     {
-      "id": "68de4b25-2c08-4485-8d8d-53da0a6ccd97",
-      "name": "Eli Raridon",
-      "position": "TE",
-      "nflTeam": "NEP",
-      "age": 22.3,
-      "isRookie": true,
-      "dynastyValue": 712,
-      "adp": 116
-    },
-    {
-      "id": "7bb2de30-c270-4b40-bd94-6004f8f43785",
-      "name": "Garrett Nussmeier",
-      "position": "QB",
-      "nflTeam": "KCC",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 712,
-      "adp": 175
-    },
-    {
-      "id": "0b213345-d514-46f7-a510-ed9e22824200",
-      "name": "Tez Johnson",
+      "id": "ff27e348-0ce2-4151-a88f-5169ad892af6",
+      "name": "Marvin Mims",
       "position": "WR",
-      "nflTeam": "TBB",
-      "age": 24.1,
+      "nflTeam": "DEN",
+      "age": 24.2,
       "isRookie": false,
-      "dynastyValue": 710,
-      "adp": 311
+      "dynastyValue": 725,
+      "adp": 170
     },
     {
-      "id": "f59358e2-ba06-4f15-a660-0cc984b67732",
-      "name": "Will Howard",
-      "position": "QB",
-      "nflTeam": "PIT",
-      "age": 24.7,
-      "isRookie": false,
-      "dynastyValue": 710,
-      "adp": 210
-    },
-    {
-      "id": "0ccd3de7-9b5c-4a6e-9e24-f86d1b90dbb0",
-      "name": "Donovan Edwards",
-      "position": "RB",
-      "nflTeam": "MIA",
-      "age": 23.3,
-      "isRookie": false,
-      "dynastyValue": 707,
-      "adp": 345
-    },
-    {
-      "id": "28d52e94-c86f-414b-ba56-defd17e6d3c2",
-      "name": "Ja'Tavion Sanders",
+      "id": "b5ceb0e6-d4da-400c-ba9f-bf33c36460c4",
+      "name": "Luke Schoonmaker",
       "position": "TE",
-      "nflTeam": "CAR",
-      "age": 23.2,
+      "nflTeam": "DAL",
+      "age": 27.7,
       "isRookie": false,
-      "dynastyValue": 706,
-      "adp": 189
+      "dynastyValue": 714,
+      "adp": 286
     },
     {
-      "id": "00a7a550-a076-4523-b7f7-07515003d65e",
+      "id": "86aab11c-4d59-4f13-839e-7c8d1fcd8865",
       "name": "Ray Davis",
       "position": "RB",
       "nflTeam": "BUF",
       "age": 26.6,
       "isRookie": false,
-      "dynastyValue": 706,
+      "dynastyValue": 714,
       "adp": 174
     },
     {
-      "id": "e2808ad9-ba31-471f-bd2d-e3a48afef214",
+      "id": "60bdfbcd-b9a7-4435-b3aa-83bac91247ea",
+      "name": "Will Howard",
+      "position": "QB",
+      "nflTeam": "PIT",
+      "age": 24.7,
+      "isRookie": false,
+      "dynastyValue": 713,
+      "adp": 210
+    },
+    {
+      "id": "a6510d42-39a8-4ecb-b5eb-61bc5b5df2d9",
+      "name": "Eli Raridon",
+      "position": "TE",
+      "nflTeam": "NEP",
+      "age": 22.3,
+      "isRookie": true,
+      "dynastyValue": 709,
+      "adp": 126
+    },
+    {
+      "id": "a8e86cc2-1f4f-44cc-a32a-4c14a3304733",
       "name": "Evan Engram",
       "position": "TE",
       "nflTeam": "DEN",
       "age": 31.8,
       "isRookie": false,
-      "dynastyValue": 704,
-      "adp": 123
+      "dynastyValue": 705,
+      "adp": 125
     },
     {
-      "id": "47225631-8474-4992-92fc-05a8b6c0eebe",
-      "name": "Devin Neal",
-      "position": "RB",
-      "nflTeam": "NOS",
-      "age": 22.8,
-      "isRookie": false,
-      "dynastyValue": 702,
-      "adp": 185
-    },
-    {
-      "id": "cd082f2a-dc0f-4743-95ac-ee6ab652ef9f",
+      "id": "6124971b-7da2-4c29-b687-b500ea9aecfe",
       "name": "Isaiah Bond",
       "position": "WR",
       "nflTeam": "CLE",
-      "age": 22.2,
+      "age": 22.3,
       "isRookie": false,
-      "dynastyValue": 702,
+      "dynastyValue": 704,
       "adp": 259
     },
     {
-      "id": "c3876a26-a18d-48c8-89da-04e574810a7b",
-      "name": "LeQuint Allen",
-      "position": "RB",
-      "nflTeam": "JAC",
-      "age": 21.9,
-      "isRookie": false,
-      "dynastyValue": 693,
-      "adp": 281
+      "id": "fc49c2ba-f8e0-4216-b8e4-a62dd2f52a31",
+      "name": "Garrett Nussmeier",
+      "position": "QB",
+      "nflTeam": "KCC",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 703,
+      "adp": 175
     },
     {
-      "id": "3a0cdf1b-69de-4762-a161-fcd229c0a557",
+      "id": "092f0e45-0e65-4064-9bda-3dc78e4781b2",
+      "name": "Donovan Edwards",
+      "position": "RB",
+      "nflTeam": "MIA",
+      "age": 23.3,
+      "isRookie": false,
+      "dynastyValue": 701,
+      "adp": 345
+    },
+    {
+      "id": "d5883c9f-ac5f-4cac-a997-a179740994f7",
+      "name": "Tez Johnson",
+      "position": "WR",
+      "nflTeam": "TBB",
+      "age": 24.1,
+      "isRookie": false,
+      "dynastyValue": 697,
+      "adp": 311
+    },
+    {
+      "id": "60be7cba-0b57-4da2-8393-3cd357855f25",
+      "name": "Ja'Tavion Sanders",
+      "position": "TE",
+      "nflTeam": "CAR",
+      "age": 23.2,
+      "isRookie": false,
+      "dynastyValue": 695,
+      "adp": 190
+    },
+    {
+      "id": "d9f62f67-12b7-49ae-bae9-c293680d9e12",
       "name": "Trey Palmer",
       "position": "WR",
       "nflTeam": "NOS",
@@ -2702,137 +2712,157 @@
       "adp": 447
     },
     {
-      "id": "1e65f64b-c58f-4258-8133-3db3be6db8d1",
+      "id": "5ba90bf2-bb1d-4621-b622-b0550fbff55f",
+      "name": "Devin Neal",
+      "position": "RB",
+      "nflTeam": "NOS",
+      "age": 22.8,
+      "isRookie": false,
+      "dynastyValue": 689,
+      "adp": 186
+    },
+    {
+      "id": "4e4a300f-7687-448a-9761-c78f0d494371",
+      "name": "LeQuint Allen",
+      "position": "RB",
+      "nflTeam": "JAC",
+      "age": 21.9,
+      "isRookie": false,
+      "dynastyValue": 684,
+      "adp": 281
+    },
+    {
+      "id": "4dc02ae3-a09e-4c3a-ae3a-2dd47afeedd3",
+      "name": "Greg Dortch",
+      "position": "WR",
+      "nflTeam": "DET",
+      "age": 28,
+      "isRookie": false,
+      "dynastyValue": 683,
+      "adp": 336
+    },
+    {
+      "id": "f6d1aee0-3ed8-4321-9cd1-fb5a1b614993",
       "name": "Rashod Bateman",
       "position": "WR",
       "nflTeam": "BAL",
       "age": 26.6,
       "isRookie": false,
-      "dynastyValue": 675,
+      "dynastyValue": 678,
       "adp": 171
     },
     {
-      "id": "62592e5c-df13-4801-99c9-931bc2d9caf3",
-      "name": "Cole Kmet",
-      "position": "TE",
-      "nflTeam": "CHI",
-      "age": 27.3,
-      "isRookie": false,
-      "dynastyValue": 672,
-      "adp": 208
-    },
-    {
-      "id": "1f92ce48-f2a9-4f0a-8e77-94d65bd9d602",
-      "name": "Colby Parkinson",
-      "position": "TE",
-      "nflTeam": "LAR",
-      "age": 27.4,
-      "isRookie": false,
-      "dynastyValue": 671,
-      "adp": 308
-    },
-    {
-      "id": "94a086f7-c386-4971-808f-1fef7a83d138",
-      "name": "Dont'e Thornton",
-      "position": "WR",
-      "nflTeam": "LVR",
-      "age": 23.5,
-      "isRookie": false,
-      "dynastyValue": 668,
-      "adp": 197
-    },
-    {
-      "id": "e9dd96ac-03d6-49c6-8946-94a5631a759c",
-      "name": "Trevor Etienne",
-      "position": "RB",
-      "nflTeam": "CAR",
-      "age": 21.9,
-      "isRookie": false,
-      "dynastyValue": 666,
-      "adp": 210
-    },
-    {
-      "id": "f8235f81-4564-427b-ab96-59164481db51",
+      "id": "baed2a8f-ad6e-49e5-8ed4-259b1f73607c",
       "name": "Gabriel Davis",
       "position": "WR",
       "nflTeam": "BUF",
       "age": 27.2,
       "isRookie": false,
-      "dynastyValue": 664,
+      "dynastyValue": 673,
       "adp": 348
     },
     {
-      "id": "7879dfe0-fc0a-41a8-af0f-dba66d2e8b92",
-      "name": "Brenen Thompson",
-      "position": "WR",
-      "nflTeam": "LAC",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 663,
-      "adp": 196
-    },
-    {
-      "id": "56a04561-a3cf-463a-8c91-eab9fde28050",
-      "name": "Ryan Flournoy",
-      "position": "WR",
-      "nflTeam": "DAL",
-      "age": 26.6,
-      "isRookie": false,
-      "dynastyValue": 663,
-      "adp": 301
-    },
-    {
-      "id": "063b255f-f332-43b6-bf2c-3de0e842ab93",
-      "name": "Xavier Legette",
-      "position": "WR",
-      "nflTeam": "CAR",
-      "age": 25.4,
-      "isRookie": false,
-      "dynastyValue": 661,
-      "adp": 178
-    },
-    {
-      "id": "d3a327c4-ac3d-487a-a87f-43abfe281639",
-      "name": "Jacob Cowing",
-      "position": "WR",
-      "nflTeam": "SFO",
-      "age": 25.4,
-      "isRookie": false,
-      "dynastyValue": 649,
-      "adp": 337
-    },
-    {
-      "id": "4a416920-624a-475b-b4a7-90e4e8700538",
+      "id": "d349d591-8a5d-4ba4-8a8c-2070a6809b76",
       "name": "Jalen Royals",
       "position": "WR",
       "nflTeam": "KCC",
       "age": 23.3,
       "isRookie": false,
-      "dynastyValue": 647,
-      "adp": 175
+      "dynastyValue": 673,
+      "adp": 176
     },
     {
-      "id": "0a9be113-fe41-4e3f-8f65-1da7eaf3f772",
-      "name": "James Conner",
-      "position": "RB",
-      "nflTeam": "ARI",
-      "age": 31.1,
+      "id": "d6e794e7-6ca6-4c09-95d8-6d47677ddf38",
+      "name": "Cole Kmet",
+      "position": "TE",
+      "nflTeam": "CHI",
+      "age": 27.3,
       "isRookie": false,
-      "dynastyValue": 626,
-      "adp": 117
+      "dynastyValue": 665,
+      "adp": 208
     },
     {
-      "id": "67601398-7b3d-445d-8694-8c62d8b2f5bb",
-      "name": "Javon Baker",
+      "id": "0dfbe7bf-32fd-4d45-89d0-d475f90c7c77",
+      "name": "Colby Parkinson",
+      "position": "TE",
+      "nflTeam": "LAR",
+      "age": 27.4,
+      "isRookie": false,
+      "dynastyValue": 662,
+      "adp": 308
+    },
+    {
+      "id": "26205efc-f1a3-4261-98ef-a079d25c85d5",
+      "name": "Trevor Etienne",
+      "position": "RB",
+      "nflTeam": "CAR",
+      "age": 21.9,
+      "isRookie": false,
+      "dynastyValue": 660,
+      "adp": 210
+    },
+    {
+      "id": "b9e87ff5-a776-4d90-85c3-0a9f483c1780",
+      "name": "Xavier Legette",
+      "position": "WR",
+      "nflTeam": "CAR",
+      "age": 25.4,
+      "isRookie": false,
+      "dynastyValue": 658,
+      "adp": 178
+    },
+    {
+      "id": "134e4647-0a4c-4d6a-b497-da058f5119aa",
+      "name": "Brenen Thompson",
+      "position": "WR",
+      "nflTeam": "LAC",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 657,
+      "adp": 198
+    },
+    {
+      "id": "80040a21-43a7-4068-a5a2-55fad18754b5",
+      "name": "Ryan Flournoy",
+      "position": "WR",
+      "nflTeam": "DAL",
+      "age": 26.6,
+      "isRookie": false,
+      "dynastyValue": 653,
+      "adp": 281
+    },
+    {
+      "id": "e945d65b-c0b2-4e28-b388-53adae9a2271",
+      "name": "Dont'e Thornton",
+      "position": "WR",
+      "nflTeam": "LVR",
+      "age": 23.6,
+      "isRookie": false,
+      "dynastyValue": 648,
+      "adp": 197
+    },
+    {
+      "id": "5ef12028-d35d-4edc-8005-dfba46ba1d22",
+      "name": "Jordan Watkins",
       "position": "WR",
       "nflTeam": "SFO",
       "age": 24.3,
       "isRookie": false,
-      "dynastyValue": 626,
-      "adp": 386
+      "dynastyValue": 646,
+      "adp": 300
     },
     {
-      "id": "9ed2af44-de41-4968-b7ea-cbe9bf1e229f",
+      "id": "0c9994bf-f20a-4b0a-85df-173240abbab9",
+      "name": "Jacob Cowing",
+      "position": "WR",
+      "nflTeam": "SFO",
+      "age": 25.4,
+      "isRookie": false,
+      "dynastyValue": 643,
+      "adp": 337
+    },
+    {
+      "id": "edcd85d1-16b1-4a15-9139-60baf0ec70b2",
       "name": "Tyler Goodson",
       "position": "RB",
       "nflTeam": "ATL",
@@ -2842,157 +2872,177 @@
       "adp": 333
     },
     {
-      "id": "795702ef-1bf0-4aed-88dc-286ec787b996",
+      "id": "69b6b5e6-0c12-4392-a5a7-0e0663d0a7cf",
+      "name": "James Conner",
+      "position": "RB",
+      "nflTeam": "ARI",
+      "age": 31.1,
+      "isRookie": false,
+      "dynastyValue": 625,
+      "adp": 119
+    },
+    {
+      "id": "45472221-b2e1-4c2d-8791-00e0c6485086",
+      "name": "Javon Baker",
+      "position": "WR",
+      "nflTeam": "SFO",
+      "age": 24.3,
+      "isRookie": false,
+      "dynastyValue": 623,
+      "adp": 386
+    },
+    {
+      "id": "e977e473-7e58-4b2b-9a3d-316e6ad59cd8",
       "name": "Christian Kirk",
       "position": "WR",
       "nflTeam": "SFO",
       "age": 29.6,
       "isRookie": false,
-      "dynastyValue": 617,
+      "dynastyValue": 619,
       "adp": 190
     },
     {
-      "id": "b061c92f-3318-4238-bc56-b2caed33d7fa",
+      "id": "f31f59c9-f654-4fe1-93a2-4f205e23f111",
+      "name": "Kalel Mullings",
+      "position": "RB",
+      "nflTeam": "TEN",
+      "age": 23.7,
+      "isRookie": false,
+      "dynastyValue": 610,
+      "adp": 311
+    },
+    {
+      "id": "d50ae1de-bb4b-4a8e-91b2-1d72663c7b58",
       "name": "Bam Knight",
       "position": "RB",
       "nflTeam": "ARI",
       "age": 25.2,
       "isRookie": false,
-      "dynastyValue": 606,
+      "dynastyValue": 609,
       "adp": 0
     },
     {
-      "id": "cff72cb6-8e44-40b5-b698-23f4f2b972ca",
-      "name": "Jaylin Lane",
-      "position": "WR",
-      "nflTeam": "WAS",
-      "age": 24.1,
-      "isRookie": false,
-      "dynastyValue": 605,
-      "adp": 241
-    },
-    {
-      "id": "74d43272-017b-458a-a3d7-c337e2e4c9ed",
-      "name": "Cooper Kupp",
-      "position": "WR",
-      "nflTeam": "SEA",
-      "age": 33,
-      "isRookie": false,
-      "dynastyValue": 604,
-      "adp": 157
-    },
-    {
-      "id": "1906b010-21ed-48f1-95e8-6a435253d893",
-      "name": "Darnell Washington",
-      "position": "TE",
-      "nflTeam": "PIT",
-      "age": 24.8,
-      "isRookie": false,
-      "dynastyValue": 601,
-      "adp": 307
-    },
-    {
-      "id": "4b8d9af5-7204-46f9-a3d4-1aa78c67144b",
-      "name": "Jonathan Mingo",
-      "position": "WR",
-      "nflTeam": "DAL",
-      "age": 25.2,
-      "isRookie": false,
-      "dynastyValue": 601,
-      "adp": 362
-    },
-    {
-      "id": "abd86eaa-ade5-4ec6-932b-16571d7d5d09",
+      "id": "0b2cad43-2191-4317-ad5e-0dd848c8e4a1",
       "name": "Jake Bobo",
       "position": "WR",
       "nflTeam": "SEA",
       "age": 27.9,
       "isRookie": false,
-      "dynastyValue": 599,
+      "dynastyValue": 608,
       "adp": 385
     },
     {
-      "id": "5f21f519-05e7-4890-a7f3-96fbf7581e6b",
-      "name": "Isaiah Davis",
-      "position": "RB",
-      "nflTeam": "NYJ",
-      "age": 24.3,
+      "id": "3c305591-a740-4879-9483-e110a5155f97",
+      "name": "Jaylin Lane",
+      "position": "WR",
+      "nflTeam": "WAS",
+      "age": 24.1,
       "isRookie": false,
-      "dynastyValue": 595,
-      "adp": 277
+      "dynastyValue": 606,
+      "adp": 241
     },
     {
-      "id": "3a1bf509-ce10-4468-bee2-e3ae0c793df9",
+      "id": "3ad28798-39a4-4477-bfd4-5c1555154a9c",
+      "name": "Darnell Washington",
+      "position": "TE",
+      "nflTeam": "PIT",
+      "age": 24.8,
+      "isRookie": false,
+      "dynastyValue": 600,
+      "adp": 307
+    },
+    {
+      "id": "feb66a48-6242-4632-946d-2e86c4422cd4",
+      "name": "Jonathan Mingo",
+      "position": "WR",
+      "nflTeam": "DAL",
+      "age": 25.2,
+      "isRookie": false,
+      "dynastyValue": 597,
+      "adp": 362
+    },
+    {
+      "id": "5e04964c-2d28-4478-84ff-564dc83bf713",
       "name": "Demario Douglas",
       "position": "WR",
       "nflTeam": "NEP",
       "age": 25.5,
       "isRookie": false,
-      "dynastyValue": 592,
+      "dynastyValue": 595,
       "adp": 201
     },
     {
-      "id": "c909ca92-25bc-4164-8f20-949d89ecd776",
-      "name": "Adam Randall",
-      "position": "RB",
-      "nflTeam": "BAL",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 585,
-      "adp": 111
-    },
-    {
-      "id": "4d65b4e3-2952-4f16-9add-c0fb6da24b94",
-      "name": "Bryce Lance",
-      "position": "WR",
-      "nflTeam": "NOS",
-      "age": 23.8,
-      "isRookie": true,
-      "dynastyValue": 583,
-      "adp": 215
-    },
-    {
-      "id": "5d9e372e-ae22-4486-b00c-6f917ddf0e26",
+      "id": "e9b974c9-cb6b-4e7e-b660-97726a11ded5",
       "name": "Quinn Ewers",
       "position": "QB",
       "nflTeam": "MIA",
       "age": 23.1,
       "isRookie": false,
-      "dynastyValue": 576,
+      "dynastyValue": 589,
       "adp": 254
     },
     {
-      "id": "2a9c7174-1ced-470b-b54c-a5be67ddc5e3",
-      "name": "Brashard Smith",
+      "id": "fb3eff1f-c8b7-429a-9afc-459c2043a765",
+      "name": "Adam Randall",
       "position": "RB",
-      "nflTeam": "KCC",
-      "age": 23.2,
-      "isRookie": false,
-      "dynastyValue": 558,
-      "adp": 202
+      "nflTeam": "BAL",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 588,
+      "adp": 122
     },
     {
-      "id": "74286fa4-e0d6-4afb-bba3-1cacedf917bd",
-      "name": "Isaiah Hodgins",
+      "id": "215e076f-4371-40de-9aff-55e0e9a889b7",
+      "name": "Cooper Kupp",
       "position": "WR",
-      "nflTeam": "NYG",
-      "age": 27.6,
+      "nflTeam": "SEA",
+      "age": 33,
       "isRookie": false,
-      "dynastyValue": 557,
-      "adp": 0
+      "dynastyValue": 581,
+      "adp": 157
     },
     {
-      "id": "acd21a4b-223e-48ad-9e51-ab603aa2f3df",
-      "name": "Tyquan Thornton",
+      "id": "1c518dd8-5486-479a-8d22-2ddf2d328230",
+      "name": "Isaiah Davis",
+      "position": "RB",
+      "nflTeam": "NYJ",
+      "age": 24.3,
+      "isRookie": false,
+      "dynastyValue": 581,
+      "adp": 277
+    },
+    {
+      "id": "9ce09e90-6bb1-4fc1-97f9-551e95b96a98",
+      "name": "Bryce Lance",
       "position": "WR",
-      "nflTeam": "KCC",
-      "age": 25.9,
-      "isRookie": false,
-      "dynastyValue": 555,
-      "adp": 308
+      "nflTeam": "NOS",
+      "age": 23.8,
+      "isRookie": true,
+      "dynastyValue": 579,
+      "adp": 219
     },
     {
-      "id": "c7fb1d42-161a-4998-88cb-b3ccd0756820",
+      "id": "b7119c5b-635b-4cda-afa0-c809870d7b2e",
+      "name": "Joshua Palmer",
+      "position": "WR",
+      "nflTeam": "BUF",
+      "age": 26.7,
+      "isRookie": false,
+      "dynastyValue": 574,
+      "adp": 219
+    },
+    {
+      "id": "1487f7f4-2e86-4079-9d5e-bf91fd618c6e",
+      "name": "Charlie Kolar",
+      "position": "TE",
+      "nflTeam": "LAC",
+      "age": 27.4,
+      "isRookie": false,
+      "dynastyValue": 553,
+      "adp": 325
+    },
+    {
+      "id": "49766eb8-7bd4-4ee8-bdd7-d6cee9fb057d",
       "name": "Riley Leonard",
       "position": "QB",
       "nflTeam": "IND",
@@ -3002,137 +3052,157 @@
       "adp": 302
     },
     {
-      "id": "d57b7614-4514-49dd-87e2-4f918d229630",
-      "name": "Jalen Tolbert",
+      "id": "b16661b5-11d8-43e6-ab03-d59235a27f38",
+      "name": "Isaiah Hodgins",
       "position": "WR",
-      "nflTeam": "MIA",
-      "age": 27.3,
+      "nflTeam": "NYG",
+      "age": 27.6,
       "isRookie": false,
-      "dynastyValue": 542,
-      "adp": 263
+      "dynastyValue": 551,
+      "adp": 0
     },
     {
-      "id": "cf3c1de1-9443-4b1f-ba88-f9ac6b7c1c57",
+      "id": "307a8f61-5044-47d7-8bb2-6d9cae99d000",
+      "name": "Tyquan Thornton",
+      "position": "WR",
+      "nflTeam": "KCC",
+      "age": 25.9,
+      "isRookie": false,
+      "dynastyValue": 549,
+      "adp": 308
+    },
+    {
+      "id": "fb49407e-58d7-4d01-9657-3685c725335e",
+      "name": "Brashard Smith",
+      "position": "RB",
+      "nflTeam": "KCC",
+      "age": 23.2,
+      "isRookie": false,
+      "dynastyValue": 547,
+      "adp": 202
+    },
+    {
+      "id": "1da68551-e658-4d16-8d7d-d296719e86a8",
       "name": "Ben Sinnott",
       "position": "TE",
       "nflTeam": "WAS",
       "age": 24,
       "isRookie": false,
-      "dynastyValue": 539,
+      "dynastyValue": 543,
       "adp": 186
     },
     {
-      "id": "e7632d04-ee13-4544-95f4-c4aa11badc47",
+      "id": "12b2c729-df6d-4dd7-b00d-5529c6af0369",
       "name": "Brevin Jordan",
       "position": "TE",
       "nflTeam": "HOU",
       "age": 25.9,
       "isRookie": false,
-      "dynastyValue": 537,
+      "dynastyValue": 543,
       "adp": 345
     },
     {
-      "id": "891199f7-9f61-4193-a60f-918e99edcffd",
-      "name": "Tyrell Shavers",
-      "position": "WR",
-      "nflTeam": "BUF",
-      "age": 26.8,
-      "isRookie": false,
-      "dynastyValue": 537,
-      "adp": 0
-    },
-    {
-      "id": "665a4a7a-2a56-40d2-8f89-2721a7b40d61",
-      "name": "Israel Abanikanda",
+      "id": "f19582f8-c9a2-4b21-b55a-bbf0daa721f3",
+      "name": "Dameon Pierce",
       "position": "RB",
-      "nflTeam": "DAL",
-      "age": 23.7,
+      "nflTeam": "PHI",
+      "age": 26.3,
       "isRookie": false,
-      "dynastyValue": 535,
-      "adp": 357
+      "dynastyValue": 540,
+      "adp": 286
     },
     {
-      "id": "3e796b41-4154-4132-beae-90406e20df89",
-      "name": "Caleb Douglas",
-      "position": "WR",
-      "nflTeam": "MIA",
-      "age": 22.8,
-      "isRookie": true,
-      "dynastyValue": 533,
-      "adp": 169
-    },
-    {
-      "id": "4670fc0a-90ee-41ca-8981-16bdec4099c8",
-      "name": "Eli Heidenreich",
-      "position": "RB",
-      "nflTeam": "PIT",
-      "age": 23,
-      "isRookie": true,
-      "dynastyValue": 533,
-      "adp": 209
-    },
-    {
-      "id": "aa6fe2cc-0bb6-42fc-a60f-f4145a17cd83",
+      "id": "34ea70fa-14ee-40b1-a05c-1ac5df939832",
       "name": "Jared Wiley",
       "position": "TE",
       "nflTeam": "KCC",
       "age": 25.6,
       "isRookie": false,
-      "dynastyValue": 532,
+      "dynastyValue": 539,
       "adp": 323
     },
     {
-      "id": "6c452102-9ad1-4d47-bafe-7c2230f90387",
+      "id": "c38bbba4-898f-45cb-821f-2b4d73402d5d",
+      "name": "Jalen Tolbert",
+      "position": "WR",
+      "nflTeam": "MIA",
+      "age": 27.3,
+      "isRookie": false,
+      "dynastyValue": 535,
+      "adp": 263
+    },
+    {
+      "id": "299ef49a-8435-4e3a-b136-1823bf40f10f",
+      "name": "Israel Abanikanda",
+      "position": "RB",
+      "nflTeam": "DAL",
+      "age": 23.7,
+      "isRookie": false,
+      "dynastyValue": 534,
+      "adp": 357
+    },
+    {
+      "id": "35e79b25-b9c6-4806-b9c7-4009278ad108",
+      "name": "Tyrell Shavers",
+      "position": "WR",
+      "nflTeam": "BUF",
+      "age": 26.8,
+      "isRookie": false,
+      "dynastyValue": 533,
+      "adp": 0
+    },
+    {
+      "id": "8a99b911-ca6b-4cd1-8ced-3451cfe678c0",
+      "name": "Caleb Douglas",
+      "position": "WR",
+      "nflTeam": "MIA",
+      "age": 22.8,
+      "isRookie": true,
+      "dynastyValue": 532,
+      "adp": 174
+    },
+    {
+      "id": "8547517d-3237-425c-82d5-0c40b1aa7363",
+      "name": "Damien Martinez",
+      "position": "RB",
+      "nflTeam": "GBP",
+      "age": 22.4,
+      "isRookie": false,
+      "dynastyValue": 529,
+      "adp": 256
+    },
+    {
+      "id": "8cc701e2-6988-4e84-b5ac-0e7ff5057b2e",
       "name": "Joe Milton",
       "position": "QB",
       "nflTeam": "DAL",
       "age": 26.3,
       "isRookie": false,
-      "dynastyValue": 531,
+      "dynastyValue": 528,
       "adp": 236
     },
     {
-      "id": "aba8c605-6f48-479b-a207-36675f39738e",
-      "name": "Cedric Tillman",
-      "position": "WR",
-      "nflTeam": "CLE",
-      "age": 26.2,
-      "isRookie": false,
-      "dynastyValue": 530,
-      "adp": 176
-    },
-    {
-      "id": "36bd5f1f-36e0-4e4e-8924-a64f24ac7c17",
+      "id": "10afe44c-9d37-4215-9cca-54d72bdfc312",
       "name": "Skyy Moore",
       "position": "WR",
       "nflTeam": "GBP",
       "age": 25.8,
       "isRookie": false,
-      "dynastyValue": 530,
+      "dynastyValue": 527,
       "adp": 357
     },
     {
-      "id": "27036a68-5ad6-45ae-86f2-54221dc6ed06",
-      "name": "Zavion Thomas",
-      "position": "WR",
-      "nflTeam": "CHI",
-      "age": -1,
+      "id": "5d15e4be-41ce-48f1-842b-d2c8af7efa87",
+      "name": "Eli Heidenreich",
+      "position": "RB",
+      "nflTeam": "PIT",
+      "age": 23,
       "isRookie": true,
-      "dynastyValue": 530,
-      "adp": 165
+      "dynastyValue": 526,
+      "adp": 214
     },
     {
-      "id": "717cb7ff-1823-4345-9106-fe12b5aa5901",
-      "name": "Devontez Walker",
-      "position": "WR",
-      "nflTeam": "BAL",
-      "age": 25,
-      "isRookie": false,
-      "dynastyValue": 524,
-      "adp": 343
-    },
-    {
-      "id": "585adbde-a1db-4372-ae2c-206795cd2394",
+      "id": "c91cfa79-7095-4ba8-b9c5-df7503f03e5c",
       "name": "David Bell",
       "position": "WR",
       "nflTeam": "CLE",
@@ -3142,97 +3212,127 @@
       "adp": 0
     },
     {
-      "id": "2733e73d-0ea4-466d-97ec-f27ed04cabf2",
+      "id": "8d7df47a-649e-405b-b4ee-98a7565bed5a",
+      "name": "Cedric Tillman",
+      "position": "WR",
+      "nflTeam": "CLE",
+      "age": 26.2,
+      "isRookie": false,
+      "dynastyValue": 520,
+      "adp": 176
+    },
+    {
+      "id": "26f4c9e2-cda2-4336-9aa2-d2b02034f532",
+      "name": "Zavion Thomas",
+      "position": "WR",
+      "nflTeam": "CHI",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 520,
+      "adp": 165
+    },
+    {
+      "id": "f6e1de44-2e6d-4652-a700-882371a5069e",
       "name": "Tyler Badie",
       "position": "RB",
       "nflTeam": "DEN",
       "age": 26.4,
       "isRookie": false,
-      "dynastyValue": 519,
+      "dynastyValue": 515,
       "adp": 406
     },
     {
-      "id": "4a7e1fd5-8cfb-4463-97c6-8205cd61ec48",
+      "id": "c37ff900-a56a-425e-acf4-097bfaf2caad",
       "name": "Bo Melton",
       "position": "WR",
       "nflTeam": "GBP",
       "age": 27.1,
       "isRookie": false,
-      "dynastyValue": 518,
+      "dynastyValue": 514,
       "adp": 464
     },
     {
-      "id": "7a8745ae-ae76-4285-b0c2-425dbfebfaa5",
-      "name": "Lil'Jordan Humphrey",
-      "position": "WR",
-      "nflTeam": "DEN",
-      "age": 28.2,
-      "isRookie": false,
-      "dynastyValue": 516,
-      "adp": 325
-    },
-    {
-      "id": "f122a5c2-2941-4dc3-b1ef-e9f18c3c46f8",
-      "name": "Luke Musgrave",
-      "position": "TE",
-      "nflTeam": "GBP",
-      "age": 25.8,
-      "isRookie": false,
-      "dynastyValue": 515,
-      "adp": 249
-    },
-    {
-      "id": "5e43bf40-cb7f-4cc5-8f7b-046147d92f91",
-      "name": "Kendre Miller",
-      "position": "RB",
-      "nflTeam": "NOS",
-      "age": 24,
-      "isRookie": false,
-      "dynastyValue": 510,
-      "adp": 222
-    },
-    {
-      "id": "ec657d72-6078-4722-ae32-8c72b6d078e5",
+      "id": "d8a38875-6ef9-47ef-9ea8-eae2e7fd715c",
       "name": "Michael Trigg",
       "position": "TE",
       "nflTeam": "DAL",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 509,
+      "dynastyValue": 513,
       "adp": 213
     },
     {
-      "id": "439a8038-94d4-442d-994b-3aedd563ce98",
+      "id": "4d6dd9aa-d867-4d06-aac6-c10e632c20f8",
+      "name": "Luke Musgrave",
+      "position": "TE",
+      "nflTeam": "GBP",
+      "age": 25.8,
+      "isRookie": false,
+      "dynastyValue": 509,
+      "adp": 249
+    },
+    {
+      "id": "50caeeb5-6405-4154-b5f6-b838a9bfaac2",
       "name": "Drew Lock",
       "position": "QB",
       "nflTeam": "SEA",
       "age": 29.6,
       "isRookie": false,
-      "dynastyValue": 505,
+      "dynastyValue": 508,
       "adp": 374
     },
     {
-      "id": "2c2d1f34-9962-44fa-9ffd-d17704853409",
-      "name": "Savion Williams",
-      "position": "WR",
-      "nflTeam": "GBP",
-      "age": 24.6,
+      "id": "340c770e-9bc9-4c80-87c3-0d9a2e04f157",
+      "name": "Kendre Miller",
+      "position": "RB",
+      "nflTeam": "NOS",
+      "age": 24,
       "isRookie": false,
-      "dynastyValue": 501,
-      "adp": 232
+      "dynastyValue": 508,
+      "adp": 222
     },
     {
-      "id": "352b472b-2c56-44f0-8f2f-a2ed97a39291",
+      "id": "92ddfab8-d88c-4d6b-b01e-3e5d56819e4d",
+      "name": "Lil'Jordan Humphrey",
+      "position": "WR",
+      "nflTeam": "DEN",
+      "age": 28.2,
+      "isRookie": false,
+      "dynastyValue": 506,
+      "adp": 325
+    },
+    {
+      "id": "05223041-5936-4e2f-a788-9ad51d2a1aa3",
+      "name": "Cade Stover",
+      "position": "TE",
+      "nflTeam": "HOU",
+      "age": 26,
+      "isRookie": false,
+      "dynastyValue": 499,
+      "adp": 275
+    },
+    {
+      "id": "0198efc2-6071-4a58-8ef9-a3dcf3f4bd10",
       "name": "Marquise Brown",
       "position": "WR",
       "nflTeam": "PHI",
       "age": 29,
       "isRookie": false,
-      "dynastyValue": 493,
+      "dynastyValue": 498,
       "adp": 216
     },
     {
-      "id": "f343bc14-d9a7-45cf-b690-260102d67139",
+      "id": "aedb2d76-8ff9-455f-96a9-923f5421bb94",
+      "name": "Keenan Allen",
+      "position": "WR",
+      "nflTeam": "FA",
+      "age": 34.1,
+      "isRookie": false,
+      "dynastyValue": 488,
+      "adp": 219
+    },
+    {
+      "id": "c58e4fb9-51f9-40c4-8fe0-a426cffd4cbc",
       "name": "Mason Tipton",
       "position": "WR",
       "nflTeam": "NOS",
@@ -3242,187 +3342,187 @@
       "adp": 401
     },
     {
-      "id": "01429272-421e-4c71-80fe-53526b995984",
+      "id": "b8750d6a-1196-4210-94a8-a71b069df802",
       "name": "Tahj Brooks",
       "position": "RB",
       "nflTeam": "CIN",
       "age": 24.1,
       "isRookie": false,
-      "dynastyValue": 485,
+      "dynastyValue": 484,
       "adp": 211
     },
     {
-      "id": "f5910ead-55e3-435a-a69c-3cec25053bb7",
-      "name": "Dyami Brown",
+      "id": "ec8c2576-270d-4fb0-aa5e-97941e6bf535",
+      "name": "Savion Williams",
       "position": "WR",
-      "nflTeam": "WAS",
-      "age": 26.6,
+      "nflTeam": "GBP",
+      "age": 24.6,
       "isRookie": false,
-      "dynastyValue": 482,
-      "adp": 273
+      "dynastyValue": 483,
+      "adp": 232
     },
     {
-      "id": "3a84c770-5203-4892-9132-fddb45bd4735",
-      "name": "Spencer Rattler",
-      "position": "QB",
-      "nflTeam": "NOS",
-      "age": 25.7,
-      "isRookie": false,
-      "dynastyValue": 478,
-      "adp": 221
-    },
-    {
-      "id": "6aaa8daf-7e3c-4f70-99a0-52db1f633cd2",
-      "name": "Keenan Allen",
-      "position": "WR",
-      "nflTeam": "FA",
-      "age": 34.1,
-      "isRookie": false,
-      "dynastyValue": 476,
-      "adp": 219
-    },
-    {
-      "id": "20631213-2cf6-4e67-a81e-5bb2a4e1eb90",
-      "name": "Dawson Knox",
-      "position": "TE",
-      "nflTeam": "BUF",
-      "age": 29.6,
-      "isRookie": false,
-      "dynastyValue": 469,
-      "adp": 286
-    },
-    {
-      "id": "e99380a8-0f3f-4401-b625-36d5b188e398",
+      "id": "9a0ac22a-780b-4bd7-947f-57426b96255f",
       "name": "Jarquez Hunter",
       "position": "RB",
       "nflTeam": "LAR",
       "age": 23.5,
       "isRookie": false,
-      "dynastyValue": 468,
+      "dynastyValue": 481,
       "adp": 177
     },
     {
-      "id": "274cb786-5b2c-4a4a-936b-586a1319a651",
-      "name": "Tyler Scott",
-      "position": "WR",
-      "nflTeam": "LAR",
-      "age": 24.7,
-      "isRookie": false,
-      "dynastyValue": 463,
-      "adp": 0
-    },
-    {
-      "id": "e9e5a6dc-c2ab-4f4a-a868-6389b7168d0d",
-      "name": "Andrei Iosivas",
-      "position": "WR",
-      "nflTeam": "CIN",
-      "age": 26.7,
-      "isRookie": false,
-      "dynastyValue": 461,
-      "adp": 266
-    },
-    {
-      "id": "061d46fb-d4cd-4604-ba59-b31b3fa39783",
-      "name": "Mike Gesicki",
+      "id": "7ec1d7fe-9f79-4eeb-adf5-4f458b2735b9",
+      "name": "Zach Ertz",
       "position": "TE",
-      "nflTeam": "CIN",
-      "age": 30.7,
+      "nflTeam": "FA",
+      "age": 35.6,
       "isRookie": false,
-      "dynastyValue": 459,
-      "adp": 207
+      "dynastyValue": 478,
+      "adp": 193
     },
     {
-      "id": "6c96a42f-25df-44f2-a84a-f0c10357514f",
+      "id": "a565fb91-535e-41dd-8157-0f300db2980c",
       "name": "Luke McCaffrey",
       "position": "WR",
       "nflTeam": "WAS",
       "age": 25.2,
       "isRookie": false,
-      "dynastyValue": 456,
+      "dynastyValue": 470,
       "adp": 274
     },
     {
-      "id": "724ecba5-91e0-48c0-b8bf-169d051de362",
-      "name": "Brock Wright",
-      "position": "TE",
+      "id": "f19c72bc-4601-4e3c-a2ae-1a115bb56bdc",
+      "name": "Sione Vaki",
+      "position": "RB",
       "nflTeam": "DET",
-      "age": 27.6,
+      "age": 24.9,
       "isRookie": false,
-      "dynastyValue": 443,
-      "adp": 408
+      "dynastyValue": 467,
+      "adp": 395
     },
     {
-      "id": "07462448-1b1b-408a-90d4-a1f2d2d47693",
+      "id": "fb5ab9a6-9a4c-4a83-a53a-6d34de0cfc88",
+      "name": "Spencer Rattler",
+      "position": "QB",
+      "nflTeam": "NOS",
+      "age": 25.7,
+      "isRookie": false,
+      "dynastyValue": 463,
+      "adp": 221
+    },
+    {
+      "id": "aa876680-ae08-4773-b8bf-2762401f7596",
+      "name": "Mike Gesicki",
+      "position": "TE",
+      "nflTeam": "CIN",
+      "age": 30.7,
+      "isRookie": false,
+      "dynastyValue": 461,
+      "adp": 207
+    },
+    {
+      "id": "f9ce5476-8dbb-4c7a-97f8-82356349abeb",
+      "name": "Dawson Knox",
+      "position": "TE",
+      "nflTeam": "BUF",
+      "age": 29.6,
+      "isRookie": false,
+      "dynastyValue": 459,
+      "adp": 286
+    },
+    {
+      "id": "aafa7e78-b7c1-491c-b1ac-654e83829ddd",
+      "name": "Andrei Iosivas",
+      "position": "WR",
+      "nflTeam": "CIN",
+      "age": 26.7,
+      "isRookie": false,
+      "dynastyValue": 454,
+      "adp": 266
+    },
+    {
+      "id": "625b86ef-1319-4427-bece-235265123fc1",
+      "name": "Tyler Scott",
+      "position": "WR",
+      "nflTeam": "LAR",
+      "age": 24.7,
+      "isRookie": false,
+      "dynastyValue": 450,
+      "adp": 0
+    },
+    {
+      "id": "614f4413-9444-43a2-bfcf-b9326c662eb4",
       "name": "Jahan Dotson",
       "position": "WR",
       "nflTeam": "ATL",
       "age": 26.2,
       "isRookie": false,
-      "dynastyValue": 442,
+      "dynastyValue": 449,
       "adp": 309
     },
     {
-      "id": "3c638e91-6ebd-4b2a-9ca1-81798b6adb6a",
-      "name": "Joe Mixon",
-      "position": "RB",
-      "nflTeam": "FA",
-      "age": 29.9,
-      "isRookie": false,
-      "dynastyValue": 440,
-      "adp": 128
-    },
-    {
-      "id": "9e1acbe4-ab44-4ac1-90cc-a6cf9f775fc0",
+      "id": "475344e6-3c20-4711-af60-b3c561cd515d",
       "name": "Le'Veon Moss",
       "position": "RB",
       "nflTeam": "MIA",
       "age": 23.6,
       "isRookie": true,
-      "dynastyValue": 434,
+      "dynastyValue": 441,
       "adp": 69
     },
     {
-      "id": "be642cf5-b1a4-4ac9-8cc5-82daa5f8c133",
-      "name": "Isaac Guerendo",
+      "id": "88a0ecba-17a9-4c04-88c6-9ce692240514",
+      "name": "Raheim Sanders",
       "position": "RB",
-      "nflTeam": "SFO",
-      "age": 26,
+      "nflTeam": "CLE",
+      "age": 24,
       "isRookie": false,
-      "dynastyValue": 433,
-      "adp": 180
+      "dynastyValue": 438,
+      "adp": 318
     },
     {
-      "id": "18e15ba0-b6cc-48ac-96cf-dce1ed52ecb6",
-      "name": "Davis Allen",
+      "id": "e357d476-9a6a-4ac5-8a38-d4efd1d2b7d3",
+      "name": "Brock Wright",
       "position": "TE",
-      "nflTeam": "LAR",
-      "age": 25.4,
+      "nflTeam": "DET",
+      "age": 27.6,
       "isRookie": false,
-      "dynastyValue": 432,
-      "adp": 445
+      "dynastyValue": 437,
+      "adp": 408
     },
     {
-      "id": "531b30bf-ade2-4544-a69e-d426f617baa9",
+      "id": "1254ce0d-dd03-4187-9eb3-ab3785471257",
+      "name": "Darius Slayton",
+      "position": "WR",
+      "nflTeam": "NYG",
+      "age": 29.4,
+      "isRookie": false,
+      "dynastyValue": 431,
+      "adp": 265
+    },
+    {
+      "id": "13150a79-dbcd-4f65-824b-1c425e36f71d",
       "name": "Deion Burks",
       "position": "WR",
       "nflTeam": "IND",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 432,
+      "dynastyValue": 430,
       "adp": 189
     },
     {
-      "id": "76087ec6-646c-43e5-b757-99ca96838c0e",
-      "name": "Will Shipley",
-      "position": "RB",
-      "nflTeam": "PHI",
-      "age": 23.8,
+      "id": "42a2b311-c667-4100-93bf-0abb63c70f61",
+      "name": "Sam Howell",
+      "position": "QB",
+      "nflTeam": "DAL",
+      "age": 25.8,
       "isRookie": false,
       "dynastyValue": 430,
-      "adp": 217
+      "adp": 289
     },
     {
-      "id": "423fcf15-0eb1-4706-bd12-14a583e4a56c",
+      "id": "9b085f4d-6883-4cec-aad6-d5ac3d44a6ee",
       "name": "Devaughn Vele",
       "position": "WR",
       "nflTeam": "NOS",
@@ -3432,27 +3532,37 @@
       "adp": 275
     },
     {
-      "id": "b93d6e88-7545-4462-8fbd-81cced271a4d",
-      "name": "Sam Howell",
-      "position": "QB",
-      "nflTeam": "DAL",
-      "age": 25.8,
+      "id": "95e4c366-9602-4afc-943c-b58afa1672f2",
+      "name": "Davis Allen",
+      "position": "TE",
+      "nflTeam": "LAR",
+      "age": 25.4,
       "isRookie": false,
-      "dynastyValue": 428,
-      "adp": 289
+      "dynastyValue": 426,
+      "adp": 445
     },
     {
-      "id": "86a9a9c3-2a98-4765-8b60-dfae40fa9d1a",
-      "name": "Darius Slayton",
-      "position": "WR",
-      "nflTeam": "NYG",
-      "age": 29.4,
+      "id": "b9f71332-5d6e-44dd-a895-ce684f6550e7",
+      "name": "Will Shipley",
+      "position": "RB",
+      "nflTeam": "PHI",
+      "age": 23.8,
       "isRookie": false,
-      "dynastyValue": 421,
-      "adp": 265
+      "dynastyValue": 426,
+      "adp": 217
     },
     {
-      "id": "0e270931-7943-4fd0-8f86-47f7b3d20b1c",
+      "id": "6c8633e4-d33b-47d4-949c-e1994ecf3981",
+      "name": "Isaac Guerendo",
+      "position": "RB",
+      "nflTeam": "SFO",
+      "age": 26,
+      "isRookie": false,
+      "dynastyValue": 423,
+      "adp": 180
+    },
+    {
+      "id": "9e45bd8e-318d-4721-bd9f-3f07b9d3b635",
       "name": "Hassan Haskins",
       "position": "RB",
       "nflTeam": "LAC",
@@ -3462,227 +3572,267 @@
       "adp": 399
     },
     {
-      "id": "b3dbc761-1e04-490f-bb6b-bb1d4e6c2d3e",
-      "name": "Jamari Thrash",
-      "position": "WR",
-      "nflTeam": "CLE",
-      "age": 25.5,
-      "isRookie": false,
-      "dynastyValue": 416,
-      "adp": 365
-    },
-    {
-      "id": "d4af99c3-ee62-4a56-8d27-18a330032dac",
-      "name": "Jerome Ford",
-      "position": "RB",
-      "nflTeam": "WAS",
-      "age": 26.8,
-      "isRookie": false,
-      "dynastyValue": 411,
-      "adp": 195
-    },
-    {
-      "id": "71d900ba-3c93-4c06-841f-b21d5502af41",
-      "name": "Xavier Hutchinson",
-      "position": "WR",
-      "nflTeam": "HOU",
-      "age": 26,
-      "isRookie": false,
-      "dynastyValue": 411,
-      "adp": 347
-    },
-    {
-      "id": "f27cdee7-1326-4173-940a-cab7ec2045a7",
-      "name": "Jimmy Horn",
-      "position": "WR",
-      "nflTeam": "CAR",
-      "age": 23.8,
-      "isRookie": false,
-      "dynastyValue": 407,
-      "adp": 298
-    },
-    {
-      "id": "1f6c317c-766b-4bc0-953c-3e6dd231ec2c",
-      "name": "KeAndre Lambert-Smith",
-      "position": "WR",
-      "nflTeam": "LAC",
-      "age": 24.7,
-      "isRookie": false,
-      "dynastyValue": 406,
-      "adp": 260
-    },
-    {
-      "id": "916fed1c-d0b8-48e7-b83e-88e173166c36",
-      "name": "Chris Brooks",
-      "position": "RB",
-      "nflTeam": "GBP",
-      "age": 26.4,
-      "isRookie": false,
-      "dynastyValue": 405,
-      "adp": 321
-    },
-    {
-      "id": "6a7c5313-d4e5-4277-854a-f4a1d14336bd",
-      "name": "Jordan Whittington",
-      "position": "WR",
-      "nflTeam": "LAR",
-      "age": 25.7,
-      "isRookie": false,
-      "dynastyValue": 402,
-      "adp": 276
-    },
-    {
-      "id": "02f4ecc0-49fc-478b-9459-2434b396dc8c",
-      "name": "Roman Wilson",
-      "position": "WR",
-      "nflTeam": "PIT",
-      "age": 25,
-      "isRookie": false,
-      "dynastyValue": 402,
-      "adp": 222
-    },
-    {
-      "id": "64ab94ac-7064-436f-bf83-34e37234a92f",
-      "name": "Cyrus Allen",
-      "position": "WR",
-      "nflTeam": "KCC",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 399,
-      "adp": 215
-    },
-    {
-      "id": "fb91d400-4907-467e-a778-44bace767da2",
-      "name": "Malik Davis",
-      "position": "RB",
-      "nflTeam": "DAL",
-      "age": 27.6,
-      "isRookie": false,
-      "dynastyValue": 398,
-      "adp": 255
-    },
-    {
-      "id": "9e9364f5-b5cf-49c3-8ed4-06120f623771",
-      "name": "Noah Gray",
-      "position": "TE",
-      "nflTeam": "KCC",
-      "age": 27.1,
-      "isRookie": false,
-      "dynastyValue": 398,
-      "adp": 224
-    },
-    {
-      "id": "a6c23980-4275-4cb0-b29c-3c0fe078485b",
-      "name": "Xavier Restrepo",
-      "position": "WR",
-      "nflTeam": "TEN",
-      "age": 24.2,
-      "isRookie": false,
-      "dynastyValue": 398,
-      "adp": 266
-    },
-    {
-      "id": "de107643-6f4a-41fd-9ddd-dbc4f6a79b5a",
+      "id": "e0b38ffe-3067-43a6-8d9c-7bbedb9d0975",
       "name": "Taylen Green",
       "position": "QB",
       "nflTeam": "CLE",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 397,
+      "dynastyValue": 414,
       "adp": 192
     },
     {
-      "id": "b4cfb212-426d-4ed3-94aa-3638ed4a0260",
-      "name": "Joshua Palmer",
+      "id": "af892231-7cc6-48a3-823e-ca3f09d7d07a",
+      "name": "Xavier Hutchinson",
       "position": "WR",
-      "nflTeam": "BUF",
-      "age": 26.7,
+      "nflTeam": "HOU",
+      "age": 26,
       "isRookie": false,
-      "dynastyValue": 395,
-      "adp": 219
+      "dynastyValue": 413,
+      "adp": 347
     },
     {
-      "id": "b09b85b1-3e26-49ab-a001-2458c9ee8b57",
-      "name": "Tutu Atwell",
+      "id": "da1511e7-c8c9-4978-936f-52b0ee3e210c",
+      "name": "Jamari Thrash",
       "position": "WR",
-      "nflTeam": "MIA",
-      "age": 26.7,
+      "nflTeam": "CLE",
+      "age": 25.5,
       "isRookie": false,
-      "dynastyValue": 394,
+      "dynastyValue": 412,
+      "adp": 365
+    },
+    {
+      "id": "710dad79-f924-4982-9767-40465c831c72",
+      "name": "Joe Mixon",
+      "position": "RB",
+      "nflTeam": "FA",
+      "age": 29.9,
+      "isRookie": false,
+      "dynastyValue": 411,
+      "adp": 128
+    },
+    {
+      "id": "a939e0fa-e42b-4e0d-a494-8570aef9cf4c",
+      "name": "Chris Brooks",
+      "position": "RB",
+      "nflTeam": "GBP",
+      "age": 26.4,
+      "isRookie": false,
+      "dynastyValue": 407,
+      "adp": 321
+    },
+    {
+      "id": "79a9753d-6445-4d97-a39e-42f4002f6907",
+      "name": "Jimmy Horn",
+      "position": "WR",
+      "nflTeam": "CAR",
+      "age": 23.8,
+      "isRookie": false,
+      "dynastyValue": 405,
+      "adp": 298
+    },
+    {
+      "id": "3913ff90-aab0-426e-b3e2-f089798cd6c9",
+      "name": "Efton Chism",
+      "position": "WR",
+      "nflTeam": "NEP",
+      "age": 24.6,
+      "isRookie": false,
+      "dynastyValue": 404,
+      "adp": 272
+    },
+    {
+      "id": "3faa762b-760b-4cb8-a213-e5d70bdc4692",
+      "name": "KeAndre Lambert-Smith",
+      "position": "WR",
+      "nflTeam": "LAC",
+      "age": 24.7,
+      "isRookie": false,
+      "dynastyValue": 403,
+      "adp": 260
+    },
+    {
+      "id": "e5af9e05-5fe8-4103-84c1-7005ba750477",
+      "name": "Malachi Corley",
+      "position": "WR",
+      "nflTeam": "CLE",
+      "age": 24.2,
+      "isRookie": false,
+      "dynastyValue": 403,
+      "adp": 330
+    },
+    {
+      "id": "e4910740-9c11-4114-a95d-399edb620651",
+      "name": "Cyrus Allen",
+      "position": "WR",
+      "nflTeam": "KCC",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 401,
+      "adp": 215
+    },
+    {
+      "id": "7efa4d22-5b74-4f4a-8a2f-adc7bf53839e",
+      "name": "Tanner McKee",
+      "position": "QB",
+      "nflTeam": "PHI",
+      "age": 26.1,
+      "isRookie": false,
+      "dynastyValue": 400,
       "adp": 292
     },
     {
-      "id": "859c2693-2c78-449a-89ff-46f2e485db93",
-      "name": "Rasheen Ali",
+      "id": "ef7a82e9-5a97-432d-a6ef-2bd21751f290",
+      "name": "Jerome Ford",
       "position": "RB",
-      "nflTeam": "BAL",
-      "age": 25.3,
+      "nflTeam": "WAS",
+      "age": 26.8,
       "isRookie": false,
-      "dynastyValue": 391,
-      "adp": 379
+      "dynastyValue": 399,
+      "adp": 195
     },
     {
-      "id": "fef1ca77-6acc-47db-933e-bd8f1b6e64d9",
-      "name": "John Metchie",
+      "id": "6f4803e0-ccf8-48f6-be83-6f44aef97e79",
+      "name": "Roman Wilson",
       "position": "WR",
-      "nflTeam": "CAR",
-      "age": 25.9,
+      "nflTeam": "PIT",
+      "age": 25,
       "isRookie": false,
-      "dynastyValue": 389,
-      "adp": 335
+      "dynastyValue": 399,
+      "adp": 222
     },
     {
-      "id": "d5cbccbe-c9ef-48f1-b1de-a63f3cc1739d",
-      "name": "Elijah Higgins",
+      "id": "bebc4f5b-e338-4d3a-84e4-74fe632d7a64",
+      "name": "Jordan Whittington",
+      "position": "WR",
+      "nflTeam": "LAR",
+      "age": 25.7,
+      "isRookie": false,
+      "dynastyValue": 398,
+      "adp": 276
+    },
+    {
+      "id": "067ce019-b511-4931-8ee3-c4e70716ae29",
+      "name": "Xavier Restrepo",
+      "position": "WR",
+      "nflTeam": "TEN",
+      "age": 24.2,
+      "isRookie": false,
+      "dynastyValue": 397,
+      "adp": 266
+    },
+    {
+      "id": "fe3efbc0-5beb-4803-b863-742d28832e64",
+      "name": "Tyson Bagent",
+      "position": "QB",
+      "nflTeam": "CHI",
+      "age": 26,
+      "isRookie": false,
+      "dynastyValue": 395,
+      "adp": 313
+    },
+    {
+      "id": "b06d8bae-a149-4116-930c-27f12eae0a3e",
+      "name": "Noah Gray",
       "position": "TE",
-      "nflTeam": "ARI",
-      "age": 25.6,
+      "nflTeam": "KCC",
+      "age": 27.1,
       "isRookie": false,
-      "dynastyValue": 387,
-      "adp": 353
+      "dynastyValue": 393,
+      "adp": 224
     },
     {
-      "id": "8245a992-d871-4c16-a4af-feb95d1e898c",
+      "id": "36fa6ecb-2254-48aa-b964-6cc91b33dbf3",
+      "name": "Malik Davis",
+      "position": "RB",
+      "nflTeam": "DAL",
+      "age": 27.6,
+      "isRookie": false,
+      "dynastyValue": 390,
+      "adp": 255
+    },
+    {
+      "id": "fcf566a8-7f3c-4588-81c9-93a9a9405ad2",
       "name": "Jameis Winston",
       "position": "QB",
       "nflTeam": "NYG",
       "age": 32.4,
       "isRookie": false,
-      "dynastyValue": 387,
+      "dynastyValue": 389,
       "adp": 283
     },
     {
-      "id": "f9b38d2a-4432-439c-8571-57cd7aa3799d",
-      "name": "Treylon Burks",
+      "id": "07641312-a95d-4625-8cd0-ab96c753272b",
+      "name": "Jalin Hyatt",
       "position": "WR",
-      "nflTeam": "WAS",
-      "age": 26.2,
+      "nflTeam": "NYG",
+      "age": 24.7,
       "isRookie": false,
-      "dynastyValue": 385,
-      "adp": 328
+      "dynastyValue": 387,
+      "adp": 344
     },
     {
-      "id": "d66782b7-2a46-4714-93b2-446799fb8b00",
+      "id": "16a4cd6b-78d4-48d9-9ca0-b592d551acbf",
+      "name": "Tutu Atwell",
+      "position": "WR",
+      "nflTeam": "MIA",
+      "age": 26.7,
+      "isRookie": false,
+      "dynastyValue": 387,
+      "adp": 292
+    },
+    {
+      "id": "4338176a-c294-44cf-895c-b11396865838",
+      "name": "Audric Estime",
+      "position": "RB",
+      "nflTeam": "NOS",
+      "age": 22.8,
+      "isRookie": false,
+      "dynastyValue": 383,
+      "adp": 268
+    },
+    {
+      "id": "debd4050-3345-45ca-9ed1-c52543f081b0",
+      "name": "Elijah Higgins",
+      "position": "TE",
+      "nflTeam": "ARI",
+      "age": 25.6,
+      "isRookie": false,
+      "dynastyValue": 383,
+      "adp": 353
+    },
+    {
+      "id": "2ec80b95-25f6-4bf3-ad05-357c34f0879c",
+      "name": "Xavier Gipson",
+      "position": "WR",
+      "nflTeam": "NYG",
+      "age": 25.3,
+      "isRookie": false,
+      "dynastyValue": 383,
+      "adp": 472
+    },
+    {
+      "id": "213853f3-4ad2-4d33-bbe9-9f85f56677f9",
       "name": "Calvin Austin III",
       "position": "WR",
       "nflTeam": "NYG",
       "age": 27.2,
       "isRookie": false,
-      "dynastyValue": 383,
+      "dynastyValue": 378,
       "adp": 247
     },
     {
-      "id": "571d2142-f2bb-4e12-9b14-592f7f248f10",
-      "name": "Matthew Hibner",
-      "position": "TE",
-      "nflTeam": "BAL",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 379,
-      "adp": 213
+      "id": "09468626-9112-412e-8cc6-3b5ce3a77dcf",
+      "name": "John Metchie",
+      "position": "WR",
+      "nflTeam": "CAR",
+      "age": 25.9,
+      "isRookie": false,
+      "dynastyValue": 378,
+      "adp": 335
     },
     {
-      "id": "3928f740-aff8-4514-977d-d2ac01846302",
+      "id": "d428676d-0e02-4b8d-82c5-b23edb1e14e0",
       "name": "Demarcus Robinson",
       "position": "WR",
       "nflTeam": "SFO",
@@ -3692,227 +3842,227 @@
       "adp": 344
     },
     {
-      "id": "10612c86-bc3c-4aec-9050-42af4b47095f",
-      "name": "Xavier Gipson",
+      "id": "aee5e643-53e0-4151-99fa-f3fd4e14a3db",
+      "name": "Treylon Burks",
       "position": "WR",
-      "nflTeam": "NYG",
-      "age": 25.3,
+      "nflTeam": "WAS",
+      "age": 26.2,
       "isRookie": false,
-      "dynastyValue": 377,
-      "adp": 472
+      "dynastyValue": 376,
+      "adp": 328
     },
     {
-      "id": "bdff0172-1e75-4d16-828a-c3e2c16ecd84",
-      "name": "Tyson Bagent",
-      "position": "QB",
-      "nflTeam": "CHI",
-      "age": 26,
-      "isRookie": false,
-      "dynastyValue": 374,
-      "adp": 313
-    },
-    {
-      "id": "b25946f3-020e-4f73-a842-7aebf1ed6ce4",
-      "name": "Audric Estime",
-      "position": "RB",
-      "nflTeam": "NOS",
-      "age": 22.8,
-      "isRookie": false,
-      "dynastyValue": 372,
-      "adp": 268
-    },
-    {
-      "id": "20cb3768-5643-4217-8fed-a61ecc83f6dd",
+      "id": "0b6ee652-41c2-4ac2-bf85-9fde52636c31",
       "name": "Seth McGowan",
       "position": "RB",
       "nflTeam": "IND",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 372,
-      "adp": 204
+      "dynastyValue": 373,
+      "adp": 211
     },
     {
-      "id": "fdbaf9bd-2a8c-49da-bab2-9f47ebbd5eb5",
-      "name": "Justice Hill",
-      "position": "RB",
-      "nflTeam": "BAL",
-      "age": 28.6,
-      "isRookie": false,
-      "dynastyValue": 371,
-      "adp": 246
-    },
-    {
-      "id": "a0222194-67b2-4592-8534-3dc7acf67c34",
-      "name": "Daniel Bellinger",
+      "id": "6ef443b4-95f7-451d-acaf-32b5b50971da",
+      "name": "Matthew Hibner",
       "position": "TE",
-      "nflTeam": "TEN",
-      "age": 25.7,
-      "isRookie": false,
-      "dynastyValue": 370,
-      "adp": 324
+      "nflTeam": "BAL",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 371,
+      "adp": 215
     },
     {
-      "id": "d360bf44-2f6b-4440-b1f3-39dc2ca91356",
-      "name": "Dillon Gabriel",
-      "position": "QB",
-      "nflTeam": "CLE",
-      "age": 25.5,
-      "isRookie": false,
-      "dynastyValue": 370,
-      "adp": 219
-    },
-    {
-      "id": "c9d810cd-6f77-4557-8421-b497266006e1",
-      "name": "Zach Wilson",
-      "position": "QB",
-      "nflTeam": "NOS",
-      "age": 26.9,
-      "isRookie": false,
-      "dynastyValue": 369,
-      "adp": 303
-    },
-    {
-      "id": "9245224f-dc9f-4ec9-a8cd-a18c76595da4",
+      "id": "e26888b1-0238-40b4-9738-865f7f01624d",
       "name": "Marcus Mariota",
       "position": "QB",
       "nflTeam": "WAS",
       "age": 32.6,
       "isRookie": false,
-      "dynastyValue": 368,
+      "dynastyValue": 367,
       "adp": 313
     },
     {
-      "id": "944232a6-4b39-4082-befc-f7649ac32326",
-      "name": "Roschon Johnson",
-      "position": "RB",
-      "nflTeam": "CHI",
-      "age": 25.4,
-      "isRookie": false,
-      "dynastyValue": 366,
-      "adp": 211
-    },
-    {
-      "id": "33cb3088-04eb-46f0-83c7-a194385aa7b8",
-      "name": "Mitchell Evans",
-      "position": "TE",
-      "nflTeam": "CAR",
-      "age": 23.2,
-      "isRookie": false,
-      "dynastyValue": 365,
-      "adp": 303
-    },
-    {
-      "id": "97fcba80-b01e-4bd9-aea0-47e9a2ee0fe6",
+      "id": "8211287d-daae-4d00-b78c-de7200396415",
       "name": "Sam Roush",
       "position": "TE",
       "nflTeam": "CHI",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 361,
+      "dynastyValue": 366,
       "adp": 254
     },
     {
-      "id": "acae81fa-43b4-4c0f-83a4-2e74ee38609d",
-      "name": "Damien Martinez",
+      "id": "f58ca9ee-82ef-4b2c-ac54-50bf6c8fa202",
+      "name": "Trey Lance",
+      "position": "QB",
+      "nflTeam": "LAC",
+      "age": 26.1,
+      "isRookie": false,
+      "dynastyValue": 365,
+      "adp": 316
+    },
+    {
+      "id": "b59ae329-718f-4b06-a3ea-278b98ad4877",
+      "name": "Daniel Bellinger",
+      "position": "TE",
+      "nflTeam": "TEN",
+      "age": 25.7,
+      "isRookie": false,
+      "dynastyValue": 364,
+      "adp": 324
+    },
+    {
+      "id": "7bd3b5b0-bf23-4e9a-a6ed-b24787c5e640",
+      "name": "Zach Wilson",
+      "position": "QB",
+      "nflTeam": "NOS",
+      "age": 26.9,
+      "isRookie": false,
+      "dynastyValue": 362,
+      "adp": 302
+    },
+    {
+      "id": "3277f489-6adc-4469-95a5-f40055c604dc",
+      "name": "Justice Hill",
       "position": "RB",
-      "nflTeam": "GBP",
-      "age": 22.4,
+      "nflTeam": "BAL",
+      "age": 28.6,
       "isRookie": false,
       "dynastyValue": 360,
-      "adp": 256
+      "adp": 247
     },
     {
-      "id": "81220609-5756-4cca-93b2-27b35605e1cc",
-      "name": "Frank Gore Jr.",
-      "position": "RB",
-      "nflTeam": "BUF",
-      "age": 24.3,
+      "id": "bb61cfd3-492c-4899-9236-c71a9287cc6c",
+      "name": "Mitchell Evans",
+      "position": "TE",
+      "nflTeam": "CAR",
+      "age": 23.2,
       "isRookie": false,
       "dynastyValue": 358,
-      "adp": 369
+      "adp": 303
     },
     {
-      "id": "294e2277-4736-4135-a736-b2f200375762",
-      "name": "Davis Mills",
+      "id": "8b344e30-3b5e-4503-986b-91af17ad7fdb",
+      "name": "Dillon Gabriel",
       "position": "QB",
-      "nflTeam": "HOU",
-      "age": 27.6,
+      "nflTeam": "CLE",
+      "age": 25.5,
       "isRookie": false,
-      "dynastyValue": 357,
-      "adp": 318
+      "dynastyValue": 356,
+      "adp": 219
     },
     {
-      "id": "b6349fb0-f42c-4b50-a40a-d3ab882d6c4d",
+      "id": "bf3950c4-41fd-4a59-bd1e-5caa87fc5339",
+      "name": "Elijah Moore",
+      "position": "WR",
+      "nflTeam": "PHI",
+      "age": 26.2,
+      "isRookie": false,
+      "dynastyValue": 356,
+      "adp": 260
+    },
+    {
+      "id": "16f6d724-734c-49b5-9ea7-6c57209d5bf3",
       "name": "J'Mari Taylor",
       "position": "RB",
       "nflTeam": "JAC",
       "age": -1,
       "isRookie": true,
-      "dynastyValue": 353,
+      "dynastyValue": 356,
       "adp": 342
     },
     {
-      "id": "16f2f894-5725-4cfb-b4d8-1ae2058363ba",
-      "name": "Ja'Lynn Polk",
-      "position": "WR",
-      "nflTeam": "NOS",
-      "age": 24.2,
+      "id": "aca0958c-5822-4d46-8e14-6acc802fcc70",
+      "name": "Roschon Johnson",
+      "position": "RB",
+      "nflTeam": "CHI",
+      "age": 25.4,
       "isRookie": false,
-      "dynastyValue": 350,
-      "adp": 289
+      "dynastyValue": 355,
+      "adp": 211
     },
     {
-      "id": "a52b738d-2724-4c2c-b968-5ce2e85f682e",
+      "id": "47d6c939-8de2-4eeb-8e8c-ecbc8fd075d7",
+      "name": "Frank Gore Jr.",
+      "position": "RB",
+      "nflTeam": "BUF",
+      "age": 24.3,
+      "isRookie": false,
+      "dynastyValue": 354,
+      "adp": 369
+    },
+    {
+      "id": "6f65be94-7f4f-434c-bd93-381d88012da5",
+      "name": "Davis Mills",
+      "position": "QB",
+      "nflTeam": "HOU",
+      "age": 27.6,
+      "isRookie": false,
+      "dynastyValue": 353,
+      "adp": 318
+    },
+    {
+      "id": "cd4e522d-bae7-40f7-8220-d457b5431c18",
       "name": "CJ Daniels",
       "position": "WR",
       "nflTeam": "LAR",
       "age": 24.4,
       "isRookie": true,
-      "dynastyValue": 348,
+      "dynastyValue": 351,
       "adp": 223
     },
     {
-      "id": "dbb48572-d3b3-4cda-bf91-31be5b923f98",
-      "name": "Cade Stover",
-      "position": "TE",
-      "nflTeam": "HOU",
-      "age": 26,
+      "id": "a9632f88-286c-4b6c-8146-7291b4edd39f",
+      "name": "Devontez Walker",
+      "position": "WR",
+      "nflTeam": "BAL",
+      "age": 25,
       "isRookie": false,
-      "dynastyValue": 347,
-      "adp": 275
+      "dynastyValue": 351,
+      "adp": 343
     },
     {
-      "id": "3b1c8323-ed6c-49e3-9acf-2d8bb3ba76d3",
+      "id": "d547c470-c9f9-4ac7-b45b-92e56346f8da",
       "name": "George Holani",
       "position": "RB",
       "nflTeam": "SEA",
       "age": 26.5,
       "isRookie": false,
-      "dynastyValue": 346,
-      "adp": 334
+      "dynastyValue": 342,
+      "adp": 328
     },
     {
-      "id": "0206cc9c-9168-44ce-ab42-879fc1bdf7ba",
-      "name": "Noah Fant",
-      "position": "TE",
-      "nflTeam": "NOS",
-      "age": 28.6,
-      "isRookie": false,
-      "dynastyValue": 337,
-      "adp": 228
-    },
-    {
-      "id": "dc167591-f3c2-4416-a221-87c51bd419fb",
+      "id": "cea4943e-7d5c-4e92-9937-242d67923b5a",
       "name": "Jaleel McLaughlin",
       "position": "RB",
       "nflTeam": "DEN",
       "age": 25.8,
       "isRookie": false,
-      "dynastyValue": 332,
+      "dynastyValue": 341,
       "adp": 290
     },
     {
-      "id": "9c5bdb0b-b495-4c16-bb5b-834f26457c2b",
+      "id": "9c8974e5-7267-4f71-b051-1361223eb194",
+      "name": "Ja'Lynn Polk",
+      "position": "WR",
+      "nflTeam": "NOS",
+      "age": 24.2,
+      "isRookie": false,
+      "dynastyValue": 339,
+      "adp": 289
+    },
+    {
+      "id": "ff1b6189-1f5d-4977-862b-ff7e8e13c71a",
+      "name": "Mack Hollins",
+      "position": "WR",
+      "nflTeam": "NEP",
+      "age": 32.8,
+      "isRookie": false,
+      "dynastyValue": 337,
+      "adp": 307
+    },
+    {
+      "id": "63d4a353-99ff-44a1-b363-055770b73737",
       "name": "Bub Means",
       "position": "WR",
       "nflTeam": "NOS",
@@ -3922,77 +4072,67 @@
       "adp": 380
     },
     {
-      "id": "e8e1d498-83d1-4c42-85d1-f8ba8e5d0128",
+      "id": "f4135b60-7742-4190-bb18-ea13451b80a5",
+      "name": "Noah Fant",
+      "position": "TE",
+      "nflTeam": "NOS",
+      "age": 28.6,
+      "isRookie": false,
+      "dynastyValue": 327,
+      "adp": 228
+    },
+    {
+      "id": "880f77ce-548d-4b08-9a8c-ba32f12f9a37",
       "name": "Joe Flacco",
       "position": "QB",
       "nflTeam": "CIN",
       "age": 41.4,
       "isRookie": false,
-      "dynastyValue": 323,
+      "dynastyValue": 321,
       "adp": 232
     },
     {
-      "id": "5394d31d-84c1-433c-80ee-86139a6f5c58",
-      "name": "Kendrick Bourne",
-      "position": "WR",
-      "nflTeam": "ARI",
-      "age": 30.9,
-      "isRookie": false,
-      "dynastyValue": 319,
-      "adp": 347
-    },
-    {
-      "id": "1e93063b-9195-4853-8ce4-dcebfd2ce584",
+      "id": "6da8e293-c921-4d97-aac8-5852e75543d4",
       "name": "Kendall Milton",
       "position": "RB",
       "nflTeam": "CIN",
       "age": 24.4,
       "isRookie": false,
-      "dynastyValue": 318,
+      "dynastyValue": 315,
       "adp": 381
     },
     {
-      "id": "f72b186c-e6ec-452f-a33f-3dd3724fea53",
-      "name": "Tyler Higbee",
-      "position": "TE",
-      "nflTeam": "LAR",
-      "age": 33.4,
-      "isRookie": false,
-      "dynastyValue": 311,
-      "adp": 251
-    },
-    {
-      "id": "5717b00b-7204-459c-9f03-0eec9faaf0cc",
+      "id": "33a9e864-db8a-4ff1-bcdb-75ead30d4043",
       "name": "Will Levis",
       "position": "QB",
       "nflTeam": "TEN",
       "age": 27,
       "isRookie": false,
-      "dynastyValue": 308,
+      "dynastyValue": 310,
       "adp": 278
     },
     {
-      "id": "73772b59-cd62-4612-b4e2-33e9bfdbd6d1",
-      "name": "Kalel Mullings",
+      "id": "bcaa9da0-18da-4edf-8954-7977acb68884",
+      "name": "Zavier Scott",
       "position": "RB",
-      "nflTeam": "TEN",
-      "age": 23.7,
+      "nflTeam": "MIN",
+      "age": 26.9,
       "isRookie": false,
-      "dynastyValue": 307,
-      "adp": 311
+      "dynastyValue": 309,
+      "adp": 0
     },
     {
-      "id": "a5fa1550-6b24-41e7-b896-007824d86db1",
-      "name": "Raheim Sanders",
-      "position": "RB",
-      "nflTeam": "CLE",
-      "age": 24,
+      "id": "19c3c18b-8a1a-4a74-a8db-5b5b7528aea0",
+      "name": "Kendrick Bourne",
+      "position": "WR",
+      "nflTeam": "ARI",
+      "age": 30.9,
       "isRookie": false,
-      "dynastyValue": 306,
-      "adp": 318
+      "dynastyValue": 304,
+      "adp": 347
     },
     {
-      "id": "5e5455c4-dcca-40a5-82ed-603c66b632cf",
+      "id": "a8f6fdde-71a4-43ff-8518-3fbd7f9ded16",
       "name": "Konata Mumpfield",
       "position": "WR",
       "nflTeam": "LAR",
@@ -4002,407 +4142,267 @@
       "adp": 338
     },
     {
-      "id": "0270fd73-119f-4ef4-a477-b90fb9373e6d",
-      "name": "Efton Chism",
-      "position": "WR",
-      "nflTeam": "NEP",
-      "age": 24.6,
+      "id": "bd91fab3-3546-400d-a5a5-796de3e067d5",
+      "name": "Tyler Higbee",
+      "position": "TE",
+      "nflTeam": "LAR",
+      "age": 33.5,
       "isRookie": false,
       "dynastyValue": 302,
-      "adp": 272
+      "adp": 251
     },
     {
-      "id": "943de905-9653-41e2-9301-041eb14d4222",
-      "name": "Alexander Mattison",
-      "position": "RB",
-      "nflTeam": "MIA",
-      "age": 28,
-      "isRookie": false,
-      "dynastyValue": 300,
-      "adp": 332
-    },
-    {
-      "id": "b4db85c2-a657-414d-b8b2-8e011d50af90",
-      "name": "Gardner Minshew",
-      "position": "QB",
-      "nflTeam": "ARI",
-      "age": 30.1,
-      "isRookie": false,
-      "dynastyValue": 299,
-      "adp": 310
-    },
-    {
-      "id": "45a24c80-c5b8-4812-9dbd-6099a7c3866d",
-      "name": "Jonnu Smith",
-      "position": "TE",
-      "nflTeam": "FA",
-      "age": 30.8,
-      "isRookie": false,
-      "dynastyValue": 297,
-      "adp": 152
-    },
-    {
-      "id": "c11fe64e-25db-44eb-8c74-7c578c698406",
-      "name": "Brenden Rice",
-      "position": "WR",
-      "nflTeam": "GBP",
-      "age": 24.2,
-      "isRookie": false,
-      "dynastyValue": 296,
-      "adp": 0
-    },
-    {
-      "id": "1d2e2bf2-1bf5-4789-8fea-3309aaf2c061",
+      "id": "695fee68-00c7-471e-b96d-dcc243a249e5",
       "name": "Devin Singletary",
       "position": "RB",
       "nflTeam": "NYG",
       "age": 28.8,
       "isRookie": false,
-      "dynastyValue": 294,
+      "dynastyValue": 299,
       "adp": 271
     },
     {
-      "id": "d2c84b92-484b-4cdc-9729-ac5acd390c8c",
-      "name": "Olamide Zaccheaus",
+      "id": "a0b0bbb1-4480-4c39-8a92-0baedf7fea94",
+      "name": "Alexander Mattison",
+      "position": "RB",
+      "nflTeam": "MIA",
+      "age": 28,
+      "isRookie": false,
+      "dynastyValue": 296,
+      "adp": 332
+    },
+    {
+      "id": "3ca4c029-4564-4032-b662-8f642cfad21d",
+      "name": "Tai Felton",
       "position": "WR",
-      "nflTeam": "ATL",
-      "age": 28.9,
+      "nflTeam": "MIN",
+      "age": 23.3,
+      "isRookie": false,
+      "dynastyValue": 293,
+      "adp": 247
+    },
+    {
+      "id": "1b46c1a3-0416-42f1-9ca6-2218aed5de8a",
+      "name": "Brenden Rice",
+      "position": "WR",
+      "nflTeam": "GBP",
+      "age": 24.2,
       "isRookie": false,
       "dynastyValue": 292,
-      "adp": 329
+      "adp": 0
     },
     {
-      "id": "d429bece-db06-4cc4-a748-c0609ec5f9cb",
-      "name": "Kenny McIntosh",
-      "position": "RB",
-      "nflTeam": "SEA",
-      "age": 26.3,
+      "id": "26d39532-6c3f-4f98-8d87-ff178ccbe245",
+      "name": "Gardner Minshew",
+      "position": "QB",
+      "nflTeam": "ARI",
+      "age": 30.1,
       "isRookie": false,
-      "dynastyValue": 287,
-      "adp": 360
+      "dynastyValue": 290,
+      "adp": 310
     },
     {
-      "id": "444a795b-32fc-4b7d-a9ff-8ee90a163509",
-      "name": "Ty Johnson",
-      "position": "RB",
-      "nflTeam": "BUF",
-      "age": 28.8,
-      "isRookie": false,
-      "dynastyValue": 286,
-      "adp": 309
-    },
-    {
-      "id": "89669d06-f821-401b-b8e2-02805fbf4aa4",
+      "id": "ce442dbc-d49d-494d-a03e-4166422cadab",
       "name": "Erick All",
       "position": "TE",
       "nflTeam": "CIN",
       "age": 25.8,
       "isRookie": false,
-      "dynastyValue": 283,
+      "dynastyValue": 289,
       "adp": 308
     },
     {
-      "id": "342d58c5-9f60-4280-991d-f3b555645d3d",
-      "name": "Tai Felton",
-      "position": "WR",
-      "nflTeam": "MIN",
-      "age": 23.2,
-      "isRookie": false,
-      "dynastyValue": 283,
-      "adp": 247
-    },
-    {
-      "id": "8bd21a97-d96c-46de-a56c-390130775b37",
-      "name": "Jam Miller",
+      "id": "5d29f1f1-10b0-4358-952f-a9fcdc75b415",
+      "name": "Kenny McIntosh",
       "position": "RB",
-      "nflTeam": "NEP",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 282,
-      "adp": 223
-    },
-    {
-      "id": "c34f9ee1-7ced-44fb-974f-0d144632bfe6",
-      "name": "Emari Demercado",
-      "position": "RB",
-      "nflTeam": "KCC",
-      "age": 27.4,
-      "isRookie": false,
-      "dynastyValue": 278,
-      "adp": 350
-    },
-    {
-      "id": "2e9778d8-f93f-4245-8a50-a0934c939d13",
-      "name": "Jack Endries",
-      "position": "TE",
-      "nflTeam": "CIN",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 278,
-      "adp": 205
-    },
-    {
-      "id": "78df8634-54af-4f30-b8a0-d61fef7a08c5",
-      "name": "Dameon Pierce",
-      "position": "RB",
-      "nflTeam": "PHI",
+      "nflTeam": "SEA",
       "age": 26.3,
       "isRookie": false,
-      "dynastyValue": 277,
-      "adp": 286
+      "dynastyValue": 286,
+      "adp": 360
     },
     {
-      "id": "5a46b3d7-a304-417c-b244-e1c81281b51d",
-      "name": "Charlie Kolar",
-      "position": "TE",
-      "nflTeam": "LAC",
-      "age": 27.4,
-      "isRookie": false,
-      "dynastyValue": 275,
-      "adp": 325
-    },
-    {
-      "id": "0250419f-0931-46d9-83df-baa735456ee8",
-      "name": "Malachi Corley",
-      "position": "WR",
-      "nflTeam": "CLE",
-      "age": 24.2,
-      "isRookie": false,
-      "dynastyValue": 273,
-      "adp": 330
-    },
-    {
-      "id": "ea1dc939-2fd6-4fed-b839-47628ed55221",
-      "name": "Greg Dortch",
-      "position": "WR",
-      "nflTeam": "DET",
-      "age": 28,
-      "isRookie": false,
-      "dynastyValue": 271,
-      "adp": 336
-    },
-    {
-      "id": "9354d6aa-d739-4f83-9ed8-dcfaa2899b42",
-      "name": "Phil Mafah",
-      "position": "RB",
-      "nflTeam": "DAL",
-      "age": 23.6,
-      "isRookie": false,
-      "dynastyValue": 270,
-      "adp": 285
-    },
-    {
-      "id": "fdb1f927-64a0-473f-a7ac-c43f4f257085",
-      "name": "Tanner McKee",
-      "position": "QB",
-      "nflTeam": "PHI",
-      "age": 26.1,
-      "isRookie": false,
-      "dynastyValue": 270,
-      "adp": 292
-    },
-    {
-      "id": "cc7b41da-8cad-4b62-b87d-225c341f7719",
+      "id": "cc596d5d-080a-4bff-bc6a-4683674b9d89",
       "name": "Tyler Huntley",
       "position": "QB",
       "nflTeam": "BAL",
       "age": 28.4,
       "isRookie": false,
-      "dynastyValue": 267,
+      "dynastyValue": 285,
       "adp": 313
     },
     {
-      "id": "5978e46d-070e-44ee-b33c-e846d4dec75a",
-      "name": "KaVontae Turpin",
-      "position": "WR",
-      "nflTeam": "DAL",
-      "age": 29.9,
-      "isRookie": false,
-      "dynastyValue": 265,
-      "adp": 283
+      "id": "ad0d0729-cce2-42ca-aca2-2b95db536b8e",
+      "name": "Jack Endries",
+      "position": "TE",
+      "nflTeam": "CIN",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 284,
+      "adp": 205
     },
     {
-      "id": "564bb9fc-718f-4598-8533-68a420391f75",
+      "id": "0b7e7bad-9277-46b2-8363-75e84f52cdc7",
+      "name": "Ty Johnson",
+      "position": "RB",
+      "nflTeam": "BUF",
+      "age": 28.8,
+      "isRookie": false,
+      "dynastyValue": 284,
+      "adp": 309
+    },
+    {
+      "id": "441d075f-88c1-46a3-84d7-9e97ae3acd03",
+      "name": "Olamide Zaccheaus",
+      "position": "WR",
+      "nflTeam": "ATL",
+      "age": 28.9,
+      "isRookie": false,
+      "dynastyValue": 281,
+      "adp": 329
+    },
+    {
+      "id": "a43b793d-1b10-4eb9-880f-57489ccc21c6",
+      "name": "Jam Miller",
+      "position": "RB",
+      "nflTeam": "NEP",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 280,
+      "adp": 223
+    },
+    {
+      "id": "bb49d857-85f8-41ac-b391-cd2b1616d3bb",
+      "name": "Jonnu Smith",
+      "position": "TE",
+      "nflTeam": "FA",
+      "age": 30.8,
+      "isRookie": false,
+      "dynastyValue": 278,
+      "adp": 152
+    },
+    {
+      "id": "8ab16d56-2a5f-4c99-b8b4-2d4b4cacd03c",
+      "name": "Emari Demercado",
+      "position": "RB",
+      "nflTeam": "KCC",
+      "age": 27.4,
+      "isRookie": false,
+      "dynastyValue": 275,
+      "adp": 350
+    },
+    {
+      "id": "b9172a80-c484-4e92-8320-89e10d3ac4fe",
       "name": "Nick Westbrook-Ikhine",
       "position": "WR",
       "nflTeam": "IND",
       "age": 29.2,
       "isRookie": false,
-      "dynastyValue": 265,
+      "dynastyValue": 272,
       "adp": 335
     },
     {
-      "id": "3e0b64d1-3470-4b1e-879d-103f320d1d43",
-      "name": "Jalin Hyatt",
-      "position": "WR",
-      "nflTeam": "NYG",
-      "age": 24.7,
-      "isRookie": false,
-      "dynastyValue": 263,
-      "adp": 344
-    },
-    {
-      "id": "cc06df83-49f4-42eb-879a-379e9b8d34c8",
-      "name": "Kareem Hunt",
+      "id": "09c39f23-15d3-4ea1-a691-116eef47aa03",
+      "name": "Phil Mafah",
       "position": "RB",
-      "nflTeam": "FA",
-      "age": 30.9,
-      "isRookie": false,
-      "dynastyValue": 259,
-      "adp": 237
-    },
-    {
-      "id": "9c9929de-675b-4d2e-96a8-9cafe0229973",
-      "name": "Trey Lance",
-      "position": "QB",
-      "nflTeam": "LAC",
-      "age": 26.1,
-      "isRookie": false,
-      "dynastyValue": 256,
-      "adp": 316
-    },
-    {
-      "id": "9ece87b6-4d8b-40f5-b9e2-8486484ce0a2",
-      "name": "Zach Ertz",
-      "position": "TE",
-      "nflTeam": "FA",
-      "age": 35.6,
-      "isRookie": false,
-      "dynastyValue": 250,
-      "adp": 193
-    },
-    {
-      "id": "7c7065cb-f770-4062-a209-1b3b0ef9c045",
-      "name": "Mack Hollins",
-      "position": "WR",
-      "nflTeam": "NEP",
-      "age": 32.8,
-      "isRookie": false,
-      "dynastyValue": 247,
-      "adp": 307
-    },
-    {
-      "id": "c78cea90-01d7-400c-a72b-b05d6a893f95",
-      "name": "Elijah Moore",
-      "position": "WR",
-      "nflTeam": "PHI",
-      "age": 26.2,
-      "isRookie": false,
-      "dynastyValue": 246,
-      "adp": 260
-    },
-    {
-      "id": "e880797e-2698-4409-ba5c-e54f1536c582",
-      "name": "Sione Vaki",
-      "position": "RB",
-      "nflTeam": "DET",
-      "age": 24.9,
-      "isRookie": false,
-      "dynastyValue": 244,
-      "adp": 395
-    },
-    {
-      "id": "c8d166c5-ba98-4c01-a3e5-9d23ea52734f",
-      "name": "Ty Chandler",
-      "position": "RB",
-      "nflTeam": "NOS",
-      "age": 28.1,
-      "isRookie": false,
-      "dynastyValue": 241,
-      "adp": 369
-    },
-    {
-      "id": "6697d65a-e49a-48b1-8091-d26f60a60603",
-      "name": "Luke Schoonmaker",
-      "position": "TE",
       "nflTeam": "DAL",
-      "age": 27.7,
+      "age": 23.6,
       "isRookie": false,
-      "dynastyValue": 240,
-      "adp": 286
+      "dynastyValue": 268,
+      "adp": 285
     },
     {
-      "id": "5d0ef1e5-353b-48be-bb6e-5d94e0702dbb",
-      "name": "Kenny Pickett",
-      "position": "QB",
-      "nflTeam": "CAR",
-      "age": 28,
-      "isRookie": false,
-      "dynastyValue": 236,
-      "adp": 273
-    },
-    {
-      "id": "f45979f7-42e3-44ec-ba4e-1ce42b56b6dd",
-      "name": "Jordan Watkins",
-      "position": "WR",
-      "nflTeam": "SFO",
-      "age": 24.3,
-      "isRookie": false,
-      "dynastyValue": 225,
-      "adp": 300
-    },
-    {
-      "id": "9588742f-9065-484a-8e4f-995def02e019",
-      "name": "Barion Brown",
-      "position": "WR",
-      "nflTeam": "NOS",
-      "age": 22.5,
-      "isRookie": true,
-      "dynastyValue": 216,
-      "adp": 0
-    },
-    {
-      "id": "9b151892-dbcf-4efd-b6ed-a8540885167c",
-      "name": "Cole Payton",
-      "position": "QB",
-      "nflTeam": "PHI",
-      "age": -1,
-      "isRookie": true,
-      "dynastyValue": 215,
-      "adp": 183
-    },
-    {
-      "id": "9a7c331c-f794-4b23-8d61-aa201a9c7b61",
+      "id": "d94a5236-5928-455e-9e83-d28e45cdaf0d",
       "name": "Michael Carter",
       "position": "RB",
       "nflTeam": "TEN",
       "age": 27.1,
       "isRookie": false,
-      "dynastyValue": 215,
+      "dynastyValue": 261,
       "adp": 327
     },
     {
-      "id": "a5cfa3ae-fbf4-4084-a7ad-83324176337d",
+      "id": "cc62c84c-909a-4ff4-9c7a-e09b6d6f5ffb",
+      "name": "KaVontae Turpin",
+      "position": "WR",
+      "nflTeam": "DAL",
+      "age": 29.9,
+      "isRookie": false,
+      "dynastyValue": 257,
+      "adp": 283
+    },
+    {
+      "id": "75f7ca64-7420-4b9c-97c0-6d30d0c13d12",
+      "name": "Ty Chandler",
+      "position": "RB",
+      "nflTeam": "NOS",
+      "age": 28.1,
+      "isRookie": false,
+      "dynastyValue": 238,
+      "adp": 369
+    },
+    {
+      "id": "254f2d5b-512f-4d1a-9232-902cb6eeb625",
+      "name": "Kenny Pickett",
+      "position": "QB",
+      "nflTeam": "CAR",
+      "age": 28,
+      "isRookie": false,
+      "dynastyValue": 228,
+      "adp": 273
+    },
+    {
+      "id": "b9d4e4e0-38ec-4cdd-b5d9-395c3b1ee321",
+      "name": "Barion Brown",
+      "position": "WR",
+      "nflTeam": "NOS",
+      "age": 22.5,
+      "isRookie": true,
+      "dynastyValue": 212,
+      "adp": 0
+    },
+    {
+      "id": "4f1eaaee-d898-49b2-bfc3-89fba558bccb",
+      "name": "Cole Payton",
+      "position": "QB",
+      "nflTeam": "PHI",
+      "age": -1,
+      "isRookie": true,
+      "dynastyValue": 212,
+      "adp": 183
+    },
+    {
+      "id": "d4996cf5-e0d8-4ac2-960e-4a4e675871e2",
       "name": "Arian Smith",
       "position": "WR",
       "nflTeam": "NYJ",
       "age": 24.7,
       "isRookie": false,
-      "dynastyValue": 199,
+      "dynastyValue": 193,
       "adp": 315
     },
     {
-      "id": "7378aac8-e783-44e4-91b5-aa601e133271",
+      "id": "3e7baf15-6b70-4396-804e-8a77f28ed059",
+      "name": "Jawhar Jordan",
+      "position": "RB",
+      "nflTeam": "HOU",
+      "age": 26.8,
+      "isRookie": false,
+      "dynastyValue": 188,
+      "adp": 0
+    },
+    {
+      "id": "ceecada8-d1c9-4ed0-90e3-b5cc7479f623",
       "name": "Tyler Johnson",
       "position": "WR",
       "nflTeam": "DAL",
       "age": 27.8,
       "isRookie": false,
-      "dynastyValue": 167,
+      "dynastyValue": 177,
       "adp": 410
     },
     {
-      "id": "98e02ca3-c779-4faf-98fa-5b470e9016fe",
-      "name": "Zavier Scott",
-      "position": "RB",
-      "nflTeam": "MIN",
-      "age": 26.9,
-      "isRookie": false,
-      "dynastyValue": 167,
-      "adp": 0
-    },
-    {
-      "id": "86fd3fca-1573-4990-84ec-3729946c3b12",
+      "id": "d8de933b-10c7-4118-844c-7131afe3f095",
       "name": "Ainias Smith",
       "position": "WR",
       "nflTeam": "CAR",
@@ -4412,77 +4412,57 @@
       "adp": 404
     },
     {
-      "id": "a9f075ad-4914-4526-a9a1-5c71224f21d0",
-      "name": "Jawhar Jordan",
+      "id": "af9d34e1-463f-4cea-b6f3-9dacb852a007",
+      "name": "Kareem Hunt",
       "position": "RB",
-      "nflTeam": "HOU",
-      "age": 26.8,
-      "isRookie": false,
-      "dynastyValue": 129,
-      "adp": 0
-    },
-    {
-      "id": "d7ea5b74-e0d5-407a-8c63-72d21f0a2e2e",
-      "name": "Mason Rudolph",
-      "position": "QB",
-      "nflTeam": "PIT",
+      "nflTeam": "FA",
       "age": 30.9,
       "isRookie": false,
-      "dynastyValue": 83,
-      "adp": 272
+      "dynastyValue": 147,
+      "adp": 237
     },
     {
-      "id": "34e16e5a-a265-4753-898e-8d5e309f0b24",
+      "id": "5c294fc8-ec4b-4b9e-9430-802cefec007f",
       "name": "Deuce Vaughn",
       "position": "RB",
       "nflTeam": "FA",
       "age": 24.6,
       "isRookie": false,
-      "dynastyValue": 82,
+      "dynastyValue": 76,
       "adp": 355
     },
     {
-      "id": "dec982aa-686c-4eb4-9677-0e417f146fae",
+      "id": "4d8e6ac6-7455-4ff1-b013-5287306093db",
       "name": "Samaje Perine",
       "position": "RB",
       "nflTeam": "CIN",
       "age": 30.8,
       "isRookie": false,
-      "dynastyValue": 79,
+      "dynastyValue": 75,
       "adp": 318
     },
     {
-      "id": "2f07d9ec-9132-4c1f-81da-6c5af2e30341",
-      "name": "Darren Waller",
-      "position": "TE",
-      "nflTeam": "FA",
-      "age": 33.8,
-      "isRookie": false,
-      "dynastyValue": 56,
-      "adp": 218
-    },
-    {
-      "id": "96efd251-fbfb-469c-9a2a-ee2eb0f177db",
-      "name": "Aidan O'Connell",
+      "id": "62f14ede-631d-44af-836f-c3f2adb349da",
+      "name": "Mason Rudolph",
       "position": "QB",
-      "nflTeam": "LVR",
-      "age": 27.8,
+      "nflTeam": "PIT",
+      "age": 30.9,
       "isRookie": false,
-      "dynastyValue": 55,
-      "adp": 329
+      "dynastyValue": 74,
+      "adp": 272
     },
     {
-      "id": "14e94b83-4840-4c88-a843-dc2ccee1c895",
+      "id": "aa46d54a-ea9a-4566-95a9-d9091b5ec1a7",
       "name": "Kyle McCord",
       "position": "QB",
       "nflTeam": "GBP",
       "age": 23.7,
       "isRookie": false,
-      "dynastyValue": 53,
+      "dynastyValue": 49,
       "adp": 338
     },
     {
-      "id": "03829aeb-d27c-4e1f-8dd6-534bfd9c85b7",
+      "id": "e9f94032-d0f5-4e34-b556-c26af3cd9d43",
       "name": "Johnny Wilson",
       "position": "WR",
       "nflTeam": "PHI",
@@ -4492,7 +4472,7 @@
       "adp": 408
     },
     {
-      "id": "df73bdcd-f2df-4362-9680-9043489bfe96",
+      "id": "03f7bc61-0fc4-4409-b5e8-bb9d8c433d17",
       "name": "AJ Dillon",
       "position": "RB",
       "nflTeam": "CAR",
@@ -4502,7 +4482,27 @@
       "adp": 316
     },
     {
-      "id": "9e37b70f-39e2-4414-abdb-11660f6d97a9",
+      "id": "6bc2ed73-f256-4db1-8511-6cb3369dd5d3",
+      "name": "Van Jefferson",
+      "position": "WR",
+      "nflTeam": "WAS",
+      "age": 29.9,
+      "isRookie": false,
+      "dynastyValue": 36,
+      "adp": 404
+    },
+    {
+      "id": "d08ba972-3d2a-49b8-bb7d-8dec1c0305b9",
+      "name": "Elijah Mitchell",
+      "position": "RB",
+      "nflTeam": "PHI",
+      "age": 28.1,
+      "isRookie": false,
+      "dynastyValue": 35,
+      "adp": 294
+    },
+    {
+      "id": "3c8d90a4-53ef-4e89-b871-da24c1537e9f",
       "name": "Terrell Jennings",
       "position": "RB",
       "nflTeam": "NEP",
@@ -4512,117 +4512,87 @@
       "adp": 0
     },
     {
-      "id": "72e734c3-38e6-4576-bd8b-5cedeb3b0775",
+      "id": "65806708-5258-4250-a4ff-1227ce93acca",
+      "name": "Darren Waller",
+      "position": "TE",
+      "nflTeam": "FA",
+      "age": 33.8,
+      "isRookie": false,
+      "dynastyValue": 31,
+      "adp": 218
+    },
+    {
+      "id": "08711564-4e77-4ca1-b58d-637446338350",
       "name": "Tyrod Taylor",
       "position": "QB",
       "nflTeam": "GBP",
       "age": 36.9,
       "isRookie": false,
-      "dynastyValue": 31,
+      "dynastyValue": 26,
       "adp": 327
     },
     {
-      "id": "3219b6a7-2c83-49ca-9cb6-1991af1d8fab",
-      "name": "Van Jefferson",
-      "position": "WR",
-      "nflTeam": "WAS",
-      "age": 29.9,
-      "isRookie": false,
-      "dynastyValue": 26,
-      "adp": 404
-    },
-    {
-      "id": "00fcd934-510c-4c26-b0b7-43a83a0181e4",
-      "name": "Grant Calcaterra",
-      "position": "TE",
-      "nflTeam": "PHI",
-      "age": 27.5,
+      "id": "f39ab1b1-1008-4ff0-84e7-42cd149f8f5d",
+      "name": "Aidan O'Connell",
+      "position": "QB",
+      "nflTeam": "LVR",
+      "age": 27.8,
       "isRookie": false,
       "dynastyValue": 24,
-      "adp": 304
+      "adp": 329
     },
     {
-      "id": "5bcdb481-a976-4561-a3bf-9c66eeb8cf3e",
-      "name": "Nick Chubb",
-      "position": "RB",
-      "nflTeam": "FA",
-      "age": 30.4,
-      "isRookie": false,
-      "dynastyValue": 22,
-      "adp": 210
-    },
-    {
-      "id": "9408c66c-3357-47bf-b390-0320f73098ac",
-      "name": "Elijah Mitchell",
-      "position": "RB",
-      "nflTeam": "PHI",
-      "age": 28.1,
-      "isRookie": false,
-      "dynastyValue": 21,
-      "adp": 294
-    },
-    {
-      "id": "57e37f22-f62d-4a3d-9ba9-8d7c6929ab9b",
-      "name": "Jeremy McNichols",
-      "position": "RB",
-      "nflTeam": "WAS",
-      "age": 30.4,
-      "isRookie": false,
-      "dynastyValue": 21,
-      "adp": 326
-    },
-    {
-      "id": "5170dc9f-ff32-45e3-98c4-1ebe12e01c6a",
+      "id": "257f1905-6da8-421b-9b04-f7914f66c18b",
       "name": "Derius Davis",
       "position": "WR",
       "nflTeam": "LAC",
       "age": 25.8,
       "isRookie": false,
-      "dynastyValue": 20,
+      "dynastyValue": 23,
       "adp": 390
     },
     {
-      "id": "6d3fd59e-1b9d-4c98-b52a-6a67e21cad25",
-      "name": "Jake Browning",
-      "position": "QB",
-      "nflTeam": "TBB",
-      "age": 30.2,
-      "isRookie": false,
-      "dynastyValue": 20,
-      "adp": 293
-    },
-    {
-      "id": "8d13d34b-7d79-438e-a30b-97bf71a5b3ed",
-      "name": "Thomas Fidone",
+      "id": "ebc578a5-a35c-4ebe-8c90-b6fc01639db0",
+      "name": "Grant Calcaterra",
       "position": "TE",
-      "nflTeam": "NYG",
-      "age": 23.7,
+      "nflTeam": "PHI",
+      "age": 27.5,
       "isRookie": false,
-      "dynastyValue": 19,
-      "adp": 328
+      "dynastyValue": 23,
+      "adp": 304
     },
     {
-      "id": "7b9884ca-bcc7-458b-a3f7-4718ed358361",
-      "name": "Carson Wentz",
-      "position": "QB",
-      "nflTeam": "MIN",
-      "age": 33.4,
-      "isRookie": false,
-      "dynastyValue": 15,
-      "adp": 301
-    },
-    {
-      "id": "7799c9b3-17be-4fe9-9d48-02d300add1a3",
+      "id": "3c949c7d-603f-4d6f-a6cc-7a745cf3656c",
       "name": "LaJohntay Wester",
       "position": "WR",
       "nflTeam": "BAL",
       "age": 24.2,
       "isRookie": false,
-      "dynastyValue": 15,
+      "dynastyValue": 18,
       "adp": 401
     },
     {
-      "id": "b5c3e2fe-e2c1-4100-89ac-59981b520edc",
+      "id": "4cfe86cf-9479-43c5-bf08-cfbad9c39e60",
+      "name": "Jeremy Ruckert",
+      "position": "TE",
+      "nflTeam": "NYJ",
+      "age": 25.8,
+      "isRookie": false,
+      "dynastyValue": 16,
+      "adp": 349
+    },
+    {
+      "id": "105e2b66-5702-497a-a7c9-e3dc40a55e1f",
+      "name": "Thomas Fidone",
+      "position": "TE",
+      "nflTeam": "NYG",
+      "age": 23.7,
+      "isRookie": false,
+      "dynastyValue": 16,
+      "adp": 328
+    },
+    {
+      "id": "863fff12-bac8-48ba-adbc-fda29f6549e7",
       "name": "Julius Chestnut",
       "position": "RB",
       "nflTeam": "TEN",
@@ -4632,131 +4602,91 @@
       "adp": 385
     },
     {
-      "id": "f2f06b06-2cab-47b4-9012-378a18f5e354",
-      "name": "Jeremy Ruckert",
-      "position": "TE",
-      "nflTeam": "NYJ",
-      "age": 25.8,
-      "isRookie": false,
-      "dynastyValue": 9,
-      "adp": 349
-    },
-    {
-      "id": "74e6ce13-f047-466c-aeb1-9c1ca1b1330c",
-      "name": "Tyler Conklin",
-      "position": "TE",
-      "nflTeam": "DET",
-      "age": 30.9,
-      "isRookie": false,
-      "dynastyValue": 9,
-      "adp": 265
-    },
-    {
-      "id": "25b8144a-3076-457f-a043-8e7973dbab33",
-      "name": "Foster Moreau",
-      "position": "TE",
-      "nflTeam": "HOU",
-      "age": 29.1,
-      "isRookie": false,
-      "dynastyValue": 6,
-      "adp": 323
-    },
-    {
-      "id": "35fc1961-0de9-46ec-8bae-09542d0bfc57",
+      "id": "ac830415-a4c0-476e-9e89-07a2471c150c",
       "name": "Harrison Bryant",
       "position": "TE",
       "nflTeam": "SEA",
       "age": 28.2,
       "isRookie": false,
-      "dynastyValue": 6,
+      "dynastyValue": 9,
       "adp": 371
     },
     {
-      "id": "0ac6f9d6-4683-4012-8fa5-b3ce7d9dc707",
-      "name": "Antonio Gibson",
+      "id": "46f832e2-8c28-43d7-b2f3-83ce893e8eb9",
+      "name": "Tyler Conklin",
+      "position": "TE",
+      "nflTeam": "DET",
+      "age": 30.9,
+      "isRookie": false,
+      "dynastyValue": 8,
+      "adp": 265
+    },
+    {
+      "id": "560cbf2b-85a9-421e-b35d-f54c0cb91ed9",
+      "name": "Jeremy McNichols",
       "position": "RB",
-      "nflTeam": "FA",
-      "age": 28,
+      "nflTeam": "WAS",
+      "age": 30.5,
       "isRookie": false,
       "dynastyValue": 0,
-      "adp": 323
+      "adp": 326
     },
     {
-      "id": "0c9b4276-ee5d-42c9-a032-3acadb8c5bdf",
-      "name": "Miles Sanders",
-      "position": "RB",
-      "nflTeam": "FA",
-      "age": 29.1,
-      "isRookie": false,
-      "dynastyValue": 0,
-      "adp": 271
-    },
-    {
-      "id": "8f96645f-e8e3-4677-8bdc-0a25b1d12a30",
-      "name": "Sterling Shepard",
+      "id": "967d0d4e-3c8e-4d62-b557-a7c77599c97a",
+      "name": "Noah Brown",
       "position": "WR",
-      "nflTeam": "TBB",
-      "age": 33.4,
+      "nflTeam": "WAS",
+      "age": 30.4,
       "isRookie": false,
       "dynastyValue": 0,
-      "adp": 410
-    },
-    {
-      "id": "a58a1bcc-e215-45d0-9088-f4adf9e569df",
-      "name": "Zay Jones",
-      "position": "WR",
-      "nflTeam": "ARI",
-      "age": 31.2,
-      "isRookie": false,
-      "dynastyValue": 0,
-      "adp": 320
+      "adp": 333
     }
   ],
   "pickValues": [
     {
       "year": 2026,
       "round": 1,
-      "dynastyValue": 5566
+      "dynastyValue": 5574
     },
     {
       "year": 2026,
       "round": 2,
-      "dynastyValue": 2506
+      "dynastyValue": 2510
     },
     {
       "year": 2026,
       "round": 3,
-      "dynastyValue": 1087
+      "dynastyValue": 1086
     },
     {
       "year": 2026,
       "round": 4,
-      "dynastyValue": 219
+      "dynastyValue": 227
     },
     {
       "year": 2027,
       "round": 1,
-      "dynastyValue": 6261
+      "dynastyValue": 6219
     },
     {
       "year": 2027,
       "round": 2,
-      "dynastyValue": 2302
+      "dynastyValue": 2297
     },
     {
       "year": 2027,
       "round": 3,
-      "dynastyValue": 945
+      "dynastyValue": 950
     },
     {
       "year": 2027,
       "round": 4,
-      "dynastyValue": 266
+      "dynastyValue": 268
     },
     {
       "year": 2028,
       "round": 1,
-      "dynastyValue": 4228
+      "dynastyValue": 4191
     },
     {
       "year": 2028,
@@ -4766,32 +4696,32 @@
     {
       "year": 2028,
       "round": 3,
-      "dynastyValue": 589
+      "dynastyValue": 591
     },
     {
       "year": 2028,
       "round": 4,
-      "dynastyValue": 8
+      "dynastyValue": 7
     },
     {
       "year": 2029,
       "round": 1,
-      "dynastyValue": 1992
+      "dynastyValue": 1975
     },
     {
       "year": 2029,
       "round": 2,
-      "dynastyValue": 760
+      "dynastyValue": 750
     },
     {
       "year": 2029,
       "round": 3,
-      "dynastyValue": 321
+      "dynastyValue": 316
     },
     {
       "year": 2029,
       "round": 4,
-      "dynastyValue": 31
+      "dynastyValue": 30
     }
   ]
 }

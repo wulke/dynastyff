@@ -103,6 +103,12 @@ When the targeted bot declines a user-initiated trade offer, the system shall wr
 **DFF-ENGINE-038** `[x]` → #86
 If a POST /drafts/:id/trade-offer request is received with missing fields, an invalid target team, assets not owned by the proposing / targeted teams, or a user-team target, the system shall return a 400 error and shall not emit SSE events or modify draft state.
 
+**DFF-ENGINE-038b** `[ ]` → #87
+When the bot simulator initiates a trade targeting the user during the bot chain, the system shall emit `trade_offered` with `is_bot_to_bot: false` and shall keep the bot chain paused until the offer resolves.
+
+**DFF-ENGINE-038c** `[ ]` → #87
+When a POST /drafts/:id/trade-offer request is received while a bot-to-user offer is pending for that same draft, the system shall resolve the original bot offer as `declined`, evaluate the new user counter-offer, and keep the bot chain paused until the counter resolves.
+
 ---
 
 ## Bot-to-Bot Trade Visibility

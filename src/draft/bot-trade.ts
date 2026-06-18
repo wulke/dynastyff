@@ -235,7 +235,7 @@ export function findBotToUserTradeOffer({
   futurePickValues: Map<string, number>;
   startupPickValues: Map<number, number>;
 }): BotToUserTradeProposal | null {
-  if (recentBotToUserOfferRounds.some((round) => round >= currentRound - 1)) {
+  if (recentBotToUserOfferRounds.some((round) => round >= currentRound - 2)) {
     return null;
   }
 

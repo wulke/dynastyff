@@ -229,9 +229,7 @@ function defaultDecideBotAction(
   }
   const proactiveOfferRounds = draftState.trades
     .filter(
-      (trade) =>
-        trade.initiating_team_id === context.slot.teamId &&
-        (userTeam?.id === trade.receiving_team_id || userTeam?.id === trade.initiating_team_id),
+      (trade) => trade.initiating_team_id === context.slot.teamId && userTeam?.id === trade.receiving_team_id,
     )
     .map((trade) => trade.round);
   const proactiveTradeProbability =

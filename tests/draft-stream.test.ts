@@ -167,7 +167,7 @@ async function invokePickRoute(
   databasePath: string,
   draftId: string,
   body: unknown,
-  botChain = createBotChainCoordinator({ databasePath, randomness: 0 }),
+  botChain = createBotChainCoordinator({ databasePath, randomness: 0, random: () => 0.99 }),
 ) {
   const route = createDraftPickRoute({ databasePath, botChain });
   const request = { body, params: { id: draftId } } as unknown as Request;
@@ -743,6 +743,7 @@ test('GET /drafts/:id/stream emits bot pick_made events and draft_complete when 
     const botChain = createBotChainCoordinator({
       databasePath,
       randomness: 0,
+      random: () => 0.99,
       now: () => '2026-05-18T20:05:00.000Z',
       sleep: async () => undefined,
     });
@@ -1561,6 +1562,7 @@ test('POST /drafts/:id/trade-offer emits trade events and defers the next bot pi
     const botChain = createBotChainCoordinator({
       databasePath,
       now: () => '2026-05-18T20:05:00.000Z',
+      random: () => 0.99,
       sleep: async () => {
         await sleepGate;
       },

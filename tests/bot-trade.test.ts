@@ -334,3 +334,35 @@ test('findBotToUserTradeOffer suppresses repeat proactive offers during the cool
 
   assert.equal(proposal, null);
 });
+
+// @spec DFF-BOT-048
+test('findBotToUserTradeOffer also suppresses offers when the same bot traded with the user two rounds ago', () => {
+  const proposal = findBotToUserTradeOffer({
+    currentRound: 6,
+    recentBotToUserOfferRounds: [4],
+    botTeam: {
+      teamId: 'bot-a',
+      archetype: 'balanced',
+      rosterPlayerIds: ['bot-wr-1'],
+      rosterPlayers: [createTradeEvaluationPlayer('bot-wr-1', 'WR', 4100)],
+      futurePickAssets: [{ year: 2027, round: 1 }],
+    },
+    userTeam: {
+      teamId: 'user-team',
+      archetype: null,
+      rosterPlayerIds: ['user-wr-1'],
+      rosterPlayers: [createTradeEvaluationPlayer('user-wr-1', 'WR', 5200)],
+      futurePickAssets: [],
+    },
+    draftOrder: DRAFT_ORDER,
+    usedPickNumbers: new Set([1, 2, 3, 4]),
+    playerValues: new Map<string, number>([
+      ['bot-wr-1', 4100],
+      ['user-wr-1', 5200],
+    ]),
+    futurePickValues: new Map<string, number>([['2027:1', 1600]]),
+    startupPickValues: new Map<number, number>(),
+  });
+
+  assert.equal(proposal, null);
+});

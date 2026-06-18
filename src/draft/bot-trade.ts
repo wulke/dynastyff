@@ -58,6 +58,21 @@ export type ScoredBotTradeAsset = {
   dynastyValue: number;
 };
 
+export type BotTradeTeamContext = {
+  teamId: string;
+  archetype?: TeamArchetype | null;
+  rosterPlayerIds: string[];
+  rosterPlayers: TradeEvaluationPlayer[];
+  futurePickAssets: Array<{ year: number; round: number }>;
+};
+
+export type BotToUserTradeProposal = {
+  assetsSent: BotTradeAsset[];
+  assetsReceived: BotTradeAsset[];
+  sentDynastyValue: number;
+  receivedDynastyValue: number;
+};
+
 export type TradeEvaluationPlayer = {
   id: string;
   position: string;
@@ -196,6 +211,97 @@ export function evaluateBotTrade({
   return summary.receivedDynastyValue >= summary.sentDynastyValue * acceptanceThreshold;
 }
 
+// @spec DFF-BOT-045
+// @spec DFF-BOT-046
+// @spec DFF-BOT-048
+export function findBotToUserTradeOffer({
+  currentRound,
+  recentBotToUserOfferRounds,
+  botTeam,
+  userTeam,
+  draftOrder,
+  usedPickNumbers,
+  playerValues,
+  futurePickValues,
+  startupPickValues,
+}: {
+  currentRound: number;
+  recentBotToUserOfferRounds: number[];
+  botTeam: BotTradeTeamContext;
+  userTeam: BotTradeTeamContext;
+  draftOrder: DraftSlotOwnership[];
+  usedPickNumbers: Set<number>;
+  playerValues: Map<string, number>;
+  futurePickValues: Map<string, number>;
+  startupPickValues: Map<number, number>;
+}): BotToUserTradeProposal | null {
+  if (recentBotToUserOfferRounds.some((round) => round >= currentRound - 1)) {
+    return null;
+  }
+
+  const botAssets = buildTradeableBotAssets({
+    teamId: botTeam.teamId,
+    draftOrder,
+    usedPickNumbers,
+    rosterPlayerIds: botTeam.rosterPlayerIds,
+    archetype: botTeam.archetype,
+    rosterPlayers: botTeam.rosterPlayers,
+    futurePickAssets: botTeam.futurePickAssets,
+    playerValues,
+    futurePickValues,
+    startupPickValues,
+  });
+  const userAssets = buildTradeableBotAssets({
+    teamId: userTeam.teamId,
+    draftOrder,
+    usedPickNumbers,
+    rosterPlayerIds: userTeam.rosterPlayerIds,
+    archetype: userTeam.archetype,
+    rosterPlayers: userTeam.rosterPlayers,
+    futurePickAssets: userTeam.futurePickAssets,
+    playerValues,
+    futurePickValues,
+    startupPickValues,
+  });
+
+  if (botAssets.length === 0 || userAssets.length === 0) {
+    return null;
+  }
+
+  const playerDetails = new Map<string, TradeEvaluationPlayer>();
+  for (const player of [...botTeam.rosterPlayers, ...userTeam.rosterPlayers]) {
+    playerDetails.set(player.id, player);
+  }
+
+  const desiredAssets = [...userAssets].sort((left, right) => {
+    const leftScore = scoreDesiredAsset(left, botTeam.archetype, playerDetails);
+    const rightScore = scoreDesiredAsset(right, botTeam.archetype, playerDetails);
+    return rightScore - leftScore || right.dynastyValue - left.dynastyValue;
+  });
+  const outboundAssets = [...botAssets].sort((left, right) => {
+    const leftScore = scoreOutboundAsset(left, botTeam.archetype, playerDetails);
+    const rightScore = scoreOutboundAsset(right, botTeam.archetype, playerDetails);
+    return leftScore - rightScore || left.dynastyValue - right.dynastyValue;
+  });
+
+  for (const targetAsset of desiredAssets) {
+    const offer = chooseOfferPackage(outboundAssets, targetAsset.dynastyValue);
+
+    if (!offer) {
+      continue;
+    }
+
+    return {
+      assetsSent: offer.map((entry) => entry.asset),
+      assetsReceived: [targetAsset.asset],
+      sentDynastyValue: offer.reduce((total, entry) => total + entry.dynastyValue, 0),
+      receivedDynastyValue: targetAsset.dynastyValue,
+    };
+  }
+
+  return null;
+}
+
 // @spec DFF-SPKV-051
 export function scoreBotTradeAsset(asset: BotTradeAsset, context: TradeValueContext): number {
   if (asset.type === 'player') {
@@ -217,6 +323,169 @@ function sumAssetValues(assets: BotTradeAsset[], context: TradeValueContext): nu
 // @spec DFF-SPKV-051
 function toFuturePickValueKey(year: number, round: number): string {
   return `${year}:${round}`;
+}
+
+// @spec DFF-BOT-045
+function scoreDesiredAsset(
+  asset: ScoredBotTradeAsset,
+  archetype: TeamArchetype | null | undefined,
+  playerDetails: Map<string, TradeEvaluationPlayer>,
+): number {
+  return asset.dynastyValue * getDesiredAssetMultiplier(asset.asset, archetype, playerDetails);
+}
+
+// @spec DFF-BOT-045
+function scoreOutboundAsset(
+  asset: ScoredBotTradeAsset,
+  archetype: TeamArchetype | null | undefined,
+  playerDetails: Map<string, TradeEvaluationPlayer>,
+): number {
+  return asset.dynastyValue * getOutboundAssetMultiplier(asset.asset, archetype, playerDetails);
+}
+
+// @spec DFF-BOT-045
+function chooseOfferPackage(
+  outboundAssets: ScoredBotTradeAsset[],
+  targetValue: number,
+): ScoredBotTradeAsset[] | null {
+  const minimumOfferValue = Math.ceil(targetValue * 0.82);
+  const maximumOfferValue = Math.floor(targetValue * 0.97);
+  let bestOffer: ScoredBotTradeAsset[] | null = null;
+  let bestOfferValue = -1;
+
+  for (let firstIndex = 0; firstIndex < outboundAssets.length; firstIndex += 1) {
+    const first = outboundAssets[firstIndex]!;
+    const firstValue = first.dynastyValue;
+
+    if (firstValue >= minimumOfferValue && firstValue <= maximumOfferValue && firstValue > bestOfferValue) {
+      bestOffer = [first];
+      bestOfferValue = firstValue;
+    }
+
+    for (let secondIndex = firstIndex + 1; secondIndex < outboundAssets.length; secondIndex += 1) {
+      const second = outboundAssets[secondIndex]!;
+      const secondValue = firstValue + second.dynastyValue;
+
+      if (secondValue >= minimumOfferValue && secondValue <= maximumOfferValue && secondValue > bestOfferValue) {
+        bestOffer = [first, second];
+        bestOfferValue = secondValue;
+      }
+
+      for (let thirdIndex = secondIndex + 1; thirdIndex < outboundAssets.length; thirdIndex += 1) {
+        const third = outboundAssets[thirdIndex]!;
+        const thirdValue = secondValue + third.dynastyValue;
+
+        if (thirdValue >= minimumOfferValue && thirdValue <= maximumOfferValue && thirdValue > bestOfferValue) {
+          bestOffer = [first, second, third];
+          bestOfferValue = thirdValue;
+        }
+      }
+    }
+  }
+
+  return bestOffer;
+}
+
+// @spec DFF-BOT-045
+function getDesiredAssetMultiplier(
+  asset: BotTradeAsset,
+  archetype: TeamArchetype | null | undefined,
+  playerDetails: Map<string, TradeEvaluationPlayer>,
+): number {
+  if (asset.type === 'player') {
+    const player = playerDetails.get(asset.player_id);
+
+    if (!player) {
+      return 1;
+    }
+
+    if (archetype === 'rb_heavy') {
+      return player.position === 'RB' ? 1.2 : 1;
+    }
+
+    if (archetype === 'qb_early') {
+      return player.position === 'QB' ? 1.2 : 1;
+    }
+
+    if (archetype === 'punt') {
+      return (player.age ?? 99) <= 24 ? 1.15 : 0.95;
+    }
+
+    if (archetype === 'win_now') {
+      return (player.age ?? 0) >= 25 ? 1.1 : 0.95;
+    }
+
+    return 1;
+  }
+
+  if (asset.type === 'future_pick') {
+    if (archetype === 'punt') {
+      return 1.18;
+    }
+
+    if (archetype === 'win_now') {
+      return 0.92;
+    }
+
+    return 1;
+  }
+
+  if (archetype === 'win_now') {
+    return 1.08;
+  }
+
+  return 1;
+}
+
+// @spec DFF-BOT-045
+function getOutboundAssetMultiplier(
+  asset: BotTradeAsset,
+  archetype: TeamArchetype | null | undefined,
+  playerDetails: Map<string, TradeEvaluationPlayer>,
+): number {
+  if (asset.type === 'player') {
+    const player = playerDetails.get(asset.player_id);
+
+    if (!player) {
+      return 1;
+    }
+
+    if (archetype === 'rb_heavy') {
+      return player.position === 'RB' ? 1.25 : 0.95;
+    }
+
+    if (archetype === 'qb_early') {
+      return player.position === 'QB' ? 1.25 : 0.95;
+    }
+
+    if (archetype === 'punt') {
+      return (player.age ?? 99) <= 24 ? 1.2 : 0.92;
+    }
+
+    if (archetype === 'win_now') {
+      return (player.age ?? 0) >= 25 ? 1.15 : 0.95;
+    }
+
+    return 1;
+  }
+
+  if (asset.type === 'future_pick') {
+    if (archetype === 'punt') {
+      return 1.25;
+    }
+
+    if (archetype === 'win_now') {
+      return 0.9;
+    }
+
+    return 0.98;
+  }
+
+  if (archetype === 'punt') {
+    return 0.92;
+  }
+
+  return 1;
 }
 
 // @spec DFF-BOT-042

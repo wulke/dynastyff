@@ -45,7 +45,7 @@ Open the Vite URL shown in the terminal to begin.
 
 1. **Resume or start** — if saved drafts exist, the Drafts List page lets you resume an in-progress draft, review a completed one, or start a new draft. Otherwise you land on the config screen.
 2. **Configure your league** — set team count, roster slots, scoring, and your draft position, or load a saved league template.
-3. **Draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically, and may propose trades for you to accept, decline, or counter.
+3. **Draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically, may proactively bring you trade offers during their turns, and will evaluate your counters before the bot chain resumes.
 4. **Use the advisor (optional)** — on any pick, ask Claude to **Advise me** for a recommendation, or **Grill me** to pressure-test your own reasoning.
 5. **Review your results** — once the draft completes, open the **Draft Grade Summary** for your overall grade, the room leaderboard, and your final roster, then drill into **Full History** (Pick Log / Roster View / Trade Log) if you want it.
 

@@ -46,7 +46,7 @@ The system shall allow multiple bot teams to share the same archetype; no unique
 
 ## Pick Scoring
 
-**DFF-BOT-020** `[ ]`
+**DFF-BOT-020** `[x]`
 When computing a pick score for an available player, the system shall compute: `score = dynastyValue × valueWeight × (slotNeed × needModifier) × youthModifier + handcuffBonus + noise × random()`.
 
 **DFF-BOT-021** `[x]`
@@ -74,10 +74,10 @@ The system shall define a static `SLOT_ELIGIBILITY` map that specifies which pos
 **DFF-BOT-024** `[x]`
 When computing `slotNeed` for a position, the system shall count all unfilled roster slots whose eligibility set includes that position, weighted by `1 / eligibilitySetSize` (fractional contribution per shared slot).
 
-**DFF-BOT-025** `[ ]`
+**DFF-BOT-025** `[x]`
 For the `punt` archetype, the system shall apply a `youthModifier` of `1.0 + max(0, (30 − age) / 30) × 0.4` to non-rookie players; rookies (`isRookie = true`) shall receive a flat `youthModifier` of `1.3`. All other archetypes shall use `youthModifier = 1.0`.
 
-**DFF-BOT-026** `[ ]`
+**DFF-BOT-026** `[x]`
 When scoring an available RB whose `nflTeam` matches the `nflTeam` of any RB already on the bot's roster, the system shall add a handcuff bonus of `0.15 × player.dynastyValue` to that player's score.
 
 ---

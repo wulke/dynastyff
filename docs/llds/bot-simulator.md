@@ -10,8 +10,10 @@ Drives specs: `docs/specs/bot-simulator-specs.md`, `docs/specs/startup-pick-valu
 
 - Determine whether to attempt a trade or make a pick for the current bot turn
 - If trading: identify the best trade partner and construct a value-positive offer per the bot's archetype
+- During the bot chain, proactively target the user's team with trade offers when value and archetype fit justify it
 - If picking: select a player using dynasty value × positional need multiplier × noise, prioritizing team needs and depth over blind BPA
 - Evaluate incoming trade offers from other bots (accept/decline based on archetype and value threshold)
+- Evaluate user counter-offers with the same dynasty-value and stickiness rules used for all incoming offers
 
 ## Bot Archetypes
 
@@ -131,6 +133,35 @@ Before picking, a bot evaluates whether to trade. Steps:
    - non-player assets are unaffected by stickiness
 4. **Construct offer**: assemble fodder assets that match or slightly exceed the target asset's dynasty value per the bot's archetype tilt
 5. **Score the offer**: if offer value ≥ target value × archetype acceptance threshold, submit to draft engine; otherwise skip and pick
+
+### Proactive Bot-to-User Offers
+
+When the draft engine calls the bot simulator for a live bot turn, the proactive-offer path narrows the partner search to the user's team so the server can pause on a human decision point without introducing bot-to-bot negotiation loops.
+
+1. **Roll for intent**: the bot only enters this path when `random() < tradeAggressivenessProbability`
+2. **Apply cooldown**: if the same bot already initiated a user-targeted offer in either of the previous two rounds, skip this pass so offers do not repeat every turn
+3. **Build the user's tradeable pool**: include rostered players, unresolved startup pick slots, and future picks currently owned by the user
+4. **Rank desired user assets**: multiply dynasty value by an archetype-fit modifier
+   - `rb_heavy`: prefer RBs
+   - `qb_early`: prefer QBs
+   - `punt`: prefer rookies, younger players, and future picks
+   - `win_now`: prefer current-production players and startup slots over distant picks
+   - `bpa` / `balanced`: stay close to pure dynasty value
+5. **Build the bot's movable pool**: reuse the standard tradeable-asset builder so protected players remain unavailable, then prefer lower-fit outbound assets first
+6. **Assemble a realistic offer**: choose one to three outbound assets whose total value stays below the requested side while still landing inside a minimum band, so the bot is seeking a modest edge instead of proposing an obvious non-starter
+7. **Emit a user-targeted proposal**: when a rational package exists, return a trade action with `initiating_team_id = botTeamId`, `receiving_team_id = userTeamId`, and `is_bot_to_bot = false`
+8. **Otherwise pick**: if no package clears the value and fit gates, continue through normal pick selection
+
+### Counter-Offer Handling
+
+The existing UI counter flow reuses `POST /drafts/:id/trade-offer`: it dismisses the incoming bot offer locally, flips the assets, and submits a new user-initiated proposal to the same bot.
+
+Server-side behavior for that path:
+
+1. Resolve the original bot-to-user offer as `declined`
+2. Keep the bot chain paused
+3. Evaluate the user's counter with the same acceptance-threshold and protected-asset logic used for any other incoming trade
+4. Emit the new `trade_offered` / `trade_resolved` lifecycle for the counter outcome, then resume the chain only after that counter resolves
 
 ### Evaluating an Incoming Trade (bot receiving from another bot)
 

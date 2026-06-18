@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {
   buildTradeableBotAssets,
   evaluateBotTrade,
+  findBotToUserTradeOffer,
   summarizeBotTrade,
   type BotTradeAsset,
   type DraftSlotOwnership,
@@ -259,4 +260,77 @@ test('evaluateBotTrade declines win_now offers that send a proven starter even w
     }),
     false,
   );
+});
+
+// @spec DFF-BOT-045
+// @spec DFF-BOT-048
+test('findBotToUserTradeOffer prefers archetype-fit user assets and stays inside a modest value-gain band', () => {
+  const proposal = findBotToUserTradeOffer({
+    currentRound: 5,
+    recentBotToUserOfferRounds: [],
+    botTeam: {
+      teamId: 'bot-a',
+      archetype: 'rb_heavy',
+      rosterPlayerIds: ['bot-wr-1'],
+      rosterPlayers: [createTradeEvaluationPlayer('bot-wr-1', 'WR', 4100)],
+      futurePickAssets: [{ year: 2027, round: 1 }],
+    },
+    userTeam: {
+      teamId: 'user-team',
+      archetype: null,
+      rosterPlayerIds: ['user-rb-1', 'user-wr-1'],
+      rosterPlayers: [
+        createTradeEvaluationPlayer('user-rb-1', 'RB', 6200),
+        createTradeEvaluationPlayer('user-wr-1', 'WR', 6500),
+      ],
+      futurePickAssets: [],
+    },
+    draftOrder: DRAFT_ORDER,
+    usedPickNumbers: new Set([1, 2, 3, 4]),
+    playerValues: new Map<string, number>([
+      ['bot-wr-1', 4100],
+      ['user-rb-1', 6200],
+      ['user-wr-1', 6500],
+    ]),
+    futurePickValues: new Map<string, number>([['2027:1', 1700]]),
+    startupPickValues: new Map<number, number>(),
+  });
+
+  assert.ok(proposal);
+  assert.deepEqual(proposal.assetsReceived, [{ type: 'player', player_id: 'user-rb-1' }]);
+  assert.equal(proposal.receivedDynastyValue, 6200);
+  assert.ok(proposal.sentDynastyValue < proposal.receivedDynastyValue);
+  assert.ok(proposal.sentDynastyValue >= Math.floor(proposal.receivedDynastyValue * 0.82));
+});
+
+// @spec DFF-BOT-048
+test('findBotToUserTradeOffer suppresses repeat proactive offers during the cooldown window', () => {
+  const proposal = findBotToUserTradeOffer({
+    currentRound: 6,
+    recentBotToUserOfferRounds: [5],
+    botTeam: {
+      teamId: 'bot-a',
+      archetype: 'balanced',
+      rosterPlayerIds: ['bot-wr-1'],
+      rosterPlayers: [createTradeEvaluationPlayer('bot-wr-1', 'WR', 4100)],
+      futurePickAssets: [{ year: 2027, round: 1 }],
+    },
+    userTeam: {
+      teamId: 'user-team',
+      archetype: null,
+      rosterPlayerIds: ['user-wr-1'],
+      rosterPlayers: [createTradeEvaluationPlayer('user-wr-1', 'WR', 5200)],
+      futurePickAssets: [],
+    },
+    draftOrder: DRAFT_ORDER,
+    usedPickNumbers: new Set([1, 2, 3, 4]),
+    playerValues: new Map<string, number>([
+      ['bot-wr-1', 4100],
+      ['user-wr-1', 5200],
+    ]),
+    futurePickValues: new Map<string, number>([['2027:1', 1600]]),
+    startupPickValues: new Map<number, number>(),
+  });
+
+  assert.equal(proposal, null);
 });

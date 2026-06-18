@@ -109,6 +109,18 @@ When constructing a trade offer, the system shall assemble fodder assets whose t
 **DFF-BOT-044** `[ ]`
 If no trade offer can be constructed that meets the value threshold, the system shall skip the trade attempt and proceed to pick selection.
 
+**DFF-BOT-045** `[ ]` → #87
+When a bot evaluates proactive trade opportunities during its turn, the system shall evaluate the user's tradeable assets by dynasty value and archetype fit before defaulting to a pick.
+
+**DFF-BOT-046** `[ ]` → #87
+When a proactive bot-to-user offer clears the bot's value-gain threshold, the system shall emit a `trade_offered` proposal with `is_bot_to_bot: false` and pause the bot chain until the trade resolves.
+
+**DFF-BOT-047** `[ ]` → #87
+When the user counters a pending bot-to-user offer, the targeted bot shall evaluate that counter with the same acceptance-threshold and stickiness rules used for any incoming trade and shall accept or decline accordingly.
+
+**DFF-BOT-048** `[ ]` → #87
+The system shall suppress repeat proactive bot-to-user offers from the same bot within a short cooldown window so bots do not propose trades every turn.
+
 ---
 
 ## Trade Evaluation (Receiving Bot)

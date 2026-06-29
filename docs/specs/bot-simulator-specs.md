@@ -56,7 +56,7 @@ The system shall compute `slotNeed` as the sum of eligibility-weighted unfilled 
 The system shall treat `needModifier` as a per-archetype need-bias band half-width (`0.0–1.0`) bounding how far `needFactor` can move from `1.0`, and shall apply the following `needModifier` and `valueWeight` per archetype:
 - `bpa`: needModifier 0.05, valueWeight 1.0 (near-pure dynasty value sort)
 - `balanced`: needModifier 0.25, valueWeight 0.8
-- `win_now`: needModifier 0.25, valueWeight 0.6
+- `win_now`: needModifier 0.25, valueWeight 0.6 (same band as the other non-BPA archetypes; its identity comes from lower `valueWeight` and aggressive trade behavior, not a wider pick-scoring band)
 - `punt`: needModifier 0.25, valueWeight 0.9
 - `rb_heavy`: needModifier 0.25, valueWeight 0.7
 - `qb_early`: needModifier 0.25, valueWeight 0.5
@@ -73,6 +73,8 @@ The system shall define a static `SLOT_ELIGIBILITY` map that specifies which pos
 
 **DFF-BOT-024** `[x]`
 When computing `slotNeed` for a position, the system shall count all unfilled roster slots whose eligibility set includes that position, weighted by `1 / eligibilitySetSize` (fractional contribution per shared slot).
+
+Requirement-ID suffixes such as `DFF-BOT-024a` are reserved for non-breaking insertions between existing IDs, so downstream references do not need to be renumbered.
 
 **DFF-BOT-024a** `[ ]` → #160
 The system shall normalize `slotNeed` to a `0–1` `normalizedNeed` value via `clamp(slotNeed / 2.0, 0, 1)` before it contributes to `needFactor`.
@@ -91,7 +93,7 @@ The system shall compute a `positionBias` signal of `1.0` (else `0`) for: `rb_he
 ## Noise and Selection
 
 **DFF-BOT-030** `[ ]` → #160
-When selecting a player to draft, the system shall use weighted random sampling where each player's sampling weight is `max(score, 0) × (1 + randomness × (random() − 0.5) × 2)` — a percentage jitter of the player's own score, not an additive constant — so the configured `randomness` value has a consistent effect regardless of dynasty-value scale.
+When selecting a player to draft, the system shall use weighted random sampling where each player's sampling weight is `max(score × (1 + randomness × (random() − 0.5) × 2), 0)` — a percentage jitter of the player's own score, not an additive constant, with the final weight floored at `0` — so the configured `randomness` value has a consistent effect regardless of dynasty-value scale.
 
 **DFF-BOT-031** `[ ]` → #160
 The system shall support a configurable `randomness` parameter (0.0–1.0, default 0.3): at 0.0 the highest-scored player is always selected; at 1.0 sampling weight can swing by up to ±100% of score, letting any scored player occasionally outrank the nominal top pick.

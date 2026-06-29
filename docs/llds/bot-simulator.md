@@ -107,6 +107,8 @@ For each available player, compute `slotNeed` based on eligibility-weighted unfi
 4. **Map to a bounded multiplier**: `needFactor = 1 + (combinedBias − 0.5) × 2 × needModifier`, clamped to `[1 − needModifier, 1 + needModifier]`.
 5. **Score**: `score = dynastyValue × valueWeight × needFactor`.
 
+If no bias signals apply (`combinedBias = 0`), `needFactor` resolves to `1 − needModifier`. That slight downward nudge is intentional: "no need / no fit" sits below the neutral midpoint instead of being treated as a positive signal.
+
 `needModifier` is now a band half-width (`0.0–1.0`), not a raw multiplier:
 
 | Archetype | `needModifier` (band) | `valueWeight` | Bias signals folded into the band |
@@ -117,6 +119,8 @@ For each available player, compute `slotNeed` based on eligibility-weighted unfi
 | `punt` | 0.25 | 0.9 | needBias, youthBias |
 | `rb_heavy` | 0.25 | 0.7 | needBias, positionBias (RB) |
 | `qb_early` | 0.25 | 0.5 | needBias, positionBias (QB, rounds ≤ 3) |
+
+`win_now` intentionally uses the same `0.25` band as the other non-BPA archetypes. Its contender identity comes from lower `valueWeight`, startup/trade preferences, and willingness to spend future picks, not from allowing pick-time need bias to reach farther than the shared cap.
 
 No archetype can move a player's score by more than `± needModifier × 100%` of its pure `dynastyValue × valueWeight` baseline — a real value gap larger than that band always wins.
 

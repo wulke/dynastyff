@@ -1,6 +1,7 @@
 // @spec DFF-BOT-001
 // @spec DFF-BOT-002
 // @spec DFF-BOT-003
+// @spec DFF-BOT-029
 // @spec DFF-BOT-040
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,6 +14,7 @@ type ReadFile = (path: string, encoding: BufferEncoding) => string;
 
 export type ArchetypeProfileConfig = {
   acceptanceThreshold: number;
+  candidatePoolThreshold: number;
   needModifier: number;
   preferredPositionValueFloors: Record<PlayerPosition, number>;
   tradeAggressivenessProbability: number;
@@ -76,6 +78,7 @@ export function getAcceptanceThresholdForArchetype(
 // @spec DFF-BOT-002
 // @spec DFF-BOT-003
 // @spec DFF-BOT-004
+// @spec DFF-BOT-029
 // @spec DFF-BOT-040
 function parseArchetypeConfig(rawConfig: string, configPath: string): ArchetypeConfig {
   let parsedConfig: unknown;
@@ -103,6 +106,11 @@ function parseArchetypeConfig(rawConfig: string, configPath: string): ArchetypeC
 
     archetypes[archetype] = {
       acceptanceThreshold: readNumber(candidate.acceptanceThreshold, configPath, `${archetype}.acceptanceThreshold`),
+      candidatePoolThreshold: readUnitIntervalNumber(
+        candidate.candidatePoolThreshold,
+        configPath,
+        `${archetype}.candidatePoolThreshold`,
+      ),
       needModifier: readNumber(candidate.needModifier, configPath, `${archetype}.needModifier`),
       preferredPositionValueFloors: readPositionFloors(
         candidate.preferredPositionValueFloors,

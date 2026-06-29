@@ -7,6 +7,8 @@
 // @spec DFF-BOT-026
 // @spec DFF-BOT-024a
 // @spec DFF-BOT-027
+// @spec DFF-BOT-028
+// @spec DFF-BOT-029
 import type { DraftAvailablePlayer } from './available-players.js';
 import type { ArchetypeConfig } from './archetype-config.js';
 import type { DraftRosterConfig } from './roster-config.js';
@@ -54,6 +56,18 @@ type SlotInstance = {
   slot: RosterSlot;
   eligibility: readonly PlayerPosition[];
   filled: boolean;
+};
+
+type FilterBotPickCandidatesArgs = {
+  availablePlayers: DraftAvailablePlayer[];
+  archetype: TeamArchetype;
+  archetypeConfig: ArchetypeConfig;
+  scorePlayer: (player: DraftAvailablePlayer) => number;
+};
+
+export type FilteredBotPickCandidate = {
+  id: string;
+  score: number;
 };
 
 // @spec DFF-BOT-020
@@ -127,6 +141,41 @@ export function calculateSlotNeed({
   return weightedNeed > 0 ? weightedNeed : SATURATION_FLOOR;
 }
 
+// @spec DFF-BOT-028
+// @spec DFF-BOT-029
+export function filterBotPickCandidates({
+  availablePlayers,
+  archetype,
+  archetypeConfig,
+  scorePlayer,
+}: FilterBotPickCandidatesArgs): FilteredBotPickCandidate[] {
+  const profile = archetypeConfig.archetypes[archetype];
+  const floorFilteredPlayers = availablePlayers.filter((player) => {
+    if (!isPlayerPosition(player.position)) {
+      return true;
+    }
+
+    return player.dynasty_value >= profile.preferredPositionValueFloors[player.position];
+  });
+  const playersToScore = floorFilteredPlayers.length > 0 ? floorFilteredPlayers : availablePlayers;
+  const scoredCandidates = playersToScore
+    .map((player) => ({
+      id: player.id,
+      score: scorePlayer(player),
+    }))
+    .sort((left, right) => normalizeComparableScore(right.score) - normalizeComparableScore(left.score));
+  const topCandidate = scoredCandidates[0];
+
+  if (!topCandidate) {
+    return [];
+  }
+
+  const threshold = topCandidate.score * (1 - profile.candidatePoolThreshold);
+  const tierFilteredCandidates = scoredCandidates.filter((candidate) => candidate.score >= threshold);
+
+  return tierFilteredCandidates.length > 0 ? tierFilteredCandidates : [topCandidate];
+}
+
 // @spec DFF-BOT-023
 function buildSlotInstances(rosterConfig: DraftRosterConfig): SlotInstance[] {
   return SLOT_PRIORITY.flatMap((slot) =>
@@ -155,6 +204,11 @@ function sortRosteredPositionsForAssignment(rosteredPositions: PlayerPosition[])
 // @spec DFF-BOT-024
 function getEligibleSlotCount(position: PlayerPosition): number {
   return SLOT_PRIORITY.filter((slot) => SLOT_ELIGIBILITY[slot].includes(position)).length;
+}
+
+// @spec DFF-BOT-029
+function normalizeComparableScore(score: number): number {
+  return Number.isFinite(score) ? score : Number.NEGATIVE_INFINITY;
 }
 
 // @spec DFF-BOT-024a

@@ -22,7 +22,7 @@ import {
   loadStartupArchetypeConfig,
   type ArchetypeConfig,
 } from './archetype-config.js';
-import { scoreBotPickCandidate } from './bot-pick-scoring.js';
+import { filterBotPickCandidates, scoreBotPickCandidate } from './bot-pick-scoring.js';
 import { evaluateBotTrade, findBotToUserTradeOffer } from './bot-trade.js';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
 import { getDraftState, recordPick, resolveTrade, type DraftStateSnapshot } from './service.js';
@@ -294,19 +294,22 @@ function defaultDecideBotAction(
   return {
     type: 'pick',
     playerId: selectWeightedRandomPlayer(
-      context.availablePlayers.map((player) => ({
-        id: player.id,
-        score: scoreBotPickCandidate({
-          player,
-          archetype: botArchetype,
-          archetypeConfig: context.archetypeConfig,
-          rosterConfig: draftState.roster_config,
-          rosteredPlayers,
-          round: context.slot.round,
-          randomness,
-          random,
-        }),
-      })),
+      filterBotPickCandidates({
+        availablePlayers: context.availablePlayers,
+        archetype: botArchetype,
+        archetypeConfig: context.archetypeConfig,
+        scorePlayer: (player) =>
+          scoreBotPickCandidate({
+            player,
+            archetype: botArchetype,
+            archetypeConfig: context.archetypeConfig,
+            rosterConfig: draftState.roster_config,
+            rosteredPlayers,
+            round: context.slot.round,
+            randomness,
+            random,
+          }),
+      }),
       randomness,
       random,
     ),

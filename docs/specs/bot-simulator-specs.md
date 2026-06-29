@@ -9,7 +9,7 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 ## Archetype Configuration
 
 **DFF-BOT-001** `[x]`
-The system shall load archetype acceptance thresholds, pick-scoring modifiers (`needModifier`, `valueWeight`), preferred-position value floors, and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
+The system shall load archetype acceptance thresholds, pick-scoring modifiers (`needModifier`, `valueWeight`), preferred-position value floors, candidate pool thresholds (`candidatePoolThreshold`), and trade aggressiveness probabilities from a configurable JSON file (`config/archetypes.json`) once at startup and inject that config into the bot-chain coordinator.
 
 **DFF-BOT-004** `[x]`
 The system shall load a global bot-pick `randomness` parameter (`0.0–1.0`, default `0.3`) from `config/archetypes.json`, and `createBotChainCoordinator` shall allow a direct `randomness` option to override that startup-loaded value.
@@ -24,13 +24,13 @@ The system shall use the following default acceptance thresholds (minimum value_
 - `balanced`: 1.00
 
 **DFF-BOT-003** `[x]`
-The system shall use the following default preferred-position value floors (minimum dynasty_value for a player at a preferred position to be considered available before fallback triggers), overridable via `config/archetypes.json`:
-- `win_now`: 3500
-- `punt`: 2500
-- `rb_heavy`: 3500 (RBs only); 2000 (other positions)
-- `qb_early`: 4000 (QBs only); 2000 (other positions)
-- `bpa`: 2500
-- `balanced`: 2500
+The system shall use the following default preferred-position value floors (minimum `dynasty_value` per position for a player to enter the candidate pool; players below the floor are excluded before scoring), overridable via `config/archetypes.json`:
+- `win_now`: 3500 (all positions)
+- `punt`: 2500 (all positions)
+- `rb_heavy`: 3500 (RBs); 2000 (all other positions)
+- `qb_early`: 4000 (QBs); 2000 (all other positions)
+- `bpa`: 2500 (all positions)
+- `balanced`: 2500 (all positions)
 
 ---
 
@@ -90,13 +90,31 @@ The system shall compute a `positionBias` signal of `1.0` (else `0`) for: `rb_he
 
 ---
 
+## Candidate Filtering and Selection
+
+**DFF-BOT-028** `[ ]` → #163
+Before scoring available players, the system shall apply a floor pre-filter: exclude any player whose `dynasty_value` is below the archetype's `preferredPositionValueFloors` value for that player's position. If the floor filter would produce an empty candidate pool, the system shall skip the filter and use all available players.
+
+**DFF-BOT-029** `[ ]` → #163
+After scoring the floor-filtered candidates, the system shall apply a tier filter: retain only players whose score is at or above `maxScore × (1 − candidatePoolThreshold)`, where `maxScore` is the highest score in the filtered pool and `candidatePoolThreshold` is the archetype's configured value. The system shall use the following default `candidatePoolThreshold` per archetype, overridable via `config/archetypes.json`:
+- `bpa`: 0.10
+- `win_now`: 0.15
+- `balanced`: 0.25
+- `rb_heavy`: 0.25
+- `qb_early`: 0.25
+- `punt`: 0.35
+
+If the tier filter produces an empty pool (degenerate case), the system shall fall back to the single top-scored player.
+
+---
+
 ## Noise and Selection
 
 **DFF-BOT-030** `[x]` → #160
-When selecting a player to draft, the system shall use weighted random sampling where each player's sampling weight is `max(score × (1 + randomness × (random() − 0.5) × 2), 0)` — a percentage jitter of the player's own score, not an additive constant, with the final weight floored at `0` — so the configured `randomness` value has a consistent effect regardless of dynasty-value scale.
+When selecting a player to draft, the system shall use weighted random sampling over the tier-filtered candidate pool (see DFF-BOT-028, DFF-BOT-029), where each player's sampling weight is `max(score × (1 + randomness × (random() − 0.5) × 2), 0)` — a percentage jitter of the player's own score, not an additive constant, with the final weight floored at `0` — so the configured `randomness` value has a consistent effect regardless of dynasty-value scale.
 
 **DFF-BOT-031** `[x]` → #160
-The system shall support a configurable `randomness` parameter (0.0–1.0, default 0.3): at 0.0 the highest-scored player is always selected; at 1.0 sampling weight can swing by up to ±100% of score, letting any scored player occasionally outrank the nominal top pick.
+The system shall support a configurable `randomness` parameter (0.0–1.0, default 0.3): at 0.0 the highest-scored player in the candidate pool is always selected; at 1.0 sampling weight can swing by up to ±100% of score, letting any player within the candidate pool occasionally outrank the nominal top pick.
 
 ---
 

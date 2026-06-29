@@ -36,7 +36,8 @@ Archetypes are loaded from `config/archetypes.json` once at server startup. The 
 - `acceptanceThreshold` — minimum `value_received / value_sent` ratio required for the archetype to accept an incoming trade
 - `needModifier` — archetype need-bias band half-width (`0.0–1.0`); bounds how far need/position/youth/handcuff bias can move a player's score away from pure dynasty value (see Need Bias Band below)
 - `valueWeight` — archetype multiplier applied to `dynastyValue`
-- `preferredPositionValueFloors` — minimum `dynasty_value` required by position before a preferred-player fallback should trigger
+- `preferredPositionValueFloors` — minimum `dynasty_value` per position for a player to enter the candidate pool; acts as a hard pre-filter before scoring (see Candidate Filtering and Selection)
+- `candidatePoolThreshold` — maximum fractional score drop from the top-scored player for inclusion in the weighted-random candidate pool (`0.0–1.0`); e.g. `0.25` keeps all players scoring within 25% of the top score (see Candidate Filtering and Selection)
 - `tradeAggressivenessProbability` — per-turn probability that the archetype evaluates a trade before picking
 
 The server loads this file once, passes the parsed object into `createBotChainCoordinator`, and the coordinator forwards the config into pick-selection and trade-evaluation helpers. `createBotChainCoordinator` may also receive a direct `randomness` override for tests or future runtime tuning; that override takes precedence over the startup-loaded config value. The JSON defaults match `DFF-BOT-002`, `DFF-BOT-003`, `DFF-BOT-031`, and `DFF-BOT-040`.
@@ -61,7 +62,10 @@ evaluate trade opportunity
     (needFactor bounded to archetype's need-bias band; see Need Bias Band)
             │
             ▼
-    apply noise: weighted random selection from top-scored players,
+    filter candidates: floor pre-filter → score remaining → tier filter
+            │
+            ▼
+    weighted random selection within candidate pool,
     sampling weight jittered by ± randomness × 100% of score
             │
             ▼
@@ -111,22 +115,51 @@ If no bias signals apply (`combinedBias = 0`), `needFactor` resolves to `1 − n
 
 `needModifier` is now a band half-width (`0.0–1.0`), not a raw multiplier:
 
-| Archetype | `needModifier` (band) | `valueWeight` | Bias signals folded into the band |
-|---|---|---|---|
-| `bpa` | 0.05 | 1.0 | needBias only — near-pure dynasty value sort |
-| `balanced` | 0.25 | 0.8 | needBias only |
-| `win_now` | 0.25 | 0.6 | needBias only |
-| `punt` | 0.25 | 0.9 | needBias, youthBias |
-| `rb_heavy` | 0.25 | 0.7 | needBias, positionBias (RB) |
-| `qb_early` | 0.25 | 0.5 | needBias, positionBias (QB, rounds ≤ 3) |
+| Archetype | `needModifier` (band) | `valueWeight` | `candidatePoolThreshold` | Bias signals folded into the band |
+|---|---|---|---|---|
+| `bpa` | 0.05 | 1.0 | 0.10 | needBias only — near-pure dynasty value sort |
+| `balanced` | 0.25 | 0.8 | 0.25 | needBias only |
+| `win_now` | 0.25 | 0.6 | 0.15 | needBias only |
+| `punt` | 0.25 | 0.9 | 0.35 | needBias, youthBias |
+| `rb_heavy` | 0.25 | 0.7 | 0.25 | needBias, positionBias (RB) |
+| `qb_early` | 0.25 | 0.5 | 0.25 | needBias, positionBias (QB, rounds ≤ 3) |
 
 `win_now` intentionally uses the same `0.25` band as the other non-BPA archetypes. Its contender identity comes from lower `valueWeight`, startup/trade preferences, and willingness to spend future picks, not from allowing pick-time need bias to reach farther than the shared cap.
 
 No archetype can move a player's score by more than `± needModifier × 100%` of its pure `dynastyValue × valueWeight` baseline — a real value gap larger than that band always wins.
 
-### Noise
+### Candidate Filtering and Selection
 
-After scoring, the bot does not deterministically take the top player. It selects via weighted random sampling where the sampling weight is the player's score jittered by a percentage of its own magnitude: `weight = max(score, 0) × (1 + randomness × (random() − 0.5) × 2)`, floored at `0`. Because the jitter scales with score, the `randomness` setting (0.0–1.0, default 0.3) has a consistent effect regardless of dynasty-value scale — at `0.0` the top-scored player is always taken; at `1.0` any scored player can occasionally jump to the top of the sample.
+Pick selection is a three-stage pipeline: floor pre-filter → tier filter → weighted random sampling. Collapsing all available players into one full-pool lottery would dilute the score signal across hundreds of players and produce near-random pick order regardless of dynasty value; the two filters together ensure the random selection operates only over a realistic contender window.
+
+**Stage 1 — Floor pre-filter (before scoring)**
+
+Exclude any player whose `dynasty_value` is below the archetype's `preferredPositionValueFloors[position]`. This removes clearly below-threshold players before scoring runs.
+
+Graceful fallback: if the floor filter would produce an empty pool, skip it and use all available players. The scoring's need-based bias will naturally guide the bot toward under-filled positions regardless.
+
+**Stage 2 — Tier filter (after scoring)**
+
+Score all players surviving the floor filter. Keep only those whose score is within `candidatePoolThreshold` of the top score:
+
+```
+maxScore = max(score) across all candidates
+candidates = players where score >= maxScore × (1 − candidatePoolThreshold)
+```
+
+The `candidatePoolThreshold` is configured per archetype (e.g. `bpa: 0.10`, `punt: 0.35`). A tighter threshold means fewer candidates and a more deterministic pick; a wider threshold allows more upsets driven by archetype bias and randomness.
+
+Graceful fallback: if the tier filter somehow produces an empty pool (degenerate scores), fall back to the single top-scored player.
+
+**Stage 3 — Weighted random sampling**
+
+From the filtered candidate pool, select via weighted random sampling:
+
+```
+weight = max(score × (1 + randomness × (random() − 0.5) × 2), 0)
+```
+
+The jitter scales with the player's own score (`±randomness × 100%`), so the `randomness` setting has a consistent effect regardless of dynasty-value scale. At `0.0` the top-scored player is always taken; at `1.0` any player in the candidate pool can occasionally jump to the top of the sample. With the tier filter applied first, only players with scores close to the best candidate's score are eligible — preserving the "occasional human misjudgment" feel without producing impossible picks.
 
 ## Trade Decision Flow
 

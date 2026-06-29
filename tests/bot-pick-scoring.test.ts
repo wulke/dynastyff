@@ -26,6 +26,16 @@ const defaultRosterConfig: DraftRosterConfig = {
   bench: 2,
 };
 
+const lowNeedRosterConfig: DraftRosterConfig = {
+  QB: 0,
+  RB: 0,
+  WR: 0,
+  TE: 0,
+  FLEX: 0,
+  SF: 0,
+  bench: 0,
+};
+
 // @spec DFF-BOT-023
 test('SLOT_ELIGIBILITY matches the documented roster slot eligibility map', () => {
   assert.deepEqual(SLOT_ELIGIBILITY, {
@@ -122,7 +132,7 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     nfl_team: 'CIN',
     age: 24,
     is_rookie: false,
-    dynasty_value: 120,
+    dynasty_value: 110,
     adp: 1,
   };
   const rbPlayer = {
@@ -132,16 +142,31 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     nfl_team: 'DAL',
     age: 23,
     is_rookie: false,
-    dynasty_value: 60,
+    dynasty_value: 100,
     adp: 2,
   };
+  const rosterConfig: DraftRosterConfig = {
+    QB: 1,
+    RB: 2,
+    WR: 0,
+    TE: 0,
+    FLEX: 0,
+    SF: 0,
+    bench: 0,
+  };
+  const rosteredPlayers = [
+    {
+      position: 'QB',
+      nfl_team: 'PHI',
+    },
+  ] as const;
 
   const bpaQuarterbackScore = scoreBotPickCandidate({
     player: qbPlayer,
     archetype: 'bpa',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
-    rosteredPlayers: [],
+    rosterConfig,
+    rosteredPlayers: [...rosteredPlayers],
     round: 1,
     randomness: 0,
     random: () => 0,
@@ -150,8 +175,8 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     player: rbPlayer,
     archetype: 'bpa',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
-    rosteredPlayers: [],
+    rosterConfig,
+    rosteredPlayers: [...rosteredPlayers],
     round: 1,
     randomness: 0,
     random: () => 0,
@@ -160,8 +185,8 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     player: qbPlayer,
     archetype: 'rb_heavy',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
-    rosteredPlayers: [],
+    rosterConfig,
+    rosteredPlayers: [...rosteredPlayers],
     round: 1,
     randomness: 0,
     random: () => 0,
@@ -170,8 +195,8 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     player: rbPlayer,
     archetype: 'rb_heavy',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
-    rosteredPlayers: [],
+    rosterConfig,
+    rosteredPlayers: [...rosteredPlayers],
     round: 1,
     randomness: 0,
     random: () => 0,
@@ -217,6 +242,7 @@ test('scoreBotPickCandidate applies the qb_early quarterback boost only through 
   });
 
   assert.ok(roundThreeScore > roundFourScore);
+  assert.ok(roundThreeScore <= roundFourScore * 1.5);
 });
 
 // @spec DFF-BOT-025
@@ -247,7 +273,7 @@ test('scoreBotPickCandidate lets punt prefer younger non-rookies over equal-valu
     player: youngerPlayer,
     archetype: 'punt',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 4,
     randomness: 0,
@@ -257,7 +283,7 @@ test('scoreBotPickCandidate lets punt prefer younger non-rookies over equal-valu
     player: olderPlayer,
     archetype: 'punt',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 4,
     randomness: 0,
@@ -268,7 +294,7 @@ test('scoreBotPickCandidate lets punt prefer younger non-rookies over equal-valu
 });
 
 // @spec DFF-BOT-025
-test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () => {
+test('scoreBotPickCandidate keeps punt rookie bias within the bounded archetype band', () => {
   const archetypeConfig = loadArchetypeConfigFile();
   const rookieTightEnd = {
     id: 'player-rookie',
@@ -295,7 +321,7 @@ test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () 
     player: rookieTightEnd,
     archetype: 'punt',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 4,
     randomness: 0,
@@ -305,7 +331,7 @@ test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () 
     player: veteranTightEnd,
     archetype: 'punt',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 4,
     randomness: 0,
@@ -313,21 +339,13 @@ test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () 
   });
 
   assert.ok(rookieScore > veteranScore);
-  assert.equal(rookieScore, veteranScore * 1.3);
+  assert.equal(rookieScore, 112.5);
+  assert.equal(veteranScore, 74.25);
 });
 
 // @spec DFF-BOT-026
-test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered running backs', () => {
+test('scoreBotPickCandidate keeps same-team running back handcuff bias within the bounded archetype band', () => {
   const archetypeConfig = loadArchetypeConfigFile();
-  const neutralRosterConfig: DraftRosterConfig = {
-    QB: 0,
-    RB: 0,
-    WR: 0,
-    TE: 0,
-    FLEX: 0,
-    SF: 0,
-    bench: 0,
-  };
   const runningBack = {
     id: 'player-handcuff',
     name: 'Handcuff Runner',
@@ -343,7 +361,7 @@ test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered runni
     player: runningBack,
     archetype: 'balanced',
     archetypeConfig,
-    rosterConfig: neutralRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 5,
     randomness: 0,
@@ -353,7 +371,7 @@ test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered runni
     player: runningBack,
     archetype: 'balanced',
     archetypeConfig,
-    rosterConfig: neutralRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [
       {
         position: 'RB',
@@ -365,5 +383,133 @@ test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered runni
     random: () => 0,
   });
 
-  assert.equal(handcuffScore - baselineScore, 15);
+  assert.ok(handcuffScore > baselineScore);
+  assert.equal(baselineScore, 66);
+  assert.equal(handcuffScore, 100);
+});
+
+// @spec DFF-BOT-020
+// @spec DFF-BOT-022
+// @spec DFF-BOT-024a
+// @spec DFF-BOT-027
+test('scoreBotPickCandidate keeps need and position bias inside the archetype band so value still wins a real gap', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const highValueQuarterback = {
+    id: 'player-elite-qb',
+    name: 'Elite Quarterback',
+    position: 'QB',
+    nfl_team: 'KC',
+    age: 24,
+    is_rookie: false,
+    dynasty_value: 115,
+    adp: 1,
+  };
+  const lowerValueRunningBack = {
+    id: 'player-need-rb',
+    name: 'Need Running Back',
+    position: 'RB',
+    nfl_team: 'DAL',
+    age: 23,
+    is_rookie: false,
+    dynasty_value: 74,
+    adp: 2,
+  };
+
+  const quarterbackScore = scoreBotPickCandidate({
+    player: highValueQuarterback,
+    archetype: 'rb_heavy',
+    archetypeConfig,
+    rosterConfig: {
+      QB: 0,
+      RB: 2,
+      WR: 0,
+      TE: 0,
+      FLEX: 0,
+      SF: 0,
+      bench: 0,
+    },
+    rosteredPlayers: [],
+    round: 1,
+    randomness: 0,
+    random: () => 0,
+  });
+  const runningBackScore = scoreBotPickCandidate({
+    player: lowerValueRunningBack,
+    archetype: 'rb_heavy',
+    archetypeConfig,
+    rosterConfig: {
+      QB: 0,
+      RB: 2,
+      WR: 0,
+      TE: 0,
+      FLEX: 0,
+      SF: 0,
+      bench: 0,
+    },
+    rosteredPlayers: [],
+    round: 1,
+    randomness: 0,
+    random: () => 0,
+  });
+
+  assert.ok(quarterbackScore > runningBackScore);
+});
+
+// @spec DFF-BOT-020
+// @spec DFF-BOT-024a
+// @spec DFF-BOT-027
+test('scoreBotPickCandidate clamps extreme slot need into the configured archetype band', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const player = {
+    id: 'player-band',
+    name: 'Band Player',
+    position: 'RB',
+    nfl_team: 'MIA',
+    age: 24,
+    is_rookie: false,
+    dynasty_value: 100,
+    adp: 1,
+  };
+  const neutralRosterConfig: DraftRosterConfig = {
+    QB: 0,
+    RB: 0,
+    WR: 0,
+    TE: 0,
+    FLEX: 0,
+    SF: 0,
+    bench: 0,
+  };
+  const maxNeedRosterConfig: DraftRosterConfig = {
+    QB: 0,
+    RB: 3,
+    WR: 0,
+    TE: 0,
+    FLEX: 1,
+    SF: 1,
+    bench: 3,
+  };
+
+  const lowNeedScore = scoreBotPickCandidate({
+    player,
+    archetype: 'balanced',
+    archetypeConfig,
+    rosterConfig: neutralRosterConfig,
+    rosteredPlayers: [],
+    round: 5,
+    randomness: 0,
+    random: () => 0,
+  });
+  const highNeedScore = scoreBotPickCandidate({
+    player,
+    archetype: 'balanced',
+    archetypeConfig,
+    rosterConfig: maxNeedRosterConfig,
+    rosteredPlayers: [],
+    round: 5,
+    randomness: 0,
+    random: () => 0,
+  });
+
+  assert.equal(lowNeedScore, 66);
+  assert.equal(highNeedScore, 100);
 });

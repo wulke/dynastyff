@@ -63,6 +63,8 @@ A GitHub Pages–hosted static build (no backend, no advisor) is also available 
 
 All settings are configurable on the league config screen before starting a draft. The advisor requires `ANTHROPIC_API_KEY` set in `.env`; the core draft loop runs fully offline.
 
+`config/archetypes.json` tunes bot behavior. For pick scoring, `needModifier` is a bounded bias-band half-width rather than a raw multiplier: the shipped defaults are `0.05` for `bpa` and `0.25` for the other archetypes, so need/position/youth/handcuff signals can only nudge a player's score within that band around pure dynasty value. `randomness` is applied as score-relative weight jitter, so the same setting has a visible effect whether player scores are in the hundreds or thousands.
+
 Bot decision-making (bounded need-bias pick scoring, trade evaluation, archetype tuning in `config/archetypes.json`) is documented in [`docs/llds/bot-simulator.md`](docs/llds/bot-simulator.md). Draft engine and API behavior is documented in [`docs/llds/draft-engine.md`](docs/llds/draft-engine.md). UI behavior is documented in [`docs/llds/ui.md`](docs/llds/ui.md).
 
 ## ETL

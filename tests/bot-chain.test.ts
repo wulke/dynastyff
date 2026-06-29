@@ -132,42 +132,42 @@ function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig
     archetypes: {
       win_now: {
         acceptanceThreshold: 0.85,
-        needModifier: 1.3,
+        needModifier: 0.25,
         preferredPositionValueFloors: { QB: 3500, RB: 3500, WR: 3500, TE: 3500 },
         tradeAggressivenessProbability: 0.25,
         valueWeight: 0.6,
       },
       punt: {
         acceptanceThreshold: 1.15,
-        needModifier: 0.4,
+        needModifier: 0.25,
         preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
         tradeAggressivenessProbability: 0.35,
         valueWeight: 0.9,
       },
       rb_heavy: {
         acceptanceThreshold: 0.95,
-        needModifier: 1,
+        needModifier: 0.25,
         preferredPositionValueFloors: { QB: 2000, RB: 3500, WR: 2000, TE: 2000 },
         tradeAggressivenessProbability: 0.2,
         valueWeight: 0.7,
       },
       qb_early: {
         acceptanceThreshold: 0.95,
-        needModifier: 1,
+        needModifier: 0.25,
         preferredPositionValueFloors: { QB: 4000, RB: 2000, WR: 2000, TE: 2000 },
         tradeAggressivenessProbability: 0.2,
         valueWeight: 0.5,
       },
       bpa: {
         acceptanceThreshold: 1.05,
-        needModifier: 0.1,
+        needModifier: 0.05,
         preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
         tradeAggressivenessProbability: 0.1,
         valueWeight: 1,
       },
       balanced: {
         acceptanceThreshold: 1,
-        needModifier: 1,
+        needModifier: 0.25,
         preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
         tradeAggressivenessProbability: 0.15,
         valueWeight: 0.8,
@@ -263,7 +263,7 @@ test('createBotChainCoordinator de-duplicates concurrent trigger calls for the s
 test('createBotChainCoordinator honors randomness boundaries and the documented default pick-selection behavior', async () => {
   await withDatabase(async (db, databasePath) => {
     seedPlayer(db, 'player-1', 'Player One', 100);
-    seedPlayer(db, 'player-2', 'Player Two', 1);
+    seedPlayer(db, 'player-2', 'Player Two', 99);
     seedPlayer(db, 'player-3', 'Player Zebra', 1);
 
     const createOneBotDraft = () =>
@@ -302,12 +302,16 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
       sleep: async () => undefined,
     });
 
-    const flatDistributionCoordinator = createBotChainCoordinator({
+    const noisyCoordinator = createBotChainCoordinator({
       databasePath,
       archetypeConfig: buildArchetypeConfigWithRandomness(0),
       randomness: 1,
       now: () => '2026-05-18T20:06:00.000Z',
-      random: () => 0.5,
+      random: (() => {
+        const values = [0.999, 0, 0.99, 0];
+        let index = 0;
+        return () => values[index++] ?? 0;
+      })(),
       sleep: async () => undefined,
     });
 
@@ -319,12 +323,12 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
     });
 
     topPickCoordinator.trigger(topPickDraftId);
-    flatDistributionCoordinator.trigger(coordinatorOverrideDraftId);
+    noisyCoordinator.trigger(coordinatorOverrideDraftId);
     defaultRandomnessCoordinator.trigger(defaultRandomnessDraftId);
 
     await Promise.all([
       topPickCoordinator.waitForIdle(topPickDraftId),
-      flatDistributionCoordinator.waitForIdle(coordinatorOverrideDraftId),
+      noisyCoordinator.waitForIdle(coordinatorOverrideDraftId),
       defaultRandomnessCoordinator.waitForIdle(defaultRandomnessDraftId),
     ]);
 

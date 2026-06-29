@@ -9,6 +9,8 @@
 // @spec DFF-BOT-004
 // @spec DFF-BOT-030
 // @spec DFF-BOT-031
+// @spec DFF-BOT-028
+// @spec DFF-BOT-029
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -132,6 +134,7 @@ function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig
     archetypes: {
       win_now: {
         acceptanceThreshold: 0.85,
+        candidatePoolThreshold: 0.15,
         needModifier: 0.25,
         preferredPositionValueFloors: { QB: 3500, RB: 3500, WR: 3500, TE: 3500 },
         tradeAggressivenessProbability: 0.25,
@@ -139,6 +142,7 @@ function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig
       },
       punt: {
         acceptanceThreshold: 1.15,
+        candidatePoolThreshold: 0.35,
         needModifier: 0.25,
         preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
         tradeAggressivenessProbability: 0.35,
@@ -146,6 +150,7 @@ function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig
       },
       rb_heavy: {
         acceptanceThreshold: 0.95,
+        candidatePoolThreshold: 0.25,
         needModifier: 0.25,
         preferredPositionValueFloors: { QB: 2000, RB: 3500, WR: 2000, TE: 2000 },
         tradeAggressivenessProbability: 0.2,
@@ -153,6 +158,7 @@ function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig
       },
       qb_early: {
         acceptanceThreshold: 0.95,
+        candidatePoolThreshold: 0.25,
         needModifier: 0.25,
         preferredPositionValueFloors: { QB: 4000, RB: 2000, WR: 2000, TE: 2000 },
         tradeAggressivenessProbability: 0.2,
@@ -160,6 +166,7 @@ function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig
       },
       bpa: {
         acceptanceThreshold: 1.05,
+        candidatePoolThreshold: 0.1,
         needModifier: 0.05,
         preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
         tradeAggressivenessProbability: 0.1,
@@ -167,6 +174,7 @@ function buildArchetypeConfigWithRandomness(randomness: number): ArchetypeConfig
       },
       balanced: {
         acceptanceThreshold: 1,
+        candidatePoolThreshold: 0.25,
         needModifier: 0.25,
         preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
         tradeAggressivenessProbability: 0.15,
@@ -349,6 +357,118 @@ test('createBotChainCoordinator honors randomness boundaries and the documented 
     assert.equal(playerByDraftId.get(topPickDraftId), 'player-1');
     assert.equal(playerByDraftId.get(coordinatorOverrideDraftId), 'player-2');
     assert.equal(playerByDraftId.get(defaultRandomnessDraftId), 'player-2');
+  });
+});
+
+// @spec DFF-BOT-028
+// @spec DFF-BOT-029
+// @spec DFF-BOT-030
+// @spec DFF-BOT-031
+test('createBotChainCoordinator keeps pick 1 focused on the top dynasty-value player across large candidate pools', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedCustomPlayer(db, {
+      id: 'bijan',
+      name: 'Bijan Robinson',
+      position: 'RB',
+      age: 23,
+      dynastyValue: 8000,
+    });
+    seedCustomPlayer(db, {
+      id: 'marvin',
+      name: 'Marvin Harrison Jr.',
+      position: 'WR',
+      age: 22,
+      dynastyValue: 5500,
+    });
+
+    for (let index = 0; index < 120; index += 1) {
+      seedCustomPlayer(db, {
+        id: `depth-${index}`,
+        name: `Depth Player ${index}`,
+        position: (['QB', 'RB', 'WR', 'TE'] as const)[index % 4],
+        age: 24 + (index % 5),
+        dynastyValue: 2500 + index,
+      });
+    }
+
+    const createDraftForArchetype = (archetype: 'bpa' | 'balanced', draftIndex: number) => {
+      const draftTimestamp = new Date(Date.UTC(2026, 4, 18, 20, draftIndex, 0)).toISOString();
+      const draftId = createDraft({
+        databasePath,
+        config: {
+          teamCount: 2,
+          rounds: 1,
+          scoringFormat: 'ppr',
+          userPickPosition: 2,
+          futurePickYears: 1,
+          futurePickRounds: 1,
+          rosterConfig: {
+            QB: 1,
+            RB: 2,
+            WR: 3,
+            TE: 1,
+            FLEX: 1,
+            SF: 1,
+            bench: 6,
+          },
+        },
+        now: () => draftTimestamp,
+        random: () => 0,
+      });
+
+      const botTeam = db
+        .prepare('SELECT id FROM teams WHERE draft_id = ? AND is_user = 0')
+        .get(draftId) as { id: string };
+
+      db.prepare('UPDATE teams SET archetype = ? WHERE id = ?').run(archetype, botTeam.id);
+
+      return draftId;
+    };
+
+    const draftIdsByArchetype = {
+      bpa: Array.from({ length: 40 }, (_, index) => createDraftForArchetype('bpa', index)),
+      balanced: Array.from({ length: 40 }, (_, index) => createDraftForArchetype('balanced', index + 40)),
+    };
+
+    const random = (() => {
+      let state = 163;
+      return () => {
+        state = (state * 48271) % 0x7fffffff;
+        return state / 0x7fffffff;
+      };
+    })();
+    const archetypeConfig = buildArchetypeConfigWithRandomness(0.3);
+    for (const profile of Object.values(archetypeConfig.archetypes)) {
+      profile.tradeAggressivenessProbability = 0;
+    }
+
+    const coordinator = createBotChainCoordinator({
+      databasePath,
+      archetypeConfig,
+      now: () => '2026-05-18T22:00:00.000Z',
+      random,
+      sleep: async () => undefined,
+    });
+
+    for (const draftId of [...draftIdsByArchetype.bpa, ...draftIdsByArchetype.balanced]) {
+      coordinator.trigger(draftId);
+    }
+
+    await Promise.all(
+      [...draftIdsByArchetype.bpa, ...draftIdsByArchetype.balanced].map((draftId) => coordinator.waitForIdle(draftId)),
+    );
+
+    const countBijanPicks = (draftIds: string[]) =>
+      draftIds.reduce((count, draftId) => {
+        const pick = db
+          .prepare('SELECT player_id FROM picks WHERE draft_id = ?')
+          .get(draftId) as { player_id: string } | undefined;
+
+        return count + (pick?.player_id === 'bijan' ? 1 : 0);
+      }, 0);
+
+    assert.ok(countBijanPicks(draftIdsByArchetype.bpa) >= 36);
+    assert.ok(countBijanPicks(draftIdsByArchetype.balanced) >= 32);
   });
 });
 
@@ -670,6 +790,7 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
       archetypes: {
         win_now: {
           acceptanceThreshold: 0.85,
+          candidatePoolThreshold: 0.15,
           needModifier: 0.25,
           preferredPositionValueFloors: { QB: 3500, RB: 3500, WR: 3500, TE: 3500 },
           tradeAggressivenessProbability: 0.25,
@@ -677,6 +798,7 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
         },
         punt: {
           acceptanceThreshold: 1.15,
+          candidatePoolThreshold: 0.35,
           needModifier: 0.25,
           preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
           tradeAggressivenessProbability: 0.35,
@@ -684,6 +806,7 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
         },
         rb_heavy: {
           acceptanceThreshold: 0.95,
+          candidatePoolThreshold: 0.25,
           needModifier: 0.25,
           preferredPositionValueFloors: { QB: 2000, RB: 3500, WR: 2000, TE: 2000 },
           tradeAggressivenessProbability: 0.2,
@@ -691,6 +814,7 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
         },
         qb_early: {
           acceptanceThreshold: 0.95,
+          candidatePoolThreshold: 0.25,
           needModifier: 0.25,
           preferredPositionValueFloors: { QB: 4000, RB: 2000, WR: 2000, TE: 2000 },
           tradeAggressivenessProbability: 0.2,
@@ -698,6 +822,7 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
         },
         bpa: {
           acceptanceThreshold: 1.05,
+          candidatePoolThreshold: 0.1,
           needModifier: 0.05,
           preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
           tradeAggressivenessProbability: 0.1,
@@ -705,6 +830,7 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
         },
         balanced: {
           acceptanceThreshold: 0.7,
+          candidatePoolThreshold: 0.25,
           needModifier: 0.25,
           preferredPositionValueFloors: { QB: 2500, RB: 2500, WR: 2500, TE: 2500 },
           tradeAggressivenessProbability: 0.15,

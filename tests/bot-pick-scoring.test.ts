@@ -5,12 +5,15 @@
 // @spec DFF-BOT-024
 // @spec DFF-BOT-025
 // @spec DFF-BOT-026
+// @spec DFF-BOT-028
+// @spec DFF-BOT-029
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { loadArchetypeConfigFile } from '../src/draft/archetype-config.js';
 import {
   calculateSlotNeed,
+  filterBotPickCandidates,
   scoreBotPickCandidate,
   SLOT_ELIGIBILITY,
 } from '../src/draft/bot-pick-scoring.js';
@@ -512,4 +515,149 @@ test('scoreBotPickCandidate clamps extreme slot need into the configured archety
 
   assert.equal(lowNeedScore, 66);
   assert.equal(highNeedScore, 100);
+});
+
+// @spec DFF-BOT-028
+// @spec DFF-BOT-029
+test('filterBotPickCandidates applies floor pre-filter first, then keeps only the top score tier', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const players = [
+    {
+      id: 'rb-elite',
+      name: 'Elite RB',
+      position: 'RB',
+      nfl_team: 'ATL',
+      age: 23,
+      is_rookie: false,
+      dynasty_value: 8000,
+      adp: 1,
+    },
+    {
+      id: 'wr-near',
+      name: 'Near Tier WR',
+      position: 'WR',
+      nfl_team: 'ARI',
+      age: 22,
+      is_rookie: false,
+      dynasty_value: 7900,
+      adp: 2,
+    },
+    {
+      id: 'qb-floored-out',
+      name: 'Below Floor QB',
+      position: 'QB',
+      nfl_team: 'CHI',
+      age: 24,
+      is_rookie: false,
+      dynasty_value: 2400,
+      adp: 30,
+    },
+    {
+      id: 'te-too-low',
+      name: 'Too Low TE',
+      position: 'TE',
+      nfl_team: 'DET',
+      age: 24,
+      is_rookie: false,
+      dynasty_value: 2600,
+      adp: 40,
+    },
+  ];
+  const scores = new Map([
+    ['rb-elite', 100],
+    ['wr-near', 92],
+    ['qb-floored-out', 300],
+    ['te-too-low', 60],
+  ]);
+
+  const filteredCandidates = filterBotPickCandidates({
+    availablePlayers: players,
+    archetype: 'bpa',
+    archetypeConfig,
+    scorePlayer: (player) => scores.get(player.id) ?? 0,
+  });
+
+  assert.deepEqual(
+    filteredCandidates.map((candidate) => candidate.id),
+    ['rb-elite', 'wr-near'],
+  );
+});
+
+// @spec DFF-BOT-028
+test('filterBotPickCandidates falls back to the full available player pool when all players miss the floor', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const players = [
+    {
+      id: 'wr-depth',
+      name: 'Depth WR',
+      position: 'WR',
+      nfl_team: 'BUF',
+      age: 26,
+      is_rookie: false,
+      dynasty_value: 1800,
+      adp: 120,
+    },
+    {
+      id: 'te-depth',
+      name: 'Depth TE',
+      position: 'TE',
+      nfl_team: 'CLE',
+      age: 27,
+      is_rookie: false,
+      dynasty_value: 1700,
+      adp: 121,
+    },
+  ];
+
+  const filteredCandidates = filterBotPickCandidates({
+    availablePlayers: players,
+    archetype: 'balanced',
+    archetypeConfig,
+    scorePlayer: (player) => player.dynasty_value,
+  });
+
+  assert.deepEqual(
+    filteredCandidates.map((candidate) => candidate.id),
+    ['wr-depth', 'te-depth'],
+  );
+});
+
+// @spec DFF-BOT-029
+test('filterBotPickCandidates falls back to the single top-scored player when tier filtering degenerates', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const players = [
+    {
+      id: 'rb-top',
+      name: 'Top RB',
+      position: 'RB',
+      nfl_team: 'SEA',
+      age: 23,
+      is_rookie: false,
+      dynasty_value: 6000,
+      adp: 10,
+    },
+    {
+      id: 'wr-bad-score',
+      name: 'Bad Score WR',
+      position: 'WR',
+      nfl_team: 'LAR',
+      age: 24,
+      is_rookie: false,
+      dynasty_value: 5900,
+      adp: 11,
+    },
+  ];
+  const scores = new Map([
+    ['rb-top', 100],
+    ['wr-bad-score', Number.NaN],
+  ]);
+
+  const filteredCandidates = filterBotPickCandidates({
+    availablePlayers: players,
+    archetype: 'balanced',
+    archetypeConfig,
+    scorePlayer: (player) => scores.get(player.id) ?? 0,
+  });
+
+  assert.deepEqual(filteredCandidates, [{ id: 'rb-top', score: 100 }]);
 });

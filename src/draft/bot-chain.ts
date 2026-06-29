@@ -151,7 +151,7 @@ function selectWeightedRandomPlayer(
 
   const weightedPlayers = scoredPlayers.map((player) => ({
     id: player.id,
-    weight: Math.max(player.score, 0) * (1 - randomness) + randomness,
+    weight: Math.max(player.score * (1 + randomness * (random() - 0.5) * 2), 0),
   }));
   const totalWeight = weightedPlayers.reduce((sum, player) => sum + player.weight, 0);
 

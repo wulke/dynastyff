@@ -3,7 +3,7 @@
   "archetypes": {
     "win_now": {
       "acceptanceThreshold": 0.85,
-      "needModifier": 1.3,
+      "needModifier": 0.25,
       "preferredPositionValueFloors": {
         "QB": 3500,
         "RB": 3500,
@@ -15,7 +15,7 @@
     },
     "punt": {
       "acceptanceThreshold": 1.15,
-      "needModifier": 0.4,
+      "needModifier": 0.25,
       "preferredPositionValueFloors": {
         "QB": 2500,
         "RB": 2500,
@@ -27,7 +27,7 @@
     },
     "rb_heavy": {
       "acceptanceThreshold": 0.95,
-      "needModifier": 1.0,
+      "needModifier": 0.25,
       "preferredPositionValueFloors": {
         "QB": 2000,
         "RB": 3500,
@@ -39,7 +39,7 @@
     },
     "qb_early": {
       "acceptanceThreshold": 0.95,
-      "needModifier": 1.0,
+      "needModifier": 0.25,
       "preferredPositionValueFloors": {
         "QB": 4000,
         "RB": 2000,
@@ -51,7 +51,7 @@
     },
     "bpa": {
       "acceptanceThreshold": 1.05,
-      "needModifier": 0.1,
+      "needModifier": 0.05,
       "preferredPositionValueFloors": {
         "QB": 2500,
         "RB": 2500,
@@ -63,7 +63,7 @@
     },
     "balanced": {
       "acceptanceThreshold": 1,
-      "needModifier": 1.0,
+      "needModifier": 0.25,
       "preferredPositionValueFloors": {
         "QB": 2500,
         "RB": 2500,

@@ -5,6 +5,8 @@
 // @spec DFF-BOT-024
 // @spec DFF-BOT-025
 // @spec DFF-BOT-026
+// @spec DFF-BOT-024a
+// @spec DFF-BOT-027
 import type { DraftAvailablePlayer } from './available-players.js';
 import type { ArchetypeConfig } from './archetype-config.js';
 import type { DraftRosterConfig } from './roster-config.js';
@@ -16,11 +18,9 @@ type TeamArchetype = keyof ArchetypeConfig['archetypes'];
 type RosteredPlayer = Pick<DraftAvailablePlayer, 'position' | 'nfl_team'>;
 
 const SATURATION_FLOOR = 0.3;
+const NEED_NORMALIZATION_CAP = 2;
 const SLOT_PRIORITY: RosterSlot[] = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SF', 'bench'];
-const PUNT_ROOKIE_YOUTH_MODIFIER = 1.3;
 const PUNT_YOUTH_AGE_BASELINE = 30;
-const PUNT_YOUTH_MODIFIER_RANGE = 0.4;
-const HANDCUFF_BONUS_MULTIPLIER = 0.15;
 
 // @spec DFF-BOT-023
 export const SLOT_ELIGIBILITY: Record<RosterSlot, readonly PlayerPosition[]> = {
@@ -62,6 +62,8 @@ type SlotInstance = {
 // @spec DFF-BOT-024
 // @spec DFF-BOT-025
 // @spec DFF-BOT-026
+// @spec DFF-BOT-024a
+// @spec DFF-BOT-027
 export function scoreBotPickCandidate({
   player,
   archetype,
@@ -73,30 +75,26 @@ export function scoreBotPickCandidate({
   random,
 }: ScoreBotPickCandidateArgs): number {
   const profile = archetypeConfig.archetypes[archetype];
-  let slotNeed = calculateSlotNeed({
+  const slotNeed = calculateSlotNeed({
     position: player.position as PlayerPosition,
     rosterConfig,
     rosteredPositions: rosteredPlayers
       .map((rosteredPlayer) => rosteredPlayer.position)
       .filter(isPlayerPosition),
   });
-
-  if (archetype === 'rb_heavy' && player.position === 'RB') {
-    slotNeed *= 1.5;
-  }
-
-  if (archetype === 'qb_early' && player.position === 'QB' && round <= 3) {
-    slotNeed *= 2;
-  }
-
-  const youthModifier = getYouthModifier(player, archetype);
-  const handcuffBonus = getHandcuffBonus(player, rosteredPlayers);
-
-  return (
-    player.dynasty_value * profile.valueWeight * (slotNeed * profile.needModifier) * youthModifier +
-    handcuffBonus +
-    randomness * random()
+  const normalizedNeed = normalizeSlotNeed(slotNeed);
+  const combinedBias = Math.max(
+    normalizedNeed,
+    getPositionBias(player, archetype, round),
+    getYouthBias(player, archetype),
+    getHandcuffBias(player, rosteredPlayers),
   );
+  const needFactor = clampNeedFactor(
+    1 + (combinedBias - 0.5) * 2 * profile.needModifier,
+    profile.needModifier,
+  );
+
+  return player.dynasty_value * profile.valueWeight * needFactor;
 }
 
 // @spec DFF-BOT-021
@@ -159,28 +157,43 @@ function getEligibleSlotCount(position: PlayerPosition): number {
   return SLOT_PRIORITY.filter((slot) => SLOT_ELIGIBILITY[slot].includes(position)).length;
 }
 
-// @spec DFF-BOT-025
-function getYouthModifier(player: DraftAvailablePlayer, archetype: TeamArchetype): number {
-  if (archetype !== 'punt') {
+// @spec DFF-BOT-024a
+function normalizeSlotNeed(slotNeed: number): number {
+  return clamp(slotNeed / NEED_NORMALIZATION_CAP, 0, 1);
+}
+
+// @spec DFF-BOT-027
+function getPositionBias(player: DraftAvailablePlayer, archetype: TeamArchetype, round: number): number {
+  if (archetype === 'rb_heavy' && player.position === 'RB') {
     return 1;
+  }
+
+  if (archetype === 'qb_early' && player.position === 'QB' && round <= 3) {
+    return 1;
+  }
+
+  return 0;
+}
+
+// @spec DFF-BOT-025
+function getYouthBias(player: DraftAvailablePlayer, archetype: TeamArchetype): number {
+  if (archetype !== 'punt') {
+    return 0;
   }
 
   if (player.is_rookie) {
-    return PUNT_ROOKIE_YOUTH_MODIFIER;
-  }
-
-  if (player.age === null) {
     return 1;
   }
 
-  return (
-    1 +
-    Math.max(0, (PUNT_YOUTH_AGE_BASELINE - player.age) / PUNT_YOUTH_AGE_BASELINE) * PUNT_YOUTH_MODIFIER_RANGE
-  );
+  if (player.age === null) {
+    return 0;
+  }
+
+  return clamp((PUNT_YOUTH_AGE_BASELINE - player.age) / PUNT_YOUTH_AGE_BASELINE, 0, 1);
 }
 
 // @spec DFF-BOT-026
-function getHandcuffBonus(player: DraftAvailablePlayer, rosteredPlayers: RosteredPlayer[]): number {
+function getHandcuffBias(player: DraftAvailablePlayer, rosteredPlayers: RosteredPlayer[]): number {
   if (player.position !== 'RB' || player.nfl_team === null) {
     return 0;
   }
@@ -188,11 +201,22 @@ function getHandcuffBonus(player: DraftAvailablePlayer, rosteredPlayers: Rostere
   return rosteredPlayers.some(
     (rosteredPlayer) => rosteredPlayer.position === 'RB' && rosteredPlayer.nfl_team === player.nfl_team,
   )
-    ? player.dynasty_value * HANDCUFF_BONUS_MULTIPLIER
+    ? 1
     : 0;
 }
 
 // @spec DFF-BOT-023
 function isPlayerPosition(value: string): value is PlayerPosition {
   return value === 'QB' || value === 'RB' || value === 'WR' || value === 'TE';
+}
+
+// @spec DFF-BOT-027
+function clampNeedFactor(value: number, needModifier: number): number {
+  return clamp(value, 1 - needModifier, 1 + needModifier);
+}
+
+// @spec DFF-BOT-024a
+// @spec DFF-BOT-027
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
 }

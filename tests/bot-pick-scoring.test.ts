@@ -26,6 +26,16 @@ const defaultRosterConfig: DraftRosterConfig = {
   bench: 2,
 };
 
+const lowNeedRosterConfig: DraftRosterConfig = {
+  QB: 0,
+  RB: 0,
+  WR: 0,
+  TE: 0,
+  FLEX: 0,
+  SF: 0,
+  bench: 0,
+};
+
 // @spec DFF-BOT-023
 test('SLOT_ELIGIBILITY matches the documented roster slot eligibility map', () => {
   assert.deepEqual(SLOT_ELIGIBILITY, {
@@ -122,7 +132,7 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     nfl_team: 'CIN',
     age: 24,
     is_rookie: false,
-    dynasty_value: 120,
+    dynasty_value: 110,
     adp: 1,
   };
   const rbPlayer = {
@@ -132,16 +142,31 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     nfl_team: 'DAL',
     age: 23,
     is_rookie: false,
-    dynasty_value: 60,
+    dynasty_value: 100,
     adp: 2,
   };
+  const rosterConfig: DraftRosterConfig = {
+    QB: 1,
+    RB: 2,
+    WR: 0,
+    TE: 0,
+    FLEX: 0,
+    SF: 0,
+    bench: 0,
+  };
+  const rosteredPlayers = [
+    {
+      position: 'QB',
+      nfl_team: 'PHI',
+    },
+  ] as const;
 
   const bpaQuarterbackScore = scoreBotPickCandidate({
     player: qbPlayer,
     archetype: 'bpa',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
-    rosteredPlayers: [],
+    rosterConfig,
+    rosteredPlayers: [...rosteredPlayers],
     round: 1,
     randomness: 0,
     random: () => 0,
@@ -150,8 +175,8 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     player: rbPlayer,
     archetype: 'bpa',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
-    rosteredPlayers: [],
+    rosterConfig,
+    rosteredPlayers: [...rosteredPlayers],
     round: 1,
     randomness: 0,
     random: () => 0,
@@ -160,8 +185,8 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     player: qbPlayer,
     archetype: 'rb_heavy',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
-    rosteredPlayers: [],
+    rosterConfig,
+    rosteredPlayers: [...rosteredPlayers],
     round: 1,
     randomness: 0,
     random: () => 0,
@@ -170,8 +195,8 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
     player: rbPlayer,
     archetype: 'rb_heavy',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
-    rosteredPlayers: [],
+    rosterConfig,
+    rosteredPlayers: [...rosteredPlayers],
     round: 1,
     randomness: 0,
     random: () => 0,
@@ -248,7 +273,7 @@ test('scoreBotPickCandidate lets punt prefer younger non-rookies over equal-valu
     player: youngerPlayer,
     archetype: 'punt',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 4,
     randomness: 0,
@@ -258,7 +283,7 @@ test('scoreBotPickCandidate lets punt prefer younger non-rookies over equal-valu
     player: olderPlayer,
     archetype: 'punt',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 4,
     randomness: 0,
@@ -269,7 +294,7 @@ test('scoreBotPickCandidate lets punt prefer younger non-rookies over equal-valu
 });
 
 // @spec DFF-BOT-025
-test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () => {
+test('scoreBotPickCandidate keeps punt rookie bias within the bounded archetype band', () => {
   const archetypeConfig = loadArchetypeConfigFile();
   const rookieTightEnd = {
     id: 'player-rookie',
@@ -296,7 +321,7 @@ test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () 
     player: rookieTightEnd,
     archetype: 'punt',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 4,
     randomness: 0,
@@ -306,7 +331,7 @@ test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () 
     player: veteranTightEnd,
     archetype: 'punt',
     archetypeConfig,
-    rosterConfig: defaultRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 4,
     randomness: 0,
@@ -314,21 +339,13 @@ test('scoreBotPickCandidate gives punt rookies the flat 1.3 youth modifier', () 
   });
 
   assert.ok(rookieScore > veteranScore);
-  assert.ok(rookieScore <= veteranScore * 1.25);
+  assert.equal(rookieScore, 112.5);
+  assert.equal(veteranScore, 74.25);
 });
 
 // @spec DFF-BOT-026
-test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered running backs', () => {
+test('scoreBotPickCandidate keeps same-team running back handcuff bias within the bounded archetype band', () => {
   const archetypeConfig = loadArchetypeConfigFile();
-  const neutralRosterConfig: DraftRosterConfig = {
-    QB: 0,
-    RB: 0,
-    WR: 0,
-    TE: 0,
-    FLEX: 0,
-    SF: 0,
-    bench: 0,
-  };
   const runningBack = {
     id: 'player-handcuff',
     name: 'Handcuff Runner',
@@ -344,7 +361,7 @@ test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered runni
     player: runningBack,
     archetype: 'balanced',
     archetypeConfig,
-    rosterConfig: neutralRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [],
     round: 5,
     randomness: 0,
@@ -354,7 +371,7 @@ test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered runni
     player: runningBack,
     archetype: 'balanced',
     archetypeConfig,
-    rosterConfig: neutralRosterConfig,
+    rosterConfig: lowNeedRosterConfig,
     rosteredPlayers: [
       {
         position: 'RB',
@@ -367,7 +384,8 @@ test('scoreBotPickCandidate adds the handcuff bonus for same-team rostered runni
   });
 
   assert.ok(handcuffScore > baselineScore);
-  assert.ok(handcuffScore <= baselineScore * 1.25);
+  assert.equal(baselineScore, 66);
+  assert.equal(handcuffScore, 100);
 });
 
 // @spec DFF-BOT-020
@@ -383,7 +401,7 @@ test('scoreBotPickCandidate keeps need and position bias inside the archetype ba
     nfl_team: 'KC',
     age: 24,
     is_rookie: false,
-    dynasty_value: 100,
+    dynasty_value: 115,
     adp: 1,
   };
   const lowerValueRunningBack = {
@@ -492,6 +510,6 @@ test('scoreBotPickCandidate clamps extreme slot need into the configured archety
     random: () => 0,
   });
 
-  assert.equal(lowNeedScore, 60);
+  assert.equal(lowNeedScore, 66);
   assert.equal(highNeedScore, 100);
 });

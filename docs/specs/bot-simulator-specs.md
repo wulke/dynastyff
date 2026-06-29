@@ -46,20 +46,20 @@ The system shall allow multiple bot teams to share the same archetype; no unique
 
 ## Pick Scoring
 
-**DFF-BOT-020** `[x]`
-When computing a pick score for an available player, the system shall compute: `score = dynastyValue × valueWeight × (slotNeed × needModifier) × youthModifier + handcuffBonus + noise × random()`.
+**DFF-BOT-020** `[ ]` → #160
+When computing a pick score for an available player, the system shall compute: `score = dynastyValue × valueWeight × needFactor`, where `needFactor` is a bounded multiplier derived from need, position, youth, and handcuff bias signals (see DFF-BOT-024 through DFF-BOT-027). Dynasty value shall always dominate the score; no combination of bias signals shall move `needFactor` outside the archetype's bounded band.
 
 **DFF-BOT-021** `[x]`
 The system shall compute `slotNeed` as the sum of eligibility-weighted unfilled slots for that position, and shall step to `0.3` (saturation floor) once all eligible slots are filled.
 
-**DFF-BOT-022** `[x]`
-The system shall apply the following `needModifier` and `valueWeight` per archetype:
-- `bpa`: needModifier 0.1, valueWeight 1.0 (near-pure dynasty value sort)
-- `balanced`: needModifier 1.0, valueWeight 0.8
-- `win_now`: needModifier 1.3, valueWeight 0.6
-- `punt`: needModifier 0.4, valueWeight 0.9
-- `rb_heavy`: needModifier 1.0, valueWeight 0.7; RB slot need additionally multiplied by 1.5
-- `qb_early`: needModifier 1.0, valueWeight 0.5; QB slot need additionally multiplied by 2.0 in rounds ≤ 3 only
+**DFF-BOT-022** `[ ]` → #160
+The system shall treat `needModifier` as a per-archetype need-bias band half-width (`0.0–1.0`) bounding how far `needFactor` can move from `1.0`, and shall apply the following `needModifier` and `valueWeight` per archetype:
+- `bpa`: needModifier 0.05, valueWeight 1.0 (near-pure dynasty value sort)
+- `balanced`: needModifier 0.25, valueWeight 0.8
+- `win_now`: needModifier 0.25, valueWeight 0.6 (same band as the other non-BPA archetypes; its identity comes from lower `valueWeight` and aggressive trade behavior, not a wider pick-scoring band)
+- `punt`: needModifier 0.25, valueWeight 0.9
+- `rb_heavy`: needModifier 0.25, valueWeight 0.7
+- `qb_early`: needModifier 0.25, valueWeight 0.5
 
 **DFF-BOT-023** `[x]`
 The system shall define a static `SLOT_ELIGIBILITY` map that specifies which positions can fill each roster slot type:
@@ -74,21 +74,29 @@ The system shall define a static `SLOT_ELIGIBILITY` map that specifies which pos
 **DFF-BOT-024** `[x]`
 When computing `slotNeed` for a position, the system shall count all unfilled roster slots whose eligibility set includes that position, weighted by `1 / eligibilitySetSize` (fractional contribution per shared slot).
 
-**DFF-BOT-025** `[x]`
-For the `punt` archetype, the system shall apply a `youthModifier` of `1.0 + max(0, (30 − age) / 30) × 0.4` to non-rookie players; rookies (`isRookie = true`) shall receive a flat `youthModifier` of `1.3`. All other archetypes shall use `youthModifier = 1.0`.
+Requirement-ID suffixes such as `DFF-BOT-024a` are reserved for non-breaking insertions between existing IDs, so downstream references do not need to be renumbered.
 
-**DFF-BOT-026** `[x]`
-When scoring an available RB whose `nflTeam` matches the `nflTeam` of any RB already on the bot's roster, the system shall add a handcuff bonus of `0.15 × player.dynastyValue` to that player's score.
+**DFF-BOT-024a** `[ ]` → #160
+The system shall normalize `slotNeed` to a `0–1` `normalizedNeed` value via `clamp(slotNeed / 2.0, 0, 1)` before it contributes to `needFactor`.
+
+**DFF-BOT-025** `[ ]` → #160
+For the `punt` archetype, the system shall compute a `youthBias` bias signal of `1.0` for rookies (`isRookie = true`) and `clamp((30 − age) / 30, 0, 1)` for non-rookies; this signal contributes to `needFactor` alongside `normalizedNeed` per DFF-BOT-027. All other archetypes shall not compute a `youthBias` signal.
+
+**DFF-BOT-026** `[ ]` → #160
+For an available RB whose `nflTeam` matches the `nflTeam` of any RB already on the bot's roster, the system shall compute a `handcuffBias` signal of `1.0` (else `0`); this signal contributes to `needFactor` per DFF-BOT-027 for all archetypes.
+
+**DFF-BOT-027** `[ ]` → #160
+The system shall compute a `positionBias` signal of `1.0` (else `0`) for: `rb_heavy` when the candidate is `RB`; `qb_early` when the candidate is `QB` and `round ≤ 3`. All other archetypes shall not compute a `positionBias` signal. The system shall then compute `combinedBias = max(normalizedNeed, positionBias, youthBias, handcuffBias)` over whichever signals apply to the archetype/player, and `needFactor = clamp(1 + (combinedBias − 0.5) × 2 × needModifier, 1 − needModifier, 1 + needModifier)`.
 
 ---
 
 ## Noise and Selection
 
-**DFF-BOT-030** `[x]`
-When selecting a player to draft, the system shall use weighted random sampling where each player's selection probability is proportional to their computed pick score.
+**DFF-BOT-030** `[ ]` → #160
+When selecting a player to draft, the system shall use weighted random sampling where each player's sampling weight is `max(score × (1 + randomness × (random() − 0.5) × 2), 0)` — a percentage jitter of the player's own score, not an additive constant, with the final weight floored at `0` — so the configured `randomness` value has a consistent effect regardless of dynasty-value scale.
 
-**DFF-BOT-031** `[x]`
-The system shall support a configurable `randomness` parameter (0.0–1.0, default 0.3) that flattens the score distribution: at 0.0 the highest-scored player is always selected; at 1.0 all available players are equally likely.
+**DFF-BOT-031** `[ ]` → #160
+The system shall support a configurable `randomness` parameter (0.0–1.0, default 0.3): at 0.0 the highest-scored player is always selected; at 1.0 sampling weight can swing by up to ±100% of score, letting any scored player occasionally outrank the nominal top pick.
 
 ---
 

@@ -92,10 +92,10 @@ The system shall compute a `positionBias` signal of `1.0` (else `0`) for: `rb_he
 
 ## Candidate Filtering and Selection
 
-**DFF-BOT-028** `[ ]` → #163
+**DFF-BOT-028** `[x]` → #163
 Before scoring available players, the system shall apply a floor pre-filter: exclude any player whose `dynasty_value` is below the archetype's `preferredPositionValueFloors` value for that player's position. If the floor filter would produce an empty candidate pool, the system shall skip the filter and use all available players.
 
-**DFF-BOT-029** `[ ]` → #163
+**DFF-BOT-029** `[x]` → #163
 After scoring the floor-filtered candidates, the system shall apply a tier filter: retain only players whose score is at or above `maxScore × (1 − candidatePoolThreshold)`, where `maxScore` is the highest score in the filtered pool and `candidatePoolThreshold` is the archetype's configured value. The system shall use the following default `candidatePoolThreshold` per archetype, overridable via `config/archetypes.json`:
 - `bpa`: 0.10
 - `win_now`: 0.15

@@ -51,6 +51,7 @@ import { DraftsListPage } from './components/DraftsListPage.js';
 import { DraftBoard } from './components/DraftBoard.js';
 import { PickFeedPanel } from './components/PickFeedPanel.js';
 import { AvailablePlayersPanel } from './components/AvailablePlayersPanel.js';
+import { TeamRosterPanel } from './components/TeamRosterPanel.js';
 import { DraftGradeSummaryView } from './components/DraftGradeSummaryView.js';
 import { HistoryView } from './components/HistoryView.js';
 import { TradeModal, type TradeComposerState } from './components/TradeModal.js';
@@ -414,25 +415,6 @@ function DraftStatusBar({ draftState }: { draftState: DraftState }) {
         >
           {status.turnLabel}
         </div>
-      </div>
-    </section>
-  );
-}
-
-// @spec DFF-UI-180
-function DraftRosterStub() {
-  return (
-    <section
-      id="draft-tabpanel-roster"
-      role="tabpanel"
-      aria-labelledby="draft-tab-roster"
-      className="rounded-md border border-default bg-surface"
-    >
-      <div className="border-b border-default px-3 py-2">
-        <h2 className="font-condensed text-lg font-semibold text-primary">Roster</h2>
-      </div>
-      <div className="px-3 py-6">
-        <p className="text-sm text-muted">Coming soon</p>
       </div>
     </section>
   );
@@ -963,6 +945,10 @@ export function DraftApp() {
         {/* @spec DFF-UI-182 */}
         {/* @spec DFF-UI-183 */}
         {/* @spec DFF-UI-184 */}
+        {/* @spec DFF-UI-187 */}
+        {/* @spec DFF-UI-188 */}
+        {/* @spec DFF-UI-189 */}
+        {/* @spec DFF-UI-190 */}
         {/* @spec DFF-UI-186 */}
         {/* @spec DFF-UI-191 */}
         {/* @spec DFF-UI-192 */}
@@ -1009,7 +995,15 @@ export function DraftApp() {
               >
                 <PickFeedPanel draftState={draftState} />
               </div>
-              {activeDraftTab === 'roster' ? <DraftRosterStub /> : null}
+              <div
+                id="draft-tabpanel-roster"
+                role="tabpanel"
+                aria-labelledby="draft-tab-roster"
+                hidden={activeDraftTab !== 'roster'}
+                className="min-h-0"
+              >
+                <TeamRosterPanel draftState={draftState} />
+              </div>
             </div>
             {showCompletionBanner ? (
               <DraftCompletionBanner

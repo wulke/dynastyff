@@ -107,6 +107,44 @@ function mockAppBootstrapAndDraftCreation(draftId = 'draft-roster-123') {
       );
     }
 
+    if (url === `/drafts/${draftId}/state` && method === 'GET') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            draft_id: draftId,
+            status: 'in_progress',
+            current_pick_number: 1,
+            teams: [],
+            draft_order: [],
+            picks: [],
+            roster_players: [],
+            team_pick_assets: [],
+            user_queue: [],
+            available_players: [],
+            drafted_players: [],
+            trades: [],
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+    }
+
+    if (url === `/drafts/${draftId}/queue` && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
     throw new Error(`Unhandled fetch in ui-team-roster-panel test: ${method} ${url}`);
   });
 }

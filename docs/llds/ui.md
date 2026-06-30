@@ -289,8 +289,14 @@ The drafting room is a single-pane tabbed workspace. The 3-column expand/collaps
 - No height constraint; panel scrolls independently within the available viewport height
 
 **Roster tab:**
-- Render a placeholder panel with the copy `Coming soon`
-- Full single-team roster content is deferred to a follow-up issue
+- Render a `TeamRosterPanel` with a team dropdown above a single-team draft log
+- Pre-select the user's team on first render
+- Dropdown options come from `draftState.teams` and switch the visible roster immediately
+- List only picks whose `teamId` matches the selected team, ordered by ascending `pickNumber`
+- Each row shows `Round.Pick`, player name, position badge, and dynasty value
+- Derive `Round.Pick` from `draftState.draftOrder` and player metadata from `draftState.playerCatalog`
+- When the selected team has no picks, show the empty state `No picks yet`
+- As `pick_made` SSE events update `draftState.picks`, the panel reflects new rows for the currently selected team without a re-fetch
 
 **Status bar:**
 - Rendered above the tab strip; always visible regardless of active tab
@@ -304,7 +310,9 @@ The drafting room is a single-pane tabbed workspace. The 3-column expand/collaps
 - `currentPickNumber` is `null` after the draft ends → status bar falls back to the completed pick count and `Draft complete`
 - Current draft slot is missing from `draftOrder` → status bar renders pick progress and falls back to `Draft room active`
 - User selects a player on the Players tab, switches to Board, then switches back → selected player row is still expanded with Draft / Cancel actions
-- User opens the Roster tab before follow-up roster work lands → the placeholder renders `Coming soon` without crashing
+- Selected team has no picks yet → the roster panel renders `No picks yet` without crashing
+- Pick number is missing from `draftOrder` → the roster row falls back to `—` instead of incorrect draft coordinates
+- Picked player is absent from `playerCatalog` → the roster row falls back to the raw `playerId` and em dash value without crashing
 
 ## Available Players And Targets Panels
 

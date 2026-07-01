@@ -672,7 +672,9 @@ describe('UI app scaffold', () => {
     expect(screen.getByRole('button', { name: /draft josh allen/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /^roster$/i }));
-    expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
+    expect(screen.getByTestId('team-roster-panel')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /team/i })).toHaveValue('team-2');
+    expect(screen.getByText('No picks yet')).toBeInTheDocument();
 
     act(() => {
       MockEventSource.instances[0]?.emit('trade_offered', {

@@ -519,17 +519,17 @@ When the user selects a player (expanding that row inline with Draft and Cancel 
 **DFF-UI-186** `[x]`
 The **Feed** tab shall render the Pick Feed panel at full available width. All existing Pick Feed behavior (DFF-UI-101 through DFF-UI-104) shall be preserved.
 
-**DFF-UI-187** `[D]`
-Deferred to a follow-up issue. The initial tabbed drafting view ships only a placeholder `Roster` tab stub.
+**DFF-UI-187** `[x]` → #151
+The **Roster** tab shall render a `TeamRosterPanel` instead of a placeholder stub.
 
-**DFF-UI-188** `[D]`
-Deferred to a follow-up issue. The initial tabbed drafting view does not yet include the roster team dropdown.
+**DFF-UI-188** `[x]` → #151
+When the **Roster** tab opens, the system shall render a team dropdown listing every `draftState.teams.name` value and shall pre-select the user's team.
 
-**DFF-UI-189** `[D]`
-Deferred to a follow-up issue. The initial tabbed drafting view does not yet render roster pick rows.
+**DFF-UI-189** `[x]` → #151
+When a team is selected in the **Roster** tab, the system shall render that team's picks in ascending `pickNumber` order, and each row shall show the `round.pick_in_round` label, player name, position badge, and dynasty value. If the selected team has no picks, the system shall render `No picks yet`.
 
-**DFF-UI-190** `[D]`
-Deferred to a follow-up issue. The initial tabbed drafting view does not yet include live roster-tab pick updates.
+**DFF-UI-190** `[x]` → #151
+When a `pick_made` SSE event updates `draftState.picks`, the **Roster** tab shall update in real time for the currently selected team without re-fetching draft state.
 
 **DFF-UI-191** `[x]`
 The Trade modal shall overlay the entire drafting view including the status bar and tab strip, consistent with its existing behavior (DFF-UI-050).

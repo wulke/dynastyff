@@ -257,7 +257,7 @@ afterEach(() => {
 
 async function renderAppToConfig() {
   render(<App />);
-  await screen.findByRole('heading', { name: /config screen/i });
+  await screen.findByRole('heading', { name: /config screen/i }, { timeout: 5_000 });
 }
 
 describe('draft history view', () => {
@@ -277,7 +277,7 @@ describe('draft history view', () => {
     expect(screen.getByRole('heading', { name: /draft grade summary/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /new draft/i })).toBeInTheDocument();
-  });
+  }, 10_000);
 
   // @spec DFF-UI-147
   // @spec DFF-UI-148

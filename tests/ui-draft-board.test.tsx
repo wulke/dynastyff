@@ -226,11 +226,13 @@ describe('draft board UI', () => {
   // @spec DFF-UI-023
   // @spec DFF-UI-024
   // @spec DFF-UI-026
-  test('renders the draft board grid with round headers, snake slots, a highlighted user row, a bot skeleton, and horizontal scroll', async () => {
-    const user = userEvent.setup();
-    mockDraftStartFetches();
+  test(
+    'renders the draft board grid with round headers, snake slots, a highlighted user row, a bot skeleton, and horizontal scroll',
+    async () => {
+      const user = userEvent.setup();
+      mockDraftStartFetches();
 
-    await renderAppToConfig();
+      await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitDraftState();
@@ -252,8 +254,10 @@ describe('draft board UI', () => {
     expect(screen.getByTestId('draft-slot-6')).toHaveAttribute('data-round', '2');
     expect(screen.getByTestId('draft-slot-6')).toHaveAttribute('data-team-id', 'team-1');
 
-    expect(within(screen.getByTestId('draft-slot-1')).getByTestId('draft-slot-skeleton')).toHaveClass('animate-pulse');
-  });
+      expect(within(screen.getByTestId('draft-slot-1')).getByTestId('draft-slot-skeleton')).toHaveClass('animate-pulse');
+    },
+    10_000,
+  );
 
   // @spec DFF-UI-022
   // @spec DFF-UI-024

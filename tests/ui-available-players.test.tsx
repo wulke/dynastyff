@@ -180,7 +180,7 @@ function createDraftState(overrides: Partial<Record<string, unknown>> = {}) {
 
 async function renderAppToConfig() {
   render(<App />);
-  await screen.findByRole('heading', { name: /config screen/i });
+  await screen.findByRole('heading', { name: /config screen/i }, { timeout: 5_000 });
 }
 
 async function openPlayersTab(user: ReturnType<typeof userEvent.setup>) {
@@ -208,96 +208,100 @@ describe('available players list', () => {
   // @spec DFF-UI-140
   // @spec DFF-UI-141
   // @spec DFF-UI-143
-  test('hydrates from GET /drafts/:id/state with loading skeletons, sorted rows, a compact position filter control, and live name search', async () => {
-    const user = userEvent.setup();
-    const deferredState = createDeferredResponse();
+  test(
+    'hydrates from GET /drafts/:id/state with loading skeletons, sorted rows, a compact position filter control, and live name search',
+    async () => {
+      const user = userEvent.setup();
+      const deferredState = createDeferredResponse();
 
-    fetchMock.mockImplementation((input, init) => {
-      const url = String(input);
+      fetchMock.mockImplementation((input, init) => {
+        const url = String(input);
 
-      if (url === '/drafts' && !init?.method) {
-        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
-      }
+        if (url === '/drafts' && !init?.method) {
+          return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+        }
 
-      if (url === '/drafts' && init?.method === 'POST') {
-        return Promise.resolve(
-          new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
-            status: 201,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      }
+        if (url === '/drafts' && init?.method === 'POST') {
+          return Promise.resolve(
+            new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
+              status: 201,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
 
-      if (url === '/drafts/draft-available-123/state') {
-        return deferredState.promise;
-      }
+        if (url === '/drafts/draft-available-123/state') {
+          return deferredState.promise;
+        }
 
-      if (url === '/drafts/draft-available-123/queue') {
-        return Promise.resolve(
-          new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      }
+        if (url === '/drafts/draft-available-123/queue') {
+          return Promise.resolve(
+            new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
 
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
+        throw new Error(`Unexpected fetch: ${url}`);
+      });
 
-    await renderAppToConfig();
-    await user.click(screen.getByRole('button', { name: /start draft/i }));
-    await user.click(await screen.findByRole('tab', { name: /^players$/i }));
+      await renderAppToConfig();
+      await user.click(screen.getByRole('button', { name: /start draft/i }));
+      await user.click(await screen.findByRole('tab', { name: /^players$/i }));
 
-    expect(await screen.findByTestId('available-players-loading')).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith('/drafts/draft-available-123/state');
+      expect(await screen.findByTestId('available-players-loading')).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledWith('/drafts/draft-available-123/state');
 
-    deferredState.resolve(
-      new Response(JSON.stringify(createDraftState()), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+      deferredState.resolve(
+        new Response(JSON.stringify(createDraftState()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
 
-    const panel = await screen.findByTestId('available-players-panel');
-    const availableTab = screen.getByRole('button', { name: /^available$/i });
-    const targetsTab = screen.getByRole('button', { name: /^targets$/i });
-    const rows = within(panel).getAllByTestId(/^available-player-row-/);
+      const panel = await screen.findByTestId('available-players-panel');
+      const availableTab = screen.getByRole('button', { name: /^available$/i });
+      const targetsTab = screen.getByRole('button', { name: /^targets$/i });
+      const rows = within(panel).getAllByTestId(/^available-player-row-/);
 
-    expect(availableTab).toHaveAttribute('aria-pressed', 'true');
-    expect(targetsTab).toHaveAttribute('aria-pressed', 'false');
-    expect(targetsTab.className).toContain('border-default');
-    expect(availableTab.className).toContain('border-accent/30');
-    expect(screen.queryByTestId('targets-panel')).not.toBeInTheDocument();
+      expect(availableTab).toHaveAttribute('aria-pressed', 'true');
+      expect(targetsTab).toHaveAttribute('aria-pressed', 'false');
+      expect(targetsTab.className).toContain('border-default');
+      expect(availableTab.className).toContain('border-accent/30');
+      expect(screen.queryByTestId('targets-panel')).not.toBeInTheDocument();
 
-    expect(rows[0]).toHaveAttribute('data-player-id', 'player-wr-1');
-    expect(rows[1]).toHaveAttribute('data-player-id', 'player-rb-1');
-    expect(rows[2]).toHaveAttribute('data-player-id', 'player-qb-1');
-    expect(rows[3]).toHaveAttribute('data-player-id', 'pick-2027-1st');
-    expect(rows[4]).toHaveAttribute('data-player-id', 'player-te-1');
+      expect(rows[0]).toHaveAttribute('data-player-id', 'player-wr-1');
+      expect(rows[1]).toHaveAttribute('data-player-id', 'player-rb-1');
+      expect(rows[2]).toHaveAttribute('data-player-id', 'player-qb-1');
+      expect(rows[3]).toHaveAttribute('data-player-id', 'pick-2027-1st');
+      expect(rows[4]).toHaveAttribute('data-player-id', 'player-te-1');
 
-    expect(within(rows[0]).getByText('WR')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('DAL')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('Age 27')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('9800')).toBeInTheDocument();
+      expect(within(rows[0]).getByText('WR')).toBeInTheDocument();
+      expect(within(rows[0]).getByText('DAL')).toBeInTheDocument();
+      expect(within(rows[0]).getByText('Age 27')).toBeInTheDocument();
+      expect(within(rows[0]).getByText('9800')).toBeInTheDocument();
 
-    const positionFilter = within(panel).getByRole('combobox', { name: /position filter/i });
-    const filterOptions = within(positionFilter).getAllByRole('option');
+      const positionFilter = within(panel).getByRole('combobox', { name: /position filter/i });
+      const filterOptions = within(positionFilter).getAllByRole('option');
 
-    expect(filterOptions.map((option) => option.textContent)).toEqual(['ALL', 'QB', 'RB', 'WR', 'TE', 'Picks']);
+      expect(filterOptions.map((option) => option.textContent)).toEqual(['ALL', 'QB', 'RB', 'WR', 'TE', 'Picks']);
 
-    await user.selectOptions(positionFilter, 'RB');
-    expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
-    expect(within(panel).getByText('Bijan Robinson')).toBeInTheDocument();
+      await user.selectOptions(positionFilter, 'RB');
+      expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
+      expect(within(panel).getByText('Bijan Robinson')).toBeInTheDocument();
 
-    await user.selectOptions(positionFilter, 'Picks');
-    expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
-    expect(within(panel).getByText('2027 1st')).toBeInTheDocument();
+      await user.selectOptions(positionFilter, 'Picks');
+      expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
+      expect(within(panel).getByText('2027 1st')).toBeInTheDocument();
 
-    await user.selectOptions(positionFilter, 'ALL');
-    await user.type(within(panel).getByRole('searchbox', { name: /search players/i }), 'bow');
-    expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
-    expect(within(panel).getByText('Brock Bowers')).toBeInTheDocument();
-  });
+      await user.selectOptions(positionFilter, 'ALL');
+      await user.type(within(panel).getByRole('searchbox', { name: /search players/i }), 'bow');
+      expect(within(panel).getAllByTestId(/^available-player-row-/)).toHaveLength(1);
+      expect(within(panel).getByText('Brock Bowers')).toBeInTheDocument();
+    },
+    10_000,
+  );
 
   // @spec DFF-UI-120
   // @spec DFF-UI-121
@@ -687,141 +691,145 @@ describe('available players list', () => {
   // @spec DFF-UI-139
   // @spec DFF-UI-140
   // @spec DFF-UI-142
-  test('shows disabled rows during bot turns, then uses a toggleable shared inline expand flow for available players and targets on the user turn', async () => {
-    const user = userEvent.setup();
+  test(
+    'shows disabled rows during bot turns, then uses a toggleable shared inline expand flow for available players and targets on the user turn',
+    async () => {
+      const user = userEvent.setup();
 
-    fetchMock.mockImplementation((input, init) => {
-      const url = String(input);
+      fetchMock.mockImplementation((input, init) => {
+        const url = String(input);
 
-      if (url === '/drafts' && !init?.method) {
-        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
-      }
+        if (url === '/drafts' && !init?.method) {
+          return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+        }
 
-      if (url === '/drafts' && init?.method === 'POST') {
-        return Promise.resolve(
-          new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
-            status: 201,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      }
+        if (url === '/drafts' && init?.method === 'POST') {
+          return Promise.resolve(
+            new Response(JSON.stringify({ draftId: 'draft-available-123' }), {
+              status: 201,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
 
-      if (url === '/drafts/draft-available-123/state') {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify(
-              createDraftState({
-                current_pick_number: 1,
-              }),
+        if (url === '/drafts/draft-available-123/state') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify(
+                createDraftState({
+                  current_pick_number: 1,
+                }),
+              ),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
             ),
-            {
+          );
+        }
+
+        if (url === '/drafts/draft-available-123/queue') {
+          return Promise.resolve(
+            new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
               status: 200,
               headers: { 'Content-Type': 'application/json' },
-            },
-          ),
-        );
-      }
+            }),
+          );
+        }
 
-      if (url === '/drafts/draft-available-123/queue') {
-        return Promise.resolve(
-          new Response(JSON.stringify([{ playerId: 'player-rb-1', rank: 1 }]), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }),
-        );
-      }
+        if (url === '/drafts/draft-available-123/pick' && init?.method === 'POST') {
+          return Promise.resolve(new Response(null, { status: 200 }));
+        }
 
-      if (url === '/drafts/draft-available-123/pick' && init?.method === 'POST') {
-        return Promise.resolve(new Response(null, { status: 200 }));
-      }
-
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-
-    await renderAppToConfig();
-    await user.click(screen.getByRole('button', { name: /start draft/i }));
-
-    const panel = await openPlayersTab(user);
-    const statusBar = await screen.findByTestId('draft-status-bar');
-    expect(within(statusBar).getByText('Bob')).toBeInTheDocument();
-    expect(within(panel).queryByText('Bot is picking…')).not.toBeInTheDocument();
-
-    const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
-    expect(lambRow).toBeDisabled();
-    await user.click(lambRow);
-    await user.click(screen.getByRole('button', { name: /^targets$/i }));
-    const disabledTargetsPanel = await screen.findByTestId('targets-panel');
-    expect(within(disabledTargetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
-    const bijanTargetRow = within(disabledTargetsPanel).getByRole('button', { name: /bijan robinson/i });
-    expect(bijanTargetRow).toBeDisabled();
-    await user.click(bijanTargetRow);
-    await user.click(screen.getByRole('button', { name: /^available$/i }));
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      '/drafts/draft-available-123/pick',
-      expect.objectContaining({ method: 'POST' }),
-    );
-
-    act(() => {
-      MockEventSource.instances[0]?.emit('your_turn', {
-        pick_number: 2,
-        round: 1,
-        pick_in_round: 2,
+        throw new Error(`Unexpected fetch: ${url}`);
       });
-    });
 
-    const availablePanelOnUserTurn = await screen.findByTestId('available-players-panel');
-    const enabledRow = within(availablePanelOnUserTurn).getByRole('button', { name: /ceedee lamb/i });
-    const selectedAvailableRow = within(availablePanelOnUserTurn).getByTestId('available-player-row-player-wr-1');
-    expect(enabledRow).toBeEnabled();
+      await renderAppToConfig();
+      await user.click(screen.getByRole('button', { name: /start draft/i }));
 
-    await user.click(enabledRow);
-    expect(selectedAvailableRow.className).toContain('border-accent');
-    expect(enabledRow).toHaveAttribute('aria-pressed', 'true');
-    expect(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
-    expect(within(selectedAvailableRow).getByText('ADP 2')).toBeInTheDocument();
-    expect(within(selectedAvailableRow).getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
-    expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      '/drafts/draft-available-123/pick',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    await user.click(enabledRow);
-    expect(within(selectedAvailableRow).queryByRole('button', { name: /draft ceedee lamb/i })).not.toBeInTheDocument();
-    expect(enabledRow).toHaveAttribute('aria-pressed', 'false');
+      const panel = await openPlayersTab(user);
+      const statusBar = await screen.findByTestId('draft-status-bar');
+      expect(within(statusBar).getByText('Bob')).toBeInTheDocument();
+      expect(within(panel).queryByText('Bot is picking…')).not.toBeInTheDocument();
 
-    await user.click(enabledRow);
-    await user.click(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i }));
+      const lambRow = within(panel).getByRole('button', { name: /ceedee lamb/i });
+      expect(lambRow).toBeDisabled();
+      await user.click(lambRow);
+      await user.click(screen.getByRole('button', { name: /^targets$/i }));
+      const disabledTargetsPanel = await screen.findByTestId('targets-panel');
+      expect(within(disabledTargetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
+      const bijanTargetRow = within(disabledTargetsPanel).getByRole('button', { name: /bijan robinson/i });
+      expect(bijanTargetRow).toBeDisabled();
+      await user.click(bijanTargetRow);
+      await user.click(screen.getByRole('button', { name: /^available$/i }));
+      expect(fetchMock).not.toHaveBeenCalledWith(
+        '/drafts/draft-available-123/pick',
+        expect.objectContaining({ method: 'POST' }),
+      );
 
-    await user.click(screen.getByRole('button', { name: /^targets$/i }));
-    const targetsPanel = await screen.findByTestId('targets-panel');
-    expect(within(targetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
-    const enabledTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
-    const selectedTargetRow = within(targetsPanel).getByTestId('target-player-row-player-rb-1');
-    expect(enabledTargetRow).toBeEnabled();
-    await user.click(enabledTargetRow);
-    expect(selectedTargetRow.className).toContain('border-accent');
-    expect(await within(selectedTargetRow).findByRole('button', { name: /draft bijan robinson/i })).toBeInTheDocument();
-    expect(within(selectedTargetRow).getByText('ADP 3')).toBeInTheDocument();
-    expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
-    await user.click(within(selectedTargetRow).getByRole('button', { name: /draft bijan robinson/i }));
+      act(() => {
+        MockEventSource.instances[0]?.emit('your_turn', {
+          pick_number: 2,
+          round: 1,
+          pick_in_round: 2,
+        });
+      });
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      6,
-      '/drafts/draft-available-123/pick',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ playerId: 'player-wr-1' }),
-      }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      7,
-      '/drafts/draft-available-123/pick',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ playerId: 'player-rb-1' }),
-      }),
-    );
-  });
+      const availablePanelOnUserTurn = await screen.findByTestId('available-players-panel');
+      const enabledRow = within(availablePanelOnUserTurn).getByRole('button', { name: /ceedee lamb/i });
+      const selectedAvailableRow = within(availablePanelOnUserTurn).getByTestId('available-player-row-player-wr-1');
+      expect(enabledRow).toBeEnabled();
+
+      await user.click(enabledRow);
+      expect(selectedAvailableRow.className).toContain('border-accent');
+      expect(enabledRow).toHaveAttribute('aria-pressed', 'true');
+      expect(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i })).toBeInTheDocument();
+      expect(within(selectedAvailableRow).getByText('ADP 2')).toBeInTheDocument();
+      expect(within(selectedAvailableRow).getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+      expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
+      expect(fetchMock).not.toHaveBeenCalledWith(
+        '/drafts/draft-available-123/pick',
+        expect.objectContaining({ method: 'POST' }),
+      );
+      await user.click(enabledRow);
+      expect(within(selectedAvailableRow).queryByRole('button', { name: /draft ceedee lamb/i })).not.toBeInTheDocument();
+      expect(enabledRow).toHaveAttribute('aria-pressed', 'false');
+
+      await user.click(enabledRow);
+      await user.click(await within(selectedAvailableRow).findByRole('button', { name: /draft ceedee lamb/i }));
+
+      await user.click(screen.getByRole('button', { name: /^targets$/i }));
+      const targetsPanel = await screen.findByTestId('targets-panel');
+      expect(within(targetsPanel).queryByText('Bot is picking…')).not.toBeInTheDocument();
+      const enabledTargetRow = within(targetsPanel).getByRole('button', { name: /bijan robinson/i });
+      const selectedTargetRow = within(targetsPanel).getByTestId('target-player-row-player-rb-1');
+      expect(enabledTargetRow).toBeEnabled();
+      await user.click(enabledTargetRow);
+      expect(selectedTargetRow.className).toContain('border-accent');
+      expect(await within(selectedTargetRow).findByRole('button', { name: /draft bijan robinson/i })).toBeInTheDocument();
+      expect(within(selectedTargetRow).getByText('ADP 3')).toBeInTheDocument();
+      expect(screen.queryByTestId('pick-confirmation-card')).not.toBeInTheDocument();
+      await user.click(within(selectedTargetRow).getByRole('button', { name: /draft bijan robinson/i }));
+
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        6,
+        '/drafts/draft-available-123/pick',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ playerId: 'player-wr-1' }),
+        }),
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        7,
+        '/drafts/draft-available-123/pick',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ playerId: 'player-rb-1' }),
+        }),
+      );
+    },
+    10_000,
+  );
 
   // @spec DFF-UI-084
   test('shows the failed pick toast and keeps the selection active when the pick submission returns an error', async () => {

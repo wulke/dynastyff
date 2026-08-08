@@ -20,6 +20,7 @@ Populated by the ETL pipeline. Read-only during drafts.
 | age | REAL | Age at season start |
 | is_rookie | INTEGER (bool) | 1 if current-year rookie |
 | dynasty_value | INTEGER | Aggregated dynasty value (0–9999); average of normalized per-source values |
+| dynasty_value_tep / dynasty_value_tepp / dynasty_value_teppp | INTEGER | KTC TE-premium-adjusted dynasty values for TE+, TE++, and TE+++; NULL when KTC did not supply the tier |
 | value_ktc | INTEGER | Raw KTC value normalized to 0–9999; NULL if source failed |
 | value_fantasycalc | INTEGER | Raw FantasyCalc value normalized to 0–9999; NULL if source failed |
 | value_dynastydaddy | INTEGER | Raw DynastyDaddy value normalized to 0–9999; NULL if source failed |
@@ -39,6 +40,7 @@ One row per mock draft session.
 | team_count | INTEGER | Default 12 |
 | rounds | INTEGER | Default 20 |
 | scoring_format | TEXT | `ppr`, `half_ppr`, `standard` |
+| te_premium_tier | TEXT | `off`, `tep`, `tepp`, `teppp`; independent of `scoring_format` |
 | user_pick_position | INTEGER | 1-based pick slot in round 1 |
 | future_pick_years | INTEGER | Default 3 |
 | future_pick_rounds | INTEGER | Rounds of future picks per year |
@@ -54,6 +56,7 @@ Reusable saved league setups shown in the config-screen dropdown.
 | team_count | INTEGER | Saved team count |
 | rounds | INTEGER | Saved round count |
 | scoring_format | TEXT | `ppr`, `half_ppr`, `standard` |
+| te_premium_tier | TEXT | `off`, `tep`, `tepp`, `teppp`; independent of `scoring_format` |
 | roster_slots | TEXT (JSON) | `{ "QB": 1, "RB": 2, "WR": 3, "TE": 1, "FLEX": 1, "SF": 1, "BN": 6 }` |
 | pick_position | INTEGER | Saved 1-based user draft slot |
 | future_pick_years | INTEGER | Saved future-pick horizon |

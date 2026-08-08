@@ -539,6 +539,7 @@ describe('UI app scaffold', () => {
 
   // @spec DFF-UI-002
   // @spec DFF-UI-014
+  // @spec DFF-TEP-002
   test('posts the current form values and transitions to drafting when a draft is created', async () => {
     const user = userEvent.setup();
     setupDraftLifecycleFetches();
@@ -549,6 +550,7 @@ describe('UI app scaffold', () => {
     await user.clear(screen.getByLabelText(/team count/i));
     await user.type(screen.getByLabelText(/team count/i), '10');
     await user.selectOptions(screen.getByLabelText(/scoring format/i), 'half_ppr');
+    await user.selectOptions(screen.getByLabelText(/te premium/i), 'tep');
     await user.clear(screen.getByLabelText(/^wr$/i));
     await user.type(screen.getByLabelText(/^wr$/i), '4');
     await user.clear(screen.getByLabelText(/pick position/i));
@@ -569,6 +571,7 @@ describe('UI app scaffold', () => {
           teamCount: 10,
           rounds: 20,
           scoringFormat: 'half_ppr',
+          tePremiumTier: 'tep',
           pickPosition: 3,
           futurePickYears: 2,
           rosterSlots: {
@@ -982,6 +985,7 @@ describe('UI app scaffold', () => {
 
   // @spec DFF-UI-010
   // @spec DFF-UI-014
+  // @spec DFF-TEP-002
   test('clamps out-of-range numeric values before posting the draft request', async () => {
     const user = userEvent.setup();
     setupDraftLifecycleFetches();
@@ -1008,6 +1012,7 @@ describe('UI app scaffold', () => {
           teamCount: 16,
           rounds: 10,
           scoringFormat: 'ppr',
+          tePremiumTier: 'off',
           pickPosition: 16,
           futurePickYears: 5,
           rosterSlots: {

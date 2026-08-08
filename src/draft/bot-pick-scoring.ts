@@ -12,6 +12,7 @@
 import type { DraftAvailablePlayer } from './available-players.js';
 import type { ArchetypeConfig } from './archetype-config.js';
 import type { DraftRosterConfig } from './roster-config.js';
+import type { tePremiumTiers } from '../db/schema.js';
 
 type PlayerPosition = 'QB' | 'RB' | 'WR' | 'TE';
 type RosterSlot = keyof DraftRosterConfig;
@@ -44,6 +45,7 @@ type ScoreBotPickCandidateArgs = {
   round: number;
   randomness: number;
   random: () => number;
+  tePremiumTier?: (typeof tePremiumTiers)[number];
 };
 
 type CalculateSlotNeedArgs = {
@@ -87,6 +89,7 @@ export function scoreBotPickCandidate({
   round,
   randomness,
   random,
+  tePremiumTier,
 }: ScoreBotPickCandidateArgs): number {
   const profile = archetypeConfig.archetypes[archetype];
   const slotNeed = calculateSlotNeed({
@@ -108,7 +111,21 @@ export function scoreBotPickCandidate({
     profile.needModifier,
   );
 
-  return player.dynasty_value * profile.valueWeight * needFactor;
+  return getBotPickDynastyValue(player, tePremiumTier) * profile.valueWeight * needFactor;
+}
+
+// @spec DFF-TEP-003
+function getBotPickDynastyValue(
+  player: DraftAvailablePlayer,
+  tePremiumTier: (typeof tePremiumTiers)[number] = 'off',
+): number {
+  if (player.position !== 'TE' || tePremiumTier === 'off') return player.dynasty_value;
+  const premiumValue = tePremiumTier === 'tep'
+    ? player.dynasty_value_tep
+    : tePremiumTier === 'tepp'
+      ? player.dynasty_value_tepp
+      : player.dynasty_value_teppp;
+  return premiumValue ?? player.dynasty_value;
 }
 
 // @spec DFF-BOT-021

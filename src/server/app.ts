@@ -75,6 +75,7 @@ type SavedLeagueConfigApiRecord = {
   team_count: number;
   rounds: number;
   scoring_format: string;
+  te_premium_tier: string;
   roster_slots: {
     QB: number;
     RB: number;
@@ -155,6 +156,7 @@ export function createLeagueConfigsCreateRoute({
         teamCount: config.teamCount,
         rounds: config.rounds,
         scoringFormat: config.scoringFormat,
+        tePremiumTier: config.tePremiumTier,
         rosterSlots: JSON.stringify({
           QB: config.rosterConfig.QB,
           RB: config.rosterConfig.RB,
@@ -178,6 +180,7 @@ export function createLeagueConfigsCreateRoute({
           teamCount: record.teamCount,
           rounds: record.rounds,
           scoringFormat: record.scoringFormat,
+          tePremiumTier: record.tePremiumTier,
           rosterSlots: record.rosterSlots,
           pickPosition: record.pickPosition,
           futurePickYears: record.futurePickYears,
@@ -223,6 +226,7 @@ function toSavedLeagueConfigApiRecord(row: typeof leagueConfigs.$inferSelect): S
     team_count: row.teamCount,
     rounds: row.rounds,
     scoring_format: row.scoringFormat,
+    te_premium_tier: row.tePremiumTier,
     roster_slots: parseSavedLeagueConfigRosterSlots(row.rosterSlots),
     pick_position: row.pickPosition,
     future_pick_years: row.futurePickYears,

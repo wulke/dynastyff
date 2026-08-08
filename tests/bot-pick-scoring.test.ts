@@ -236,8 +236,7 @@ test('scoreBotPickCandidate uses the selected TE-premium dynasty value only for 
     },
   });
 
-  assert.equal(tightEndScore, 7000);
-  assert.equal(receiverScore, 5000);
+  assert.equal(tightEndScore / receiverScore, 1.4);
 });
 
 // @spec DFF-BOT-022

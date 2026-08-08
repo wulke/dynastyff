@@ -6,7 +6,7 @@
 // @spec DFF-UI-014
 import { useEffect, useState, type ReactNode } from 'react';
 
-import type { DraftConfig, ScoringFormat } from '../types.js';
+import type { DraftConfig, ScoringFormat, TePremiumTier } from '../types.js';
 
 export type ConfigFormState = DraftConfig;
 
@@ -21,6 +21,7 @@ export const configDefaults: ConfigFormState = {
   teamCount: 12,
   rounds: 20,
   scoringFormat: 'ppr',
+  tePremiumTier: 'off',
   userPickPosition: 6,
   futurePickYears: 3,
   rosterConfig: {
@@ -212,6 +213,21 @@ export function DraftConfigScreen({
                 {savedConfigs.map((savedConfig) => (
                   <option key={savedConfig.id} value={savedConfig.id}>{savedConfig.name}</option>
                 ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-xs text-secondary" htmlFor="te-premium-tier">
+              <span className="font-medium uppercase tracking-wide text-muted">TE Premium</span>
+              <select
+                id="te-premium-tier"
+                value={config.tePremiumTier ?? 'off'}
+                onChange={(event) => onConfigChange({ ...config, tePremiumTier: event.target.value as TePremiumTier })}
+                className="rounded border border-strong bg-app px-3 py-2 text-sm text-primary outline-none transition focus:border-accent"
+              >
+                <option value="off">Off</option>
+                <option value="tep">TE+ (+0.5 PPR)</option>
+                <option value="tepp">TE++</option>
+                <option value="teppp">TE+++</option>
               </select>
             </label>
 

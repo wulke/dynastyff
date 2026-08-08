@@ -1,12 +1,13 @@
 // @spec DFF-ENGINE-003
 // @spec DFF-DATA-096
-import { scoringFormats } from '../db/schema.js';
+import { scoringFormats, tePremiumTiers } from '../db/schema.js';
 
 type RawDraftRequestBody = {
   configName?: unknown;
   teamCount?: unknown;
   rounds?: unknown;
   scoringFormat?: unknown;
+  tePremiumTier?: unknown;
   rosterSlots?: unknown;
   pickPosition?: unknown;
   futurePickYears?: unknown;
@@ -41,6 +42,7 @@ export type CreateDraftConfig = {
   teamCount: number;
   rounds: number;
   scoringFormat: (typeof scoringFormats)[number];
+  tePremiumTier: (typeof tePremiumTiers)[number];
   userPickPosition: number;
   futurePickYears: number;
   futurePickRounds: number;
@@ -78,6 +80,7 @@ export function parseCreateDraftConfig(input: unknown): CreateDraftConfig {
   const teamCount = requireIntegerInRange(body.teamCount, 'teamCount', 8, 16);
   const rounds = requireIntegerInRange(body.rounds, 'rounds', 10, 30);
   const scoringFormat = requireScoringFormat(body.scoringFormat);
+  const tePremiumTier = requireTePremiumTier(body.tePremiumTier);
   const rosterSlots = requireRosterSlots(body.rosterSlots);
   const pickPosition = requireIntegerInRange(body.pickPosition, 'pickPosition', 1, teamCount);
   const futurePickYears = requireIntegerInRange(body.futurePickYears, 'futurePickYears', 1, 5);
@@ -86,6 +89,7 @@ export function parseCreateDraftConfig(input: unknown): CreateDraftConfig {
     teamCount,
     rounds,
     scoringFormat,
+    tePremiumTier,
     userPickPosition: pickPosition,
     futurePickYears,
     futurePickRounds: rounds,
@@ -99,6 +103,17 @@ export function parseCreateDraftConfig(input: unknown): CreateDraftConfig {
       bench: rosterSlots.BN,
     },
   };
+}
+
+// @spec DFF-TEP-002
+function requireTePremiumTier(value: unknown): (typeof tePremiumTiers)[number] {
+  if (value === undefined) return 'off';
+  if (typeof value !== 'string' || !tePremiumTiers.includes(value as (typeof tePremiumTiers)[number])) {
+    throw new DraftConfigValidationError(
+      `Invalid draft config: tePremiumTier must be one of ${tePremiumTiers.join(', ')}.`,
+    );
+  }
+  return value as (typeof tePremiumTiers)[number];
 }
 
 // @spec DFF-DATA-096

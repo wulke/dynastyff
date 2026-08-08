@@ -216,3 +216,6 @@ Data (player values, ADP, dynasty rankings, Sleeper league state) is pre-loaded 
 - `docs/llds/sleeper-sync.md` *(new)*
 - `docs/llds/season-management.md` *(new)*
 - `docs/specs/`
+# TE-Premium Scoring Decision
+
+TE premium is an independent league modifier rather than a scoring-format variant. The ETL retains KTC's three published premium tiers, draft configuration persists the selected tier, and bot pick scoring applies the selected adjusted value only to tight ends. This keeps the base scoring matrix (`ppr`, `half_ppr`, `standard`) orthogonal to TE premium.

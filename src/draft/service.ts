@@ -61,6 +61,7 @@ import {
   pickValues,
   rosterPlayers,
   scoringFormats,
+  tePremiumTiers,
   teamArchetypes,
   teamPickAssets,
   teams,
@@ -79,6 +80,7 @@ import { parseDraftRosterConfig, type DraftRosterConfig } from './roster-config.
 
 type DraftStatus = (typeof draftStatuses)[number];
 type ScoringFormat = (typeof scoringFormats)[number];
+type TePremiumTier = (typeof tePremiumTiers)[number];
 type TeamArchetype = (typeof teamArchetypes)[number];
 type TradeStatus = (typeof tradeStatuses)[number];
 
@@ -96,6 +98,7 @@ type DraftConfig = {
   teamCount: number;
   rounds: number;
   scoringFormat: ScoringFormat;
+  tePremiumTier?: TePremiumTier;
   userPickPosition: number;
   futurePickYears: number;
   futurePickRounds: number;
@@ -233,6 +236,7 @@ export type DraftStateSnapshot = {
   status: DraftStatus;
   current_pick_number: number | null;
   roster_config: DraftRosterConfig;
+  te_premium_tier: TePremiumTier;
   teams: Array<{
     id: string;
     name: string;
@@ -373,6 +377,7 @@ export function createDraft({
           teamCount: config.teamCount,
           rounds: config.rounds,
           scoringFormat: config.scoringFormat,
+          tePremiumTier: config.tePremiumTier ?? 'off',
           userPickPosition: config.userPickPosition,
           futurePickYears: config.futurePickYears,
           futurePickRounds: config.futurePickRounds,
@@ -645,6 +650,7 @@ export function getDraftState({
         id: drafts.id,
         status: drafts.status,
         roster_config: drafts.rosterConfig,
+        te_premium_tier: drafts.tePremiumTier,
         startup_pick_values: drafts.startupPickValues,
       })
       .from(drafts)
@@ -653,6 +659,7 @@ export function getDraftState({
         id: string;
         status: DraftStatus;
         roster_config: string;
+        te_premium_tier: TePremiumTier;
         startup_pick_values: string;
       } | undefined;
 
@@ -675,6 +682,7 @@ export function getDraftState({
       status: draft.status,
       current_pick_number: currentPick?.pickNumber ?? null,
       roster_config: parseDraftRosterConfig(draft.roster_config),
+      te_premium_tier: draft.te_premium_tier,
       teams: db
         .select({
           id: teams.id,

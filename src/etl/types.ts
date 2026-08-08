@@ -13,6 +13,7 @@ export type RawPlayer = {
   age: number | null;
   isRookie: boolean;
   rawValue: number;
+  tePremiumValues?: { tep: number | null; tepp: number | null; teppp: number | null };
   adp: number | null;
 };
 
@@ -32,6 +33,7 @@ export type ScraperResult = {
 
 export type NormalizedPlayer = RawPlayer & {
   normalizedValue: number;
+  tePremiumDynastyValues?: { tep: number | null; tepp: number | null; teppp: number | null };
 };
 
 export type NormalizedPickValue = RawPickValue & {

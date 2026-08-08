@@ -1178,6 +1178,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
           teamCount: config.teamCount,
           rounds: config.rounds,
           scoringFormat: config.scoringFormat,
+          tePremiumTier: config.tePremiumTier ?? 'off',
           pickPosition: config.userPickPosition,
           futurePickYears: config.futurePickYears,
           rosterSlots: {

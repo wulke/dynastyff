@@ -2,6 +2,7 @@
 // @spec DFF-STATIC-060
 // @spec DFF-UI-010
 export type ScoringFormat = 'ppr' | 'half_ppr' | 'standard';
+export type TePremiumTier = 'off' | 'tep' | 'tepp' | 'teppp';
 
 // @spec DFF-STATIC-060
 // @spec DFF-UI-010
@@ -22,6 +23,7 @@ export type DraftConfig = {
   teamCount: number;
   rounds: number;
   scoringFormat: ScoringFormat;
+  tePremiumTier?: TePremiumTier;
   userPickPosition: number;
   futurePickYears: number;
   rosterConfig: RosterConfig;

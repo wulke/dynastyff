@@ -35,6 +35,7 @@ import {
 export const playerPositions = ['QB', 'RB', 'WR', 'TE'] as const;
 export const draftStatuses = ['in_progress', 'completed'] as const;
 export const scoringFormats = ['ppr', 'half_ppr', 'standard'] as const;
+export const tePremiumTiers = ['off', 'tep', 'tepp', 'teppp'] as const;
 export const teamArchetypes = [
   'win_now',
   'punt',
@@ -58,6 +59,9 @@ export const players = sqliteTable(
     age: real('age'),
     isRookie: integer('is_rookie', { mode: 'boolean' }).notNull().default(false),
     dynastyValue: integer('dynasty_value').notNull(),
+    dynastyValueTep: integer('dynasty_value_tep'),
+    dynastyValueTepp: integer('dynasty_value_tepp'),
+    dynastyValueTeppp: integer('dynasty_value_teppp'),
     valueKtc: integer('value_ktc'),
     valueFantasycalc: integer('value_fantasycalc'),
     valueDynastydaddy: integer('value_dynastydaddy'),
@@ -86,6 +90,7 @@ export const drafts = sqliteTable(
     teamCount: integer('team_count').notNull().default(12),
     rounds: integer('rounds').notNull().default(20),
     scoringFormat: text('scoring_format').notNull().default('ppr'),
+    tePremiumTier: text('te_premium_tier').notNull().default('off'),
     userPickPosition: integer('user_pick_position').notNull(),
     futurePickYears: integer('future_pick_years').notNull().default(3),
     futurePickRounds: integer('future_pick_rounds').notNull(),
@@ -103,6 +108,7 @@ export const drafts = sqliteTable(
       'drafts_scoring_format_check',
       sql`${table.scoringFormat} in (${sql.raw(quotedList(scoringFormats))})`,
     ),
+    check('drafts_te_premium_tier_check', sql`${table.tePremiumTier} in (${sql.raw(quotedList(tePremiumTiers))})`),
   ],
 );
 
@@ -115,6 +121,7 @@ export const leagueConfigs = sqliteTable(
     teamCount: integer('team_count').notNull(),
     rounds: integer('rounds').notNull(),
     scoringFormat: text('scoring_format').notNull(),
+    tePremiumTier: text('te_premium_tier').notNull().default('off'),
     rosterSlots: text('roster_slots').notNull(),
     pickPosition: integer('pick_position').notNull(),
     futurePickYears: integer('future_pick_years').notNull(),
@@ -125,6 +132,7 @@ export const leagueConfigs = sqliteTable(
       'league_configs_scoring_format_check',
       sql`${table.scoringFormat} in (${sql.raw(quotedList(scoringFormats))})`,
     ),
+    check('league_configs_te_premium_tier_check', sql`${table.tePremiumTier} in (${sql.raw(quotedList(tePremiumTiers))})`),
   ],
 );
 

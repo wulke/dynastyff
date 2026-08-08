@@ -13,6 +13,9 @@ export type DraftAvailablePlayer = {
   age: number | null;
   is_rookie: boolean;
   dynasty_value: number;
+  dynasty_value_tep?: number | null;
+  dynasty_value_tepp?: number | null;
+  dynasty_value_teppp?: number | null;
   adp: number | null;
 };
 
@@ -80,6 +83,9 @@ export function getAvailablePlayersForDraft({
           age: players.age,
           is_rookie: players.isRookie,
           dynasty_value: players.dynastyValue,
+          dynasty_value_tep: players.dynastyValueTep,
+          dynasty_value_tepp: players.dynastyValueTepp,
+          dynasty_value_teppp: players.dynastyValueTeppp,
           adp: players.adp,
         })
         .from(players)
@@ -126,6 +132,9 @@ export function getAvailablePlayersForDraft({
         age: players.age,
         is_rookie: players.isRookie,
         adp: players.adp,
+        dynasty_value_tep: players.dynastyValueTep,
+        dynasty_value_tepp: players.dynastyValueTepp,
+        dynasty_value_teppp: players.dynastyValueTeppp,
         source: playerValueSnapshots.source,
         raw_value: playerValueSnapshots.rawValue,
       })
@@ -141,6 +150,9 @@ export function getAvailablePlayersForDraft({
       age: number | null;
       is_rookie: boolean;
       adp: number | null;
+      dynasty_value_tep: number | null;
+      dynasty_value_tepp: number | null;
+      dynasty_value_teppp: number | null;
       source: string;
       raw_value: number;
     }>;
@@ -158,6 +170,9 @@ export function getAvailablePlayersForDraft({
           age: row.age,
           is_rookie: row.is_rookie,
           dynasty_value: 0,
+          dynasty_value_tep: row.dynasty_value_tep,
+          dynasty_value_tepp: row.dynasty_value_tepp,
+          dynasty_value_teppp: row.dynasty_value_teppp,
           adp: row.adp,
         });
       }

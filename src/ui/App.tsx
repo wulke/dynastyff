@@ -121,6 +121,7 @@ type SavedLeagueConfigApiRecord = {
   team_count: number;
   rounds: number;
   scoring_format: 'ppr' | 'half_ppr' | 'standard';
+  te_premium_tier: 'off' | 'tep' | 'tepp' | 'teppp';
   roster_slots: {
     QB: number;
     RB: number;
@@ -193,6 +194,7 @@ function toSavedLeagueConfig(record: SavedLeagueConfigApiRecord): SavedLeagueCon
       teamCount: record.team_count,
       rounds: record.rounds,
       scoringFormat: record.scoring_format,
+      tePremiumTier: record.te_premium_tier === 'tep' || record.te_premium_tier === 'tepp' || record.te_premium_tier === 'teppp' ? record.te_premium_tier : 'off',
       userPickPosition: record.pick_position,
       futurePickYears: record.future_pick_years,
       rosterConfig: {

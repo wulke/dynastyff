@@ -888,6 +888,7 @@ test('extractKtcRowsFromPage serializes without tsx helper references', async ()
 });
 
 // @spec DFF-ETL-090
+// @spec DFF-TEP-001
 test('extractKtcRowsFromPage includes RDP rows from embedded playersArray', async () => {
   const rows = await extractKtcRowsFromPage({
     evaluate: async <T>(pageFunction: () => T | Promise<T>) => {
@@ -931,6 +932,41 @@ test('extractKtcRowsFromPage includes RDP rows from embedded playersArray', asyn
       isRookie: false,
       rawValue: 3500,
       adp: null,
+    },
+  ]);
+});
+
+// @spec DFF-TEP-001
+test('extractKtcRowsFromPage extracts KTC TE-premium value tiers', async () => {
+  const rows = await extractKtcRowsFromPage({
+    evaluate: async <T>(pageFunction: () => T | Promise<T>) => {
+      (globalThis as Record<string, unknown>).playersArray = [
+        {
+          playerName: 'Premium Tight End',
+          position: 'TE',
+          team: 'KC',
+          age: 25,
+          rookie: false,
+          superflexValues: { value: 5000, startupAdp: 42 },
+          tep: { value: 6000 },
+          tepp: { value: 7000 },
+          teppp: { value: 8000 },
+        },
+      ];
+      return pageFunction() as T;
+    },
+  });
+
+  assert.deepEqual(rows, [
+    {
+      name: 'Premium Tight End',
+      position: 'TE',
+      nflTeam: 'KC',
+      age: 25,
+      isRookie: false,
+      rawValue: 5000,
+      tePremiumValues: { tep: 6000, tepp: 7000, teppp: 8000 },
+      adp: 42,
     },
   ]);
 });

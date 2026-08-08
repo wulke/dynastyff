@@ -2961,6 +2961,7 @@ test('GET /drafts returns 500 when the drafts table is unavailable', async () =>
 });
 
 // @spec DFF-DATA-095
+// @spec DFF-TEP-002
 test('GET /configs returns all saved configs ordered by created_at descending', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-configs-list-');
   initializeDatabase(databasePath);
@@ -3026,6 +3027,7 @@ test('GET /configs returns all saved configs ordered by created_at descending', 
         team_count: 12,
         rounds: 20,
         scoring_format: 'ppr',
+        te_premium_tier: 'off',
         roster_slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 1, BN: 6 },
         pick_position: 6,
         future_pick_years: 3,
@@ -3037,6 +3039,7 @@ test('GET /configs returns all saved configs ordered by created_at descending', 
         team_count: 10,
         rounds: 18,
         scoring_format: 'half_ppr',
+        te_premium_tier: 'off',
         roster_slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 0, BN: 5 },
         pick_position: 3,
         future_pick_years: 2,
@@ -3064,6 +3067,7 @@ test('GET /configs returns 500 when the league_configs table is unavailable', as
 });
 
 // @spec DFF-DATA-096
+// @spec DFF-TEP-002
 test('POST /configs persists a saved config and returns the created record', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-');
   initializeDatabase(databasePath);
@@ -3097,6 +3101,7 @@ test('POST /configs persists a saved config and returns the created record', asy
       team_count: 14,
       rounds: 22,
       scoring_format: 'standard',
+      te_premium_tier: 'off',
       roster_slots: { QB: 1, RB: 2, WR: 4, TE: 1, FLEX: 2, SF: 1, BN: 7 },
       pick_position: 9,
       future_pick_years: 4,
@@ -3114,6 +3119,7 @@ test('POST /configs persists a saved config and returns the created record', asy
              team_count,
              rounds,
              scoring_format,
+             te_premium_tier,
              roster_slots,
              pick_position,
              future_pick_years,
@@ -3128,6 +3134,7 @@ test('POST /configs persists a saved config and returns the created record', asy
             team_count: number;
             rounds: number;
             scoring_format: string;
+            te_premium_tier: string;
             roster_slots: string;
             pick_position: number;
             future_pick_years: number;
@@ -3141,6 +3148,7 @@ test('POST /configs persists a saved config and returns the created record', asy
         team_count: 14,
         rounds: 22,
         scoring_format: 'standard',
+        te_premium_tier: 'off',
         roster_slots: JSON.stringify({ QB: 1, RB: 2, WR: 4, TE: 1, FLEX: 2, SF: 1, BN: 7 }),
         pick_position: 9,
         future_pick_years: 4,
@@ -3193,13 +3201,15 @@ test('Vite dev server proxies /configs requests to the backend server', () => {
   assert.equal(proxyConfig.target, resolveApiBaseUrl());
 });
 
-test('parseCreateDraftConfig maps UI camelCase config into the service draft config shape', () => {
+// @spec DFF-TEP-002
+test('parseCreateDraftConfig maps an independent TE-premium tier into the service draft config shape', () => {
   const config = parseCreateDraftConfig(
     createDraftRequestBody({
       configName: 'Standard Build',
       teamCount: 8,
       rounds: 10,
       scoringFormat: 'standard',
+      tePremiumTier: 'tep',
       rosterSlots: {
         QB: 1,
         RB: 3,
@@ -3218,6 +3228,7 @@ test('parseCreateDraftConfig maps UI camelCase config into the service draft con
     teamCount: 8,
     rounds: 10,
     scoringFormat: 'standard',
+    tePremiumTier: 'tep',
     userPickPosition: 8,
     futurePickYears: 1,
     futurePickRounds: 10,
@@ -3234,6 +3245,7 @@ test('parseCreateDraftConfig maps UI camelCase config into the service draft con
 });
 
 // @spec DFF-DATA-096
+// @spec DFF-TEP-002
 test('parseSavedLeagueConfig maps the saved-config request body into the persistence shape', () => {
   const config = parseSavedLeagueConfig(
     createSavedConfigRequestBody({
@@ -3260,6 +3272,7 @@ test('parseSavedLeagueConfig maps the saved-config request body into the persist
     teamCount: 8,
     rounds: 10,
     scoringFormat: 'half_ppr',
+    tePremiumTier: 'off',
     userPickPosition: 2,
     futurePickYears: 1,
     futurePickRounds: 10,

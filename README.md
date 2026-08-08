@@ -57,7 +57,7 @@ A GitHub Pages–hosted static build (no backend, no advisor) is also available 
 |---|---|---|
 | Teams | 12 | |
 | Draft rounds | 20 | |
-| Scoring | PPR | |
+| Scoring | PPR | Base scoring format; TE Premium is selected independently (Off, TE+, TE++, TE+++) |
 | User pick position | Configurable | Selected on the config screen |
 | Future pick years | 3 | |
 
@@ -69,7 +69,7 @@ Bot decision-making (bounded need-bias pick scoring, trade evaluation, archetype
 
 ## ETL
 
-`npm run etl` scrapes player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables. It's a standalone script and doesn't require the Express server to be running. Run `npm run export:snapshot` afterward to refresh `data/snapshot.json` for the static build.
+`npm run etl` scrapes player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables. KTC's TE+, TE++, and TE+++ values are retained for TE-premium bot valuation; TE+ maps to a +0.5 PPR TE bonus. It's a standalone script and doesn't require the Express server to be running. Run `npm run export:snapshot` afterward to refresh `data/snapshot.json` for the static build.
 
 Full scraper, normalization, and matching behavior is documented in [`docs/llds/etl-pipeline.md`](docs/llds/etl-pipeline.md).
 

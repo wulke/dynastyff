@@ -308,6 +308,7 @@ function defaultDecideBotAction(
             round: context.slot.round,
             randomness,
             random,
+            tePremiumTier: draftState.te_premium_tier,
           }),
       }),
       randomness,

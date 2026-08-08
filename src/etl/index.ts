@@ -115,6 +115,9 @@ function createStatements(sqlite: Database.Database): EtlStatements {
          age,
          is_rookie AS isRookie,
          adp,
+         dynasty_value_tep AS dynastyValueTep,
+         dynasty_value_tepp AS dynastyValueTepp,
+         dynasty_value_teppp AS dynastyValueTeppp,
          value_ktc AS valueKtc,
          value_fantasycalc AS valueFantasycalc,
          value_dynastydaddy AS valueDynastydaddy,
@@ -131,13 +134,16 @@ function createStatements(sqlite: Database.Database): EtlStatements {
         age,
         is_rookie,
         dynasty_value,
+        dynasty_value_tep,
+        dynasty_value_tepp,
+        dynasty_value_teppp,
         value_ktc,
         value_fantasycalc,
         value_dynastydaddy,
         value_rosteraudit,
         adp,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     updateKtcPlayer: sqlite.prepare(
       `UPDATE players
@@ -146,6 +152,9 @@ function createStatements(sqlite: Database.Database): EtlStatements {
            age = ?,
            is_rookie = ?,
            dynasty_value = ?,
+           dynasty_value_tep = ?,
+           dynasty_value_tepp = ?,
+           dynasty_value_teppp = ?,
            value_ktc = ?,
            adp = ?,
            updated_at = ?
@@ -268,6 +277,7 @@ function writeKtcPlayer(
       existing.valueDynastydaddy,
       existing.valueRosteraudit,
     ]);
+    const premiumValues = getPremiumDynastyValues(player, existing);
 
     statements.updateKtcPlayer.run(
       player.name,
@@ -275,6 +285,9 @@ function writeKtcPlayer(
       player.age,
       player.isRookie ? 1 : 0,
       dynastyValue,
+      premiumValues.tep,
+      premiumValues.tepp,
+      premiumValues.teppp,
       player.normalizedValue,
       player.adp ?? existing.adp,
       timestamp,
@@ -289,6 +302,9 @@ function writeKtcPlayer(
       player.age,
       player.isRookie ? 1 : 0,
       player.normalizedValue,
+      player.tePremiumDynastyValues?.tep ?? null,
+      player.tePremiumDynastyValues?.tepp ?? null,
+      player.tePremiumDynastyValues?.teppp ?? null,
       player.normalizedValue,
       null,
       null,
@@ -299,6 +315,28 @@ function writeKtcPlayer(
   }
 
   statements.insertPlayerSnapshot.run(randomUUID(), runId, playerId, 'ktc', player.rawValue);
+}
+
+// @spec DFF-TEP-001
+function getPremiumDynastyValues(
+  player: NormalizedPlayer,
+  existing: PlayerRow,
+): { tep: number | null; tepp: number | null; teppp: number | null } {
+  const aggregate = (premiumValue: number | null | undefined) =>
+    premiumValue === null || premiumValue === undefined
+      ? null
+      : computeAggregatedDynastyValue([
+          premiumValue,
+          existing.valueFantasycalc,
+          existing.valueDynastydaddy,
+          existing.valueRosteraudit,
+        ]);
+
+  return {
+    tep: aggregate(player.tePremiumDynastyValues?.tep),
+    tepp: aggregate(player.tePremiumDynastyValues?.tepp),
+    teppp: aggregate(player.tePremiumDynastyValues?.teppp),
+  };
 }
 
 // @spec DFF-ETL-023
@@ -477,6 +515,17 @@ function writeSourceData(
     valueType: 'player',
     warn: (message) => console.warn(message),
   });
+  const ktcNormalizationContext = result.source === 'ktc' ? createNormalizationContext(result.players) : undefined;
+  const playersWithPremiumValues = normalizedPlayers.map((player) => ({
+    ...player,
+    tePremiumDynastyValues: player.tePremiumValues && ktcNormalizationContext
+      ? {
+          tep: player.tePremiumValues.tep === null ? null : normalizeRawValue(player.tePremiumValues.tep, ktcNormalizationContext),
+          tepp: player.tePremiumValues.tepp === null ? null : normalizeRawValue(player.tePremiumValues.tepp, ktcNormalizationContext),
+          teppp: player.tePremiumValues.teppp === null ? null : normalizeRawValue(player.tePremiumValues.teppp, ktcNormalizationContext),
+        }
+      : undefined,
+  }));
   const normalizedPickValues = normalizePickValues(result.pickValues, {
     source: result.source,
     valueType: 'pick value',
@@ -484,7 +533,7 @@ function writeSourceData(
   });
 
   const transaction = sqlite.transaction(() => {
-    for (const player of normalizedPlayers) {
+    for (const player of playersWithPremiumValues) {
       if (result.source === 'ktc') {
         writeKtcPlayer(statements, runId, player, timestamp, aliasFamilies);
       } else {

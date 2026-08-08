@@ -20,6 +20,7 @@ type ScrapedRow = {
   age: number | null;
   isRookie: boolean;
   rawValue: number;
+  tePremiumValues?: { tep: number | null; tepp: number | null; teppp: number | null };
   adp: number | null;
 };
 
@@ -93,6 +94,7 @@ function normalizeScrapedRows(
       age: row.age,
       isRookie: row.isRookie,
       rawValue: row.rawValue,
+      ...(row.tePremiumValues ? { tePremiumValues: row.tePremiumValues } : {}),
       adp: row.adp,
     });
   }
@@ -134,6 +136,9 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
           value?: number;
           startupAdp?: number | null;
         };
+        tep?: { value?: number };
+        tepp?: { value?: number };
+        teppp?: { value?: number };
       }>;
     }).playersArray;
 
@@ -156,6 +161,17 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
                 age: typeof player.age === 'number' ? player.age : null,
                 isRookie: Boolean(player.rookie),
                 rawValue: player.superflexValues.value,
+                ...((typeof player.tep?.value === 'number' ||
+                  typeof player.tepp?.value === 'number' ||
+                  typeof player.teppp?.value === 'number')
+                  ? {
+                      tePremiumValues: {
+                        tep: typeof player.tep?.value === 'number' ? player.tep.value : null,
+                        tepp: typeof player.tepp?.value === 'number' ? player.tepp.value : null,
+                        teppp: typeof player.teppp?.value === 'number' ? player.teppp.value : null,
+                      },
+                    }
+                  : {}),
                 adp:
                   typeof player.superflexValues.startupAdp === 'number'
                     ? player.superflexValues.startupAdp

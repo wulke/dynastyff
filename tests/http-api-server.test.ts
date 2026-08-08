@@ -3193,13 +3193,15 @@ test('Vite dev server proxies /configs requests to the backend server', () => {
   assert.equal(proxyConfig.target, resolveApiBaseUrl());
 });
 
-test('parseCreateDraftConfig maps UI camelCase config into the service draft config shape', () => {
+// @spec DFF-TEP-002
+test('parseCreateDraftConfig maps an independent TE-premium tier into the service draft config shape', () => {
   const config = parseCreateDraftConfig(
     createDraftRequestBody({
       configName: 'Standard Build',
       teamCount: 8,
       rounds: 10,
       scoringFormat: 'standard',
+      tePremiumTier: 'tep',
       rosterSlots: {
         QB: 1,
         RB: 3,
@@ -3218,6 +3220,7 @@ test('parseCreateDraftConfig maps UI camelCase config into the service draft con
     teamCount: 8,
     rounds: 10,
     scoringFormat: 'standard',
+    tePremiumTier: 'tep',
     userPickPosition: 8,
     futurePickYears: 1,
     futurePickRounds: 10,

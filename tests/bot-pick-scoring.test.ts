@@ -209,6 +209,37 @@ test('scoreBotPickCandidate produces different archetype preferences for the sam
   assert.ok(rbHeavyRunningBackScore > rbHeavyQuarterbackScore);
 });
 
+// @spec DFF-TEP-003
+test('scoreBotPickCandidate uses the selected TE-premium dynasty value only for tight ends', () => {
+  const commonArgs = {
+    archetype: 'bpa' as const,
+    archetypeConfig: loadArchetypeConfigFile(),
+    rosterConfig: { QB: 0, RB: 0, WR: 0, TE: 0, FLEX: 0, SF: 0, bench: 0 },
+    rosteredPlayers: [],
+    round: 1,
+    randomness: 0,
+    random: () => 0.5,
+    tePremiumTier: 'tep' as const,
+  };
+  const tightEndScore = scoreBotPickCandidate({
+    ...commonArgs,
+    player: {
+      id: 'te', name: 'Premium TE', position: 'TE', nfl_team: 'KC', age: 25, is_rookie: false,
+      dynasty_value: 5000, dynasty_value_tep: 7000, dynasty_value_tepp: null, dynasty_value_teppp: null, adp: 20,
+    },
+  });
+  const receiverScore = scoreBotPickCandidate({
+    ...commonArgs,
+    player: {
+      id: 'wr', name: 'Base WR', position: 'WR', nfl_team: 'KC', age: 25, is_rookie: false,
+      dynasty_value: 5000, dynasty_value_tep: 9000, dynasty_value_tepp: null, dynasty_value_teppp: null, adp: 20,
+    },
+  });
+
+  assert.equal(tightEndScore, 7000);
+  assert.equal(receiverScore, 5000);
+});
+
 // @spec DFF-BOT-022
 test('scoreBotPickCandidate applies the qb_early quarterback boost only through round 3', () => {
   const archetypeConfig = loadArchetypeConfigFile();

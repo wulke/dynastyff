@@ -166,7 +166,10 @@ export function findBotToBotTradeOffer({
   });
 
   for (const target of rankedTargets) {
-    const offer = chooseThresholdOfferPackage(botAssets, target.dynastyValue * acceptanceThreshold);
+    const offer = chooseThresholdOfferPackage(
+      botAssets.filter((asset) => !sameTradeAsset(asset.asset, target.asset)),
+      target.dynastyValue * acceptanceThreshold,
+    );
 
     if (!offer) {
       continue;
@@ -522,6 +525,23 @@ function chooseThresholdOfferPackage(
   }
 
   return bestOffer;
+}
+
+// @spec DFF-BOT-043
+function sameTradeAsset(left: BotTradeAsset, right: BotTradeAsset): boolean {
+  if (left.type !== right.type) {
+    return false;
+  }
+
+  if (left.type === 'player' && right.type === 'player') {
+    return left.player_id === right.player_id;
+  }
+
+  if (left.type === 'future_pick' && right.type === 'future_pick') {
+    return left.year === right.year && left.round === right.round;
+  }
+
+  return left.pick_number === right.pick_number;
 }
 
 // @spec DFF-BOT-045

@@ -244,6 +244,9 @@ function defaultDecideBotAction(
     .map((trade) => trade.round);
   const proactiveTradeProbability =
     context.archetypeConfig.archetypes[botArchetype].tradeAggressivenessProbability;
+  const shouldAttemptPrePickTrade =
+    rosteredPlayers.length > 0 &&
+    shouldInitiatePrePickTrade({ probability: proactiveTradeProbability, random });
   const otherBotTeams = draftState.teams
     .filter((draftTeam) => !draftTeam.is_user && draftTeam.id !== context.slot.teamId)
     .map((draftTeam) => {
@@ -272,58 +275,7 @@ function defaultDecideBotAction(
       };
     });
 
-  // @spec DFF-BOT-040
-  // @spec DFF-BOT-041
-  // @spec DFF-BOT-043
-  // @spec DFF-BOT-044
-  if (
-    rosteredPlayers.length > 0 &&
-    otherBotTeams.length > 0 &&
-    shouldInitiatePrePickTrade({ probability: proactiveTradeProbability, random })
-  ) {
-    const proposal = findBotToBotTradeOffer({
-      botTeam: {
-        teamId: context.slot.teamId,
-        archetype: botArchetype,
-        rosterPlayerIds: [...rosteredPlayerIds],
-        rosterPlayers: rosteredPlayers.map((player) => ({
-          id: player.id,
-          position: player.position,
-          age: player.age,
-          dynastyValue: player.dynasty_value,
-        })),
-        futurePickAssets: draftState.team_pick_assets
-          .filter((asset) => asset.team_id === context.slot.teamId)
-          .map((asset) => ({ year: asset.year, round: asset.round })),
-      },
-      otherTeams: otherBotTeams,
-      acceptanceThreshold: context.archetypeConfig.archetypes[botArchetype].acceptanceThreshold,
-      draftOrder: draftOrderOwnership,
-      usedPickNumbers,
-      playerValues,
-      futurePickValues,
-      startupPickValues: buildConservativeStartupPickValues({
-        currentPickNumber: draftState.current_pick_number,
-        availablePlayers: draftState.available_players,
-        startupPickValues: draftState.startup_pick_values,
-      }),
-    });
-
-    if (proposal) {
-      return {
-        type: 'trade',
-        tradeId: idGenerator(),
-        initiatingTeamId: context.slot.teamId,
-        receivingTeamId: proposal.receivingTeamId,
-        assetsSent: proposal.assetsSent,
-        assetsReceived: proposal.assetsReceived,
-        isBotToBot: true,
-        autoEvaluateByReceivingBot: true,
-      };
-    }
-  }
-
-  if (userTeam && userRosteredPlayers.length > 0 && random() < proactiveTradeProbability) {
+  if (userTeam && userRosteredPlayers.length > 0 && shouldAttemptPrePickTrade) {
     const proposal = findBotToUserTradeOffer({
       currentRound: context.slot.round,
       recentBotToUserOfferRounds: proactiveOfferRounds,
@@ -375,6 +327,57 @@ function defaultDecideBotAction(
         assetsSent: proposal.assetsSent,
         assetsReceived: proposal.assetsReceived,
         isBotToBot: false,
+      };
+    }
+  }
+
+  // @spec DFF-BOT-040
+  // @spec DFF-BOT-041
+  // @spec DFF-BOT-043
+  // @spec DFF-BOT-044
+  if (
+    shouldAttemptPrePickTrade &&
+    userRosteredPlayers.length === 0 &&
+    otherBotTeams.length > 0
+  ) {
+    const proposal = findBotToBotTradeOffer({
+      botTeam: {
+        teamId: context.slot.teamId,
+        archetype: botArchetype,
+        rosterPlayerIds: [...rosteredPlayerIds],
+        rosterPlayers: rosteredPlayers.map((player) => ({
+          id: player.id,
+          position: player.position,
+          age: player.age,
+          dynastyValue: player.dynasty_value,
+        })),
+        futurePickAssets: draftState.team_pick_assets
+          .filter((asset) => asset.team_id === context.slot.teamId)
+          .map((asset) => ({ year: asset.year, round: asset.round })),
+      },
+      otherTeams: otherBotTeams,
+      acceptanceThreshold: context.archetypeConfig.archetypes[botArchetype].acceptanceThreshold,
+      draftOrder: draftOrderOwnership,
+      usedPickNumbers,
+      playerValues,
+      futurePickValues,
+      startupPickValues: buildConservativeStartupPickValues({
+        currentPickNumber: draftState.current_pick_number,
+        availablePlayers: draftState.available_players,
+        startupPickValues: draftState.startup_pick_values,
+      }),
+    });
+
+    if (proposal) {
+      return {
+        type: 'trade',
+        tradeId: idGenerator(),
+        initiatingTeamId: context.slot.teamId,
+        receivingTeamId: proposal.receivingTeamId,
+        assetsSent: proposal.assetsSent,
+        assetsReceived: proposal.assetsReceived,
+        isBotToBot: true,
+        autoEvaluateByReceivingBot: true,
       };
     }
   }

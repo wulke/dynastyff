@@ -7,6 +7,8 @@
 // @spec DFF-BOT-026
 // @spec DFF-BOT-028
 // @spec DFF-BOT-029
+// @spec DFF-BOT-060
+// @spec DFF-BOT-061
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -14,6 +16,8 @@ import { loadArchetypeConfigFile } from '../src/draft/archetype-config.js';
 import {
   calculateSlotNeed,
   filterBotPickCandidates,
+  getOpenRosterNeedPositions,
+  hasBotPickCandidateMeetingValueFloor,
   scoreBotPickCandidate,
   SLOT_ELIGIBILITY,
 } from '../src/draft/bot-pick-scoring.js';
@@ -649,6 +653,42 @@ test('filterBotPickCandidates falls back to the full available player pool when 
   assert.deepEqual(
     filteredCandidates.map((candidate) => candidate.id),
     ['wr-depth', 'te-depth'],
+  );
+});
+
+// @spec DFF-BOT-060
+test('hasBotPickCandidateMeetingValueFloor detects when every available player misses the configured floor', () => {
+  const archetypeConfig = loadArchetypeConfigFile();
+  const players = [
+    { id: 'qb', name: 'QB', position: 'QB', nfl_team: 'BUF', age: 25, is_rookie: false, dynasty_value: 2400, adp: 1 },
+    { id: 'rb', name: 'RB', position: 'RB', nfl_team: 'BUF', age: 25, is_rookie: false, dynasty_value: 2499, adp: 2 },
+  ];
+
+  assert.equal(
+    hasBotPickCandidateMeetingValueFloor({ availablePlayers: players, archetype: 'balanced', archetypeConfig }),
+    false,
+  );
+  assert.equal(
+    hasBotPickCandidateMeetingValueFloor({
+      availablePlayers: [...players, { ...players[1]!, id: 'rb-qualified', dynasty_value: 2500 }],
+      archetype: 'balanced',
+      archetypeConfig,
+    }),
+    true,
+  );
+});
+
+// @spec DFF-BOT-061
+test('getOpenRosterNeedPositions prioritizes the highest unfilled positional need and reports no need when full', () => {
+  const rosterConfig: DraftRosterConfig = { QB: 1, RB: 1, WR: 0, TE: 0, FLEX: 0, SF: 0, bench: 0 };
+
+  assert.deepEqual(
+    getOpenRosterNeedPositions({ rosterConfig, rosteredPositions: ['QB'] }),
+    ['RB'],
+  );
+  assert.deepEqual(
+    getOpenRosterNeedPositions({ rosterConfig, rosteredPositions: ['QB', 'RB'] }),
+    [],
   );
 });
 

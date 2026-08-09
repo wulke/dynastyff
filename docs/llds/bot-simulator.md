@@ -260,10 +260,26 @@ If a bot attempted to initiate a trade but no suitable offer was constructed (no
 
 ### Pick Fallback (preferred players exhausted)
 
-If all players at preferred positions are gone:
-1. Attempt to trade the current pick slot for future capital
-2. If no trade partner accepts: fill open roster slots by need priority (empty positions first, then depth)
-3. Final fallback: weighted random from remaining available players by dynasty value (BPA with noise)
+If no available QB/RB/WR/TE satisfies the current archetype's configured
+`preferredPositionValueFloors` value for that position, the bot does not use
+the normal floor-filter fallback. It instead performs this bounded sequence:
+
+1. Offer the current, still-open startup pick slot to another bot for one of
+   that team's future-pick assets. The receiving bot evaluates that proposal
+   once using its normal acceptance threshold and stickiness rules.
+2. On no proposal or a declined proposal, determine the unfilled roster slots
+   using the same restrictive-slot-first assignment as pick scoring. Select
+   from the available players at the highest-need open position; ties follow
+   `QB`, `RB`, `WR`, `TE`. This bypasses the configured value floor because
+   filling the active roster is now more important than waiting for an
+   unavailable value tier.
+3. If every configured roster slot is filled, select BPA from all available
+   players. BPA sampling uses raw dynasty value and the configured randomness
+   jitter, without archetype or roster-need modifiers.
+
+The coordinator records that the fallback trade-out has been evaluated for a
+pick number before awaiting its resolution, so a declined offer cannot restart
+the fallback trade loop on the same current slot.
 
 ## Decisions
 

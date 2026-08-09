@@ -1043,12 +1043,17 @@ test('createBotChainCoordinator declines user trade offers that request receivin
         });
       }
 
+      let generatedTradeIds = 0;
       const botChain = createBotChainCoordinator({
         databasePath,
         archetypeConfig: buildArchetypeConfigWithRandomness(0.3),
         now: () => `2026-05-18T21:0${index}:00.000Z`,
         sleep: async () => undefined,
-        idGenerator: () => `trade-protected-${scenario.archetype}`,
+        idGenerator: () => {
+          const suffix = generatedTradeIds === 0 ? '' : `-${generatedTradeIds}`;
+          generatedTradeIds += 1;
+          return `trade-protected-${scenario.archetype}${suffix}`;
+        },
       });
 
       const tradeId = botChain.submitUserTradeOffer({

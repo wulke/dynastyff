@@ -22,9 +22,15 @@ import {
   loadStartupArchetypeConfig,
   type ArchetypeConfig,
 } from './archetype-config.js';
-import { filterBotPickCandidates, scoreBotPickCandidate } from './bot-pick-scoring.js';
+import {
+  filterBotPickCandidates,
+  getOpenRosterNeedPositions,
+  hasBotPickCandidateMeetingValueFloor,
+  scoreBotPickCandidate,
+} from './bot-pick-scoring.js';
 import {
   evaluateBotTrade,
+  findBotPickSlotTradeOffer,
   findBotToBotTradeOffer,
   findBotToUserTradeOffer,
   shouldInitiatePrePickTrade,
@@ -49,6 +55,7 @@ export type BotTradeAction = {
   assetsReceived: unknown[];
   isBotToBot: boolean;
   autoEvaluateByReceivingBot?: boolean;
+  fallbackTradeOut?: boolean;
 };
 
 export type BotAction = BotPickAction | BotTradeAction;
@@ -88,6 +95,7 @@ export type DecideBotActionContext = {
   availablePlayers: DraftAvailablePlayer[];
   archetypeConfig: ArchetypeConfig;
   draftState: DraftStateSnapshot;
+  fallbackTradeOutAttempted: boolean;
 };
 
 export type BotChainCoordinator = {
@@ -244,6 +252,11 @@ function defaultDecideBotAction(
     .map((trade) => trade.round);
   const proactiveTradeProbability =
     context.archetypeConfig.archetypes[botArchetype].tradeAggressivenessProbability;
+  const shouldUsePickFallback = !hasBotPickCandidateMeetingValueFloor({
+    availablePlayers: context.availablePlayers,
+    archetype: botArchetype,
+    archetypeConfig: context.archetypeConfig,
+  });
   const shouldAttemptPrePickTrade =
     rosteredPlayers.length > 0 &&
     shouldInitiatePrePickTrade({ probability: proactiveTradeProbability, random });
@@ -275,7 +288,7 @@ function defaultDecideBotAction(
       };
     });
 
-  if (userTeam && userRosteredPlayers.length > 0 && shouldAttemptPrePickTrade) {
+  if (!shouldUsePickFallback && userTeam && userRosteredPlayers.length > 0 && shouldAttemptPrePickTrade) {
     const proposal = findBotToUserTradeOffer({
       currentRound: context.slot.round,
       recentBotToUserOfferRounds: proactiveOfferRounds,
@@ -336,6 +349,7 @@ function defaultDecideBotAction(
   // @spec DFF-BOT-043
   // @spec DFF-BOT-044
   if (
+    !shouldUsePickFallback &&
     shouldAttemptPrePickTrade &&
     userRosteredPlayers.length === 0 &&
     otherBotTeams.length > 0
@@ -380,6 +394,72 @@ function defaultDecideBotAction(
         autoEvaluateByReceivingBot: true,
       };
     }
+  }
+
+  // @spec DFF-BOT-060
+  if (shouldUsePickFallback && !context.fallbackTradeOutAttempted) {
+    const proposal = findBotPickSlotTradeOffer({
+      currentPickSlot: {
+        type: 'pick_slot',
+        draft_order_id: context.slot.id,
+        pick_number: context.slot.pickNumber,
+      },
+      otherTeams: otherBotTeams,
+      playerValues,
+      futurePickValues,
+      startupPickValues: buildConservativeStartupPickValues({
+        currentPickNumber: draftState.current_pick_number,
+        availablePlayers: draftState.available_players,
+        startupPickValues: draftState.startup_pick_values,
+      }),
+    });
+
+    if (proposal) {
+      return {
+        type: 'trade',
+        tradeId: idGenerator(),
+        initiatingTeamId: context.slot.teamId,
+        receivingTeamId: proposal.receivingTeamId,
+        assetsSent: proposal.assetsSent,
+        assetsReceived: proposal.assetsReceived,
+        isBotToBot: true,
+        autoEvaluateByReceivingBot: true,
+        fallbackTradeOut: true,
+      };
+    }
+  }
+
+  // @spec DFF-BOT-061
+  // @spec DFF-BOT-062
+  if (shouldUsePickFallback) {
+    const needPositions = getOpenRosterNeedPositions({
+      rosterConfig: draftState.roster_config,
+      rosteredPositions: rosteredPlayers
+        .map((rosteredPlayer) => rosteredPlayer.position)
+        .filter((position): position is 'QB' | 'RB' | 'WR' | 'TE' =>
+          position === 'QB' || position === 'RB' || position === 'WR' || position === 'TE',
+        ),
+    });
+    const needPlayers = needPositions
+      .map((position) => context.availablePlayers.filter((player) => player.position === position))
+      .find((players) => players.length > 0);
+    const playersToSelect = needPlayers ?? context.availablePlayers;
+    const scoredPlayers = playersToSelect.map((player) => ({
+      id: player.id,
+      score: needPlayers ? scoreBotPickCandidate({
+        player,
+        archetype: botArchetype,
+        archetypeConfig: context.archetypeConfig,
+        rosterConfig: draftState.roster_config,
+        rosteredPlayers,
+        round: context.slot.round,
+        randomness,
+        random,
+        tePremiumTier: draftState.te_premium_tier,
+      }) : player.dynasty_value,
+    })).sort((left, right) => right.score - left.score);
+
+    return { type: 'pick', playerId: selectWeightedRandomPlayer(scoredPlayers, randomness, random) };
   }
 
   return {
@@ -467,6 +547,7 @@ export function createBotChainCoordinator({
 }: CreateBotChainCoordinatorOptions): BotChainCoordinator {
   const activeChains = new Map<string, Promise<void>>();
   const pendingTrades = new Map<string, PendingTradeState>();
+  const fallbackTradeOutAttempts = new Set<string>();
   const botPickRandomness = normalizeBotPickRandomness(randomness ?? archetypeConfig.randomness);
   const resolvedDecideBotAction =
     decideBotAction ??
@@ -500,15 +581,18 @@ export function createBotChainCoordinator({
         }
 
         const availablePlayers = draftState.available_players;
+        const fallbackTradeOutKey = `${draftId}:${refreshedSlot.pickNumber}`;
         const action = await resolvedDecideBotAction({
           draftId,
           slot: refreshedSlot,
           availablePlayers,
           archetypeConfig,
           draftState,
+          fallbackTradeOutAttempted: fallbackTradeOutAttempts.has(fallbackTradeOutKey),
         });
 
         if (action.type === 'trade') {
+          if (action.fallbackTradeOut) fallbackTradeOutAttempts.add(fallbackTradeOutKey);
           await awaitTradeResolution(
             draftId,
             refreshedSlot,
@@ -544,6 +628,9 @@ export function createBotChainCoordinator({
       }
     } finally {
       activeChains.delete(draftId);
+      for (const key of fallbackTradeOutAttempts) {
+        if (key.startsWith(`${draftId}:`)) fallbackTradeOutAttempts.delete(key);
+      }
     }
   }
 

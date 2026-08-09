@@ -67,10 +67,54 @@ type FilterBotPickCandidatesArgs = {
   scorePlayer: (player: DraftAvailablePlayer) => number;
 };
 
+type HasBotPickCandidateMeetingValueFloorArgs = {
+  availablePlayers: DraftAvailablePlayer[];
+  archetype: TeamArchetype;
+  archetypeConfig: ArchetypeConfig;
+};
+
+type GetOpenRosterNeedPositionsArgs = {
+  rosterConfig: DraftRosterConfig;
+  rosteredPositions: PlayerPosition[];
+};
+
 export type FilteredBotPickCandidate = {
   id: string;
   score: number;
 };
+
+// @spec DFF-BOT-060
+export function hasBotPickCandidateMeetingValueFloor({
+  availablePlayers,
+  archetype,
+  archetypeConfig,
+}: HasBotPickCandidateMeetingValueFloorArgs): boolean {
+  const floors = archetypeConfig.archetypes[archetype].preferredPositionValueFloors;
+
+  return availablePlayers.some(
+    (player) => isPlayerPosition(player.position) && player.dynasty_value >= floors[player.position],
+  );
+}
+
+// @spec DFF-BOT-061
+export function getOpenRosterNeedPositions({
+  rosterConfig,
+  rosteredPositions,
+}: GetOpenRosterNeedPositionsArgs): PlayerPosition[] {
+  const slotInstances = getRosterSlotInstances(rosterConfig, rosteredPositions);
+
+  return (['QB', 'RB', 'WR', 'TE'] as const)
+    .map((position) => ({
+      position,
+      need: slotInstances.reduce(
+        (sum, slot) => sum + (!slot.filled && slot.eligibility.includes(position) ? 1 / slot.eligibility.length : 0),
+        0,
+      ),
+    }))
+    .filter((entry) => entry.need > 0)
+    .sort((left, right) => right.need - left.need)
+    .map((entry) => entry.position);
+}
 
 // @spec DFF-BOT-020
 // @spec DFF-BOT-021
@@ -135,17 +179,7 @@ export function calculateSlotNeed({
   rosterConfig,
   rosteredPositions,
 }: CalculateSlotNeedArgs): number {
-  const slotInstances = buildSlotInstances(rosterConfig);
-
-  for (const rosteredPosition of sortRosteredPositionsForAssignment(rosteredPositions)) {
-    const matchingSlot = slotInstances.find(
-      (slotInstance) => !slotInstance.filled && slotInstance.eligibility.includes(rosteredPosition),
-    );
-
-    if (matchingSlot) {
-      matchingSlot.filled = true;
-    }
-  }
+  const slotInstances = getRosterSlotInstances(rosterConfig, rosteredPositions);
 
   const weightedNeed = slotInstances.reduce((sum, slotInstance) => {
     if (slotInstance.filled || !slotInstance.eligibility.includes(position)) {
@@ -156,6 +190,24 @@ export function calculateSlotNeed({
   }, 0);
 
   return weightedNeed > 0 ? weightedNeed : SATURATION_FLOOR;
+}
+
+// @spec DFF-BOT-061
+function getRosterSlotInstances(
+  rosterConfig: DraftRosterConfig,
+  rosteredPositions: PlayerPosition[],
+): SlotInstance[] {
+  const slotInstances = buildSlotInstances(rosterConfig);
+
+  for (const rosteredPosition of sortRosteredPositionsForAssignment(rosteredPositions)) {
+    const matchingSlot = slotInstances.find(
+      (slotInstance) => !slotInstance.filled && slotInstance.eligibility.includes(rosteredPosition),
+    );
+
+    if (matchingSlot) matchingSlot.filled = true;
+  }
+
+  return slotInstances;
 }
 
 // @spec DFF-BOT-028

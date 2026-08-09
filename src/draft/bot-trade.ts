@@ -86,6 +86,44 @@ export type TradeEvaluationPlayer = {
   dynastyValue: number;
 };
 
+// @spec DFF-BOT-060
+export function findBotPickSlotTradeOffer({
+  currentPickSlot,
+  otherTeams,
+  playerValues,
+  futurePickValues,
+  startupPickValues,
+}: {
+  currentPickSlot: PickSlotTradeAsset;
+  otherTeams: BotTradeTeamContext[];
+  playerValues: Map<string, number>;
+  futurePickValues: Map<string, number>;
+  startupPickValues: Map<number, number>;
+}): BotToBotTradeProposal | null {
+  const target = otherTeams
+    .flatMap((team) =>
+      team.futurePickAssets.map((futurePickAsset) => ({
+        receivingTeamId: team.teamId,
+        asset: { type: 'future_pick' as const, year: futurePickAsset.year, round: futurePickAsset.round },
+      })),
+    )
+    .map((entry) => ({
+      ...entry,
+      dynastyValue: scoreBotTradeAsset(entry.asset, { playerValues, futurePickValues, startupPickValues }),
+    }))
+    .sort((left, right) => left.dynastyValue - right.dynastyValue)[0];
+
+  if (!target) return null;
+
+  return {
+    receivingTeamId: target.receivingTeamId,
+    assetsSent: [currentPickSlot],
+    assetsReceived: [target.asset],
+    sentDynastyValue: scoreBotTradeAsset(currentPickSlot, { playerValues, futurePickValues, startupPickValues }),
+    receivedDynastyValue: target.dynastyValue,
+  };
+}
+
 // @spec DFF-BOT-040
 export function shouldInitiatePrePickTrade({
   probability,
@@ -541,7 +579,7 @@ function sameTradeAsset(left: BotTradeAsset, right: BotTradeAsset): boolean {
     return left.year === right.year && left.round === right.round;
   }
 
-  return left.pick_number === right.pick_number;
+  return left.type === 'pick_slot' && right.type === 'pick_slot' && left.pick_number === right.pick_number;
 }
 
 // @spec DFF-BOT-045

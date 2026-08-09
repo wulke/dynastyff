@@ -161,11 +161,11 @@ If a trade offer violates a receiving bot's stickiness rules for any outgoing as
 
 ## Pick Fallback
 
-**DFF-BOT-060** `[ ]`
+**DFF-BOT-060** `[x]` → #146
 When no available QB/RB/WR/TE player has a dynasty_value at or above the bot's archetype-configured value floor for that player's position (see DFF-BOT-003), the system shall first attempt once to trade the current open pick slot for a future pick asset before making a selection.
 
-**DFF-BOT-061** `[ ]`
+**DFF-BOT-061** `[x]` → #146
 If the trade-out attempt has no proposal or fails (no team accepts within one evaluation pass), the system shall fill open roster slots by positional need priority before selecting BPA, using restrictive-slot-first assignment and `QB`, `RB`, `WR`, `TE` as the tie order.
 
-**DFF-BOT-062** `[ ]`
+**DFF-BOT-062** `[x]` → #146
 If all roster slots are filled and no positional needs remain, the system shall select an available player by raw dynasty value with configured noise applied, without archetype or roster-need modifiers.

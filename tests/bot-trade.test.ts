@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {
   buildTradeableBotAssets,
   evaluateBotTrade,
+  findBotPickSlotTradeOffer,
   findBotToBotTradeOffer,
   findBotToUserTradeOffer,
   shouldInitiatePrePickTrade,
@@ -61,6 +62,27 @@ test('shouldInitiatePrePickTrade fires at each configured archetype rate across 
 
     assert.equal(attempts.length, expectedCount, `${archetype} should attempt at its configured rate`);
   }
+});
+
+// @spec DFF-BOT-060
+test('findBotPickSlotTradeOffer trades the current slot for the least costly available future-pick asset', () => {
+  const proposal = findBotPickSlotTradeOffer({
+    currentPickSlot: { type: 'pick_slot', draft_order_id: 'slot-1', pick_number: 1 },
+    otherTeams: [
+      {
+        teamId: 'bot-b',
+        rosterPlayerIds: [],
+        rosterPlayers: [],
+        futurePickAssets: [{ year: 2027, round: 1 }, { year: 2027, round: 2 }],
+      },
+    ],
+    playerValues: new Map(),
+    futurePickValues: new Map([['2027:1', 4500], ['2027:2', 2500]]),
+    startupPickValues: new Map([[1, 3000]]),
+  });
+
+  assert.deepEqual(proposal?.assetsSent, [{ type: 'pick_slot', draft_order_id: 'slot-1', pick_number: 1 }]);
+  assert.deepEqual(proposal?.assetsReceived, [{ type: 'future_pick', year: 2027, round: 2 }]);
 });
 
 // @spec DFF-BOT-041

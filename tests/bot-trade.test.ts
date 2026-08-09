@@ -151,6 +151,50 @@ test('findBotToBotTradeOffer skips the trade when no movable fodder package meet
   assert.equal(proposal, null);
 });
 
+// @spec DFF-BOT-043
+test('findBotToBotTradeOffer chooses the lowest-total fodder package that clears the threshold', () => {
+  const proposal = findBotToBotTradeOffer({
+    botTeam: {
+      teamId: 'bot-a',
+      archetype: 'balanced',
+      rosterPlayerIds: ['fodder-10k', 'fodder-9k-a', 'fodder-9k-b'],
+      rosterPlayers: [
+        createTradeEvaluationPlayer('fodder-10k', 'WR', 10000),
+        createTradeEvaluationPlayer('fodder-9k-a', 'WR', 9000),
+        createTradeEvaluationPlayer('fodder-9k-b', 'WR', 9000),
+      ],
+      futurePickAssets: [],
+    },
+    otherTeams: [
+      {
+        teamId: 'bot-b',
+        archetype: 'balanced',
+        rosterPlayerIds: ['target-wr'],
+        rosterPlayers: [createTradeEvaluationPlayer('target-wr', 'WR', 18000)],
+        futurePickAssets: [],
+      },
+    ],
+    acceptanceThreshold: 1,
+    draftOrder: DRAFT_ORDER,
+    usedPickNumbers: new Set(DRAFT_ORDER.map((slot) => slot.pickNumber)),
+    playerValues: new Map<string, number>([
+      ['fodder-10k', 10000],
+      ['fodder-9k-a', 9000],
+      ['fodder-9k-b', 9000],
+      ['target-wr', 18000],
+    ]),
+    futurePickValues: new Map<string, number>(),
+    startupPickValues: new Map<number, number>(),
+  });
+
+  assert.ok(proposal);
+  assert.equal(proposal.sentDynastyValue, 18000);
+  assert.deepEqual(proposal.assetsSent, [
+    { type: 'player', player_id: 'fodder-9k-a' },
+    { type: 'player', player_id: 'fodder-9k-b' },
+  ]);
+});
+
 // @spec DFF-SPKV-050
 // @spec DFF-SPKV-051
 test('buildTradeableBotAssets includes an unfilled startup pick slot with dynasty value from startupPickValues', () => {

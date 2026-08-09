@@ -495,35 +495,33 @@ function chooseThresholdOfferPackage(
   outboundAssets: ScoredBotTradeAsset[],
   minimumOfferValue: number,
 ): ScoredBotTradeAsset[] | null {
-  const sortedAssets = [...outboundAssets].sort(
-    (left, right) => right.dynastyValue - left.dynastyValue || stableAssetKey(left.asset).localeCompare(stableAssetKey(right.asset)),
-  );
-  const offer: ScoredBotTradeAsset[] = [];
-  let offerValue = 0;
+  const packagesByValue = new Map<number, ScoredBotTradeAsset[]>([[0, []]]);
+  let bestOfferValue = Number.POSITIVE_INFINITY;
+  let bestOffer: ScoredBotTradeAsset[] | null = null;
 
-  for (const asset of sortedAssets) {
-    offer.push(asset);
-    offerValue += asset.dynastyValue;
+  for (const asset of outboundAssets) {
+    for (const [currentValue, currentPackage] of [...packagesByValue]) {
+      const packageValue = currentValue + asset.dynastyValue;
 
-    if (offerValue >= minimumOfferValue) {
-      return offer;
+      if (packageValue >= bestOfferValue) {
+        continue;
+      }
+
+      const candidatePackage = [...currentPackage, asset];
+
+      if (packageValue >= minimumOfferValue) {
+        bestOfferValue = packageValue;
+        bestOffer = candidatePackage;
+        continue;
+      }
+
+      if (!packagesByValue.has(packageValue)) {
+        packagesByValue.set(packageValue, candidatePackage);
+      }
     }
   }
 
-  return null;
-}
-
-// @spec DFF-BOT-043
-function stableAssetKey(asset: BotTradeAsset): string {
-  if (asset.type === 'player') {
-    return `player:${asset.player_id}`;
-  }
-
-  if (asset.type === 'future_pick') {
-    return `future_pick:${asset.year}:${asset.round}`;
-  }
-
-  return `pick_slot:${asset.pick_number ?? -1}`;
+  return bestOffer;
 }
 
 // @spec DFF-BOT-045

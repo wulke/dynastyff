@@ -48,6 +48,7 @@ export type BotTradeAction = {
   assetsSent: unknown[];
   assetsReceived: unknown[];
   isBotToBot: boolean;
+  autoEvaluateByReceivingBot?: boolean;
 };
 
 export type BotAction = BotPickAction | BotTradeAction;
@@ -317,6 +318,7 @@ function defaultDecideBotAction(
         assetsSent: proposal.assetsSent,
         assetsReceived: proposal.assetsReceived,
         isBotToBot: true,
+        autoEvaluateByReceivingBot: true,
       };
     }
   }
@@ -504,7 +506,29 @@ export function createBotChainCoordinator({
         });
 
         if (action.type === 'trade') {
-          await awaitTradeResolution(draftId, refreshedSlot, action, pendingTrades);
+          await awaitTradeResolution(
+            draftId,
+            refreshedSlot,
+            action,
+            pendingTrades,
+            action.autoEvaluateByReceivingBot
+              ? () => {
+                  const status = evaluateUserTradeOffer({
+                    archetypeConfig,
+                    draftState,
+                    targetTeamId: action.receivingTeamId,
+                    assetsSent: action.assetsSent.map(parseTradeAssetOrThrow),
+                    assetsReceived: action.assetsReceived.map(parseTradeAssetOrThrow),
+                  })
+                    ? 'accepted'
+                    : 'declined';
+
+                  queueMicrotask(() => {
+                    coordinator.resolvePendingTrade(draftId, status);
+                  });
+                }
+              : undefined,
+          );
           continue;
         }
 
@@ -727,6 +751,7 @@ async function awaitTradeResolution(
   slot: CurrentOpenBotSlot,
   action: BotTradeAction,
   pendingTrades: Map<string, PendingTradeState>,
+  autoEvaluate?: () => void,
 ): Promise<void> {
   const result = await new Promise<{ status: TradeStatus; createdAt: string }>((resolve, reject) => {
     pendingTrades.set(draftId, {
@@ -750,6 +775,8 @@ async function awaitTradeResolution(
       assetsReceived: action.assetsReceived,
       isBotToBot: action.isBotToBot,
     });
+
+    autoEvaluate?.();
   });
 
   emitTradeResolvedEvent({

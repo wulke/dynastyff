@@ -6,7 +6,9 @@ import assert from 'node:assert/strict';
 import {
   buildTradeableBotAssets,
   evaluateBotTrade,
+  findBotToBotTradeOffer,
   findBotToUserTradeOffer,
+  shouldInitiatePrePickTrade,
   summarizeBotTrade,
   type BotTradeAsset,
   type DraftSlotOwnership,
@@ -40,6 +42,158 @@ function createTradeEvaluationPlayer(
     age,
   };
 }
+
+// @spec DFF-BOT-040
+test('shouldInitiatePrePickTrade fires at each configured archetype rate across a deterministic 100-roll sample', () => {
+  const rolls = Array.from({ length: 100 }, (_, index) => index / 100);
+  const expectedAttempts = {
+    win_now: 25,
+    punt: 35,
+    rb_heavy: 20,
+    qb_early: 20,
+    bpa: 10,
+    balanced: 15,
+  };
+
+  for (const [archetype, expectedCount] of Object.entries(expectedAttempts)) {
+    const probability = expectedCount / 100;
+    const attempts = rolls.filter((roll) => shouldInitiatePrePickTrade({ probability, random: () => roll }));
+
+    assert.equal(attempts.length, expectedCount, `${archetype} should attempt at its configured rate`);
+  }
+});
+
+// @spec DFF-BOT-041
+// @spec DFF-BOT-042
+// @spec DFF-BOT-043
+test('findBotToBotTradeOffer targets the best-fit unprotected asset and assembles fodder that clears the threshold', () => {
+  const proposal = findBotToBotTradeOffer({
+    botTeam: {
+      teamId: 'bot-a',
+      archetype: 'rb_heavy',
+      rosterPlayerIds: ['bot-wr-1', 'bot-wr-2'],
+      rosterPlayers: [
+        createTradeEvaluationPlayer('bot-wr-1', 'WR', 2400),
+        createTradeEvaluationPlayer('bot-wr-2', 'WR', 1800),
+      ],
+      futurePickAssets: [],
+    },
+    otherTeams: [
+      {
+        teamId: 'bot-b',
+        archetype: 'rb_heavy',
+        rosterPlayerIds: ['protected-rb-1', 'protected-rb-2', 'target-rb', 'higher-value-wr'],
+        rosterPlayers: [
+          createTradeEvaluationPlayer('protected-rb-1', 'RB', 7000),
+          createTradeEvaluationPlayer('protected-rb-2', 'RB', 6500),
+          createTradeEvaluationPlayer('target-rb', 'RB', 4000),
+          createTradeEvaluationPlayer('higher-value-wr', 'WR', 4300),
+        ],
+        futurePickAssets: [],
+      },
+    ],
+    acceptanceThreshold: 1,
+    draftOrder: DRAFT_ORDER,
+    usedPickNumbers: new Set(DRAFT_ORDER.map((slot) => slot.pickNumber)),
+    playerValues: new Map<string, number>([
+      ['bot-wr-1', 2400],
+      ['bot-wr-2', 1800],
+      ['protected-rb-1', 7000],
+      ['protected-rb-2', 6500],
+      ['target-rb', 4000],
+      ['higher-value-wr', 4300],
+    ]),
+    futurePickValues: new Map<string, number>(),
+    startupPickValues: new Map<number, number>(),
+  });
+
+  assert.ok(proposal);
+  assert.equal(proposal.receivingTeamId, 'bot-b');
+  assert.deepEqual(proposal.assetsReceived, [{ type: 'player', player_id: 'target-rb' }]);
+  assert.deepEqual(proposal.assetsSent, [
+    { type: 'player', player_id: 'bot-wr-1' },
+    { type: 'player', player_id: 'bot-wr-2' },
+  ]);
+  assert.ok(proposal.sentDynastyValue >= proposal.receivedDynastyValue);
+});
+
+// @spec DFF-BOT-043
+// @spec DFF-BOT-044
+test('findBotToBotTradeOffer skips the trade when no movable fodder package meets the threshold', () => {
+  const proposal = findBotToBotTradeOffer({
+    botTeam: {
+      teamId: 'bot-a',
+      archetype: 'balanced',
+      rosterPlayerIds: ['bot-wr-1'],
+      rosterPlayers: [createTradeEvaluationPlayer('bot-wr-1', 'WR', 2900)],
+      futurePickAssets: [],
+    },
+    otherTeams: [
+      {
+        teamId: 'bot-b',
+        archetype: 'balanced',
+        rosterPlayerIds: ['target-wr'],
+        rosterPlayers: [createTradeEvaluationPlayer('target-wr', 'WR', 4000)],
+        futurePickAssets: [],
+      },
+    ],
+    acceptanceThreshold: 1,
+    draftOrder: DRAFT_ORDER,
+    usedPickNumbers: new Set(DRAFT_ORDER.map((slot) => slot.pickNumber)),
+    playerValues: new Map<string, number>([
+      ['bot-wr-1', 2900],
+      ['target-wr', 4000],
+    ]),
+    futurePickValues: new Map<string, number>(),
+    startupPickValues: new Map<number, number>(),
+  });
+
+  assert.equal(proposal, null);
+});
+
+// @spec DFF-BOT-043
+test('findBotToBotTradeOffer chooses the lowest-total fodder package that clears the threshold', () => {
+  const proposal = findBotToBotTradeOffer({
+    botTeam: {
+      teamId: 'bot-a',
+      archetype: 'balanced',
+      rosterPlayerIds: ['fodder-10k', 'fodder-9k-a', 'fodder-9k-b'],
+      rosterPlayers: [
+        createTradeEvaluationPlayer('fodder-10k', 'WR', 10000),
+        createTradeEvaluationPlayer('fodder-9k-a', 'WR', 9000),
+        createTradeEvaluationPlayer('fodder-9k-b', 'WR', 9000),
+      ],
+      futurePickAssets: [],
+    },
+    otherTeams: [
+      {
+        teamId: 'bot-b',
+        archetype: 'balanced',
+        rosterPlayerIds: ['target-wr'],
+        rosterPlayers: [createTradeEvaluationPlayer('target-wr', 'WR', 18000)],
+        futurePickAssets: [],
+      },
+    ],
+    acceptanceThreshold: 1,
+    draftOrder: DRAFT_ORDER,
+    usedPickNumbers: new Set(DRAFT_ORDER.map((slot) => slot.pickNumber)),
+    playerValues: new Map<string, number>([
+      ['fodder-10k', 10000],
+      ['fodder-9k-a', 9000],
+      ['fodder-9k-b', 9000],
+      ['target-wr', 18000],
+    ]),
+    futurePickValues: new Map<string, number>(),
+    startupPickValues: new Map<number, number>(),
+  });
+
+  assert.ok(proposal);
+  assert.equal(proposal.sentDynastyValue, 18000);
+  assert.deepEqual(proposal.assetsSent, [
+    { type: 'player', player_id: 'fodder-9k-a' },
+    { type: 'player', player_id: 'fodder-9k-b' },
+  ]);
+});
 
 // @spec DFF-SPKV-050
 // @spec DFF-SPKV-051

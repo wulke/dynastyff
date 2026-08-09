@@ -265,6 +265,80 @@ test('createBotChainCoordinator de-duplicates concurrent trigger calls for the s
   });
 });
 
+// @spec DFF-BOT-044
+// @spec DFF-BOT-050
+// @spec DFF-BOT-051
+test('createBotChainCoordinator automatically resolves a pre-pick bot-to-bot offer and continues the chain', async () => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-1', 'Player One', 6000);
+    seedPlayer(db, 'player-2', 'Player Two', 5900);
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 3,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 1, bench: 6 },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+    const botTeams = db
+      .prepare('SELECT id FROM teams WHERE draft_id = ? AND is_user = 0 ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string }>;
+    const initiatingSlot = db
+      .prepare('SELECT id, pick_number FROM draft_order WHERE draft_id = ? AND team_id = ? LIMIT 1')
+      .get(draftId, botTeams[0]!.id) as { id: string; pick_number: number };
+    const receivingSlot = db
+      .prepare('SELECT id, pick_number FROM draft_order WHERE draft_id = ? AND team_id = ? LIMIT 1')
+      .get(draftId, botTeams[1]!.id) as { id: string; pick_number: number };
+    let shouldOffer = true;
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      now: () => '2026-05-18T20:05:00.000Z',
+      sleep: async () => undefined,
+      decideBotAction: ({ availablePlayers }) => {
+        if (shouldOffer) {
+          shouldOffer = false;
+          return {
+            type: 'trade',
+            tradeId: 'auto-resolved-trade',
+            initiatingTeamId: botTeams[0]!.id,
+            receivingTeamId: botTeams[1]!.id,
+            assetsSent: [
+              { type: 'pick_slot', draft_order_id: initiatingSlot.id, pick_number: initiatingSlot.pick_number },
+            ],
+            assetsReceived: [
+              { type: 'pick_slot', draft_order_id: receivingSlot.id, pick_number: receivingSlot.pick_number },
+            ],
+            isBotToBot: true,
+            autoEvaluateByReceivingBot: true,
+          };
+        }
+
+        return { type: 'pick', playerId: availablePlayers[0]!.id };
+      },
+    });
+
+    botChain.trigger(draftId);
+    await botChain.waitForIdle(draftId);
+
+    assert.deepEqual(
+      db.prepare('SELECT status FROM trades WHERE id = ?').get('auto-resolved-trade'),
+      { status: 'accepted' },
+    );
+    assert.equal(
+      (db.prepare('SELECT COUNT(*) AS count FROM picks WHERE draft_id = ?').get(draftId) as { count: number }).count,
+      2,
+    );
+    assert.equal(botChain.resolvePendingTrade(draftId, 'accepted'), false);
+  });
+});
+
 // @spec DFF-BOT-004
 // @spec DFF-BOT-030
 // @spec DFF-BOT-031

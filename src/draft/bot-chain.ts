@@ -23,7 +23,12 @@ import {
   type ArchetypeConfig,
 } from './archetype-config.js';
 import { filterBotPickCandidates, scoreBotPickCandidate } from './bot-pick-scoring.js';
-import { evaluateBotTrade, findBotToUserTradeOffer } from './bot-trade.js';
+import {
+  evaluateBotTrade,
+  findBotToBotTradeOffer,
+  findBotToUserTradeOffer,
+  shouldInitiatePrePickTrade,
+} from './bot-trade.js';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
 import { getDraftState, recordPick, resolveTrade, type DraftStateSnapshot } from './service.js';
 import { emitTradeOfferedEvent, emitTradeResolvedEvent } from './stream.js';
@@ -43,6 +48,7 @@ export type BotTradeAction = {
   assetsSent: unknown[];
   assetsReceived: unknown[];
   isBotToBot: boolean;
+  autoEvaluateByReceivingBot?: boolean;
 };
 
 export type BotAction = BotPickAction | BotTradeAction;
@@ -184,6 +190,10 @@ function normalizeBotPickRandomness(randomness: number): number {
 // @spec DFF-ENGINE-032
 // @spec DFF-BOT-030
 // @spec DFF-BOT-031
+// @spec DFF-BOT-040
+// @spec DFF-BOT-041
+// @spec DFF-BOT-043
+// @spec DFF-BOT-044
 function defaultDecideBotAction(
   context: DecideBotActionContext,
   randomness: number,
@@ -234,8 +244,38 @@ function defaultDecideBotAction(
     .map((trade) => trade.round);
   const proactiveTradeProbability =
     context.archetypeConfig.archetypes[botArchetype].tradeAggressivenessProbability;
+  const shouldAttemptPrePickTrade =
+    rosteredPlayers.length > 0 &&
+    shouldInitiatePrePickTrade({ probability: proactiveTradeProbability, random });
+  const otherBotTeams = draftState.teams
+    .filter((draftTeam) => !draftTeam.is_user && draftTeam.id !== context.slot.teamId)
+    .map((draftTeam) => {
+      const teamRosteredPlayerIds = new Set(
+        draftState.roster_players
+          .filter((rosterPlayer) => rosterPlayer.team_id === draftTeam.id)
+          .map((rosterPlayer) => rosterPlayer.player_id),
+      );
 
-  if (userTeam && userRosteredPlayers.length > 0 && random() < proactiveTradeProbability) {
+      return {
+        teamId: draftTeam.id,
+        archetype: draftTeam.archetype,
+        rosterPlayerIds: [...teamRosteredPlayerIds],
+        rosterPlayers: [...teamRosteredPlayerIds]
+          .map((playerId) => playersById.get(playerId))
+          .filter((player): player is DraftAvailablePlayer => Boolean(player))
+          .map((player) => ({
+            id: player.id,
+            position: player.position,
+            age: player.age,
+            dynastyValue: player.dynasty_value,
+          })),
+        futurePickAssets: draftState.team_pick_assets
+          .filter((asset) => asset.team_id === draftTeam.id)
+          .map((asset) => ({ year: asset.year, round: asset.round })),
+      };
+    });
+
+  if (userTeam && userRosteredPlayers.length > 0 && shouldAttemptPrePickTrade) {
     const proposal = findBotToUserTradeOffer({
       currentRound: context.slot.round,
       recentBotToUserOfferRounds: proactiveOfferRounds,
@@ -287,6 +327,57 @@ function defaultDecideBotAction(
         assetsSent: proposal.assetsSent,
         assetsReceived: proposal.assetsReceived,
         isBotToBot: false,
+      };
+    }
+  }
+
+  // @spec DFF-BOT-040
+  // @spec DFF-BOT-041
+  // @spec DFF-BOT-043
+  // @spec DFF-BOT-044
+  if (
+    shouldAttemptPrePickTrade &&
+    userRosteredPlayers.length === 0 &&
+    otherBotTeams.length > 0
+  ) {
+    const proposal = findBotToBotTradeOffer({
+      botTeam: {
+        teamId: context.slot.teamId,
+        archetype: botArchetype,
+        rosterPlayerIds: [...rosteredPlayerIds],
+        rosterPlayers: rosteredPlayers.map((player) => ({
+          id: player.id,
+          position: player.position,
+          age: player.age,
+          dynastyValue: player.dynasty_value,
+        })),
+        futurePickAssets: draftState.team_pick_assets
+          .filter((asset) => asset.team_id === context.slot.teamId)
+          .map((asset) => ({ year: asset.year, round: asset.round })),
+      },
+      otherTeams: otherBotTeams,
+      acceptanceThreshold: context.archetypeConfig.archetypes[botArchetype].acceptanceThreshold,
+      draftOrder: draftOrderOwnership,
+      usedPickNumbers,
+      playerValues,
+      futurePickValues,
+      startupPickValues: buildConservativeStartupPickValues({
+        currentPickNumber: draftState.current_pick_number,
+        availablePlayers: draftState.available_players,
+        startupPickValues: draftState.startup_pick_values,
+      }),
+    });
+
+    if (proposal) {
+      return {
+        type: 'trade',
+        tradeId: idGenerator(),
+        initiatingTeamId: context.slot.teamId,
+        receivingTeamId: proposal.receivingTeamId,
+        assetsSent: proposal.assetsSent,
+        assetsReceived: proposal.assetsReceived,
+        isBotToBot: true,
+        autoEvaluateByReceivingBot: true,
       };
     }
   }
@@ -418,7 +509,29 @@ export function createBotChainCoordinator({
         });
 
         if (action.type === 'trade') {
-          await awaitTradeResolution(draftId, refreshedSlot, action, pendingTrades);
+          await awaitTradeResolution(
+            draftId,
+            refreshedSlot,
+            action,
+            pendingTrades,
+            action.autoEvaluateByReceivingBot
+              ? () => {
+                  const status = evaluateUserTradeOffer({
+                    archetypeConfig,
+                    draftState,
+                    targetTeamId: action.receivingTeamId,
+                    assetsSent: action.assetsSent.map(parseTradeAssetOrThrow),
+                    assetsReceived: action.assetsReceived.map(parseTradeAssetOrThrow),
+                  })
+                    ? 'accepted'
+                    : 'declined';
+
+                  queueMicrotask(() => {
+                    coordinator.resolvePendingTrade(draftId, status);
+                  });
+                }
+              : undefined,
+          );
           continue;
         }
 
@@ -641,6 +754,7 @@ async function awaitTradeResolution(
   slot: CurrentOpenBotSlot,
   action: BotTradeAction,
   pendingTrades: Map<string, PendingTradeState>,
+  autoEvaluate?: () => void,
 ): Promise<void> {
   const result = await new Promise<{ status: TradeStatus; createdAt: string }>((resolve, reject) => {
     pendingTrades.set(draftId, {
@@ -664,6 +778,8 @@ async function awaitTradeResolution(
       assetsReceived: action.assetsReceived,
       isBotToBot: action.isBotToBot,
     });
+
+    autoEvaluate?.();
   });
 
   emitTradeResolvedEvent({

@@ -73,12 +73,119 @@ export type BotToUserTradeProposal = {
   receivedDynastyValue: number;
 };
 
+// @spec DFF-BOT-041
+// @spec DFF-BOT-043
+export type BotToBotTradeProposal = BotToUserTradeProposal & {
+  receivingTeamId: string;
+};
+
 export type TradeEvaluationPlayer = {
   id: string;
   position: string;
   age: number | null;
   dynastyValue: number;
 };
+
+// @spec DFF-BOT-040
+export function shouldInitiatePrePickTrade({
+  probability,
+  random,
+}: {
+  probability: number;
+  random: () => number;
+}): boolean {
+  return random() < probability;
+}
+
+// @spec DFF-BOT-041
+// @spec DFF-BOT-042
+// @spec DFF-BOT-043
+// @spec DFF-BOT-044
+export function findBotToBotTradeOffer({
+  botTeam,
+  otherTeams,
+  acceptanceThreshold,
+  draftOrder,
+  usedPickNumbers,
+  playerValues,
+  futurePickValues,
+  startupPickValues,
+}: {
+  botTeam: BotTradeTeamContext;
+  otherTeams: BotTradeTeamContext[];
+  acceptanceThreshold: number;
+  draftOrder: DraftSlotOwnership[];
+  usedPickNumbers: Set<number>;
+  playerValues: Map<string, number>;
+  futurePickValues: Map<string, number>;
+  startupPickValues: Map<number, number>;
+}): BotToBotTradeProposal | null {
+  const botAssets = buildTradeableBotAssets({
+    teamId: botTeam.teamId,
+    draftOrder,
+    usedPickNumbers,
+    rosterPlayerIds: botTeam.rosterPlayerIds,
+    archetype: botTeam.archetype,
+    rosterPlayers: botTeam.rosterPlayers,
+    futurePickAssets: botTeam.futurePickAssets,
+    playerValues,
+    futurePickValues,
+    startupPickValues,
+  });
+
+  if (botAssets.length === 0) {
+    return null;
+  }
+
+  const playerDetails = new Map<string, TradeEvaluationPlayer>();
+  for (const team of [botTeam, ...otherTeams]) {
+    for (const player of team.rosterPlayers) {
+      playerDetails.set(player.id, player);
+    }
+  }
+
+  const targets = otherTeams.flatMap((team) =>
+    buildTradeableBotAssets({
+      teamId: team.teamId,
+      draftOrder,
+      usedPickNumbers,
+      rosterPlayerIds: team.rosterPlayerIds,
+      archetype: team.archetype,
+      rosterPlayers: team.rosterPlayers,
+      futurePickAssets: team.futurePickAssets,
+      playerValues,
+      futurePickValues,
+      startupPickValues,
+    }).map((asset) => ({ ...asset, receivingTeamId: team.teamId })),
+  );
+
+  const rankedTargets = targets.sort((left, right) => {
+    const leftScore = scoreDesiredAsset(left, botTeam.archetype, playerDetails);
+    const rightScore = scoreDesiredAsset(right, botTeam.archetype, playerDetails);
+    return rightScore - leftScore || right.dynastyValue - left.dynastyValue;
+  });
+
+  for (const target of rankedTargets) {
+    const offer = chooseThresholdOfferPackage(
+      botAssets.filter((asset) => !sameTradeAsset(asset.asset, target.asset)),
+      target.dynastyValue * acceptanceThreshold,
+    );
+
+    if (!offer) {
+      continue;
+    }
+
+    return {
+      receivingTeamId: target.receivingTeamId,
+      assetsSent: offer.map((entry) => entry.asset),
+      assetsReceived: [target.asset],
+      sentDynastyValue: offer.reduce((total, entry) => total + entry.dynastyValue, 0),
+      receivedDynastyValue: target.dynastyValue,
+    };
+  }
+
+  return null;
+}
 
 // @spec DFF-SPKV-050
 // @spec DFF-SPKV-051
@@ -384,6 +491,57 @@ function chooseOfferPackage(
   }
 
   return bestOffer;
+}
+
+// @spec DFF-BOT-043
+function chooseThresholdOfferPackage(
+  outboundAssets: ScoredBotTradeAsset[],
+  minimumOfferValue: number,
+): ScoredBotTradeAsset[] | null {
+  const packagesByValue = new Map<number, ScoredBotTradeAsset[]>([[0, []]]);
+  let bestOfferValue = Number.POSITIVE_INFINITY;
+  let bestOffer: ScoredBotTradeAsset[] | null = null;
+
+  for (const asset of outboundAssets) {
+    for (const [currentValue, currentPackage] of [...packagesByValue]) {
+      const packageValue = currentValue + asset.dynastyValue;
+
+      if (packageValue >= bestOfferValue) {
+        continue;
+      }
+
+      const candidatePackage = [...currentPackage, asset];
+
+      if (packageValue >= minimumOfferValue) {
+        bestOfferValue = packageValue;
+        bestOffer = candidatePackage;
+        continue;
+      }
+
+      if (!packagesByValue.has(packageValue)) {
+        packagesByValue.set(packageValue, candidatePackage);
+      }
+    }
+  }
+
+  return bestOffer;
+}
+
+// @spec DFF-BOT-043
+function sameTradeAsset(left: BotTradeAsset, right: BotTradeAsset): boolean {
+  if (left.type !== right.type) {
+    return false;
+  }
+
+  if (left.type === 'player' && right.type === 'player') {
+    return left.player_id === right.player_id;
+  }
+
+  if (left.type === 'future_pick' && right.type === 'future_pick') {
+    return left.year === right.year && left.round === right.round;
+  }
+
+  return left.pick_number === right.pick_number;
 }
 
 // @spec DFF-BOT-045

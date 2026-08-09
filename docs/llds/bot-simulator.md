@@ -167,15 +167,44 @@ The jitter scales with the player's own score (`±randomness × 100%`), so the `
 
 Before picking, a bot evaluates whether to trade. Steps:
 
-1. **Check trade aggressiveness**: each archetype has a base probability of attempting a trade evaluation per turn (e.g. `win_now`: 25%, `punt`: 35%, `bpa`: 10%)
-2. **Identify want**: the highest-value player on any team that fits the bot's archetype bias and positional stickiness rules
-3. **Identify fodder**: assets the bot is willing to move — determined by archetype stickiness. Protected players are computed from the initiating bot's current roster before offer assembly:
+1. **Check trade aggressiveness**: draw once with the coordinator's injected `random`; attempt trade construction only when `random() < tradeAggressivenessProbability` for the initiating bot's archetype.
+2. **Build candidate targets**: for every other team, construct its tradeable asset pool using that team's archetype and roster so its protected players are excluded. The pool includes rostered players, unfilled startup pick slots, and owned future picks. Rank each asset by the initiating bot's archetype-fit score, then by raw dynasty value; the first asset is the target.
+3. **Identify fodder**: construct the initiating bot's tradeable asset pool. Protected players are computed from the initiating bot's current roster before offer assembly:
    - `rb_heavy`: exclude the top-2 RBs by `dynasty_value`
    - `qb_early`: exclude the highest-value QB on roster
    - `win_now`: exclude proven starters (`age >= 27` and `dynasty_value >= 4000`)
    - non-player assets are unaffected by stickiness
-4. **Construct offer**: assemble fodder assets that match or slightly exceed the target asset's dynasty value per the bot's archetype tilt
-5. **Score the offer**: if offer value ≥ target value × archetype acceptance threshold, submit to draft engine; otherwise skip and pick
+4. **Construct offer**: assemble the initiating bot's movable fodder into the lowest-total package that meets `targetDynastyValue × initiatingArchetype.acceptanceThreshold`. Asset values use the common player, future-pick, and conservative startup-pick value pipeline. No protected asset may enter the package.
+5. **Submit or fall back**: if no package clears the threshold, return the normal pick action. Otherwise emit a bot-to-bot `BotTradeAction` containing the package as `assetsSent`, the target as `assetsReceived`, and `isBotToBot: true`; the coordinator creates the pending trade and awaits the receiving team's one-pass evaluation before continuing the bot chain.
+
+Target selection is deliberately global rather than user-only. The proactive bot-to-user path below remains a separate, human-decision flow: it may pause for the user and applies its own cooldown. The pre-pick bot-to-bot loop performs no counter-negotiation; a rejected offer leaves the current draft slot open and the bot proceeds to its ordinary pick selection.
+
+#### Pre-pick Trade Loop Data Flow
+
+```
+current bot turn
+    │
+    ▼
+random() < archetype.tradeAggressivenessProbability?
+    ├── no ───────────────────────────────────────────────→ select normal pick
+    └── yes
+         │
+         ▼
+scan every other team's tradeable asset pool
+    │    (receiver stickiness applied)
+    ▼
+choose highest-ranked archetype-fit target
+    │
+    ▼
+assemble initiating bot's unprotected assets
+    │    total ≥ target value × initiating acceptance threshold?
+    ├── no ───────────────────────────────────────────────→ select normal pick
+    └── yes ─→ emit pending bot-to-bot offer → receiver evaluates once
+                                                    │
+                                       accepted or declined
+                                                    ▼
+                                            resume bot chain
+```
 
 ### Proactive Bot-to-User Offers
 

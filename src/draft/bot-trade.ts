@@ -73,12 +73,116 @@ export type BotToUserTradeProposal = {
   receivedDynastyValue: number;
 };
 
+// @spec DFF-BOT-041
+// @spec DFF-BOT-043
+export type BotToBotTradeProposal = BotToUserTradeProposal & {
+  receivingTeamId: string;
+};
+
 export type TradeEvaluationPlayer = {
   id: string;
   position: string;
   age: number | null;
   dynastyValue: number;
 };
+
+// @spec DFF-BOT-040
+export function shouldInitiatePrePickTrade({
+  probability,
+  random,
+}: {
+  probability: number;
+  random: () => number;
+}): boolean {
+  return random() < probability;
+}
+
+// @spec DFF-BOT-041
+// @spec DFF-BOT-042
+// @spec DFF-BOT-043
+// @spec DFF-BOT-044
+export function findBotToBotTradeOffer({
+  botTeam,
+  otherTeams,
+  acceptanceThreshold,
+  draftOrder,
+  usedPickNumbers,
+  playerValues,
+  futurePickValues,
+  startupPickValues,
+}: {
+  botTeam: BotTradeTeamContext;
+  otherTeams: BotTradeTeamContext[];
+  acceptanceThreshold: number;
+  draftOrder: DraftSlotOwnership[];
+  usedPickNumbers: Set<number>;
+  playerValues: Map<string, number>;
+  futurePickValues: Map<string, number>;
+  startupPickValues: Map<number, number>;
+}): BotToBotTradeProposal | null {
+  const botAssets = buildTradeableBotAssets({
+    teamId: botTeam.teamId,
+    draftOrder,
+    usedPickNumbers,
+    rosterPlayerIds: botTeam.rosterPlayerIds,
+    archetype: botTeam.archetype,
+    rosterPlayers: botTeam.rosterPlayers,
+    futurePickAssets: botTeam.futurePickAssets,
+    playerValues,
+    futurePickValues,
+    startupPickValues,
+  });
+
+  if (botAssets.length === 0) {
+    return null;
+  }
+
+  const playerDetails = new Map<string, TradeEvaluationPlayer>();
+  for (const team of [botTeam, ...otherTeams]) {
+    for (const player of team.rosterPlayers) {
+      playerDetails.set(player.id, player);
+    }
+  }
+
+  const targets = otherTeams.flatMap((team) =>
+    buildTradeableBotAssets({
+      teamId: team.teamId,
+      draftOrder,
+      usedPickNumbers,
+      rosterPlayerIds: team.rosterPlayerIds,
+      archetype: team.archetype,
+      rosterPlayers: team.rosterPlayers,
+      futurePickAssets: team.futurePickAssets,
+      playerValues,
+      futurePickValues,
+      startupPickValues,
+    }).map((asset) => ({ ...asset, receivingTeamId: team.teamId })),
+  );
+
+  const rankedTargets = targets.sort((left, right) => {
+    const leftScore = scoreDesiredAsset(left, botTeam.archetype, playerDetails);
+    const rightScore = scoreDesiredAsset(right, botTeam.archetype, playerDetails);
+    return rightScore - leftScore || right.dynastyValue - left.dynastyValue;
+  });
+
+  for (const target of rankedTargets) {
+    const offer = chooseThresholdOfferPackage(botAssets, target.dynastyValue * acceptanceThreshold);
+
+    if (!offer) {
+      continue;
+    }
+
+    return {
+      receivingTeamId: target.receivingTeamId,
+      assetsSent: offer.map((entry) => entry.asset),
+      assetsReceived: [target.asset],
+      sentDynastyValue: offer.reduce((total, entry) => total + entry.dynastyValue, 0),
+      receivedDynastyValue: target.dynastyValue,
+    };
+  }
+
+  return null;
+}
 
 // @spec DFF-SPKV-050
 // @spec DFF-SPKV-051
@@ -384,6 +488,42 @@ function chooseOfferPackage(
   }
 
   return bestOffer;
+}
+
+// @spec DFF-BOT-043
+function chooseThresholdOfferPackage(
+  outboundAssets: ScoredBotTradeAsset[],
+  minimumOfferValue: number,
+): ScoredBotTradeAsset[] | null {
+  const sortedAssets = [...outboundAssets].sort(
+    (left, right) => right.dynastyValue - left.dynastyValue || stableAssetKey(left.asset).localeCompare(stableAssetKey(right.asset)),
+  );
+  const offer: ScoredBotTradeAsset[] = [];
+  let offerValue = 0;
+
+  for (const asset of sortedAssets) {
+    offer.push(asset);
+    offerValue += asset.dynastyValue;
+
+    if (offerValue >= minimumOfferValue) {
+      return offer;
+    }
+  }
+
+  return null;
+}
+
+// @spec DFF-BOT-043
+function stableAssetKey(asset: BotTradeAsset): string {
+  if (asset.type === 'player') {
+    return `player:${asset.player_id}`;
+  }
+
+  if (asset.type === 'future_pick') {
+    return `future_pick:${asset.year}:${asset.round}`;
+  }
+
+  return `pick_slot:${asset.pick_number ?? -1}`;
 }
 
 // @spec DFF-BOT-045

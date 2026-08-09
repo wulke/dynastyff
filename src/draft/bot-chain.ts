@@ -23,7 +23,12 @@ import {
   type ArchetypeConfig,
 } from './archetype-config.js';
 import { filterBotPickCandidates, scoreBotPickCandidate } from './bot-pick-scoring.js';
-import { evaluateBotTrade, findBotToUserTradeOffer } from './bot-trade.js';
+import {
+  evaluateBotTrade,
+  findBotToBotTradeOffer,
+  findBotToUserTradeOffer,
+  shouldInitiatePrePickTrade,
+} from './bot-trade.js';
 import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
 import { getDraftState, recordPick, resolveTrade, type DraftStateSnapshot } from './service.js';
 import { emitTradeOfferedEvent, emitTradeResolvedEvent } from './stream.js';
@@ -184,6 +189,10 @@ function normalizeBotPickRandomness(randomness: number): number {
 // @spec DFF-ENGINE-032
 // @spec DFF-BOT-030
 // @spec DFF-BOT-031
+// @spec DFF-BOT-040
+// @spec DFF-BOT-041
+// @spec DFF-BOT-043
+// @spec DFF-BOT-044
 function defaultDecideBotAction(
   context: DecideBotActionContext,
   randomness: number,
@@ -234,6 +243,83 @@ function defaultDecideBotAction(
     .map((trade) => trade.round);
   const proactiveTradeProbability =
     context.archetypeConfig.archetypes[botArchetype].tradeAggressivenessProbability;
+  const otherBotTeams = draftState.teams
+    .filter((draftTeam) => !draftTeam.is_user && draftTeam.id !== context.slot.teamId)
+    .map((draftTeam) => {
+      const teamRosteredPlayerIds = new Set(
+        draftState.roster_players
+          .filter((rosterPlayer) => rosterPlayer.team_id === draftTeam.id)
+          .map((rosterPlayer) => rosterPlayer.player_id),
+      );
+
+      return {
+        teamId: draftTeam.id,
+        archetype: draftTeam.archetype,
+        rosterPlayerIds: [...teamRosteredPlayerIds],
+        rosterPlayers: [...teamRosteredPlayerIds]
+          .map((playerId) => playersById.get(playerId))
+          .filter((player): player is DraftAvailablePlayer => Boolean(player))
+          .map((player) => ({
+            id: player.id,
+            position: player.position,
+            age: player.age,
+            dynastyValue: player.dynasty_value,
+          })),
+        futurePickAssets: draftState.team_pick_assets
+          .filter((asset) => asset.team_id === draftTeam.id)
+          .map((asset) => ({ year: asset.year, round: asset.round })),
+      };
+    });
+
+  // @spec DFF-BOT-040
+  // @spec DFF-BOT-041
+  // @spec DFF-BOT-043
+  // @spec DFF-BOT-044
+  if (
+    rosteredPlayers.length > 0 &&
+    otherBotTeams.length > 0 &&
+    shouldInitiatePrePickTrade({ probability: proactiveTradeProbability, random })
+  ) {
+    const proposal = findBotToBotTradeOffer({
+      botTeam: {
+        teamId: context.slot.teamId,
+        archetype: botArchetype,
+        rosterPlayerIds: [...rosteredPlayerIds],
+        rosterPlayers: rosteredPlayers.map((player) => ({
+          id: player.id,
+          position: player.position,
+          age: player.age,
+          dynastyValue: player.dynasty_value,
+        })),
+        futurePickAssets: draftState.team_pick_assets
+          .filter((asset) => asset.team_id === context.slot.teamId)
+          .map((asset) => ({ year: asset.year, round: asset.round })),
+      },
+      otherTeams: otherBotTeams,
+      acceptanceThreshold: context.archetypeConfig.archetypes[botArchetype].acceptanceThreshold,
+      draftOrder: draftOrderOwnership,
+      usedPickNumbers,
+      playerValues,
+      futurePickValues,
+      startupPickValues: buildConservativeStartupPickValues({
+        currentPickNumber: draftState.current_pick_number,
+        availablePlayers: draftState.available_players,
+        startupPickValues: draftState.startup_pick_values,
+      }),
+    });
+
+    if (proposal) {
+      return {
+        type: 'trade',
+        tradeId: idGenerator(),
+        initiatingTeamId: context.slot.teamId,
+        receivingTeamId: proposal.receivingTeamId,
+        assetsSent: proposal.assetsSent,
+        assetsReceived: proposal.assetsReceived,
+        isBotToBot: true,
+      };
+    }
+  }
 
   if (userTeam && userRosteredPlayers.length > 0 && random() < proactiveTradeProbability) {
     const proposal = findBotToUserTradeOffer({

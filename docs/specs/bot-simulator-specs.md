@@ -123,16 +123,16 @@ The system shall support a configurable `randomness` parameter (0.0–1.0, defau
 **DFF-BOT-040** `[x]`
 Before each bot pick, the system shall evaluate whether to initiate a trade based on the bot's archetype trade aggressiveness probability: `win_now` 25%, `punt` 35%, `rb_heavy` 20%, `qb_early` 20%, `bpa` 10%, `balanced` 15%.
 
-**DFF-BOT-041** `[ ]`
+**DFF-BOT-041** `[x]`
 When a bot's pre-pick trade roll succeeds, the system shall scan every other team's rostered players, unfilled startup pick slots, and owned future picks; exclude assets protected by the receiving team's stickiness rules; and select the highest-ranked remaining asset using the initiating bot's archetype-fit score, with raw dynasty value as the tie-breaker.
 
 **DFF-BOT-042** `[x]`
 The system shall apply the following stickiness rules: `rb_heavy` shall not include its top-2 RBs as trade fodder; `qb_early` shall not include its starting QB as trade fodder; `win_now` shall not include proven starters (age ≥ 27, dynasty_value ≥ 4000) as trade fodder.
 
-**DFF-BOT-043** `[ ]`
+**DFF-BOT-043** `[x]`
 When constructing a pre-pick trade offer, the system shall assemble only the initiating bot's movable, non-protected assets into a package whose total dynasty value is greater than or equal to the selected target asset's dynasty value multiplied by the initiating bot's archetype acceptance threshold (see DFF-BOT-002), using the shared player, future-pick, and startup-pick valuation pipeline.
 
-**DFF-BOT-044** `[ ]`
+**DFF-BOT-044** `[x]`
 If a pre-pick trade roll does not succeed, no eligible target exists, or no non-protected fodder package meets the value threshold, then the system shall skip the trade attempt and proceed to normal pick selection. When a package is available, the system shall submit a bot-to-bot trade proposal and await the receiving bot's one-pass evaluation before resuming the bot chain.
 
 **DFF-BOT-045** `[ ]` → #87

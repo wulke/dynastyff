@@ -174,8 +174,8 @@ If all roster slots are filled and no positional needs remain, the system shall 
 
 ## Full-Draft Characterization
 
-**DFF-BOT-063** `[ ]` → #147
+**DFF-BOT-063** `[x]` → #147
 When `createBotChainCoordinator` receives a non-negative finite `pickDelayMs` override, the system shall use that fixed delay for each bot turn; when the override is `0`, the system shall not wait before processing a bot turn; when it is omitted, the system shall retain the randomized 3–5 second production delay.
 
-**DFF-BOT-064** `[ ]` → #147
+**DFF-BOT-064** `[x]` → #147
 When the isolated slow full-draft characterization test runs a seeded 12-team, 20-round draft with only bot teams, a reusable realistic player fixture, and `pickDelayMs: 0`, the system shall complete all 240 picks in under five seconds and verify that `rb_heavy` teams have a higher RB roster share than `bpa` teams, `punt` teams have a lower average roster age than `win_now` teams, `qb_early` teams take their first QB earlier than `balanced` teams, and `bpa` teams have the highest average dynasty value per roster slot.

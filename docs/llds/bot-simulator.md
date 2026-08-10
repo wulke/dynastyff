@@ -298,7 +298,7 @@ the fallback trade loop on the same current slot.
 - [ ] Should bots ever make "irrational" trades that hurt their value, to simulate poor real-world managers? Or is sub-optimal play modeled solely through noise?
 - [ ] How should a bot handle a pick slot it acquired via trade that lands at a position where it still has no preference? (e.g. `rb_heavy` traded for a late pick in a round with no RBs left)
 
-## Full-Draft Characterization Harness (proposed for #147)
+## Full-Draft Characterization Harness
 
 ### Interface / Data Model
 

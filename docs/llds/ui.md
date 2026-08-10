@@ -282,7 +282,7 @@ The drafting room is a single-pane tabbed workspace. The 3-column expand/collaps
 
 **Players tab:**
 - Full-width `AvailablePlayersPanel` with nested Available / Targets sub-tabs
-- Player selection state (expanded row with Draft / Cancel actions) persists across tab switches so the user does not lose their selection when briefly switching away
+- `DraftApp` owns player selection state (expanded row with Draft / Cancel actions) and passes it to `AvailablePlayersPanel`, so it persists across tab switches even when the panel unmounts
 
 **Feed tab:**
 - Full-width `PickFeedPanel`

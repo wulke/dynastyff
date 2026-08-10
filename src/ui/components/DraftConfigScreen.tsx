@@ -15,6 +15,10 @@ type SavedConfigOption = {
   name: string;
 };
 
+// @spec DFF-UI-193
+// @spec DFF-UI-194
+type SleeperDraftConfigPrefill = Pick<ConfigFormState, 'teamCount' | 'scoringFormat' | 'tePremiumTier' | 'rosterConfig'>;
+
 // @spec DFF-UI-010
 export const configDefaults: ConfigFormState = {
   name: '',
@@ -91,6 +95,54 @@ export function sanitizeDraftConfig(config: ConfigFormState): ConfigFormState {
       bench: clamp(config.rosterConfig.bench, 0, 20),
     },
   };
+}
+
+// @spec DFF-UI-194
+function suggestRoundsFromRosterSlots(rosterConfig: ConfigFormState['rosterConfig']): number {
+  return Object.values(rosterConfig).reduce((total, slotCount) => total + slotCount, 0);
+}
+
+// @spec DFF-UI-193
+function extractSleeperLeagueId(reference: string): string | null {
+  const trimmedReference = reference.trim();
+  if (/^\d+$/.test(trimmedReference)) return trimmedReference;
+
+  try {
+    const url = new URL(trimmedReference);
+    if (url.hostname !== 'sleeper.app' && url.hostname !== 'www.sleeper.app' && url.hostname !== 'sleeper.com' && url.hostname !== 'www.sleeper.com') {
+      return null;
+    }
+
+    const pathSegments = url.pathname.split('/').filter(Boolean);
+    const leagueSegment = pathSegments.findIndex((segment) => segment === 'league' || segment === 'leagues');
+    const leagueId = leagueSegment === -1 ? undefined : pathSegments[leagueSegment + 1];
+
+    return leagueId && /^\d+$/.test(leagueId) ? leagueId : null;
+  } catch {
+    return null;
+  }
+}
+
+// @spec DFF-UI-193
+function isSleeperDraftConfigPrefill(value: unknown): value is SleeperDraftConfigPrefill {
+  if (!value || typeof value !== 'object') return false;
+
+  const prefill = value as Partial<SleeperDraftConfigPrefill>;
+  const rosterConfig = prefill.rosterConfig as Partial<ConfigFormState['rosterConfig']> | undefined;
+
+  return (
+    typeof prefill.teamCount === 'number' &&
+    (prefill.scoringFormat === 'ppr' || prefill.scoringFormat === 'half_ppr' || prefill.scoringFormat === 'standard') &&
+    (prefill.tePremiumTier === 'off' || prefill.tePremiumTier === 'tep' || prefill.tePremiumTier === 'tepp' || prefill.tePremiumTier === 'teppp') &&
+    Boolean(rosterConfig) &&
+    typeof rosterConfig?.QB === 'number' &&
+    typeof rosterConfig?.RB === 'number' &&
+    typeof rosterConfig?.WR === 'number' &&
+    typeof rosterConfig?.TE === 'number' &&
+    typeof rosterConfig?.FLEX === 'number' &&
+    typeof rosterConfig?.SF === 'number' &&
+    typeof rosterConfig?.bench === 'number'
+  );
 }
 
 // @spec DFF-UI-010
@@ -181,6 +233,44 @@ export function DraftConfigScreen({
 }: DraftConfigScreenProps) {
   const submitDisabled = isSubmitting || isSubmitDisabled;
   const canSaveConfig = !isSavingConfig && typeof onSaveConfig === 'function';
+  const [sleeperLeagueReference, setSleeperLeagueReference] = useState('');
+  const [isImportingSleeperSettings, setIsImportingSleeperSettings] = useState(false);
+  const [sleeperImportError, setSleeperImportError] = useState<string | null>(null);
+
+  // @spec DFF-UI-193
+  // @spec DFF-UI-194
+  // @spec DFF-UI-195
+  async function handleSleeperImport() {
+    if (isImportingSleeperSettings) return;
+
+    const leagueId = extractSleeperLeagueId(sleeperLeagueReference);
+    if (!leagueId) {
+      setSleeperImportError('Enter a valid Sleeper league ID or URL.');
+      return;
+    }
+
+    setIsImportingSleeperSettings(true);
+    setSleeperImportError(null);
+
+    try {
+      const response = await fetch(`/league-imports/sleeper/${leagueId}`);
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !isSleeperDraftConfigPrefill(payload)) {
+        throw new Error('Sleeper import failed.');
+      }
+
+      onConfigChange(sanitizeDraftConfig({
+        ...config,
+        ...payload,
+        rounds: suggestRoundsFromRosterSlots(payload.rosterConfig),
+      }));
+    } catch {
+      setSleeperImportError('Could not import Sleeper league settings. Check the league ID and try again.');
+    } finally {
+      setIsImportingSleeperSettings(false);
+    }
+  }
 
   return (
     <section className="w-full max-w-5xl rounded-md border border-default bg-surface">
@@ -200,6 +290,31 @@ export function DraftConfigScreen({
         }}
       >
         <div className="space-y-4">
+          <div className="rounded-md border border-default bg-app p-3">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+              <label className="flex flex-col gap-1 text-xs text-secondary" htmlFor="sleeper-league-reference">
+                <span className="font-medium uppercase tracking-wide text-muted">Sleeper League ID or URL</span>
+                <input
+                  id="sleeper-league-reference"
+                  type="text"
+                  value={sleeperLeagueReference}
+                  onChange={(event) => setSleeperLeagueReference(event.target.value)}
+                  placeholder="123456789012345678 or sleeper.app/leagues/..."
+                  className="rounded border border-strong bg-surface px-3 py-2 text-sm text-primary outline-none transition focus:border-accent"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={isImportingSleeperSettings}
+                onClick={() => void handleSleeperImport()}
+                className="rounded border border-default px-3 py-1.5 text-xs font-semibold text-secondary transition hover:border-strong hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isImportingSleeperSettings ? 'Importing…' : 'Import Sleeper Settings'}
+              </button>
+            </div>
+            {sleeperImportError ? <p role="alert" className="mt-2 text-xs text-negative">{sleeperImportError}</p> : null}
+          </div>
+
           <div className="grid gap-3 md:grid-cols-2">
             <label className="flex flex-col gap-1 text-xs text-secondary" htmlFor="saved-configs">
               <span className="font-medium uppercase tracking-wide text-muted">Saved Configs</span>

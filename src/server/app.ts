@@ -56,6 +56,7 @@ import {
   parseTradeOfferSubmission,
   TradeOfferSubmissionValidationError,
 } from './config.js';
+import { mapSleeperLeagueSettings } from './sleeper-config-import.js';
 
 type CreateDraftServerOptions = {
   databasePath: string;
@@ -67,6 +68,10 @@ type SavedLeagueConfigRouteOptions = {
   databasePath: string;
   idGenerator?: () => string;
   now?: () => string;
+};
+
+type SleeperLeagueImportRouteOptions = {
+  fetchImpl?: typeof fetch;
 };
 
 type SavedLeagueConfigApiRecord = {
@@ -98,6 +103,7 @@ export function createDraftApp({
   const app = express();
 
   app.use(express.json());
+  app.get('/league-imports/sleeper/:leagueId', createSleeperLeagueImportRoute());
   app.get('/configs', createLeagueConfigsListRoute({ databasePath }));
   app.post('/configs', createLeagueConfigsCreateRoute({ databasePath }));
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
@@ -114,6 +120,35 @@ export function createDraftApp({
   app.use(createDraftErrorHandler());
 
   return app;
+}
+
+// @spec DFF-UI-193
+// @spec DFF-UI-194
+// @spec DFF-UI-195
+export function createSleeperLeagueImportRoute({
+  fetchImpl = fetch,
+}: SleeperLeagueImportRouteOptions = {}): RequestHandler {
+  return async (request, response) => {
+    const requestedLeagueId = request.params.leagueId;
+    const leagueId = Array.isArray(requestedLeagueId) ? undefined : requestedLeagueId;
+
+    if (!/^\d+$/.test(leagueId ?? '')) {
+      response.status(400).json({ error: 'Enter a valid Sleeper league ID or URL.' });
+      return;
+    }
+
+    try {
+      const sleeperResponse = await fetchImpl(`https://api.sleeper.app/v1/league/${leagueId}`);
+
+      if (!sleeperResponse.ok) {
+        throw new Error(`Sleeper returned ${sleeperResponse.status}.`);
+      }
+
+      response.status(200).json(mapSleeperLeagueSettings(await sleeperResponse.json()));
+    } catch {
+      response.status(502).json({ error: 'Could not import Sleeper league settings. Check the league ID and try again.' });
+    }
+  };
 }
 
 // @spec DFF-DATA-095

@@ -219,3 +219,21 @@ Data (player values, ADP, dynasty rankings, Sleeper league state) is pre-loaded 
 # TE-Premium Scoring Decision
 
 TE premium is an independent league modifier rather than a scoring-format variant. The ETL retains KTC's three published premium tiers, draft configuration persists the selected tier, and bot pick scoring applies the selected adjusted value only to tight ends. This keeps the base scoring matrix (`ppr`, `half_ppr`, `standard`) orthogonal to TE premium.
+
+# Sleeper Draft Configuration Import Decision
+
+## Goal
+
+Let a user begin a startup mock draft from a public Sleeper league's relevant settings without making Sleeper a dependency of the draft engine or removing manual configuration.
+
+## Strategy
+
+- **Options:** parse the Sleeper response in the browser; add a local Express import endpoint; reuse the persisted-season Sleeper sync tables.
+- **Decision:** add a narrow Express endpoint that fetches exactly one public league and returns a normalized draft-config prefill. The browser supplies an ID or Sleeper URL and applies the returned values to its existing editable form.
+- **Rationale:** the local backend owns external HTTP behavior and a stable app-shaped contract, while the form remains the single source of truth before draft creation. Persisted season-management sync is intentionally not reused because this is a one-time, startup-draft prefill rather than connected-league state.
+
+## Architecture
+
+`ConfigScreen` → `GET /league-imports/sleeper/:leagueId` → Sleeper public `GET /v1/league/:leagueId` → normalized prefill (`scoringFormat`, `tePremiumTier`, roster slots, `teamCount`) → existing config form.
+
+The import endpoint does not return or apply Sleeper `draft_rounds`; the form's existing roster-slot total continues to suggest `rounds`. Failed imports surface a clear form error and leave the current manual values usable.

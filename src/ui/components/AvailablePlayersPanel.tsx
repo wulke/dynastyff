@@ -25,6 +25,10 @@ import { getPositionBadgeClass } from './positionBadge.js';
 type AvailablePlayersPanelProps = {
   draftState: DraftState;
   isInteractionBlocked?: boolean;
+  // @spec DFF-UI-185
+  selectedPlayerId: string | null;
+  // @spec DFF-UI-185
+  onSelectedPlayerIdChange: (playerId: string | null) => void;
 };
 
 type PositionFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'Picks';
@@ -144,17 +148,19 @@ function AvailablePlayersLoadingState() {
 // @spec DFF-UI-141
 // @spec DFF-UI-142
 // @spec DFF-UI-143
+// @spec DFF-UI-185
 // @spec DFF-UI-132
 // @spec DFF-UI-050
 export function AvailablePlayersPanel({
   draftState,
   isInteractionBlocked = false,
+  selectedPlayerId,
+  onSelectedPlayerIdChange,
 }: AvailablePlayersPanelProps) {
   const { submitPick } = useDraftContext();
   const [activeTab, setActiveTab] = useState<AvailablePlayersTab>('available');
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL');
   const [nameQuery, setNameQuery] = useState('');
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   if (draftState.isHydrating) return <AvailablePlayersLoadingState />;
 
@@ -170,7 +176,7 @@ export function AvailablePlayersPanel({
   // @spec DFF-UI-036
   // @spec DFF-UI-123
   function handlePlayerSelection(playerId: string) {
-    setSelectedPlayerId((currentPlayerId) => (currentPlayerId === playerId ? null : playerId));
+    onSelectedPlayerIdChange(selectedPlayerId === playerId ? null : playerId);
   }
 
   // @spec DFF-UI-036
@@ -181,7 +187,7 @@ export function AvailablePlayersPanel({
     const submitted = await submitPick(selectedPlayerId);
 
     if (submitted) {
-      setSelectedPlayerId(null);
+      onSelectedPlayerIdChange(null);
     }
   }
 
@@ -231,7 +237,7 @@ export function AvailablePlayersPanel({
             </span>
             <button
               type="button"
-              onClick={() => setSelectedPlayerId(null)}
+              onClick={() => onSelectedPlayerIdChange(null)}
               disabled={isInteractionBlocked}
               className="rounded border border-default px-3 py-1.5 text-xs font-semibold text-secondary transition hover:border-strong hover:text-primary"
             >

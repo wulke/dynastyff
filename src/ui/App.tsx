@@ -509,6 +509,7 @@ function renderSnapshotSupportingContent(snapshot: Snapshot): ReactNode {
 
 // @spec DFF-UI-150
 // @spec DFF-UI-151
+// @spec DFF-UI-185
 export function DraftApp() {
   // @spec DFF-STATIC-061
   // @spec DFF-STATIC-062
@@ -525,6 +526,8 @@ export function DraftApp() {
   const [selectedSavedConfigId, setSelectedSavedConfigId] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [activeDraftTab, setActiveDraftTab] = useState<DraftTabId>('board');
+  // @spec DFF-UI-185
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [dismissedTradeId, setDismissedTradeId] = useState<string | null>(null);
   const [tradeComposer, setTradeComposer] = useState<TradeComposerState | null>(null);
   const [composerTradeId, setComposerTradeId] = useState<string | null>(null);
@@ -541,9 +544,11 @@ export function DraftApp() {
   }, [draftState?.pendingTrade]);
 
   // @spec DFF-UI-182
+  // @spec DFF-UI-185
   useEffect(() => {
     if (draftState?.draftId) {
       setActiveDraftTab('board');
+      setSelectedPlayerId(null);
     }
   }, [draftState?.draftId]);
 
@@ -670,6 +675,7 @@ export function DraftApp() {
     setTradeComposer(null);
     setComposerTradeId(null);
     setActiveDraftTab('board');
+    setSelectedPlayerId(null);
 
     try {
       await startDraft(safeConfig);
@@ -947,6 +953,7 @@ export function DraftApp() {
         {/* @spec DFF-UI-182 */}
         {/* @spec DFF-UI-183 */}
         {/* @spec DFF-UI-184 */}
+        {/* @spec DFF-UI-185 */}
         {/* @spec DFF-UI-187 */}
         {/* @spec DFF-UI-188 */}
         {/* @spec DFF-UI-189 */}
@@ -986,6 +993,8 @@ export function DraftApp() {
                 <AvailablePlayersPanel
                   draftState={draftState}
                   isInteractionBlocked={showTradeModal || showComposerModal}
+                  selectedPlayerId={selectedPlayerId}
+                  onSelectedPlayerIdChange={setSelectedPlayerId}
                 />
               </div>
               <div
@@ -1044,6 +1053,7 @@ export function DraftApp() {
               setDismissedTradeId(null);
               setTradeComposer(null);
               setComposerTradeId(null);
+              setSelectedPlayerId(null);
               newDraft();
             }}
           />
@@ -1066,6 +1076,7 @@ export function DraftApp() {
                 setDismissedTradeId(null);
                 setTradeComposer(null);
                 setComposerTradeId(null);
+                setSelectedPlayerId(null);
                 newDraft();
               }}
             />

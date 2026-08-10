@@ -1,7 +1,7 @@
 // @spec DFF-UI-193
 // @spec DFF-UI-194
 // @spec DFF-UI-195
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -30,6 +30,7 @@ function ConfigScreenHarness() {
 }
 
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
 });
 

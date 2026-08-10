@@ -18,6 +18,9 @@ export default defineConfig({
       '/configs': {
         target: resolveApiBaseUrl(),
       },
+      '/league-imports': {
+        target: resolveApiBaseUrl(),
+      },
       '/drafts': {
         target: resolveApiBaseUrl(),
       },

@@ -14,6 +14,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 import { App } from '../src/ui/App.js';
 
@@ -257,6 +258,15 @@ async function renderAppToConfig() {
 }
 
 describe('UI app scaffold', () => {
+  // @spec DFF-UI-185
+  test('owns the players-tab selection in the draft app instead of the unmounted panel', () => {
+    const appSource = readFileSync(`${process.cwd()}/src/ui/App.tsx`, 'utf8');
+
+    expect(appSource).toMatch(/const \[selectedPlayerId, setSelectedPlayerId\] = useState<string \| null>\(null\)/);
+    expect(appSource).toMatch(/selectedPlayerId=\{selectedPlayerId\}/);
+    expect(appSource).toMatch(/onSelectedPlayerIdChange=\{setSelectedPlayerId\}/);
+  });
+
   // @spec DFF-UI-001
   // @spec DFF-UI-010
   test('renders the config screen with the expected default draft fields', async () => {

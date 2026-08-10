@@ -101,6 +101,7 @@ Full scraper, normalization, and matching behavior is documented in [`docs/llds/
 | **Test** | |
 | `npm run test` | Run the full server + UI test suite |
 | `npm run test:server` | Run backend tests |
+| `npm run test:server:slow` | Run the isolated full-draft bot characterization test |
 | `npm run test:ui` | Run UI tests |
 | `npm run test:coverage` | Run tests with coverage thresholds |
 | **Build** | |

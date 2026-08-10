@@ -297,3 +297,60 @@ the fallback trade loop on the same current slot.
 
 - [ ] Should bots ever make "irrational" trades that hurt their value, to simulate poor real-world managers? Or is sub-optimal play modeled solely through noise?
 - [ ] How should a bot handle a pick slot it acquired via trade that lands at a position where it still has no preference? (e.g. `rb_heavy` traded for a late pick in a round with no RBs left)
+
+## Full-Draft Characterization Harness
+
+### Interface / Data Model
+
+`createBotChainCoordinator` accepts an optional `pickDelayMs` override. When it
+is omitted, each bot turn continues to use the existing randomized 3–5 second
+delay. When it is `0`, the coordinator does not wait before evaluating a bot
+turn. A non-negative finite override uses that fixed delay for every bot turn.
+
+The server test fixture exports approximately 300 realistic draftable players.
+Each fixture player has a stable ID, name, position (`QB`, `RB`, `WR`, or
+`TE`), NFL team, age, rookie flag, and dynasty value. Its position, age, and
+value distribution intentionally leaves enough viable candidates for all 240
+slots in a 12-team, 20-round draft.
+
+### Logic Flow
+
+1. Create a 12-team, 20-round draft with no user-controlled team.
+2. Seed the reusable player fixture into the test database and assign a
+   deterministic mix of bot archetypes, including at least two teams for each
+   compared archetype.
+3. Create the bot-chain coordinator with `pickDelayMs: 0`, a seeded random
+   source, and the normal archetype configuration.
+4. Trigger the chain and await idle completion.
+5. Query persisted picks and rosters, then characterize the completed draft:
+   - `rb_heavy` teams have a higher RB roster share than `bpa` teams;
+   - `punt` teams have a lower average roster age than `win_now` teams;
+   - `qb_early` teams take their first QB at a lower global pick number than
+     `balanced` teams;
+   - `bpa` teams have the highest average dynasty value per roster slot;
+   - persisted pick count equals `teamCount × rounds`.
+6. Place the test in a `slow`-named suite and make the default server-test
+   command exclude that suite; expose an explicit command for running it.
+
+### Edge Case Probe
+
+- `pickDelayMs` is omitted -> preserve the production randomized delay.
+- `pickDelayMs: 0` -> no timer is scheduled, so the characterization run does
+  not inherit wall-clock delay.
+- Invalid negative, non-finite, or `NaN` override -> reject it at coordinator
+  construction instead of silently using an unintended delay.
+- Fixture is reused by another test -> IDs remain stable and the caller seeds
+  only the isolated temporary database it owns.
+- A statistical condition is made unstable by randomness -> use a seeded random
+  source and compare archetype groups, not individual exact picks.
+- Fewer than 240 fixture players are available -> the test fixture contract
+  fails before draft execution rather than producing a partial draft.
+
+### Decision
+
+| Decision | Chosen | Alternatives | Rationale |
+|---|---|---|---|
+| Delay test seam | `pickDelayMs` coordinator override | Replace injected `sleep`; global timer mocking | Keeps production timing intact and makes a zero-delay full simulation declarative. |
+| Fixture form | Shared typed deterministic factory | Inline 300-row SQL; live ETL data | Reusable, readable, offline, and unaffected by ETL drift. |
+| Assertion style | Group-level statistical properties | Exact draft-board snapshots | Validates archetype differentiation without treating one random draft ordering as a public contract. |
+| Test isolation | `slow` suite excluded by default, opt-in command | Run in all server tests; omit from CI | Preserves fast feedback while retaining a repeatable realism regression test. |

@@ -16,10 +16,11 @@
     "preview": "vite preview --config src/ui/vite.config.ts",
     "serve": "node --import tsx src/server/index.ts",
     "test": "npm run test:server && npm run test:ui",
-    "test:server": "node --import tsx --test tests/**/*.test.ts",
+    "test:server": "node --import tsx --test tests/*.test.ts",
+    "test:server:slow": "node --import tsx --test tests/slow/**/*.test.ts",
     "test:ui": "vitest run --config src/ui/vite.config.ts",
     "test:coverage": "npm run test:coverage:server && npm run test:coverage:ui",
-    "test:coverage:server": "node --import tsx --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test tests/**/*.test.ts",
+    "test:coverage:server": "node --import tsx --experimental-test-coverage --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test tests/*.test.ts",
     "test:coverage:ui": "vitest run --config src/ui/vite.config.ts --coverage"
   },
   "dependencies": {

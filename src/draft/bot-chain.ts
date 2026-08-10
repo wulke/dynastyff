@@ -109,6 +109,7 @@ type CreateBotChainCoordinatorOptions = {
   databasePath: string;
   archetypeConfig?: ArchetypeConfig;
   randomness?: number;
+  pickDelayMs?: number;
   now?: () => string;
   random?: () => number;
   sleep?: (delayMs: number) => Promise<void>;
@@ -132,6 +133,17 @@ export class TradeOfferCoordinatorError extends Error {
 // @spec DFF-ENGINE-031
 export function calculateBotPickDelayMs(random: () => number): number {
   return 3000 + Math.floor(random() * 2001);
+}
+
+// @spec DFF-BOT-063
+function normalizeBotPickDelayMs(pickDelayMs: number | undefined): number | undefined {
+  if (pickDelayMs === undefined) return undefined;
+
+  if (pickDelayMs < 0 || !Number.isFinite(pickDelayMs)) {
+    throw new Error('[draft] Invalid bot-pick delay: expected a non-negative finite number of milliseconds.');
+  }
+
+  return pickDelayMs;
 }
 
 // @spec DFF-ENGINE-031
@@ -535,10 +547,12 @@ export function buildConservativeStartupPickValues({
 // @spec DFF-BOT-030
 // @spec DFF-BOT-031
 // @spec DFF-BOT-040
+// @spec DFF-BOT-063
 export function createBotChainCoordinator({
   databasePath,
   archetypeConfig = loadStartupArchetypeConfig(),
   randomness,
+  pickDelayMs,
   now = defaultNow,
   random = defaultRandom,
   sleep = defaultSleep,
@@ -549,6 +563,7 @@ export function createBotChainCoordinator({
   const pendingTrades = new Map<string, PendingTradeState>();
   const fallbackTradeOutAttempts = new Set<string>();
   const botPickRandomness = normalizeBotPickRandomness(randomness ?? archetypeConfig.randomness);
+  const fixedBotPickDelayMs = normalizeBotPickDelayMs(pickDelayMs);
   const resolvedDecideBotAction =
     decideBotAction ??
     ((context: DecideBotActionContext) => defaultDecideBotAction(context, botPickRandomness, random, idGenerator));
@@ -566,7 +581,8 @@ export function createBotChainCoordinator({
           return;
         }
 
-        await sleep(calculateBotPickDelayMs(random));
+        const delayMs = fixedBotPickDelayMs ?? calculateBotPickDelayMs(random);
+        if (delayMs > 0) await sleep(delayMs);
 
         const refreshedSlot = getCurrentOpenSlot({ databasePath, draftId });
 

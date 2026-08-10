@@ -14,7 +14,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
 
 import { App } from '../src/ui/App.js';
 
@@ -259,12 +258,44 @@ async function renderAppToConfig() {
 
 describe('UI app scaffold', () => {
   // @spec DFF-UI-185
-  test('owns the players-tab selection in the draft app instead of the unmounted panel', () => {
-    const appSource = readFileSync(`${process.cwd()}/src/ui/App.tsx`, 'utf8');
+  test('preserves selected players across every draft tab and clears them through Cancel or Draft', async () => {
+    const user = userEvent.setup();
+    setupDraftLifecycleFetches();
 
-    expect(appSource).toMatch(/const \[selectedPlayerId, setSelectedPlayerId\] = useState<string \| null>\(null\)/);
-    expect(appSource).toMatch(/selectedPlayerId=\{selectedPlayerId\}/);
-    expect(appSource).toMatch(/onSelectedPlayerIdChange=\{setSelectedPlayerId\}/);
+    await renderAppToConfig();
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('state_sync', createDraftingState());
+    });
+
+    await user.click(screen.getByRole('tab', { name: /^players$/i }));
+    await user.click(screen.getByRole('button', { name: /josh allen/i }));
+
+    for (const tabName of ['Board', 'Feed', 'Roster']) {
+      await user.click(screen.getByRole('tab', { name: tabName }));
+    }
+
+    await user.click(screen.getByRole('tab', { name: /^players$/i }));
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /draft josh allen/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /josh allen/i }));
+    await user.click(screen.getByRole('tab', { name: /^board$/i }));
+    await user.click(screen.getByRole('tab', { name: /^players$/i }));
+    await user.click(screen.getByRole('button', { name: /draft josh allen/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/drafts/draft-123/pick',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ playerId: 'player-1' }),
+      }),
+    );
+    expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
   });
 
   // @spec DFF-UI-001

@@ -44,7 +44,7 @@ Open the Vite URL shown in the terminal to begin.
 ## Usage
 
 1. **Resume or start** — if saved drafts exist, the Drafts List page lets you resume an in-progress draft, review a completed one, or start a new draft. Otherwise you land on the config screen.
-2. **Configure your league** — set team count, roster slots, scoring, and your draft position, or load a saved league template.
+2. **Configure your league** — set team count, roster slots, scoring, and your draft position; optionally import the same settings from a public Sleeper league ID or URL, then adjust any field before starting.
 3. **Draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically, may initiate a value-thresholded trade with another bot before selecting a pick, may proactively bring you trade offers during their turns, and will evaluate your counters before the bot chain resumes. If no available player clears a bot's configured position-value floor, it makes a one-pass attempt to move its current pick for future capital, then fills its greatest open roster need or takes noisy BPA once its roster is full. The live draft room is split into **Board**, **Players**, **Feed**, and **Roster** tabs so you can inspect the draft board, available players, the room-wide pick feed, or a single team's pick log without leaving the room.
 4. **Use the advisor (optional)** — on any pick, ask Claude to **Advise me** for a recommendation, or **Grill me** to pressure-test your own reasoning.
 5. **Review your results** — once the draft completes, open the **Draft Grade Summary** for your overall grade, the room leaderboard, and your final roster, then drill into **Full History** (Pick Log / Roster View / Trade Log) if you want it.
@@ -55,6 +55,7 @@ A GitHub Pages–hosted static build (no backend, no advisor) is also available 
 
 | Setting | Default | Notes |
 |---|---|---|
+| Sleeper league import | Optional | Enter a public Sleeper league ID or full league URL to pre-fill team count, scoring, TE premium, and supported roster slots. Sleeper `draft_rounds` is ignored; rounds are suggested from the roster-slot total. |
 | Teams | 12 | |
 | Draft rounds | 20 | |
 | Scoring | PPR | Base scoring format; TE Premium is selected independently (Off, TE+, TE++, TE+++) |

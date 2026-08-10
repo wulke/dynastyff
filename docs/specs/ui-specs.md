@@ -57,13 +57,13 @@ When the user clicks "Start Draft", the system shall POST /drafts with the curre
 **DFF-UI-015** `[x]` → #15
 If POST /drafts returns an error, the system shall display an error toast and remain on the Config screen.
 
-**DFF-UI-193** `[ ]` → #169
+**DFF-UI-193** `[x]` → #169
 When the user submits a valid Sleeper league ID or full Sleeper league URL on the Config screen, the system shall fetch its public settings and pre-fill the editable team count, scoring format, TE-premium tier, and QB/RB/WR/TE/FLEX/SF/BN roster fields.
 
-**DFF-UI-194** `[ ]` → #169
+**DFF-UI-194** `[x]` → #169
 When the system maps a Sleeper league response, it shall derive scoring from `scoring_settings.rec`, TE premium from `scoring_settings.bonus_rec_te`, and supported roster slots from `roster_positions`; it shall derive the Config screen's rounds suggestion from the mapped roster-slot total and shall not use `draft_rounds`.
 
-**DFF-UI-195** `[ ]` → #169
+**DFF-UI-195** `[x]` → #169
 If a Sleeper league import is invalid, unreachable, or malformed, the system shall show a clear inline error and retain the user's current manual Config screen values for editing and draft creation.
 
 ---

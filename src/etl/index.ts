@@ -85,12 +85,12 @@ type EtlStatements = {
 };
 
 // @spec DFF-ETL-002
-function isMissingEtlRunsTableError(error: unknown): boolean {
+function isStaleSchemaError(error: unknown): boolean {
   return (
     error instanceof Error &&
     'code' in error &&
     error.code === 'SQLITE_ERROR' &&
-    error.message.includes('no such table: etl_runs')
+    (error.message.includes('no such table: etl_runs') || error.message.includes('no such column:'))
   );
 }
 
@@ -745,10 +745,10 @@ async function main(): Promise<void> {
     const exitCode = await runEtl();
     process.exitCode = exitCode;
   } catch (error) {
-    if (isMissingEtlRunsTableError(error)) {
+    if (isStaleSchemaError(error)) {
       // @spec DFF-ETL-002
       console.error(
-        '[ETL] ERROR: database schema is missing ETL history tables. Run `npm run db:init` to recreate the local SQLite database with the latest schema.',
+        '[ETL] ERROR: local database schema is out of date. Run `npm run db:init` to recreate the local SQLite database with the latest schema.',
       );
       process.exitCode = 1;
       return;

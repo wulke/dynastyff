@@ -119,6 +119,49 @@ test('etl CLI prints a schema help message when the local database is missing et
   }
 });
 
+// @spec DFF-ETL-002
+test('etl CLI prints a schema help message when the local database is missing a column added by a newer schema', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-stale-column-'));
+  const dbPath = path.join(tempDir, 'stale-column.sqlite');
+
+  try {
+    initializeDatabase(dbPath);
+
+    const db = new Database(dbPath);
+    db.exec('ALTER TABLE players DROP COLUMN dynasty_value_tep');
+    db.close();
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--import', 'tsx', 'src/etl/index.ts'],
+          {
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              DYNASTYFF_DB_PATH: dbPath,
+              DYNASTYFF_KTC_FIXTURE_PATH: path.join(tempDir, 'ktc-empty.json'),
+              DYNASTYFF_FANTASYCALC_FIXTURE_PATH: path.join(tempDir, 'fantasycalc-empty.json'),
+              DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH: path.join(tempDir, 'rosteraudit-empty.json'),
+            },
+            stdio: 'pipe',
+          },
+        ),
+      (error: unknown) => {
+        if (!(error instanceof Error) || !('stderr' in error)) {
+          return false;
+        }
+
+        const stderr = String((error as Error & { stderr?: Buffer }).stderr ?? '');
+        return stderr.includes('Run `npm run db:init`');
+      },
+    );
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('normalizePlayers min-max scales KTC values to 0..9999', () => {
   const players: RawPlayer[] = [
     {

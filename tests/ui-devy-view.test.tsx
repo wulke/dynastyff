@@ -26,12 +26,12 @@ test('DevyView distinguishes college data and filters/sorts it client-side', asy
 
   expect(screen.getByText(/college devy values/i)).toBeInTheDocument();
   expect(screen.getAllByText('DEVY')).toHaveLength(2);
-  expect(screen.getByRole('row', { name: /1 Alpha QB/i })).toBeInTheDocument();
+  expect(screen.getByRole('row', { name: /1Alpha QB/i })).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /1qb/i }));
-  expect(screen.getByRole('row', { name: /1 Bravo WR/i })).toBeInTheDocument();
+  expect(screen.getByRole('row', { name: /1Bravo WR/i })).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'WR' }));
   expect(screen.queryByText('Alpha QB')).not.toBeInTheDocument();
-  await user.type(screen.getByRole('search', { name: /school/i }), 'Ohio');
+  await user.type(screen.getByRole('searchbox', { name: /school/i }), 'Ohio');
   expect(screen.getByText('Bravo WR')).toBeInTheDocument();
 });
 

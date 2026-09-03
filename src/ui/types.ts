@@ -48,4 +48,14 @@ export type Snapshot = {
     round: number;
     dynastyValue: number;
   }>;
+  devyPlayers?: Array<{
+    id: string;
+    name: string;
+    position: 'QB' | 'RB' | 'WR' | 'TE';
+    school: string | null;
+    schoolCode: string | null;
+    draftYear: number;
+    valueSuperflex: number;
+    valueOneQb: number | null;
+  }>;
 };

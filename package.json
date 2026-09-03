@@ -12,6 +12,7 @@
     "db:init": "node --import tsx src/db/init.ts",
     "dev": "vite --config src/ui/vite.config.ts",
     "etl": "node --import tsx src/etl/index.ts",
+    "etl:devy": "node --import tsx src/etl/devy-index.ts",
     "export:snapshot": "node --import tsx src/etl/export-snapshot.ts",
     "etl:sanity-check": "node --import tsx src/etl/sanity-check.ts",
     "preview": "vite preview --config src/ui/vite.config.ts",

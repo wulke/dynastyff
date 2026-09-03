@@ -24,8 +24,9 @@ npx playwright install
 cp .env.example .env
 # Add your ANTHROPIC_API_KEY to .env
 
-# Populate the database (scrapes KTC, FantasyCalc, and RosterAudit)
+# Populate NFL and devy player values
 npm run etl
+npm run etl:devy
 
 # Export the browser snapshot used by the static build
 npm run export:snapshot
@@ -70,7 +71,7 @@ Bot decision-making (bounded need-bias pick scoring, trade evaluation, archetype
 
 ## ETL
 
-`npm run etl` scrapes player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables. KTC's TE+, TE++, and TE+++ values are retained for TE-premium bot valuation; TE+ maps to a +0.5 PPR TE bonus. It's a standalone script and doesn't require the Express server to be running. Run `npm run export:snapshot` afterward to refresh `data/snapshot.json` for the static build.
+`npm run etl` scrapes NFL player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables. `npm run etl:devy` independently scrapes KTC's devy board into `devy_players`; it does not mix college values into NFL rankings. Run both before `npm run export:snapshot` to include devy data in the static build. The global **Devy** link opens a browsable college-values view with position, draft-year, and school filters.
 
 Full scraper, normalization, and matching behavior is documented in [`docs/llds/etl-pipeline.md`](docs/llds/etl-pipeline.md).
 
@@ -96,6 +97,7 @@ A weekly GitHub Actions workflow (`.github/workflows/scheduled-refresh.yml`) run
 | **Setup** | |
 | `npm run db:init` | Initialize the local SQLite schema |
 | `npm run etl` | Scrape and normalize player/pick values |
+| `npm run etl:devy` | Scrape and normalize KTC devy player values |
 | `npm run export:snapshot` | Refresh `data/snapshot.json` for the static build |
 | `npm run etl:sanity-check` | Gate a refreshed snapshot against player/pick-count floors |
 | **Dev** | |

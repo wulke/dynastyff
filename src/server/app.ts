@@ -28,6 +28,7 @@ import {
 import type { ArchetypeConfig } from '../draft/archetype-config.js';
 import {
   draftOrder,
+  devyPlayers,
   drafts,
   leagueConfigs,
   picks,
@@ -105,6 +106,7 @@ export function createDraftApp({
   app.use(express.json());
   app.get('/league-imports/sleeper/:leagueId', createSleeperLeagueImportRoute());
   app.get('/configs', createLeagueConfigsListRoute({ databasePath }));
+  app.get('/devy-players', createDevyPlayersListRoute({ databasePath }));
   app.post('/configs', createLeagueConfigsCreateRoute({ databasePath }));
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath, botChain }));
@@ -120,6 +122,20 @@ export function createDraftApp({
   app.use(createDraftErrorHandler());
 
   return app;
+}
+
+// @spec DFF-DEVY-040
+// @spec DFF-DEVY-041
+export function createDevyPlayersListRoute({ databasePath }: { databasePath: string }): RequestHandler {
+  return (_request, response, next) => {
+    const { db, sqlite } = createDrizzleDb(databasePath);
+    try {
+      response.status(200).json(db.select({
+        id: devyPlayers.id, name: devyPlayers.name, position: devyPlayers.position, school: devyPlayers.school,
+        schoolCode: devyPlayers.schoolCode, draftYear: devyPlayers.draftYear, valueSuperflex: devyPlayers.valueSuperflex, valueOneQb: devyPlayers.valueOneQb,
+      }).from(devyPlayers).orderBy(desc(devyPlayers.valueSuperflex), asc(devyPlayers.name)).all());
+    } catch (error) { next(error); } finally { sqlite.close(); }
+  };
 }
 
 // @spec DFF-UI-193

@@ -79,6 +79,34 @@ export const players = sqliteTable(
   ],
 );
 
+// @spec DFF-DEVY-001
+// @spec DFF-DEVY-002
+// @spec DFF-DEVY-003
+// @spec DFF-DEVY-004
+export const devyPlayers = sqliteTable(
+  'devy_players',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    position: text('position').notNull(),
+    school: text('school'),
+    schoolCode: text('school_code'),
+    draftYear: integer('draft_year').notNull(),
+    valueSuperflex: integer('value_superflex').notNull(),
+    valueOneQb: integer('value_one_qb'),
+    ktcPlayerId: text('ktc_player_id'),
+    mflId: text('mfl_id'),
+    isReturningToSchool: integer('is_returning_to_school', { mode: 'boolean' }).notNull().default(false),
+    isYearDecrement: integer('is_year_decrement', { mode: 'boolean' }).notNull().default(false),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('devy_players_name_position_unique').on(table.name, table.position),
+    index('devy_players_draft_year_idx').on(table.draftYear),
+    check('devy_players_position_check', sql`${table.position} in (${sql.raw(quotedList(playerPositions))})`),
+  ],
+);
+
 // @spec DFF-SPKV-043
 export const drafts = sqliteTable(
   'drafts',

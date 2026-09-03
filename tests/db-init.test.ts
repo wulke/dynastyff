@@ -58,6 +58,7 @@ function withDatabase(run: (db: Database.Database, dbPath: string) => void): voi
 // @spec DFF-HIST-001
 // @spec DFF-HIST-010
 // @spec DFF-HIST-020
+// @spec DFF-DEVY-001
 test('db:init creates all tables defined by the data-model LLD', () => {
   withDatabase((db) => {
     const tableNames = db
@@ -66,6 +67,7 @@ test('db:init creates all tables defined by the data-model LLD', () => {
       .map((row) => (row as { name: string }).name);
 
     assert.deepEqual(tableNames, [
+      'devy_players',
       'draft_order',
       'drafts',
       'etl_runs',

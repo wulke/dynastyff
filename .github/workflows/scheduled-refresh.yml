@@ -52,6 +52,8 @@ jobs:
 
       - run: npm run etl
 
+      - run: npm run etl:devy
+
       - run: npm run export:snapshot
 
       - name: Sanity-check the refreshed snapshot

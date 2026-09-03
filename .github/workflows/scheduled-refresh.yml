@@ -1,0 +1,120 @@
+# @spec DFF-SCHED-001
+# @spec DFF-SCHED-002
+# @spec DFF-SCHED-003
+# @spec DFF-SCHED-004
+# @spec DFF-SCHED-020
+# @spec DFF-SCHED-021
+# @spec DFF-SCHED-022
+# @spec DFF-SCHED-023
+# @spec DFF-SCHED-024
+name: Scheduled ETL refresh
+
+# Weekly ETL + sanity-check gate (#198): pulls fresh player/pick values, runs
+# the sanity-check floors, and — only if everything passes and the snapshot
+# actually changed — opens a PR with the refreshed data/snapshot.json. Before
+# opening, it supersedes (closes) any still-open refresh/snapshot-* PRs: the
+# snapshot is full-state, so the newest refresh contains all prior data.
+# Never pushes to main directly — a human reviews and merges every update,
+# same as a manual `npm run etl`. Replaces the direct-push etl-snapshot.yml.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+# One refresh pipeline at a time — a manual dispatch overlapping the cron run
+# must not race the supersede / branch-push / PR-open sequence.
+concurrency:
+  group: scheduled-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Initialize a fresh database
+        run: npm run db:init
+
+      - run: npm run etl
+
+      - run: npm run export:snapshot
+
+      - name: Sanity-check the refreshed snapshot
+        id: sanity_check
+        run: npm run etl:sanity-check
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet -- data/snapshot.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Supersede stale refresh PRs
+        # snapshot.json is full-state: today's refresh contains everything
+        # yesterday's did, so still-open refresh PRs are obsolete, not a merge
+        # queue. Close them before opening today's so the open set is always
+        # exactly one PR cut from current main — conflicts are then impossible.
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr list --state open --json number,headRefName \
+            | jq -r '.[] | select(.headRefName | startswith("refresh/snapshot-")) | .number' \
+            | while read -r pr; do
+                echo "Superseding stale refresh PR #$pr"
+                gh pr close "$pr" --delete-branch \
+                  --comment "Superseded by today's scheduled refresh — snapshot.json is full-state, so the newest PR contains all prior data."
+              done
+
+      - name: Open refresh PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCES_WARNING: ${{ steps.sanity_check.outputs.sources_warning }}
+        run: |
+          branch="refresh/snapshot-$(date -u +%Y-%m-%d)-${GITHUB_RUN_NUMBER}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add data/snapshot.json
+          git commit -m "chore: scheduled snapshot refresh ($(date -u +%Y-%m-%d))"
+          git push origin "$branch"
+
+          body="Automated ETL refresh (cron). Sanity-check floors passed (player/pick counts)."
+          if [ -n "$SOURCES_WARNING" ]; then
+            body="$body
+
+**Warning:** $SOURCES_WARNING"
+          fi
+          body="$body
+
+Review the diff and merge — this workflow never pushes to main directly."
+
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore: scheduled snapshot refresh ($(date -u +%Y-%m-%d))" \
+            --body "$body"
+
+          # PRs opened by GITHUB_TOKEN don't trigger ci.yml's pull_request
+          # event, so dispatch it manually against this branch to populate
+          # the required "check" status on the same commit.
+          gh workflow run ci.yml --ref "$branch"

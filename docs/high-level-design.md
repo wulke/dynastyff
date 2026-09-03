@@ -113,8 +113,9 @@ Data (player values, ADP, dynasty rankings, Sleeper league state) is pre-loaded 
 └──────────────────────────┬──────────────────────────────────────┘
                            │ GitHub Actions
 ┌──────────────────────────▼──────────────────────────────────────┐
-│  etl-snapshot.yml: workflow_dispatch → ETL →                     │
-│    export-snapshot → commit data/snapshot.json                   │
+│  scheduled-refresh.yml: weekly cron | workflow_dispatch →        │
+│    ETL → export-snapshot → sanity-check gate → PR to main        │
+│    (never pushes to main directly; llds/etl-scheduling.md)       │
 │  pages.yml: push to main → vite build → Pages deploy             │
 │  https://wulke.github.io/dynastyff/                              │
 └─────────────────────────────────────────────────────────────────┘
@@ -142,7 +143,7 @@ Data (player values, ADP, dynasty rankings, Sleeper league state) is pre-loaded 
 **Shared (both modes):**
 
 - **Data Model** (`llds/data-model.md`) — SQLite schema extended with `sleeper_leagues`, `sleeper_rosters`, `sleeper_players`, `sleeper_teams`, and `sleeper_trade_offers` tables. Existing tables unchanged.
-- **ETL Pipeline** (`llds/etl-pipeline.md`) — extended to run Sleeper sync as a final step. Designed for scheduled execution (e.g., nightly cron) in addition to manual `npm run etl` invocation.
+- **ETL Pipeline** (`llds/etl-pipeline.md`) — extended to run Sleeper sync as a final step. Runs on a weekly schedule via `scheduled-refresh.yml` (`llds/etl-scheduling.md`), in addition to manual `npm run etl` invocation.
 
 ## Key Design Decisions
 

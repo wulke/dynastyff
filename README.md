@@ -74,6 +74,8 @@ Bot decision-making (bounded need-bias pick scoring, trade evaluation, archetype
 
 Full scraper, normalization, and matching behavior is documented in [`docs/llds/etl-pipeline.md`](docs/llds/etl-pipeline.md).
 
+A weekly GitHub Actions workflow (`.github/workflows/scheduled-refresh.yml`) runs the ETL on a schedule, gates the result with `npm run etl:sanity-check` (fixed player/pick-count floors), and opens a PR with the refreshed `data/snapshot.json` for review rather than pushing to `main` directly. `workflow_dispatch` triggers an on-demand run. See [`docs/llds/etl-scheduling.md`](docs/llds/etl-scheduling.md).
+
 `player-aliases.json` lives at the project root and lets you map scraper name variants onto a canonical player:
 
 ```json
@@ -95,6 +97,7 @@ Full scraper, normalization, and matching behavior is documented in [`docs/llds/
 | `npm run db:init` | Initialize the local SQLite schema |
 | `npm run etl` | Scrape and normalize player/pick values |
 | `npm run export:snapshot` | Refresh `data/snapshot.json` for the static build |
+| `npm run etl:sanity-check` | Gate a refreshed snapshot against player/pick-count floors |
 | **Dev** | |
 | `npm run serve` | Start the local HTTP API server and SSE stream |
 | `npm run dev` | Start the Vite React frontend |

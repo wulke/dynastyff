@@ -13,6 +13,7 @@
     "dev": "vite --config src/ui/vite.config.ts",
     "etl": "node --import tsx src/etl/index.ts",
     "export:snapshot": "node --import tsx src/etl/export-snapshot.ts",
+    "etl:sanity-check": "node --import tsx src/etl/sanity-check.ts",
     "preview": "vite preview --config src/ui/vite.config.ts",
     "serve": "node --import tsx src/server/index.ts",
     "test": "npm run test:server && npm run test:ui",

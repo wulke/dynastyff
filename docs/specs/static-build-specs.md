@@ -111,20 +111,25 @@ If the static bot loop encounters an invariant failure while selecting or submit
 
 ## GitHub Actions: ETL Snapshot Workflow
 
-**DFF-STATIC-040** `[x]` → #57
-The system shall provide a GitHub Actions workflow file at `.github/workflows/etl-snapshot.yml` triggered exclusively by `workflow_dispatch`.
+**DFF-STATIC-040** `[D]` → #57
+~~The system shall provide a GitHub Actions workflow file at `.github/workflows/etl-snapshot.yml` triggered exclusively by `workflow_dispatch`.~~
+*Retired by the Scheduled ETL Refresh effort; `etl-snapshot.yml` is removed and replaced by `scheduled-refresh.yml`'s PR-based flow, per `docs/specs/etl-scheduling-specs.md`.*
 
-**DFF-STATIC-041** `[x]` → #57
-The ETL snapshot workflow shall: install Node 22, run `npm ci`, install Playwright Chromium (`npx playwright install --with-deps chromium`), run `npm run etl`, and run `npm run export:snapshot`.
+**DFF-STATIC-041** `[D]` → #57
+~~The ETL snapshot workflow shall: install Node 22, run `npm ci`, install Playwright Chromium (`npx playwright install --with-deps chromium`), run `npm run etl`, and run `npm run export:snapshot`.~~
+*Retired; equivalent steps now live in `scheduled-refresh.yml` per DFF-SCHED-003.*
 
-**DFF-STATIC-042** `[x]` → #57
-After `export:snapshot` completes, the ETL snapshot workflow shall commit and push `data/snapshot.json` to the branch that triggered the workflow using the `github-actions[bot]` identity.
+**DFF-STATIC-042** `[D]` → #57
+~~After `export:snapshot` completes, the ETL snapshot workflow shall commit and push `data/snapshot.json` to the branch that triggered the workflow using the `github-actions[bot]` identity.~~
+*Retired; `scheduled-refresh.yml` opens a PR instead of pushing directly, per DFF-SCHED-022.*
 
-**DFF-STATIC-043** `[x]` → #57
-If `data/snapshot.json` is unchanged after the export (no diff), the ETL snapshot workflow shall skip the commit step and exit cleanly without error.
+**DFF-STATIC-043** `[D]` → #57
+~~If `data/snapshot.json` is unchanged after the export (no diff), the ETL snapshot workflow shall skip the commit step and exit cleanly without error.~~
+*Retired by DFF-SCHED-020, same behavior in `scheduled-refresh.yml`.*
 
-**DFF-STATIC-044** `[x]` → #57
-If `npm run export:snapshot` exits with a non-zero code, the ETL snapshot workflow shall fail the job and not attempt a commit.
+**DFF-STATIC-044** `[D]` → #57
+~~If `npm run export:snapshot` exits with a non-zero code, the ETL snapshot workflow shall fail the job and not attempt a commit.~~
+*Retired; `scheduled-refresh.yml` fails the job the same way — no dedicated replacement ID, this is standard step-failure propagation.*
 
 ---
 

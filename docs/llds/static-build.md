@@ -176,16 +176,9 @@ Source-specific value columns (`value_ktc`, `value_fantasycalc`, etc.) are omitt
 
 ## GitHub Actions Workflows
 
-### ETL snapshot workflow (`etl-snapshot.yml`)
+### Scheduled ETL refresh workflow (`scheduled-refresh.yml`)
 
-Triggered by `workflow_dispatch` only. Steps:
-1. Checkout repo
-2. Set up Node 22, `npm ci`
-3. Install Playwright browsers (`npx playwright install --with-deps chromium`)
-4. Run `npm run etl` (populates `data/dynastyff.sqlite`)
-5. Run `npm run export:snapshot` (writes `data/snapshot.json`)
-6. Commit and push `data/snapshot.json` back to the triggering branch using the GitHub Actions bot identity (`github-actions[bot]`)
-7. If no changes to `snapshot.json`, skip commit and exit cleanly
+Triggered weekly by `schedule` and on-demand by `workflow_dispatch`; see `llds/etl-scheduling.md` for the full design. Runs the ETL and `export:snapshot` from a fresh (non-persisted) database, gates the result behind `npm run etl:sanity-check`, and — only if the snapshot changed — opens a PR against `main` rather than pushing directly. Replaces the earlier direct-push `etl-snapshot.yml`.
 
 The SQLite file is not committed — only `snapshot.json`.
 
@@ -288,7 +281,7 @@ data/
 .github/
   workflows/
     ci.yml               — existing
-    etl-snapshot.yml     — NEW
+    scheduled-refresh.yml — see llds/etl-scheduling.md
     pages.yml            — NEW
 ```
 

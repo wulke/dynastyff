@@ -58,11 +58,21 @@ import {
   TradeOfferSubmissionValidationError,
 } from './config.js';
 import { mapSleeperLeagueSettings } from './sleeper-config-import.js';
+import {
+  createSleeperConnectionsCreateRoute,
+  createSleeperConnectionsDeleteRoute,
+  createSleeperConnectionsListRoute,
+  createSleeperLeaguePreviewRoute,
+  createSleeperSyncRoute,
+  createSleeperSyncStatusRoute,
+  createSleeperUserRoute,
+} from './sleeper-routes.js';
 
 type CreateDraftServerOptions = {
   databasePath: string;
   archetypeConfig?: ArchetypeConfig;
   botChain?: BotChainCoordinator;
+  fetchImpl?: typeof fetch;
 };
 
 type SavedLeagueConfigRouteOptions = {
@@ -100,10 +110,25 @@ export function createDraftApp({
   databasePath,
   archetypeConfig,
   botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
+  fetchImpl,
 }: CreateDraftServerOptions): Express {
   const app = express();
 
   app.use(express.json());
+  // @spec DFF-SLS-010
+  app.get('/sleeper/user/:username', createSleeperUserRoute({ fetchImpl }));
+  // @spec DFF-SLS-011
+  app.get('/sleeper/league/:league_id', createSleeperLeaguePreviewRoute({ fetchImpl }));
+  // @spec DFF-SLS-012
+  app.post('/sleeper/connections', createSleeperConnectionsCreateRoute({ databasePath, fetchImpl }));
+  // @spec DFF-SLS-013
+  app.delete('/sleeper/connections/:id', createSleeperConnectionsDeleteRoute({ databasePath }));
+  // @spec DFF-SLS-014
+  app.get('/sleeper/connections', createSleeperConnectionsListRoute({ databasePath }));
+  // @spec DFF-SLS-020
+  app.post('/sleeper/sync', createSleeperSyncRoute({ databasePath, fetchImpl }));
+  // @spec DFF-SLS-021
+  app.get('/sleeper/sync/status', createSleeperSyncStatusRoute({ databasePath }));
   app.get('/league-imports/sleeper/:leagueId', createSleeperLeagueImportRoute());
   app.get('/configs', createLeagueConfigsListRoute({ databasePath }));
   app.get('/devy-players', createDevyPlayersListRoute({ databasePath }));

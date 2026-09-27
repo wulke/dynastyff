@@ -40,6 +40,7 @@ import {
 import { scrapeFantasyCalc } from './scraper/fantasycalc.js';
 import { scrapeKtcPlayers } from './scraper/ktc.js';
 import { scrapeRosterAudit } from './scraper/rosteraudit.js';
+import { runSleeperSync } from './sleeper/sync.js';
 import { type EtlSource, type NormalizedPickValue, type NormalizedPlayer, type RawPlayer, type ScraperResult } from './types.js';
 
 type RunEtlOptions = {
@@ -48,6 +49,7 @@ type RunEtlOptions = {
   scrapeKtc?: () => Promise<ScraperResult>;
   scrapeFantasycalc?: () => Promise<ScraperResult>;
   scrapeRosteraudit?: () => Promise<ScraperResult>;
+  sleeperSync?: (options: { databasePath?: string }) => Promise<unknown>;
   now?: () => string;
 };
 
@@ -725,6 +727,16 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
       console.warn(
         `[ETL] WARN: no startup pick values were written for ${currentYear}. Re-run ETL before starting a draft.`,
       );
+    }
+
+    // @spec DFF-SLS-002
+    // @spec DFF-SLS-004
+    try {
+      const sleeperSync = options.sleeperSync ?? runSleeperSync;
+      await sleeperSync({ databasePath: options.databasePath });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[ETL] WARN: Sleeper sync step failed — ${message}. ETL run completes anyway.`);
     }
 
     console.log('[ETL] Done.');

@@ -56,6 +56,7 @@ import { DraftGradeSummaryView } from './components/DraftGradeSummaryView.js';
 import { HistoryView } from './components/HistoryView.js';
 import { TradeModal, type TradeComposerState } from './components/TradeModal.js';
 import { DevyView } from './components/DevyView.js';
+import { MyTeamSection } from './components/MyTeamSection.js';
 import type { Snapshot } from './types.js';
 
 type DevyPlayer = NonNullable<Snapshot['devyPlayers']>[number];
@@ -110,11 +111,12 @@ function ThemeSwitcher() {
 }
 
 // @spec DFF-DEVY-040
-function AppHeader({ onDevyClick }: { onDevyClick: () => void }) {
+// @spec DFF-SM-001
+function AppHeader({ onDevyClick, onMyTeamClick }: { onDevyClick: () => void; onMyTeamClick: () => void }) {
   return (
     <header className="sticky top-0 z-50 flex h-10 items-center justify-between border-b border-default bg-surface px-4">
       <span className="font-condensed text-sm font-bold tracking-wide text-primary">DFF</span>
-      <div className="flex items-center gap-2"><button type="button" onClick={onDevyClick} className="rounded border border-default px-2 py-1 text-xs font-semibold text-secondary hover:border-accent hover:text-accent">Devy</button><ThemeSwitcher /></div>
+      <div className="flex items-center gap-2"><button type="button" onClick={onMyTeamClick} className="rounded border border-default px-2 py-1 text-xs font-semibold text-secondary hover:border-accent hover:text-accent">My Team</button><button type="button" onClick={onDevyClick} className="rounded border border-default px-2 py-1 text-xs font-semibold text-secondary hover:border-accent hover:text-accent">Devy</button><ThemeSwitcher /></div>
     </header>
   );
 }
@@ -538,6 +540,8 @@ export function DraftApp() {
   // @spec DFF-DEVY-041
   const [showDevy, setShowDevy] = useState(false);
   const [httpDevyPlayers, setHttpDevyPlayers] = useState<DevyPlayer[]>([]);
+  // @spec DFF-SM-001
+  const [showMyTeam, setShowMyTeam] = useState(false);
   const showErrorRef = useRef(showError);
 
   useEffect(() => {
@@ -916,15 +920,17 @@ export function DraftApp() {
 
   return (
     <>
-      <AppHeader onDevyClick={() => setShowDevy((current) => !current)} />
+      <AppHeader onDevyClick={() => setShowDevy((current) => !current)} onMyTeamClick={() => setShowMyTeam((current) => !current)} />
       <main className="bg-app-gradient px-4 py-6 text-primary" style={{ minHeight: 'calc(100vh - 2.5rem)' }}>
       <div className="mx-auto flex max-w-7xl items-start justify-center" style={{ minHeight: 'calc(100vh - 2.5rem - 3rem)' }}>
+        {/* @spec DFF-SM-001 */}
+        {showMyTeam ? <MyTeamSection /> : null}
         {/* @spec DFF-UI-116 */}
-        {showDevy ? <DevyView players={snapshot?.devyPlayers ?? httpDevyPlayers} /> : null}
-        {!showDevy && showDraftsListLoading ? <DraftsListLoadingState /> : null}
+        {!showMyTeam && showDevy ? <DevyView players={snapshot?.devyPlayers ?? httpDevyPlayers} /> : null}
+        {!showMyTeam && !showDevy && showDraftsListLoading ? <DraftsListLoadingState /> : null}
 
         {/* @spec DFF-UI-110 */}
-        {!showDevy && !showDraftsListLoading && view === 'drafts-list' ? (
+        {!showMyTeam && !showDevy && !showDraftsListLoading && view === 'drafts-list' ? (
           <DraftsListPage
             drafts={draftsList}
             onNavigateToConfig={() => {
@@ -944,7 +950,7 @@ export function DraftApp() {
           />
         ) : null}
 
-        {!showDevy && !showDraftsListLoading && view === 'config' ? (
+        {!showMyTeam && !showDevy && !showDraftsListLoading && view === 'config' ? (
           <DraftConfigScreen
             config={draftConfig}
             isSubmitting={isSubmittingDraft}
@@ -978,7 +984,7 @@ export function DraftApp() {
         {/* @spec DFF-UI-186 */}
         {/* @spec DFF-UI-191 */}
         {/* @spec DFF-UI-192 */}
-        {!showDevy && !showDraftsListLoading && view === 'drafting' && draftState ? (
+        {!showMyTeam && !showDevy && !showDraftsListLoading && view === 'drafting' && draftState ? (
           <div className="flex w-full flex-col gap-4">
             <DraftStatusBar draftState={draftState} />
             <DraftTabStrip
@@ -1058,7 +1064,7 @@ export function DraftApp() {
 
         {/* @spec DFF-UI-060 */}
         {/* @spec DFF-UI-065 */}
-        {!showDevy && !showDraftsListLoading && view === 'history' && draftState ? (
+        {!showMyTeam && !showDevy && !showDraftsListLoading && view === 'history' && draftState ? (
           <HistoryView
             draftState={draftState}
             onNewDraft={() => {
@@ -1076,7 +1082,7 @@ export function DraftApp() {
           />
         ) : null}
 
-        {!showDevy && !showDraftsListLoading && view === 'grade-summary' ? (
+        {!showMyTeam && !showDevy && !showDraftsListLoading && view === 'grade-summary' ? (
           draftState ? (
             <DraftGradeSummaryView
               draftState={draftState}

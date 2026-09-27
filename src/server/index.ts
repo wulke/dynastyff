@@ -3,6 +3,7 @@
 import { resolveDatabasePath } from '../db/init.js';
 import { loadStartupArchetypeConfig } from '../draft/archetype-config.js';
 import { createDraftApp } from './app.js';
+import { maybeRunStartupSleeperSync } from './sleeper-routes.js';
 import { resolveApiPort } from './runtime.js';
 
 const port = resolveApiPort();
@@ -12,4 +13,7 @@ const app = createDraftApp({ databasePath, archetypeConfig });
 
 app.listen(port, () => {
   console.log(`[server] listening on http://localhost:${port}`);
+
+  // @spec DFF-SLS-022 — background startup sync, never blocks the server.
+  void maybeRunStartupSleeperSync({ databasePath });
 });

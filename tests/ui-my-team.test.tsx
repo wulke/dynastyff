@@ -1,0 +1,232 @@
+// @spec DFF-SLS-080
+// @spec DFF-SLS-081
+// @spec DFF-SLS-082
+// @spec DFF-SM-001
+// @spec DFF-SM-002
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
+import { afterEach, expect, test, vi } from 'vitest';
+
+import { MyTeamSection } from '../src/ui/components/MyTeamSection.js';
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+type FetchCall = { url: string; init?: RequestInit };
+
+function stubFetch(handler: (url: string, init?: RequestInit) => { status?: number; body: unknown }): {
+  calls: FetchCall[];
+} {
+  const calls: FetchCall[] = [];
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const resolvedUrl = String(url);
+      calls.push({ url: resolvedUrl, init });
+      const result = handler(resolvedUrl, init);
+      const status = result.status ?? 200;
+
+      return new Response(status === 204 ? null : JSON.stringify(result.body), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      });
+    }),
+  );
+
+  return { calls };
+}
+
+const emptyConnections = { status: 200, body: [] };
+
+// @spec DFF-SM-001
+// @spec DFF-SM-002
+test('MyTeamSection renders the connection prompt when no league is connected', async () => {
+  stubFetch(() => emptyConnections);
+
+  render(<MyTeamSection />);
+
+  expect(await screen.findByText(/connect your sleeper league/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/sleeper username/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/sleeper league id/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /find my leagues/i })).toBeDisabled();
+});
+
+// @spec DFF-SLS-080
+test('the username flow lists dynasty leagues and connects the selected one', async () => {
+  const user = userEvent.setup();
+  let connections: unknown[] = [];
+  const { calls } = stubFetch((url, init) => {
+    if (url === '/sleeper/connections' && !init?.method) {
+      return { body: connections };
+    }
+
+    if (url === '/sleeper/sync/status') {
+      return { body: [] };
+    }
+
+    if (url === '/sleeper/user/trev') {
+      return {
+        body: {
+          userId: 'u1',
+          username: 'trev',
+          leagues: [
+            { leagueId: '111', name: 'Gridiron Guild', season: '2026', totalRosters: 12, status: 'in_season' },
+          ],
+        },
+      };
+    }
+
+    if (url === '/sleeper/connections' && init?.method === 'POST') {
+      connections = [
+        { id: 'c1', leagueId: '111', leagueName: 'Gridiron Guild', season: '2026', rosterId: 2, lastSyncedAt: null },
+      ];
+      return { status: 201, body: { id: 'c1', leagueId: '111' } };
+    }
+
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  await screen.findByText(/connect your sleeper league/i);
+
+  await user.type(screen.getByLabelText(/sleeper username/i), 'trev');
+  await user.click(screen.getByRole('button', { name: /find my leagues/i }));
+
+  expect(await screen.findByText('Gridiron Guild')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Connect' }));
+
+  await waitFor(() => {
+    expect(screen.getByText(/connected leagues/i)).toBeInTheDocument();
+  });
+
+  const connectCall = calls.find((call) => call.url === '/sleeper/connections' && call.init?.method === 'POST');
+  expect(connectCall).toBeDefined();
+  expect(JSON.parse(String(connectCall?.init?.body))).toEqual({
+    username: 'trev',
+    league_id: '111',
+  });
+});
+
+// @spec DFF-SLS-081
+test('the direct league ID flow previews the league before connecting', async () => {
+  const user = userEvent.setup();
+  let connections: unknown[] = [];
+  const { calls } = stubFetch((url, init) => {
+    if (url === '/sleeper/connections' && !init?.method) {
+      return { body: connections };
+    }
+
+    if (url === '/sleeper/sync/status') {
+      return { body: [] };
+    }
+
+    if (url === '/sleeper/league/123456789') {
+      return {
+        body: { leagueId: '123456789', name: 'Preview League', season: '2026', totalRosters: 10, status: 'in_season' },
+      };
+    }
+
+    if (url === '/sleeper/connections' && init?.method === 'POST') {
+      connections = [
+        { id: 'c2', leagueId: '123456789', leagueName: 'Preview League', season: '2026', rosterId: 1, lastSyncedAt: null },
+      ];
+      return { status: 201, body: { id: 'c2', leagueId: '123456789' } };
+    }
+
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  await screen.findByText(/connect your sleeper league/i);
+
+  await user.type(screen.getByLabelText(/sleeper username/i), 'trev');
+  await user.type(screen.getByLabelText(/sleeper league id/i), '123456789');
+  await user.click(screen.getByRole('button', { name: /preview league/i }));
+
+  expect(await screen.findByText('Preview League')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Connect' }));
+
+  await waitFor(() => {
+    expect(screen.getByText(/connected leagues/i)).toBeInTheDocument();
+  });
+
+  expect(
+    calls.some((call) => call.url === '/sleeper/league/123456789'),
+  ).toBe(true);
+});
+
+// @spec DFF-SLS-082
+test('connected leagues list shows sync status, manual refresh, and disconnect', async () => {
+  const user = userEvent.setup();
+  let connections = [
+    {
+      id: 'c1',
+      leagueId: '111',
+      leagueName: 'Gridiron Guild',
+      season: '2026',
+      rosterId: 2,
+      lastSyncedAt: '2026-09-27T10:00:00.000Z',
+    },
+  ];
+
+  const { calls } = stubFetch((url, init) => {
+    if (url === '/sleeper/connections' && !init?.method) {
+      return { body: connections };
+    }
+
+    if (url === '/sleeper/connections/c1' && init?.method === 'DELETE') {
+      connections = [];
+      return { status: 204, body: null };
+    }
+
+    if (url === '/sleeper/sync/status') {
+      return {
+        body: [
+          {
+            leagueId: '111',
+            leagueName: 'Gridiron Guild',
+            lastSyncedAt: '2026-09-27T10:00:00.000Z',
+            lastRun: { startedAt: '2026-09-27T10:00:00.000Z', completedAt: '2026-09-27T10:00:05.000Z', error: null },
+          },
+        ],
+      };
+    }
+
+    if (url === '/sleeper/sync' && init?.method === 'POST') {
+      return { body: { skipped: false, attempted: ['111'], succeeded: ['111'], outcomes: [] } };
+    }
+
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  expect(await screen.findByText('Gridiron Guild')).toBeInTheDocument();
+  expect(screen.getByText(/synced /i)).toBeInTheDocument();
+  expect(screen.getByText('ok')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: /sync now/i }));
+
+  await waitFor(() => {
+    expect(
+      calls.some((call) => call.url === '/sleeper/sync' && call.init?.method === 'POST'),
+    ).toBe(true);
+  });
+
+  await user.click(screen.getByRole('button', { name: /disconnect/i }));
+
+  await waitFor(() => {
+    expect(screen.getByText(/connect your sleeper league/i)).toBeInTheDocument();
+  });
+
+  expect(
+    calls.some((call) => call.url === '/sleeper/connections/c1' && call.init?.method === 'DELETE'),
+  ).toBe(true);
+});

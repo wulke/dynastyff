@@ -15,6 +15,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/sleeper': {
+        target: resolveApiBaseUrl(),
+      },
       '/configs': {
         target: resolveApiBaseUrl(),
       },

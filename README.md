@@ -38,7 +38,7 @@ npm run serve
 npm run dev
 ```
 
-The Vite dev server proxies `/drafts`, `/configs`, and `/sleeper` requests to `http://localhost:3001`, so both commands should be running for draft creation, saved-config reads/writes, state/history reads, the live draft SSE stream, and My Team Sleeper connections/sync.
+The Vite dev server proxies `/drafts`, `/configs`, `/sleeper`, and `/season` requests to `http://localhost:3001`, so both commands should be running for draft creation, saved-config reads/writes, state/history reads, the live draft SSE stream, and My Team Sleeper connections/sync/roster overview.
 
 Open the Vite URL shown in the terminal to begin.
 
@@ -49,7 +49,7 @@ Open the Vite URL shown in the terminal to begin.
 3. **Draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically, may initiate a value-thresholded trade with another bot before selecting a pick, may proactively bring you trade offers during their turns, and will evaluate your counters before the bot chain resumes. If no available player clears a bot's configured position-value floor, it makes a one-pass attempt to move its current pick for future capital, then fills its greatest open roster need or takes noisy BPA once its roster is full. The live draft room is split into **Board**, **Players**, **Feed**, and **Roster** tabs so you can inspect the draft board, available players, the room-wide pick feed, or a single team's pick log without leaving the room.
 4. **Use the advisor (optional)** — on any pick, ask Claude to **Advise me** for a recommendation, or **Grill me** to pressure-test your own reasoning.
 5. **Review your results** — once the draft completes, open the **Draft Grade Summary** for your overall grade, the room leaderboard, and your final roster, then drill into **Full History** (Pick Log / Roster View / Trade Log) if you want it.
-6. **Connect a real league (My Team)** — open **My Team** in the header to connect Sleeper leagues by username or league ID. The section lists connected leagues with last-sync status, a manual **Sync now** button, and per-league disconnect. Roster evaluation, trade analysis, and waiver tools arrive with Season Management.
+6. **Connect a real league (My Team)** — open **My Team** in the header to connect Sleeper leagues by username or league ID. Connected leagues land on the **Roster Overview**: overall and per-position grades (QB/RB/WR/TE) with percentiles, contender/rebuilder context, and your full roster including taxi/IR. The header warns when synced data is stale; **Refresh** re-syncs from Sleeper. League tabs switch between multiple connected leagues; **Manage connections** exposes sync status and disconnect. Trade analysis and waiver tools arrive with the remaining Season Management slices.
 
 A GitHub Pages–hosted static build (no backend, no advisor) is also available for offline practice; see `docs/llds/static-build.md`.
 

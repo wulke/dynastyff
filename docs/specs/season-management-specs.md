@@ -14,54 +14,54 @@ The system shall render a top-level "My Team" navigation section that is accessi
 **DFF-SM-002** `[x]`
 When the My Team section loads and no league is connected, the system shall display a league connection prompt with options to enter a Sleeper username or a league ID directly.
 
-**DFF-SM-003** `[ ]`
+**DFF-SM-003** `[x]`
 When the My Team section loads and at least one league is connected, the system shall render the Roster Overview as the landing view.
 
-**DFF-SM-004** `[ ]`
+**DFF-SM-004** `[x]`
 The My Team section shall display a manual refresh button that triggers `POST /sleeper/sync` and re-fetches the Roster Overview on completion.
 
 ---
 
 ## Roster Overview
 
-**DFF-SM-010** `[ ]`
+**DFF-SM-010** `[x]`
 The system shall expose `GET /season/:league_id/overview` which returns a `RosterOverview` object including overall grade, overall percentile, team context, and per-position breakdown.
 
-**DFF-SM-011** `[ ]`
+**DFF-SM-011** `[x]`
 For each position group (QB, RB, WR, TE), the system shall compute a value score as the sum of `dynasty_value` of all starters at that position using the league's roster position configuration.
 
-**DFF-SM-012** `[ ]`
+**DFF-SM-012** `[x]`
 For each position group, the system shall compute an age curve score as the weighted mean age of starters at that position compared against a position-specific prime age baseline (QB: 27, RB: 24, WR: 25, TE: 26). Players 3+ years past peak prime shall penalize the score; players 2+ years below peak prime shall receive a bonus.
 
-**DFF-SM-013** `[ ]`
+**DFF-SM-013** `[x]`
 For each position group, the system shall compute a depth score as the ratio of the user's total positional dynasty value (starters and bench) to the league median for that position.
 
-**DFF-SM-014** `[ ]`
+**DFF-SM-014** `[x]`
 For each position group, the system shall compute a percentile rank as the user's starter value sum ranked against all other teams in the league at the same position, expressed as a 0–100 percentile.
 
-**DFF-SM-015** `[ ]`
+**DFF-SM-015** `[x]`
 Each position group shall receive a composite score weighted as: value score 50%, depth score 30%, age curve score 20%.
 
-**DFF-SM-016** `[ ]`
+**DFF-SM-016** `[x]`
 The system shall map position composite scores to letter grades: 85–100 → A, 70–84 → B, 55–69 → C, 40–54 → D, 0–39 → F.
 
-**DFF-SM-017** `[ ]`
+**DFF-SM-017** `[x]`
 The overall team grade shall be the weighted average of position composites, weighted by the league's roster slot count per position.
 
-**DFF-SM-018** `[ ]`
+**DFF-SM-018** `[x]`
 The Roster Overview endpoint shall not invoke Claude. It shall return pure algorithm output only.
 
-**DFF-SM-019** `[ ]`
+**DFF-SM-019** `[x]`
 The UI shall render the overall grade and percentile as the Roster Overview header, with per-position grade, percentile, and starter list displayed below.
 
 ---
 
 ## Team Context
 
-**DFF-SM-025** `[ ]`
+**DFF-SM-025** `[x]`
 The system shall classify each team as `contender` or `rebuilder` based on win-loss record: teams in the top half of the league standings shall be classified as `contender`; teams in the bottom half shall be classified as `rebuilder`.
 
-**DFF-SM-026** `[ ]`
+**DFF-SM-026** `[x]`
 The UI shall display the user's team context classification (contender / rebuilder) as a badge on the Roster Overview.
 
 ---
@@ -69,7 +69,7 @@ The UI shall display the user's team context classification (contender / rebuild
 ## Trade Scoring
 
 **DFF-SM-030** `[ ]`
-The system shall expose `GET /season/:league_id/trades/pending` which returns all pending Sleeper trade offers from `sleeper_trade_offers` with a pre-computed `TradeScore` for each.
+The system shall expose `GET /season/:league_id/trades/pending` which returns all pending Sleeper trade offers from `sleeper_trade_offers` **that involve the user's roster** (as proposer or responder), each with a pre-computed `TradeScore`. Pending offers between other teams shall be excluded — the five-signal model is user-perspective only.
 
 **DFF-SM-031** `[ ]`
 The system shall expose `POST /season/:league_id/trades/analyze` which accepts a `transaction_id`, computes (or retrieves) the `TradeScore`, invokes Claude with the score and league context, and returns Claude's structured reasoning.
@@ -180,10 +180,10 @@ The UI shall render each waiver pair as a single row showing the add player (nam
 
 ## Context Assembly
 
-**DFF-SM-070** `[ ]`
+**DFF-SM-070** `[x]`
 Each Season Management request shall assemble a `LeagueContext` object containing: league settings, the user's roster with dynasty values, all team rosters with records, free agents ranked by dynasty value, pending trade offers, and league median dynasty value per position.
 
-**DFF-SM-071** `[ ]`
+**DFF-SM-071** `[x]`
 `LeagueContext` shall be assembled fresh on each request from SQLite. It shall not be cached between requests.
 
 **DFF-SM-072** `[ ]`
@@ -193,14 +193,23 @@ The full player pool shall not be sent to Claude. The Claude context shall inclu
 
 ## Edge Cases
 
-**DFF-SM-080** `[ ]`
+**DFF-SM-080** `[x]`
 When a player on the user's Sleeper roster has `players_id = NULL` (unmatched during Sleeper sync), the system shall include the player in roster display using only Sleeper metadata (name, position) and treat their `dynasty_value` as 0 for all scoring calculations.
 
-**DFF-SM-081** `[ ]`
+**DFF-SM-081** `[x]`
 When `GET /season/:league_id/overview` is called and the last Sleeper sync is older than 1 hour, the system shall include a `staleSince` timestamp in the response. The UI shall display a stale data warning with the manual refresh button.
 
 **DFF-SM-082** `[ ]`
 When a pending trade offer references a pick asset with no matching row in `pick_values`, the system shall treat that pick's dynasty value as 0 and include a warning flag in the `TradeScore` response.
 
-**DFF-SM-083** `[ ]`
+**DFF-SM-083** `[x]`
 When the user's league has fewer than 4 teams with data (e.g., a partially synced league), the system shall return a 422 response from all Season Management endpoints with a clear error message indicating insufficient league data.
+
+**DFF-SM-084** `[x]`
+The Roster Evaluator shall include taxi-squad players in depth scoring and shall exclude IR players from all grade components while retaining them in roster display data.
+
+**DFF-SM-085** `[ ]`
+The system shall recompute trade recommendations on every request without a TTL cache; the `lastComputedAt` timestamp shall reflect the actual computation time.
+
+**DFF-SM-086** `[ ]`
+The system shall recompute Claude reasoning on each analyze request and shall not persist narrative responses between requests.

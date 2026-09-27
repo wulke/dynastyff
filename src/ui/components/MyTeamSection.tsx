@@ -29,6 +29,36 @@ type LeagueSummary = {
   status: string;
 };
 
+// @spec DFF-SM-019
+type SeasonRosterEntry = {
+  name: string;
+  position: string;
+  age: number | null;
+  dynastyValue: number;
+  slotType: 'starter' | 'bench' | 'ir' | 'taxi';
+  matched: boolean;
+};
+
+type SeasonPositionEval = {
+  grade: string;
+  percentile: number;
+  valueScore: number;
+  rawStarterValue: number;
+  ageCurveScore: number;
+  depthScore: number;
+  starters: SeasonRosterEntry[];
+};
+
+type SeasonOverview = {
+  overallGrade: string;
+  overallPercentile: number;
+  teamContext: { classification: 'contender' | 'rebuilder'; winPct: number; rank: number; teamCount: number };
+  positions: Record<string, SeasonPositionEval>;
+  roster: SeasonRosterEntry[];
+  staleSince: string | null;
+  lastSyncedAt: string | null;
+};
+
 function formatTimestamp(iso: string | null): string {
   if (!iso) {
     return 'never';
@@ -44,6 +74,103 @@ function formatTimestamp(iso: string | null): string {
         hour: '2-digit',
         minute: '2-digit',
       });
+}
+
+const positionTextTokens: Record<string, string> = {
+  QB: 'text-pos-qb',
+  RB: 'text-pos-rb',
+  WR: 'text-pos-wr',
+  TE: 'text-pos-te',
+};
+
+const slotOrder: SeasonRosterEntry['slotType'][] = ['starter', 'bench', 'taxi', 'ir'];
+
+// @spec DFF-SM-019
+// @spec DFF-SM-026
+// @spec DFF-SM-081
+// @spec DFF-SM-084
+function RosterOverviewView({
+  overview,
+  onRefresh,
+  busy,
+}: {
+  overview: SeasonOverview;
+  onRefresh: () => void;
+  busy: boolean;
+}) {
+  const positions = Object.entries(overview.positions);
+
+  return (
+    <>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-accent bg-surface px-3 py-2">
+        <div className="flex items-baseline gap-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Roster Overview</p>
+          <span className="font-condensed text-3xl font-bold tabular-nums text-primary" aria-label={`Overall grade ${overview.overallGrade}`}>
+            {overview.overallGrade}
+          </span>
+          <span className="font-condensed text-lg tabular-nums text-secondary">PCTL {Math.round(overview.overallPercentile)}</span>
+          <span className="rounded border border-info px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-info">
+            {overview.teamContext.classification}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={busy}
+          className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {overview.staleSince !== null ? (
+        <p className="mb-2 rounded-md border border-warning bg-surface px-3 py-2 text-sm text-warning" role="status">
+          Sleeper data is stale (last synced {formatTimestamp(overview.staleSince)}). Refresh to pull the latest league state.
+        </p>
+      ) : null}
+
+      <div className="mb-3 rounded-md border border-default bg-surface">
+        <div className="border-b border-default px-3 py-2">
+          <h2 className="font-condensed text-lg font-semibold text-primary">Position Grades</h2>
+        </div>
+        {positions.map(([position, evaluation]) => (
+          <div key={position} className="flex flex-wrap items-center gap-3 border-b border-default px-3 py-2 text-sm last:border-b-0 hover:bg-surface-hover">
+            <span className={`w-8 font-condensed text-sm font-bold ${positionTextTokens[position] ?? 'text-primary'}`}>{position}</span>
+            <span className="font-condensed text-xl font-bold tabular-nums text-primary">{evaluation.grade}</span>
+            <span className="font-condensed text-xs tabular-nums text-secondary">PCTL {Math.round(evaluation.percentile)}</span>
+            <span className="font-condensed text-xs tabular-nums text-secondary">
+              VAL {Math.round(evaluation.rawStarterValue)} · DEP {Math.round(evaluation.depthScore)} · AGE {Math.round(evaluation.ageCurveScore)}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs text-muted">
+              {evaluation.starters.map((entry) => entry.name).join(', ') || 'No starters synced'}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-md border border-default bg-surface">
+        <div className="border-b border-default px-3 py-2">
+          <h2 className="font-condensed text-lg font-semibold text-primary">Roster</h2>
+        </div>
+        {slotOrder.flatMap((slot) =>
+          overview.roster
+            .filter((entry) => entry.slotType === slot)
+            .map((entry) => (
+              <div key={`${slot}-${entry.name}`} className="flex items-center gap-3 border-b border-default px-3 py-1 text-sm last:border-b-0 hover:bg-surface-hover">
+                <span className={`w-8 font-condensed text-sm font-bold ${positionTextTokens[entry.position] ?? 'text-primary'}`}>{entry.position}</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-primary">{entry.name}</span>
+                {!entry.matched ? (
+                  <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">unmatched</span>
+                ) : null}
+                <span className="font-condensed text-xs tabular-nums text-secondary">{entry.age !== null ? `${entry.age}y` : '—'}</span>
+                <span className="font-condensed text-xs tabular-nums text-secondary">{entry.dynastyValue}</span>
+                <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">{entry.slotType}</span>
+              </div>
+            )),
+        )}
+      </div>
+    </>
+  );
 }
 
 // @spec DFF-SLS-080
@@ -246,6 +373,10 @@ function ConnectionRow({
 // @spec DFF-SLS-082
 // @spec DFF-SM-001
 // @spec DFF-SM-002
+// @spec DFF-SM-003
+// @spec DFF-SM-004
+// @spec DFF-SM-019
+// @spec DFF-SM-026
 export function MyTeamSection() {
   const [connections, setConnections] = useState<SleeperConnection[] | null>(null);
   const [status, setStatus] = useState<SyncStatus[]>([]);
@@ -255,6 +386,11 @@ export function MyTeamSection() {
   const [preview, setPreview] = useState<LeagueSummary | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
+  const [overview, setOverview] = useState<SeasonOverview | null>(null);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [showConnections, setShowConnections] = useState(false);
+  const [overviewNonce, setOverviewNonce] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -279,6 +415,50 @@ export function MyTeamSection() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // @spec DFF-SM-003 — first connected league is selected by default; overview is the landing view.
+  useEffect(() => {
+    if (connections === null || connections.length === 0) {
+      setSelectedLeagueId(null);
+      setOverview(null);
+      setOverviewError(null);
+      return;
+    }
+
+    if (selectedLeagueId === null || !connections.some((entry) => entry.leagueId === selectedLeagueId)) {
+      setSelectedLeagueId(connections[0].leagueId);
+    }
+  }, [connections, selectedLeagueId]);
+
+  useEffect(() => {
+    if (selectedLeagueId === null) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOverview = async () => {
+      setOverviewError(null);
+
+      try {
+        const body = (await requestJson(`/season/${encodeURIComponent(selectedLeagueId)}/overview`)) as SeasonOverview;
+        if (!cancelled) {
+          setOverview(body);
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setOverview(null);
+          setOverviewError(caught instanceof Error ? caught.message : String(caught));
+        }
+      }
+    };
+
+    void loadOverview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLeagueId, overviewNonce]);
 
   async function requestJson(input: string, init?: RequestInit): Promise<unknown> {
     const response = await fetch(input, init);
@@ -356,6 +536,7 @@ export function MyTeamSection() {
   }
 
   // @spec DFF-SLS-082
+  // @spec DFF-SM-004 — refresh triggers a Sleeper sync, then re-fetches the overview.
   async function syncNow() {
     setBusy(true);
     setError(null);
@@ -363,6 +544,7 @@ export function MyTeamSection() {
     try {
       await requestJson('/sleeper/sync', { method: 'POST' });
       await load();
+      setOverviewNonce((nonce) => nonce + 1);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -417,23 +599,42 @@ export function MyTeamSection() {
     );
   }
 
+  const selectedConnection =
+    connections.find((entry) => entry.leagueId === selectedLeagueId) ?? null;
+
   return (
     <section className="w-full max-w-3xl" aria-labelledby="my-team-title">
-      <div className="mb-3 flex items-center justify-between rounded-md border border-accent bg-surface px-3 py-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-accent bg-surface px-3 py-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-accent">My Team</p>
           <h1 id="my-team-title" className="font-condensed text-2xl font-bold text-primary">
-            Connected Leagues
+            {selectedConnection ? selectedConnection.leagueName : 'My Team'}
           </h1>
         </div>
-        <button
-          type="button"
-          onClick={() => void syncNow()}
-          disabled={busy}
-          className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Sync now
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {connections.map((connection) => (
+            <button
+              key={connection.id}
+              type="button"
+              onClick={() => setSelectedLeagueId(connection.leagueId)}
+              className={`rounded px-2 py-1 text-xs font-semibold transition ${
+                connection.leagueId === selectedLeagueId
+                  ? 'border border-accent bg-surface text-accent'
+                  : 'border border-default bg-surface text-secondary hover:border-strong hover:text-primary'
+              }`}
+            >
+              {connection.leagueName}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowConnections((visible) => !visible)}
+            aria-expanded={showConnections}
+            className="rounded border border-default px-2 py-1 text-xs font-medium text-secondary transition hover:border-strong hover:text-primary"
+          >
+            {showConnections ? 'Hide connections' : 'Manage connections'}
+          </button>
+        </div>
       </div>
 
       {error !== null ? (
@@ -442,23 +643,41 @@ export function MyTeamSection() {
         </p>
       ) : null}
 
-      <div className="rounded-md border border-default bg-surface">
-        <div className="border-b border-default px-3 py-2">
-          <h2 className="font-condensed text-lg font-semibold text-primary">Sleeper Leagues</h2>
+      {showConnections ? (
+        <div className="mb-3 rounded-md border border-default bg-surface">
+          <div className="flex items-center justify-between border-b border-default px-3 py-2">
+            <h2 className="font-condensed text-lg font-semibold text-primary">Connected Leagues</h2>
+            <button
+              type="button"
+              onClick={() => void syncNow()}
+              disabled={busy}
+              className="rounded border border-default px-3 py-1 text-sm font-medium text-secondary transition hover:border-strong hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Sync now
+            </button>
+          </div>
+          {connections.map((connection) => (
+            <ConnectionRow
+              key={connection.id}
+              connection={connection}
+              status={status.find((entry) => entry.leagueId === connection.leagueId)}
+              onDisconnect={(id) => void disconnect(id)}
+              busy={busy}
+            />
+          ))}
         </div>
-        {connections.map((connection) => (
-          <ConnectionRow
-            key={connection.id}
-            connection={connection}
-            status={status.find((entry) => entry.leagueId === connection.leagueId)}
-            onDisconnect={(id) => void disconnect(id)}
-            busy={busy}
-          />
-        ))}
-        <p className="px-3 py-2 text-xs text-muted">
-          Roster evaluation, trade analysis, and waiver tools arrive with Season Management.
-        </p>
-      </div>
+      ) : null}
+
+      {overviewError !== null ? (
+        <div className="rounded-md border border-negative bg-surface px-3 py-2 text-sm text-negative" role="alert">
+          <p className="font-semibold">Roster overview unavailable</p>
+          <p className="text-xs">{overviewError}</p>
+        </div>
+      ) : overview !== null ? (
+        <RosterOverviewView overview={overview} onRefresh={() => void syncNow()} busy={busy} />
+      ) : (
+        <p className="text-xs text-muted">Loading roster overview…</p>
+      )}
     </section>
   );
 }

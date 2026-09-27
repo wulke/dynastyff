@@ -73,6 +73,20 @@ For each position group (QB, RB, WR, TE):
 3. **Depth score:** Ratio of the user's total positional value (starters + bench) to the league median for that position.
 4. **Percentile rank:** The user's starter value sum ranked against all other teams in the league at the same position. `rank / (team_count - 1)` expressed as a 0–100 percentile.
 
+### Component Normalization
+
+Each position component is produced on a 0–100 scale before weighting, so the composite maps cleanly to letter grades:
+
+- **Value score (SM-011):** raw sum of starter `dynasty_value` at the position. For the composite it is normalized as `100 × (userSum / leagueMaxSum)` across all teams at that position (`50` when the league max is 0). The raw sum is also returned.
+- **Age curve score (SM-012):** per starter, `clamp(50 + 20 × (prime − age), 0, 100)` — players 2+ years below prime score ≥ 90 (bonus), players 3+ past prime score ≤ 10 (penalty). The position score is the `dynasty_value`-weighted mean of per-player scores (unweighted mean when total weight is 0; starters with `age = NULL` score neutral 50).
+- **Depth score (SM-013):** ratio of the user's total positional value to the league median, mapped as `clamp(100 × ratio / 2, 0, 100)` — 2× the median scores 100, at-median scores 50. When the league median is 0: `100` if the user has value, else `50`.
+- **Percentile (SM-014):** `100 × (teams strictly below) / (teamCount − 1)`; `50` when the league has a single team.
+- **Overall percentile:** every team's overall composite is computed with the same algorithm, then percentile-ranked.
+
+### Taxi / IR handling
+
+Taxi-squad players count toward the **depth score** only. IR players are excluded from every grade component (value, age, depth, percentile) but remain in roster display data. Starter determination uses the `slot_type` recorded by Sleeper Sync (`starter` slots; flex starters attribute to their natural position group).
+
 ### Letter Grade
 
 Each position group receives a composite score from the three components (weighted: value 50%, depth 30%, age curve 20%). The composite maps to a letter grade:
@@ -111,7 +125,7 @@ The roster overview response does **not** include a Claude call — it is a pure
 
 ## Trade Scorer
 
-Scores each pending Sleeper trade offer against five signals. Used in `GET /season/:league_id/trades/pending` (all pending offers) and `POST /season/:league_id/trades/analyze` (single offer with Claude reasoning).
+Scores each pending Sleeper trade offer **involving the user's roster** against five signals. Offers between two other teams are excluded — the five-signal model is strictly the user's perspective (value delta "for the user" is undefined for third-party trades). Used in `GET /season/:league_id/trades/pending` (all pending offers involving the user) and `POST /season/:league_id/trades/analyze` (single offer with Claude reasoning).
 
 ### Five-Signal Model
 
@@ -291,10 +305,10 @@ The My Team section is a standalone top-level nav section. It does not share sta
 | Claude context size | User roster + counterparty roster + league medians + score object | Full league rosters | Full league context inflates token cost with data irrelevant to the specific decision; medians capture league context compactly |
 | Prompt caching | Cache `LeagueContext` prefix | No caching | League context is stable within a session; caching reduces latency and cost on multi-trade analysis sessions |
 | Start/sit | Deferred | In scope | Requires a weekly projections source not in the current ETL stack; separate initiative |
+| Pending offers scope | Offers involving the user's roster only | All pending league offers | The five-signal model is user-perspective; third-party trades have no defined user value delta |
+| Trade recommendations caching | Recomputed on every request | TTL cache (e.g., 1 hour) | Pure SQLite reads + in-memory math; consistent with fresh-context-per-request (SM-071); `lastComputedAt` stays accurate |
+| Taxi/IR in grades | Taxi counts toward depth score; IR excluded from grades | Include both; exclude both | Taxi is real developmental depth (the essence of dynasty); IR contributes nothing near-term |
+| Age curve baselines | Fixed constants (QB 27, RB 24, WR 25, TE 26) | Per-league configurable | Superflex skews value weighting more than age primes; no proven need for config surface |
+| Claude reasoning persistence | Recomputed on demand | Persist to SQLite | Scores recompute from fresh syncs; persisted narratives could contradict changed scores |
+| Percentile with single team | 50 (neutral) | 0 or 100 | One team is simultaneously best and worst; neutral avoids misleading extremes |
 
-## Open Questions
-
-- [ ] Should the trade recommendations be recomputed on every request or cached for a configurable TTL (e.g., 1 hour)?
-- [ ] How should the Roster Evaluator handle taxi squad and IR players — include in depth scoring or exclude from grades?
-- [ ] Should the age curve baseline ages be configurable per league (e.g., superflex leagues value QBs differently)?
-- [ ] Should Claude's reasoning be persisted to SQLite so the user can review past analyses, or always recomputed on demand?

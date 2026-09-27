@@ -41,6 +41,49 @@ function stubFetch(handler: (url: string, init?: RequestInit) => { status?: numb
 
 const emptyConnections = { status: 200, body: [] };
 
+function overviewEntry(name: string, position: string, age: number | null, value: number, slotType: string, matched = true) {
+  return { name, position, age, dynastyValue: value, slotType, matched };
+}
+
+function overviewFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    overallGrade: 'B',
+    overallPercentile: 62,
+    teamContext: { classification: 'contender', winPct: 0.75, rank: 2, teamCount: 10 },
+    positions: {
+      QB: {
+        grade: 'A', percentile: 90, valueScore: 92, rawStarterValue: 6100, ageCurveScore: 64, depthScore: 70,
+        starters: [overviewEntry('Josh Allen', 'QB', 30, 6100, 'starter')],
+      },
+      RB: {
+        grade: 'C', percentile: 40, valueScore: 55, rawStarterValue: 4100, ageCurveScore: 71, depthScore: 45,
+        starters: [overviewEntry('Bijan Robinson', 'RB', 24, 4100, 'starter')],
+      },
+      WR: {
+        grade: 'B', percentile: 60, valueScore: 74, rawStarterValue: 5200, ageCurveScore: 58, depthScore: 61,
+        starters: [overviewEntry('Justin Jefferson', 'WR', 25, 5200, 'starter')],
+      },
+      TE: {
+        grade: 'D', percentile: 25, valueScore: 38, rawStarterValue: 1500, ageCurveScore: 44, depthScore: 30,
+        starters: [overviewEntry('Travis Kelce', 'TE', 36, 1500, 'starter')],
+      },
+    },
+    roster: [
+      overviewEntry('Josh Allen', 'QB', 30, 6100, 'starter'),
+      overviewEntry('Bijan Robinson', 'RB', 24, 4100, 'starter'),
+      overviewEntry('Justin Jefferson', 'WR', 25, 5200, 'starter'),
+      overviewEntry('Travis Kelce', 'TE', 36, 1500, 'starter'),
+      overviewEntry('Chris Olave', 'WR', 24, 3400, 'bench'),
+      overviewEntry('Trey Benson', 'RB', 23, 1100, 'taxi'),
+      overviewEntry('Kirk Cousins', 'QB', 37, 600, 'ir'),
+      overviewEntry('Rookie Unknown', 'QB', null, 0, 'bench', false),
+    ],
+    staleSince: null,
+    lastSyncedAt: '2026-09-27T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
 // @spec DFF-SM-001
 // @spec DFF-SM-002
 test('MyTeamSection renders the connection prompt when no league is connected', async () => {
@@ -79,6 +122,10 @@ test('the username flow lists dynasty leagues and connects the selected one', as
       };
     }
 
+    if (url === '/season/111/overview') {
+      return { body: overviewFixture() };
+    }
+
     if (url === '/sleeper/connections' && init?.method === 'POST') {
       connections = [
         { id: 'c1', leagueId: '111', leagueName: 'Gridiron Guild', season: '2026', rosterId: 2, lastSyncedAt: null },
@@ -100,8 +147,9 @@ test('the username flow lists dynasty leagues and connects the selected one', as
 
   await user.click(screen.getByRole('button', { name: 'Connect' }));
 
+  // @spec DFF-SM-003 — the Roster Overview is the landing view after connecting.
   await waitFor(() => {
-    expect(screen.getByText(/connected leagues/i)).toBeInTheDocument();
+    expect(screen.getByText('Roster Overview')).toBeInTheDocument();
   });
 
   const connectCall = calls.find((call) => call.url === '/sleeper/connections' && call.init?.method === 'POST');
@@ -131,6 +179,10 @@ test('the direct league ID flow previews the league before connecting', async ()
       };
     }
 
+    if (url === '/season/123456789/overview') {
+      return { body: overviewFixture() };
+    }
+
     if (url === '/sleeper/connections' && init?.method === 'POST') {
       connections = [
         { id: 'c2', leagueId: '123456789', leagueName: 'Preview League', season: '2026', rosterId: 1, lastSyncedAt: null },
@@ -153,8 +205,9 @@ test('the direct league ID flow previews the league before connecting', async ()
 
   await user.click(screen.getByRole('button', { name: 'Connect' }));
 
+  // @spec DFF-SM-003
   await waitFor(() => {
-    expect(screen.getByText(/connected leagues/i)).toBeInTheDocument();
+    expect(screen.getByText('Roster Overview')).toBeInTheDocument();
   });
 
   expect(
@@ -163,7 +216,8 @@ test('the direct league ID flow previews the league before connecting', async ()
 });
 
 // @spec DFF-SLS-082
-test('connected leagues list shows sync status, manual refresh, and disconnect', async () => {
+// @spec DFF-SM-003
+test('connected state lands on the roster overview and manages connections behind a toggle', async () => {
   const user = userEvent.setup();
   let connections = [
     {
@@ -199,6 +253,10 @@ test('connected leagues list shows sync status, manual refresh, and disconnect',
       };
     }
 
+    if (url === '/season/111/overview') {
+      return { body: overviewFixture() };
+    }
+
     if (url === '/sleeper/sync' && init?.method === 'POST') {
       return { body: { skipped: false, attempted: ['111'], succeeded: ['111'], outcomes: [] } };
     }
@@ -208,7 +266,22 @@ test('connected leagues list shows sync status, manual refresh, and disconnect',
 
   render(<MyTeamSection />);
 
-  expect(await screen.findByText('Gridiron Guild')).toBeInTheDocument();
+  // @spec DFF-SM-019 — header grade + percentile, per-position rows with starter names.
+  expect(await screen.findByText('Roster Overview')).toBeInTheDocument();
+  expect(screen.getByText('PCTL 62')).toBeInTheDocument();
+  expect(screen.getByText('PCTL 90')).toBeInTheDocument();
+  expect(screen.getAllByText(/josh allen/i).length).toBeGreaterThan(0);
+
+  // @spec DFF-SM-026 — team context badge.
+  expect(screen.getByText('contender')).toBeInTheDocument();
+
+  // @spec DFF-SM-084 — IR and unmatched players remain visible in roster display.
+  expect(screen.getByText(/kirk cousins/i)).toBeInTheDocument();
+  expect(screen.getByText('unmatched')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: /manage connections/i }));
+
+  expect(await screen.findByText(/connected leagues/i)).toBeInTheDocument();
   expect(screen.getByText(/synced /i)).toBeInTheDocument();
   expect(screen.getByText('ok')).toBeInTheDocument();
 
@@ -229,4 +302,99 @@ test('connected leagues list shows sync status, manual refresh, and disconnect',
   expect(
     calls.some((call) => call.url === '/sleeper/connections/c1' && call.init?.method === 'DELETE'),
   ).toBe(true);
+});
+
+// @spec DFF-SM-004
+// @spec DFF-SM-081
+test('stale overview shows a warning and refresh re-syncs then re-fetches', async () => {
+  const user = userEvent.setup();
+  const connections = [
+    {
+      id: 'c1',
+      leagueId: '111',
+      leagueName: 'Gridiron Guild',
+      season: '2026',
+      rosterId: 2,
+      lastSyncedAt: '2026-09-27T08:00:00.000Z',
+    },
+  ];
+  const { calls } = stubFetch((url, init) => {
+    if (url === '/sleeper/connections' && !init?.method) {
+      return { body: connections };
+    }
+
+    if (url === '/sleeper/sync/status') {
+      return { body: [] };
+    }
+
+    if (url === '/season/111/overview') {
+      return { body: overviewFixture({ staleSince: '2026-09-27T08:00:00.000Z' }) };
+    }
+
+    if (url === '/sleeper/sync' && init?.method === 'POST') {
+      return { body: { skipped: false, attempted: ['111'], succeeded: ['111'], outcomes: [] } };
+    }
+
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  expect(await screen.findByText(/stale/i)).toBeInTheDocument();
+
+  const overviewFetchesBefore = calls.filter((call) => call.url === '/season/111/overview').length;
+  await user.click(screen.getByRole('button', { name: /refresh/i }));
+
+  await waitFor(() => {
+    expect(
+      calls.some((call) => call.url === '/sleeper/sync' && call.init?.method === 'POST'),
+    ).toBe(true);
+  });
+
+  await waitFor(() => {
+    expect(calls.filter((call) => call.url === '/season/111/overview').length).toBeGreaterThan(
+      overviewFetchesBefore,
+    );
+  });
+});
+
+// @spec DFF-SM-003
+test('multiple connected leagues switch via tabs', async () => {
+  const user = userEvent.setup();
+  const connections = [
+    { id: 'c1', leagueId: '111', leagueName: 'Gridiron Guild', season: '2026', rosterId: 2, lastSyncedAt: null },
+    { id: 'c2', leagueId: '222', leagueName: 'Second League', season: '2026', rosterId: 5, lastSyncedAt: null },
+  ];
+  const { calls } = stubFetch((url) => {
+    if (url === '/sleeper/connections') {
+      return { body: connections };
+    }
+
+    if (url === '/sleeper/sync/status') {
+      return { body: [] };
+    }
+
+    if (url === '/season/111/overview') {
+      return { body: overviewFixture() };
+    }
+
+    if (url === '/season/222/overview') {
+      return { body: overviewFixture({ overallGrade: 'A', overallPercentile: 88 }) };
+    }
+
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  expect(await screen.findByText('Roster Overview')).toBeInTheDocument();
+  expect(screen.getByText('PCTL 62')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Second League' }));
+
+  await waitFor(() => {
+    expect(screen.getByText('PCTL 88')).toBeInTheDocument();
+  });
+
+  expect(calls.some((call) => call.url === '/season/222/overview')).toBe(true);
 });

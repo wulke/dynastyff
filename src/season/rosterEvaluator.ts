@@ -7,7 +7,7 @@
 // @spec DFF-SM-017
 // @spec DFF-SM-025
 // @spec DFF-SM-084
-import type { LeagueContext, RosterEntry, TeamRoster } from './context.js';
+import { leagueMedianPositionalValue, type LeagueContext, type RosterEntry, type TeamRoster } from './context.js';
 
 export type LetterGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -82,17 +82,6 @@ function depthValueSum(team: TeamRoster, position: PositionGroup): number {
   return depthPlayersAt(team, position).reduce((sum, entry) => sum + entry.dynastyValue, 0);
 }
 
-function median(values: number[]): number {
-  if (values.length === 0) {
-    return 0;
-  }
-
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-
-  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-}
-
 // @spec DFF-SM-012 — value-weighted mean of per-player age scores; unweighted when total weight is 0.
 function positionAgeScore(team: TeamRoster, position: PositionGroup): number {
   const starters = startersAt(team, position);
@@ -162,51 +151,71 @@ type PositionMath = {
   starters: RosterEntry[];
 };
 
+type PositionTeamStats = {
+  rawStarterValue: number;
+  valueNorm: number;
+  depthNorm: number;
+  ageScore: number;
+};
+
+// Per-team normalized components on the 0–100 scale. Computed once per team and reused for both
+// the user-facing scores and the composites (single source for the formulas).
+function teamStatsAt(
+  team: TeamRoster,
+  position: PositionGroup,
+  leagueMax: number,
+  leagueMedianDepth: number,
+): PositionTeamStats {
+  const rawStarterValue = starterValueSum(team, position);
+  const depthTotal = depthValueSum(team, position);
+
+  return {
+    rawStarterValue,
+    // @spec DFF-SM-011 — normalized against the league's best at the position.
+    valueNorm: leagueMax > 0 ? (100 * rawStarterValue) / leagueMax : 50,
+    // @spec DFF-SM-013 — depth ratio vs league median, capped at 2x median for the 0-100 scale.
+    depthNorm:
+      leagueMedianDepth > 0 ? clamp((100 * depthTotal) / leagueMedianDepth / 2, 0, 100) : depthTotal > 0 ? 100 : 50,
+    ageScore: positionAgeScore(team, position),
+  };
+}
+
 function computePosition(context: LeagueContext, position: PositionGroup): PositionMath {
   const userTeam = context.allRosters.find((team) => team.rosterId === context.userRosterId);
   if (!userTeam) {
     throw new Error(`User roster ${context.userRosterId} missing from league ${context.league.leagueId}.`);
   }
 
-  const rawSums = context.allRosters.map((team) => starterValueSum(team, position));
-  const userRawSum = starterValueSum(userTeam, position);
-  const leagueMax = Math.max(...rawSums, 0);
+  const leagueMax = Math.max(...context.allRosters.map((team) => starterValueSum(team, position)), 0);
+  const leagueMedianDepth = leagueMedianPositionalValue(context.allRosters, position);
 
-  // @spec DFF-SM-011 — normalized 0-100 against the league's best at the position.
-  const valueScore = leagueMax > 0 ? (100 * userRawSum) / leagueMax : 50;
-
-  // @spec DFF-SM-013 — depth ratio vs league median, capped at 2x median for the 0-100 scale.
-  const depthTotals = context.allRosters.map((team) => depthValueSum(team, position));
-  const userDepthTotal = depthValueSum(userTeam, position);
-  const leagueMedianDepth = median(depthTotals);
-  const depthScore =
-    leagueMedianDepth > 0 ? clamp((100 * userDepthTotal) / leagueMedianDepth / 2, 0, 100) : userDepthTotal > 0 ? 100 : 50;
-
-  const ageCurveScore = positionAgeScore(userTeam, position);
-
-  // @spec DFF-SM-015 — value 50%, depth 30%, age curve 20%.
-  const compositeFor = (team: TeamRoster): number => {
-    const raw = starterValueSum(team, position);
-    const value = leagueMax > 0 ? (100 * raw) / leagueMax : 50;
-    const depth = depthValueSum(team, position);
-    const depthNorm = leagueMedianDepth > 0 ? clamp((100 * depth) / leagueMedianDepth / 2, 0, 100) : depth > 0 ? 100 : 50;
-    return 0.5 * value + 0.3 * depthNorm + 0.2 * positionAgeScore(team, position);
-  };
-
+  const stats = new Map<number, PositionTeamStats>();
   const composites = new Map<number, number>();
+
   for (const team of context.allRosters) {
-    composites.set(team.rosterId, compositeFor(team));
+    const teamStats = teamStatsAt(team, position, leagueMax, leagueMedianDepth);
+    stats.set(team.rosterId, teamStats);
+
+    // @spec DFF-SM-015 — value 50%, depth 30%, age curve 20%.
+    composites.set(team.rosterId, 0.5 * teamStats.valueNorm + 0.3 * teamStats.depthNorm + 0.2 * teamStats.ageScore);
   }
+
+  const userStats = stats.get(userTeam.rosterId);
+  if (!userStats) {
+    throw new Error(`No stats computed for roster ${userTeam.rosterId} at ${position}.`);
+  }
+
+  const rawSums = [...stats.values()].map((teamStats) => teamStats.rawStarterValue);
 
   return {
     composites,
     userComposite: composites.get(userTeam.rosterId) ?? 50,
     // @spec DFF-SM-014
-    percentile: percentileRank(userRawSum, rawSums),
-    valueScore,
-    rawStarterValue: userRawSum,
-    ageCurveScore,
-    depthScore,
+    percentile: percentileRank(userStats.rawStarterValue, rawSums),
+    valueScore: userStats.valueNorm,
+    rawStarterValue: userStats.rawStarterValue,
+    ageCurveScore: userStats.ageScore,
+    depthScore: userStats.depthNorm,
     starters: startersAt(userTeam, position),
   };
 }

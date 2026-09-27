@@ -210,6 +210,9 @@ function pushEntry(entries: Map<number, RosterEntry[]>, rosterId: number, entry:
 }
 
 function loadPendingOffers(sqlite: Database.Database, leagueId: string): SleeperTradeOfferRecord[] {
+  // TODO(DFF-SM-030): these are all pending offers in the league. The trades/pending route must
+  // scope this to offers involving the user's roster (proposer or responder) when the Trade
+  // Scorer slice consumes this field; the league-wide list is kept as shared ground truth.
   const rows = sqlite
     .prepare(
       "SELECT transaction_id, proposer_roster_id, responder_roster_ids, adds, drops, draft_picks, created_at FROM sleeper_trade_offers WHERE league_id = ? AND status = 'pending' ORDER BY created_at DESC",
@@ -288,17 +291,29 @@ function loadFreeAgents(sqlite: Database.Database, leagueId: string): PlayerWith
   }));
 }
 
+// Median positional dynasty value across all teams' rosters. Taxi counts toward the total;
+// IR is excluded (DFF-SM-084). Shared by context assembly and the Roster Evaluator so there is
+// a single source of truth for league-median numbers.
+// @spec DFF-SM-084
+export function leagueMedianPositionalValue(allRosters: TeamRoster[], position: string): number {
+  const teamTotals = allRosters.map((team) =>
+    team.players
+      .filter(
+        (entry) =>
+          entry.position === position &&
+          (entry.slotType === 'starter' || entry.slotType === 'bench' || entry.slotType === 'taxi'),
+      )
+      .reduce((sum, entry) => sum + entry.dynastyValue, 0),
+  );
+
+  return median(teamTotals);
+}
+
 function computeLeagueMedians(allRosters: TeamRoster[]): Record<string, number> {
   const medians: Record<string, number> = {};
 
   for (const position of corePositions) {
-    const teamTotals = allRosters.map((team) =>
-      team.players
-        .filter((entry) => entry.position === position && entry.slotType !== 'ir')
-        .reduce((sum, entry) => sum + entry.dynastyValue, 0),
-    );
-
-    medians[position] = median(teamTotals);
+    medians[position] = leagueMedianPositionalValue(allRosters, position);
   }
 
   return medians;

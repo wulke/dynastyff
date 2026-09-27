@@ -124,7 +124,7 @@ function RosterOverviewView({
       </div>
 
       {overview.staleSince !== null ? (
-        <p className="mb-2 rounded-md border border-warning bg-surface px-3 py-2 text-sm text-warning" role="status">
+        <p className="mb-2 rounded-md border border-info bg-surface px-3 py-2 text-sm text-info" role="status">
           Sleeper data is stale (last synced {formatTimestamp(overview.staleSince)}). Refresh to pull the latest league state.
         </p>
       ) : null}

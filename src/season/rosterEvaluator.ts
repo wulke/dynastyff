@@ -21,6 +21,7 @@ export type TeamContext = {
 export type PositionEvaluation = {
   grade: LetterGrade;
   percentile: number;
+  composite: number;
   valueScore: number;
   rawStarterValue: number;
   ageCurveScore: number;
@@ -280,6 +281,7 @@ export function evaluateRoster(context: LeagueContext): RosterOverview {
     positions[position] = {
       grade: toLetterGrade(stats.userComposite),
       percentile: stats.percentile,
+      composite: stats.userComposite,
       valueScore: stats.valueScore,
       rawStarterValue: stats.rawStarterValue,
       ageCurveScore: stats.ageCurveScore,

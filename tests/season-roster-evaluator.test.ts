@@ -58,6 +58,8 @@ function contextFor(allRosters: TeamRoster[], userRosterId = 1): LeagueContext {
     freeAgents: [],
     pendingOffers: [],
     leagueMedians: {},
+    pickValues: {},
+    tradedPicks: [],
     lastSyncedAt: '2026-09-27T00:00:00.000Z',
   };
 }

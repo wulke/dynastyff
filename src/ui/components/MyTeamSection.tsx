@@ -173,6 +173,107 @@ function RosterOverviewView({
   );
 }
 
+// @spec DFF-SM-039
+type TradeAsset = {
+  kind: 'player' | 'pick';
+  label: string;
+  dynastyValue: number;
+  direction: 'in' | 'out';
+};
+
+type TradeScoreView = {
+  transactionId: string;
+  assetsOut: TradeAsset[];
+  assetsIn: TradeAsset[];
+  compositeScore: number;
+  verdict: 'win' | 'loss' | 'neutral';
+  warnings: string[];
+};
+
+type TradeAnalysis = {
+  narrative: string | null;
+  claudeUnavailable: boolean;
+  loading: boolean;
+};
+
+const verdictTokens: Record<TradeScoreView['verdict'], string> = {
+  win: 'border-positive text-positive',
+  loss: 'border-negative text-negative',
+  neutral: 'border-default text-muted',
+};
+
+function assetSummary(assets: TradeAsset[]): string {
+  return assets.length === 0 ? 'nothing' : assets.map((asset) => asset.label).join(', ');
+}
+
+// @spec DFF-SM-039
+// @spec DFF-SM-043
+function PendingOffersPanel({
+  trades,
+  analyses,
+  onAnalyze,
+}: {
+  trades: TradeScoreView[];
+  analyses: Record<string, TradeAnalysis>;
+  onAnalyze: (transactionId: string) => void;
+}) {
+  return (
+    <div className="mt-3 rounded-md border border-default bg-surface">
+      <div className="border-b border-default px-3 py-2">
+        <h2 className="font-condensed text-lg font-semibold text-primary">Pending Offers</h2>
+      </div>
+      {trades.map((trade) => {
+        const analysis = analyses[trade.transactionId];
+
+        return (
+          <div
+            key={trade.transactionId}
+            className="border-b border-default px-3 py-2 text-sm last:border-b-0 hover:bg-surface-hover"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${verdictTokens[trade.verdict]}`}
+              >
+                {trade.verdict}
+              </span>
+              <span className="font-condensed text-xs tabular-nums text-secondary">
+                {trade.compositeScore.toFixed(1)}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-xs text-secondary">
+                Send {assetSummary(trade.assetsOut)} · Receive {assetSummary(trade.assetsIn)}
+              </span>
+              <button
+                type="button"
+                onClick={() => onAnalyze(trade.transactionId)}
+                disabled={analysis?.loading === true}
+                className="rounded border border-default px-2 py-1 text-xs font-medium text-secondary transition hover:border-strong hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Analyze
+              </button>
+            </div>
+
+            {trade.warnings.length > 0 ? (
+              <p className="mt-1 text-xs text-muted">{trade.warnings.join(' · ')}</p>
+            ) : null}
+
+            {analysis?.narrative ? (
+              <pre className="mt-2 whitespace-pre-wrap border-l-2 border-accent bg-app px-2 py-1 text-xs text-primary">
+                {analysis.narrative}
+              </pre>
+            ) : null}
+
+            {analysis && analysis.claudeUnavailable && !analysis.narrative ? (
+              <p className="mt-1 text-xs text-muted" role="status">
+                Claude is unavailable — showing signal scores only.
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // @spec DFF-SLS-080
 // @spec DFF-SLS-081
 function ConnectionPrompt({
@@ -391,6 +492,8 @@ export function MyTeamSection() {
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [showConnections, setShowConnections] = useState(false);
   const [overviewNonce, setOverviewNonce] = useState(0);
+  const [pendingTrades, setPendingTrades] = useState<TradeScoreView[]>([]);
+  const [analyses, setAnalyses] = useState<Record<string, TradeAnalysis>>({});
 
   const load = useCallback(async () => {
     try {
@@ -449,6 +552,20 @@ export function MyTeamSection() {
         if (!cancelled) {
           setOverview(null);
           setOverviewError(caught instanceof Error ? caught.message : String(caught));
+        }
+      }
+
+      try {
+        const trades = (await requestJson(
+          `/season/${encodeURIComponent(selectedLeagueId)}/trades/pending`,
+        )) as { trades?: TradeScoreView[] };
+
+        if (!cancelled) {
+          setPendingTrades(Array.isArray(trades.trades) ? trades.trades : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setPendingTrades([]);
         }
       }
     };
@@ -599,6 +716,48 @@ export function MyTeamSection() {
     );
   }
 
+  // @spec DFF-SM-031
+  // @spec DFF-SM-043
+  async function analyzeTrade(transactionId: string) {
+    if (selectedLeagueId === null) {
+      return;
+    }
+
+    setAnalyses((current) => ({
+      ...current,
+      [transactionId]: { narrative: null, claudeUnavailable: false, loading: true },
+    }));
+
+    try {
+      const payload = (await requestJson(
+        `/season/${encodeURIComponent(selectedLeagueId)}/trades/analyze`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ transaction_id: transactionId }),
+        },
+      )) as { narrative: string | null; claudeUnavailable: boolean };
+
+      setAnalyses((current) => ({
+        ...current,
+        [transactionId]: {
+          narrative: payload.narrative,
+          claudeUnavailable: payload.claudeUnavailable,
+          loading: false,
+        },
+      }));
+    } catch (caught) {
+      setAnalyses((current) => ({
+        ...current,
+        [transactionId]: {
+          narrative: caught instanceof Error ? caught.message : String(caught),
+          claudeUnavailable: true,
+          loading: false,
+        },
+      }));
+    }
+  }
+
   const selectedConnection =
     connections.find((entry) => entry.leagueId === selectedLeagueId) ?? null;
 
@@ -678,6 +837,14 @@ export function MyTeamSection() {
       ) : (
         <p className="text-xs text-muted">Loading roster overview…</p>
       )}
+
+      {pendingTrades.length > 0 ? (
+        <PendingOffersPanel
+          trades={pendingTrades}
+          analyses={analyses}
+          onAnalyze={(transactionId) => void analyzeTrade(transactionId)}
+        />
+      ) : null}
     </section>
   );
 }

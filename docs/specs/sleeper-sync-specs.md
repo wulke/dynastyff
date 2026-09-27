@@ -150,3 +150,16 @@ The My Team connection flow shall support direct league ID entry: the entered ID
 
 **DFF-SLS-082** `[x]`
 When at least one league is connected, the My Team section shall list connected leagues with name, season, and last sync status, and provide a manual refresh button that triggers `POST /sleeper/sync` and reloads the connection list and sync status on completion.
+
+---
+
+## Traded Picks
+
+**DFF-SLS-090** `[x]`
+During each league sync, the system shall fetch the league's traded-pick ownership inventory via `GET /league/{league_id}/traded_picks`.
+
+**DFF-SLS-091** `[x]`
+The system shall persist each traded pick's `season`, `round`, `roster_id`, `previous_owner_id`, and `owner_id` into `sleeper_traded_picks`, replacing the league's rows wholesale on each sync, keyed uniquely by `(league_id, season, round, roster_id)`.
+
+**DFF-SLS-092** `[x]`
+When a traded-pick entry is missing a valid `season`, `round`, `roster_id`, `previous_owner_id`, or `owner_id`, the system shall skip that entry, log a warning, and continue the league sync.

@@ -20,10 +20,11 @@ Drives specs: `docs/specs/season-management-specs.md`
 
 ## Architecture
 
+The domain logic lives in `src/season/`; the Express handlers live in `src/server/season-routes.ts` alongside the other route factories (`sleeper-routes.ts`, `app.ts`), following the repo's established server-module convention.
+
 ```
-Express Server
+Express Server (src/server/season-routes.ts, registered in app.ts)
     └── src/season/
-            ├── router.ts              — Express route handlers
             ├── context.ts             — shared context assembly (roster + league state)
             ├── rosterEvaluator.ts     — grade + percentile scoring
             ├── tradeScorer.ts         — five-signal trade scoring
@@ -112,6 +113,7 @@ type RosterOverview = {
     [position: string]: {
       grade: LetterGrade;
       percentile: number;
+      composite: number;        // 0–100 weighted composite the grade derives from
       valueScore: number;
       ageCurveScore: number;
       depthScore: number;
@@ -126,6 +128,15 @@ The roster overview response does **not** include a Claude call — it is a pure
 ## Trade Scorer
 
 Scores each pending Sleeper trade offer **involving the user's roster** against five signals. Offers between two other teams are excluded — the five-signal model is strictly the user's perspective (value delta "for the user" is undefined for third-party trades). Used in `GET /season/:league_id/trades/pending` (all pending offers involving the user) and `POST /season/:league_id/trades/analyze` (single offer with Claude reasoning).
+
+### Asset Direction
+
+A pending offer's assets are attributed to the user by direction, using Sleeper's transaction payload:
+
+- **Players** — `adds[player_id] = receiving_roster_id`, `drops[player_id] = giving_roster_id`. The user **receives** players where `adds[id] === user_roster_id`; the user **sends** players where `drops[id] === user_roster_id`.
+- **Picks** — each pick object carries `roster_id` (the pick's origin), `previous_owner_id`, and `owner_id` (post-trade owner). The user **receives** picks where `owner_id === user_roster_id`; the user **sends** picks where `previous_owner_id === user_roster_id`.
+
+`GET /season/:league_id/trades/pending` is scoped to offers where the user's roster is the proposer or one of the responders (DFF-SM-030); third-party offers have no defined user value delta and are excluded.
 
 ### Five-Signal Model
 
@@ -164,6 +175,22 @@ type TradeScore = {
 ```
 
 The composite score is the final number passed to Claude. Claude does not recompute it — it interprets it.
+
+### Signal Normalization
+
+Every signal is expressed on the −100…+100 scale before weighting, so the composite is directly interpretable and the ±10 verdict band is meaningful.
+
+| Signal | Formula | Base weight |
+|---|---|---|
+| **valueDelta** | `raw = Σ value(assets in) − Σ value(assets out)`; `normalized = clamp(100 × raw / max(userRosterValue, 1), −100, 100)`. Player value = `players.dynasty_value`; pick value = the `pick_values` row for `(year, round)` with `pick_in_round = 0`. | 0.5 |
+| **ageCurveScore** | `raw = weightedMeanAge(in) − weightedMeanAge(out)` (weights = dynasty value; unweighted when total weight is 0); `normalized = clamp(100 × raw / leagueAveragePlayerAge, −100, 100)`. Positive = buying older. The composite uses **−ageCurveScore** (getting younger raises the score). | 0.2 base, ×1.4 rebuilder |
+| **positionalNeedScore** | Apply the trade to the user's roster (players only) and re-evaluate with that roster replaced in place, so league-wide normalization stays consistent; received players fill a vacant starting slot at their position when one exists (per the league's roster positions), otherwise bench. `raw = Σ over affected positions (composite_after − composite_before)`; `normalized = clamp(raw, −100, 100)`. Picks do not affect positional grades, so a picks-only trade scores 0. | 0.2, ×1.4 contender |
+| **assetLiquidity** | Counterparty pick-to-player ratio = `heldPicks / max(rosteredPlayers, 1)`; pick-hungry when below half the league-median ratio, pick-averse when above 1.5×. Then `+100` if the assets the user sends match what that counterparty wants (sends picks to a pick-hungry team, or players to a pick-averse team), `−100` if misaligned, `0` when neutral or unknown. | 0.1 |
+| **teamContextMultiplier** | Value delta: ×0.8 contender, ×1.2 rebuilder. Positional need: ×1.4 contender. Age (already sign-inverted): ×1.4 rebuilder. Weights are renormalized by their sum. | — |
+
+`compositeScore = clamp(Σ (weighted signals) / Σ weights, −100, 100)`; verdict `win` when composite > +10, `loss` when < −10, otherwise `neutral` (DFF-SM-037/038).
+
+Picks with no matching `pick_values` row contribute 0 and add a warning entry to the `TradeScore` (DFF-SM-082).
 
 ### Claude Reasoning (analyze endpoint)
 
@@ -300,6 +327,9 @@ The My Team section is a standalone top-level nav section. It does not share sta
 | Roster overview without Claude | Pure algorithm output | Claude on every page load | Overview is high-frequency (loads on every visit); Claude cost and latency are only justified when the user is actively evaluating a specific decision |
 | Five-signal trade model | Value delta + age curve + positional need + team context + asset liquidity | Value delta only | Single-signal trade evaluation is exactly what Sleeper already provides; the multi-signal model is the differentiated value |
 | Composite score normalization | -100 to +100 with ±10 neutral band | Raw weighted sum | Normalized score is immediately interpretable by both the UI and Claude; the neutral band avoids false precision on marginal trades |
+| Claude client | Raw `fetch` + injectable `fetchImpl`, `ANTHROPIC_API_KEY`, `cache_control: ephemeral` | `@anthropic-ai/sdk` | Mirrors the Sleeper client pattern; no new dependency; fully testable offline with a stubbed fetch (CI needs no key) |
+| Claude unavailable | Return the raw score with `claudeUnavailable: true` | Fail the request | The algorithmic output is always useful; the narrative is an enhancement (DFF-SM-043) |
+| Asset liquidity input | Synced traded-pick inventory (`sleeper_traded_picks`) | Infer from transaction history | Authoritative and cheap; avoids a signal that always reads neutral (DFF-SLS-090/091) |
 | Trade recommendation grouping | By roster need | Flat ranked list | Need-based grouping matches how dynasty managers think; makes the "why" self-evident without requiring Claude on the list view |
 | Waiver add/drop pairing | Always pair add with optimal drop | Add-only | An add recommendation that ignores what you'd have to drop is incomplete; pairing is mandatory for actionability |
 | Claude context size | User roster + counterparty roster + league medians + score object | Full league rosters | Full league context inflates token cost with data irrelevant to the specific decision; medians capture league context compactly |

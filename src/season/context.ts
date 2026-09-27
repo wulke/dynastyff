@@ -67,7 +67,18 @@ export type LeagueContext = {
   freeAgents: PlayerWithValue[];
   pendingOffers: SleeperTradeOfferRecord[];
   leagueMedians: Record<string, number>;
+  // Keyed `${year}:${round}` from pick_values rows with pick_in_round = 0 (DFF-SM-082).
+  pickValues: Record<string, number>;
+  tradedPicks: TradedPickRecord[];
   lastSyncedAt: string | null;
+};
+
+export type TradedPickRecord = {
+  season: string;
+  round: number;
+  rosterId: number;
+  previousOwnerId: number;
+  ownerId: number;
 };
 
 export type LeagueContextErrorCode = 'NOT_FOUND' | 'NOT_CONNECTED' | 'INSUFFICIENT_DATA';
@@ -319,6 +330,31 @@ function computeLeagueMedians(allRosters: TeamRoster[]): Record<string, number> 
   return medians;
 }
 
+function loadPickValues(sqlite: Database.Database): Record<string, number> {
+  const rows = sqlite
+    .prepare('SELECT year, round, dynasty_value FROM pick_values WHERE pick_in_round = 0')
+    .all() as { year: number; round: number; dynasty_value: number }[];
+
+  const values: Record<string, number> = {};
+
+  for (const row of rows) {
+    values[`${row.year}:${row.round}`] = row.dynasty_value;
+  }
+
+  return values;
+}
+
+// @spec DFF-SLS-091
+function loadTradedPicks(sqlite: Database.Database, leagueId: string): TradedPickRecord[] {
+  const rows = sqlite
+    .prepare(
+      'SELECT season, round, roster_id, previous_owner_id, owner_id FROM sleeper_traded_picks WHERE league_id = ? ORDER BY season, round, roster_id',
+    )
+    .all(leagueId) as TradedPickRecord[];
+
+  return rows;
+}
+
 // @spec DFF-SM-070
 // @spec DFF-SM-071 — assembled fresh from SQLite on every call; no caching between requests.
 export function assembleLeagueContext(databasePath: string | undefined, leagueId: string): LeagueContext;
@@ -410,6 +446,8 @@ export function assembleLeagueContext(
     freeAgents: loadFreeAgents(sqlite, leagueId),
     pendingOffers: loadPendingOffers(sqlite, leagueId),
     leagueMedians: computeLeagueMedians(allRosters),
+    pickValues: loadPickValues(sqlite),
+    tradedPicks: loadTradedPicks(sqlite, leagueId),
     lastSyncedAt: connection.last_synced_at ?? leagueRow.synced_at,
   };
 }

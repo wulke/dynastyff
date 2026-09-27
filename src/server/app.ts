@@ -58,7 +58,7 @@ import {
   TradeOfferSubmissionValidationError,
 } from './config.js';
 import { mapSleeperLeagueSettings } from './sleeper-config-import.js';
-import { createSeasonOverviewRoute } from './season-routes.js';
+import { createSeasonOverviewRoute, createSeasonTradeAnalyzeRoute, createSeasonTradesPendingRoute } from './season-routes.js';
 import {
   createSleeperConnectionsCreateRoute,
   createSleeperConnectionsDeleteRoute,
@@ -131,6 +131,8 @@ export function createDraftApp({
   // @spec DFF-SLS-021
   app.get('/sleeper/sync/status', createSleeperSyncStatusRoute({ databasePath }));
   app.get('/season/:league_id/overview', createSeasonOverviewRoute({ databasePath }));
+  app.get('/season/:league_id/trades/pending', createSeasonTradesPendingRoute({ databasePath }));
+  app.post('/season/:league_id/trades/analyze', createSeasonTradeAnalyzeRoute({ databasePath }));
   app.get('/league-imports/sleeper/:leagueId', createSleeperLeagueImportRoute());
   app.get('/configs', createLeagueConfigsListRoute({ databasePath }));
   app.get('/devy-players', createDevyPlayersListRoute({ databasePath }));

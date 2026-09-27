@@ -13,6 +13,7 @@ import type {
   PlayerRegistry,
   SleeperLeaguePayload,
   SleeperRosterPayload,
+  SleeperTradedPickPayload,
   SleeperTransactionPayload,
   SleeperUserEntryPayload,
   SyncLogger,
@@ -121,6 +122,38 @@ type TradeOfferRow = {
   createdAt: string;
   updatedAt: string;
 };
+
+type TradedPickRow = {
+  season: string;
+  round: number;
+  rosterId: number;
+  previousOwnerId: number;
+  ownerId: number;
+};
+
+// @spec DFF-SLS-092
+// Maps a traded-pick entry to a row, or null when the payload is missing a
+// required field (skipped with a warning by the caller).
+function mapTradedPick(pick: SleeperTradedPickPayload, logger: SyncLogger): TradedPickRow | null {
+  const season = requireString(pick.season);
+  const round = requireInteger(pick.round);
+  const rosterId = requireInteger(pick.roster_id);
+  const previousOwnerId = requireInteger(pick.previous_owner_id);
+  const ownerId = requireInteger(pick.owner_id);
+
+  if (
+    season === null ||
+    round === null ||
+    rosterId === null ||
+    previousOwnerId === null ||
+    ownerId === null
+  ) {
+    logger.warn('[Sleeper] WARN: traded-pick entry with missing fields skipped.');
+    return null;
+  }
+
+  return { season, round, rosterId, previousOwnerId, ownerId };
+}
 
 // @spec DFF-SLS-060
 // @spec DFF-SLS-061
@@ -249,6 +282,7 @@ function persistLeagueState(
   teams: TeamRow[],
   rosterPlayers: RosterPlayerRow[],
   tradeOffers: TradeOfferRow[],
+  tradedPicks: TradedPickRow[],
   syncedAt: string,
 ): void {
   const leagueName = requireString(league.name) ?? connection.league_name;
@@ -358,6 +392,27 @@ function persistLeagueState(
       );
     }
 
+    // @spec DFF-SLS-091 — traded-pick inventory is replaced wholesale each sync.
+    sqlite.prepare('DELETE FROM sleeper_traded_picks WHERE league_id = ?').run(connection.league_id);
+
+    const insertTradedPick = sqlite.prepare(
+      `INSERT INTO sleeper_traded_picks (id, league_id, season, round, roster_id, previous_owner_id, owner_id, synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+
+    for (const pick of tradedPicks) {
+      insertTradedPick.run(
+        randomUUID(),
+        connection.league_id,
+        pick.season,
+        pick.round,
+        pick.rosterId,
+        pick.previousOwnerId,
+        pick.ownerId,
+        syncedAt,
+      );
+    }
+
     sqlite
       .prepare('UPDATE sleeper_connections SET last_synced_at = ? WHERE id = ?')
       .run(syncedAt, connection.id);
@@ -376,6 +431,9 @@ function persistLeagueState(
 // @spec DFF-SLS-052
 // @spec DFF-SLS-053
 // @spec DFF-SLS-061
+// @spec DFF-SLS-090
+// @spec DFF-SLS-091
+// @spec DFF-SLS-092
 async function syncLeague(
   sqlite: Database.Database,
   connection: ConnectionRow,
@@ -389,8 +447,10 @@ async function syncLeague(
   const league = await client.fetchLeague(connection.league_id);
   const rostersPayload = await client.fetchLeagueRosters(connection.league_id);
   const usersPayload = await client.fetchLeagueUsers(connection.league_id);
+  const tradedPicksPayload = await client.fetchLeagueTradedPicks(connection.league_id);
 
   const tradeOffers: TradeOfferRow[] = [];
+  const tradedPicks: TradedPickRow[] = [];
 
   for (let week = 0; week <= currentWeek; week += 1) {
     const transactions = await client.fetchLeagueTransactions(connection.league_id, week);
@@ -410,6 +470,18 @@ async function syncLeague(
 
   if (!Array.isArray(rostersPayload)) {
     throw new Error('rosters payload is not an array.');
+  }
+
+  if (!Array.isArray(tradedPicksPayload)) {
+    throw new Error('traded_picks payload is not an array.');
+  }
+
+  for (const pick of tradedPicksPayload) {
+    const mapped = mapTradedPick(pick, logger);
+
+    if (mapped) {
+      tradedPicks.push(mapped);
+    }
   }
 
   if (!Array.isArray(usersPayload)) {
@@ -473,7 +545,7 @@ async function syncLeague(
     }
   }
 
-  persistLeagueState(sqlite, connection, league, teams, rosterPlayers, tradeOffers, syncedAt);
+  persistLeagueState(sqlite, connection, league, teams, rosterPlayers, tradeOffers, tradedPicks, syncedAt);
 }
 
 function recordSyncRun(

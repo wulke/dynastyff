@@ -398,3 +398,81 @@ test('multiple connected leagues switch via tabs', async () => {
 
   expect(calls.some((call) => call.url === '/season/222/overview')).toBe(true);
 });
+
+function pendingTradeFixture() {
+  return {
+    trades: [
+      {
+        transactionId: '555',
+        assetsOut: [{ kind: 'player', label: 'Chris Olave', dynastyValue: 3400, direction: 'out' }],
+        assetsIn: [{ kind: 'player', label: 'Jordan Love', dynastyValue: 3800, direction: 'in' }],
+        compositeScore: 24.5,
+        verdict: 'win',
+        warnings: [],
+      },
+    ],
+  };
+}
+
+// @spec DFF-SM-039
+test('pending offers render verdict badges and inline Claude reasoning', async () => {
+  const user = userEvent.setup();
+  const connections = [
+    { id: 'c1', leagueId: '111', leagueName: 'Gridiron Guild', season: '2026', rosterId: 1, lastSyncedAt: '2026-09-27T10:00:00.000Z' },
+  ];
+  const { calls } = stubFetch((url, init) => {
+    if (url === '/sleeper/connections') return { body: connections };
+    if (url === '/sleeper/sync/status') return { body: [] };
+    if (url === '/season/111/overview') return { body: overviewFixture() };
+    if (url === '/season/111/trades/pending') return { body: pendingTradeFixture() };
+    if (url === '/season/111/trades/analyze' && init?.method === 'POST') {
+      return {
+        body: {
+          transactionId: '555',
+          score: { verdict: 'win' },
+          narrative: '**Verdict:** Win\n**Recommendation:** accept the deal',
+          claudeUnavailable: false,
+        },
+      };
+    }
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  expect(await screen.findByText('Pending Offers')).toBeInTheDocument();
+  expect(screen.getByText('win')).toBeInTheDocument();
+  expect(screen.getByText(/Send Chris Olave/)).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: /analyze/i }));
+
+  expect(await screen.findByText(/Recommendation/)).toBeInTheDocument();
+
+  const analyzeCall = calls.find((call) => call.url === '/season/111/trades/analyze');
+  expect(JSON.parse(String(analyzeCall?.init?.body))).toEqual({ transaction_id: '555' });
+});
+
+// @spec DFF-SM-043
+test('pending offers show a fallback note when Claude is unavailable', async () => {
+  const user = userEvent.setup();
+  const connections = [
+    { id: 'c1', leagueId: '111', leagueName: 'Gridiron Guild', season: '2026', rosterId: 1, lastSyncedAt: '2026-09-27T10:00:00.000Z' },
+  ];
+  stubFetch((url, init) => {
+    if (url === '/sleeper/connections') return { body: connections };
+    if (url === '/sleeper/sync/status') return { body: [] };
+    if (url === '/season/111/overview') return { body: overviewFixture() };
+    if (url === '/season/111/trades/pending') return { body: pendingTradeFixture() };
+    if (url === '/season/111/trades/analyze' && init?.method === 'POST') {
+      return { body: { transactionId: '555', score: {}, narrative: null, claudeUnavailable: true } };
+    }
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  await screen.findByText('Pending Offers');
+  await user.click(screen.getByRole('button', { name: /analyze/i }));
+
+  expect(await screen.findByText(/Claude is unavailable/i)).toBeInTheDocument();
+});

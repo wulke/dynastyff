@@ -6,7 +6,7 @@ A local web app for practicing dynasty startup drafts. Run a full 12-team snake 
 
 - Node.js 20+
 - Playwright (for ETL scraping)
-- `ANTHROPIC_API_KEY` (required for advisor features only; core draft runs offline)
+- `ANTHROPIC_API_KEY` (required for advisor features only — draft pick advice and My Team trade analysis; core draft and roster scoring run offline)
 
 ## Setup
 
@@ -49,7 +49,7 @@ Open the Vite URL shown in the terminal to begin.
 3. **Draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically, may initiate a value-thresholded trade with another bot before selecting a pick, may proactively bring you trade offers during their turns, and will evaluate your counters before the bot chain resumes. If no available player clears a bot's configured position-value floor, it makes a one-pass attempt to move its current pick for future capital, then fills its greatest open roster need or takes noisy BPA once its roster is full. The live draft room is split into **Board**, **Players**, **Feed**, and **Roster** tabs so you can inspect the draft board, available players, the room-wide pick feed, or a single team's pick log without leaving the room.
 4. **Use the advisor (optional)** — on any pick, ask Claude to **Advise me** for a recommendation, or **Grill me** to pressure-test your own reasoning.
 5. **Review your results** — once the draft completes, open the **Draft Grade Summary** for your overall grade, the room leaderboard, and your final roster, then drill into **Full History** (Pick Log / Roster View / Trade Log) if you want it.
-6. **Connect a real league (My Team)** — open **My Team** in the header to connect Sleeper leagues by username or league ID. Connected leagues land on the **Roster Overview**: overall and per-position grades (QB/RB/WR/TE) with percentiles, contender/rebuilder context, and your full roster including taxi/IR. The header warns when synced data is stale; **Refresh** re-syncs from Sleeper. League tabs switch between multiple connected leagues; **Manage connections** exposes sync status and disconnect. Trade analysis and waiver tools arrive with the remaining Season Management slices.
+6. **Connect a real league (My Team)** — open **My Team** in the header to connect Sleeper leagues by username or league ID. Connected leagues land on the **Roster Overview**: overall and per-position grades (QB/RB/WR/TE) with percentiles, contender/rebuilder context, and your full roster including taxi/IR. The header warns when synced data is stale; **Refresh** re-syncs from Sleeper. League tabs switch between multiple connected leagues; **Manage connections** exposes sync status and disconnect. Below the roster, **Pending Offers** lists incoming Sleeper trade proposals with a five-signal verdict badge (win / loss / neutral); **Analyze** asks Claude to explain the score (needs `ANTHROPIC_API_KEY`; without it you still get the signal scores). Trade recommendations and waiver tools arrive with the remaining Season Management slices.
 
 A GitHub Pages–hosted static build (no backend, no advisor) is also available for offline practice; see `docs/llds/static-build.md`.
 
@@ -64,7 +64,7 @@ A GitHub Pages–hosted static build (no backend, no advisor) is also available 
 | User pick position | Configurable | Selected on the config screen |
 | Future pick years | 3 | |
 
-All settings are configurable on the league config screen before starting a draft. The advisor requires `ANTHROPIC_API_KEY` set in `.env`; the core draft loop runs fully offline.
+All settings are configurable on the league config screen before starting a draft. Claude-backed features — draft pick advice and My Team trade analysis — require `ANTHROPIC_API_KEY` set in `.env`; the core draft loop and all roster/trade scoring run fully offline (trade analysis degrades to signal scores when the key is absent).
 
 `config/archetypes.json` tunes bot behavior. For pick scoring, `preferredPositionValueFloors` acts as a hard pre-filter before scoring and triggers the one-pass pick-trade/need/BPA fallback only when every available player misses its position floor; `candidatePoolThreshold` keeps weighted-random sampling inside a score tier near the best candidate, and `needModifier` is a bounded bias-band half-width rather than a raw multiplier: the shipped defaults are `0.05` for `bpa` and `0.25` for the other archetypes, so need/position/youth/handcuff signals can only nudge a player's score within that band around pure dynasty value. `randomness` is applied as score-relative weight jitter, so the same setting has a visible effect whether player scores are in the hundreds or thousands.
 

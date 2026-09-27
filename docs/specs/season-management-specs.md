@@ -68,53 +68,53 @@ The UI shall display the user's team context classification (contender / rebuild
 
 ## Trade Scoring
 
-**DFF-SM-030** `[ ]`
+**DFF-SM-030** `[x]`
 The system shall expose `GET /season/:league_id/trades/pending` which returns all pending Sleeper trade offers from `sleeper_trade_offers` **that involve the user's roster** (as proposer or responder), each with a pre-computed `TradeScore`. Pending offers between other teams shall be excluded — the five-signal model is user-perspective only.
 
-**DFF-SM-031** `[ ]`
+**DFF-SM-031** `[x]`
 The system shall expose `POST /season/:league_id/trades/analyze` which accepts a `transaction_id`, computes (or retrieves) the `TradeScore`, invokes Claude with the score and league context, and returns Claude's structured reasoning.
 
-**DFF-SM-032** `[ ]`
+**DFF-SM-032** `[x]`
 For each trade, the system shall compute a value delta as the sum of `dynasty_value` of all assets received minus the sum of `dynasty_value` of all assets sent. Player values shall use `players.dynasty_value`; pick values shall use `pick_values` keyed by `(year, round)`.
 
-**DFF-SM-033** `[ ]`
+**DFF-SM-033** `[x]`
 For each trade, the system shall compute an age curve score as the weighted mean age of assets received minus the weighted mean age of assets sent, normalized against the league's average player age.
 
-**DFF-SM-034** `[ ]`
+**DFF-SM-034** `[x]`
 For each trade, the system shall compute a positional need score by comparing the user's position grades before and after the trade. Trades that improve a C-or-below grade position shall receive a positive score; trades that weaken an A-grade position shall receive a negative score.
 
-**DFF-SM-035** `[ ]`
+**DFF-SM-035** `[x]`
 For each trade, the system shall apply a team context multiplier: contender mode shall weight positional need ×1.4 and value delta ×0.8; rebuilder mode shall weight age curve ×1.4 and value delta ×1.2.
 
-**DFF-SM-036** `[ ]`
+**DFF-SM-036** `[x]`
 For each trade, the system shall compute an asset liquidity signal of +1, 0, or −1 based on whether the assets sent match the inferred preferences of the counterparty (derived from the ratio of picks to players on their roster).
 
-**DFF-SM-037** `[ ]`
+**DFF-SM-037** `[x]`
 The system shall compute a composite trade score as the weighted sum of the five signals, normalized to a −100 to +100 scale.
 
-**DFF-SM-038** `[ ]`
+**DFF-SM-038** `[x]`
 The system shall assign a verdict of `win` when composite score > +10, `loss` when composite score < −10, and `neutral` otherwise.
 
-**DFF-SM-039** `[ ]`
+**DFF-SM-039** `[x]`
 The UI shall display each pending offer with its verdict badge (Win / Loss / Neutral) and an "Analyze" button that triggers the Claude reasoning call.
 
 ---
 
 ## Trade Analysis (Claude)
 
-**DFF-SM-040** `[ ]`
+**DFF-SM-040** `[x]`
 When `POST /season/:league_id/trades/analyze` is called, the system shall invoke Claude with: the assembled `LeagueContext` summary (user roster grades, team context, league median values), the full `TradeScore` object with all five signal values, and the structured response format instruction.
 
-**DFF-SM-041** `[ ]`
+**DFF-SM-041** `[x]`
 Claude's trade analysis response shall follow this format: Verdict / Primary signal (citing the most decisive signal) / Key factors (at least two, each citing a specific signal value or roster context) / Non-obvious consideration / Recommendation (single sentence).
 
-**DFF-SM-042** `[ ]`
+**DFF-SM-042** `[x]`
 All value claims in the Claude response shall cite the specific dynasty value figure (e.g. "dynasty value: 4200").
 
-**DFF-SM-043** `[ ]`
+**DFF-SM-043** `[x]`
 When the Claude API call fails for a trade analysis request, the system shall return the raw `TradeScore` object with `claudeUnavailable: true`. The UI shall render the signal scores directly without the Claude narrative.
 
-**DFF-SM-044** `[ ]`
+**DFF-SM-044** `[x]`
 The system shall cache the `LeagueContext` summary as a prompt prefix using the Anthropic prompt caching API to reduce latency and cost across multiple trade analysis calls within a session.
 
 ---
@@ -186,7 +186,7 @@ Each Season Management request shall assemble a `LeagueContext` object containin
 **DFF-SM-071** `[x]`
 `LeagueContext` shall be assembled fresh on each request from SQLite. It shall not be cached between requests.
 
-**DFF-SM-072** `[ ]`
+**DFF-SM-072** `[x]`
 The full player pool shall not be sent to Claude. The Claude context shall include only: the user's roster (positions and values), the counterparty's roster (positions and values), league median values per position, and the score object.
 
 ---
@@ -199,7 +199,7 @@ When a player on the user's Sleeper roster has `players_id = NULL` (unmatched du
 **DFF-SM-081** `[x]`
 When `GET /season/:league_id/overview` is called and the last Sleeper sync is older than 1 hour, the system shall include a `staleSince` timestamp in the response. The UI shall display a stale data warning with the manual refresh button.
 
-**DFF-SM-082** `[ ]`
+**DFF-SM-082** `[x]`
 When a pending trade offer references a pick asset with no matching row in `pick_values`, the system shall treat that pick's dynasty value as 0 and include a warning flag in the `TradeScore` response.
 
 **DFF-SM-083** `[x]`
@@ -211,5 +211,8 @@ The Roster Evaluator shall include taxi-squad players in depth scoring and shall
 **DFF-SM-085** `[ ]`
 The system shall recompute trade recommendations on every request without a TTL cache; the `lastComputedAt` timestamp shall reflect the actual computation time.
 
-**DFF-SM-086** `[ ]`
+**DFF-SM-086** `[x]`
 The system shall recompute Claude reasoning on each analyze request and shall not persist narrative responses between requests.
+
+**DFF-SM-087** `[x]`
+When scoring a trade, the system shall attribute assets to the user by direction: players the user receives are those where `adds[player_id]` equals the user's roster ID and players the user sends are those where `drops[player_id]` equals the user's roster ID (or, when the payload omits `drops`, players the trade adds to another roster who are currently on the user's roster); picks the user receives are those whose `owner_id` equals the user's roster ID and picks the user sends are those whose `previous_owner_id` equals the user's roster ID. Assets moving between two other teams shall be excluded.

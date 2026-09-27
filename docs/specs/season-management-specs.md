@@ -8,10 +8,10 @@ Status markers: `[x]` implemented · `[ ]` gap · `[D]` deferred
 
 ## Navigation
 
-**DFF-SM-001** `[ ]`
+**DFF-SM-001** `[x]`
 The system shall render a top-level "My Team" navigation section that is accessible independently of any active or historical draft.
 
-**DFF-SM-002** `[ ]`
+**DFF-SM-002** `[x]`
 When the My Team section loads and no league is connected, the system shall display a league connection prompt with options to enter a Sleeper username or a league ID directly.
 
 **DFF-SM-003** `[ ]`

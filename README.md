@@ -1,6 +1,6 @@
 # dynastyff
 
-A local web app for practicing dynasty startup drafts. Run a full 12-team snake mock against simulated bots, with an optional Claude-backed advisor for pick guidance and strategy stress-testing.
+A local web app for practicing dynasty startup drafts. Run a full 12-team snake mock against simulated bots, with an optional Claude-backed advisor for pick guidance and strategy stress-testing. A **My Team** section connects your real Sleeper leagues (read-only) and keeps their rosters, teams, and trade offers synced into the local database as the foundation for season management.
 
 ## Prerequisites
 
@@ -38,7 +38,7 @@ npm run serve
 npm run dev
 ```
 
-The Vite dev server proxies `/drafts` and `/configs` requests to `http://localhost:3001`, so both commands should be running for draft creation, saved-config reads/writes, state/history reads, and the live draft SSE stream.
+The Vite dev server proxies `/drafts`, `/configs`, and `/sleeper` requests to `http://localhost:3001`, so both commands should be running for draft creation, saved-config reads/writes, state/history reads, the live draft SSE stream, and My Team Sleeper connections/sync.
 
 Open the Vite URL shown in the terminal to begin.
 
@@ -49,6 +49,7 @@ Open the Vite URL shown in the terminal to begin.
 3. **Draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically, may initiate a value-thresholded trade with another bot before selecting a pick, may proactively bring you trade offers during their turns, and will evaluate your counters before the bot chain resumes. If no available player clears a bot's configured position-value floor, it makes a one-pass attempt to move its current pick for future capital, then fills its greatest open roster need or takes noisy BPA once its roster is full. The live draft room is split into **Board**, **Players**, **Feed**, and **Roster** tabs so you can inspect the draft board, available players, the room-wide pick feed, or a single team's pick log without leaving the room.
 4. **Use the advisor (optional)** — on any pick, ask Claude to **Advise me** for a recommendation, or **Grill me** to pressure-test your own reasoning.
 5. **Review your results** — once the draft completes, open the **Draft Grade Summary** for your overall grade, the room leaderboard, and your final roster, then drill into **Full History** (Pick Log / Roster View / Trade Log) if you want it.
+6. **Connect a real league (My Team)** — open **My Team** in the header to connect Sleeper leagues by username or league ID. The section lists connected leagues with last-sync status, a manual **Sync now** button, and per-league disconnect. Roster evaluation, trade analysis, and waiver tools arrive with Season Management.
 
 A GitHub Pages–hosted static build (no backend, no advisor) is also available for offline practice; see `docs/llds/static-build.md`.
 
@@ -71,9 +72,9 @@ Bot decision-making (bounded need-bias pick scoring, trade evaluation, archetype
 
 ## ETL
 
-`npm run etl` scrapes NFL player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables. `npm run etl:devy` independently scrapes KTC's devy board into `devy_players`; it does not mix college values into NFL rankings. Run both before `npm run export:snapshot` to include devy data in the static build. The global **Devy** link opens a browsable college-values view with position, draft-year, and school filters.
+`npm run etl` scrapes NFL player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables; it then syncs all connected Sleeper leagues as its final step (skipped silently when none are connected — a failed Sleeper sync never fails the ETL run). `npm run sync:sleeper` runs the Sleeper sync in isolation. `npm run etl:devy` independently scrapes KTC's devy board into `devy_players`; it does not mix college values into NFL rankings. Run both before `npm run export:snapshot` to include devy data in the static build. The global **Devy** link opens a browsable college-values view with position, draft-year, and school filters.
 
-Full scraper, normalization, and matching behavior is documented in [`docs/llds/etl-pipeline.md`](docs/llds/etl-pipeline.md).
+Full scraper, normalization, and matching behavior is documented in [`docs/llds/etl-pipeline.md`](docs/llds/etl-pipeline.md). Sleeper sync behavior (connection flow, week-sweeping trade transactions, player matching, partial failures) is documented in [`docs/llds/sleeper-sync.md`](docs/llds/sleeper-sync.md).
 
 A weekly GitHub Actions workflow (`.github/workflows/scheduled-refresh.yml`) runs the ETL on a schedule, gates the result with `npm run etl:sanity-check` (fixed player/pick-count floors), and opens a PR with the refreshed `data/snapshot.json` for review rather than pushing to `main` directly. `workflow_dispatch` triggers an on-demand run. See [`docs/llds/etl-scheduling.md`](docs/llds/etl-scheduling.md).
 
@@ -98,6 +99,7 @@ A weekly GitHub Actions workflow (`.github/workflows/scheduled-refresh.yml`) run
 | `npm run db:init` | Initialize the local SQLite schema |
 | `npm run etl` | Scrape and normalize player/pick values |
 | `npm run etl:devy` | Scrape and normalize KTC devy player values |
+| `npm run sync:sleeper` | Sync all connected Sleeper leagues without the scraper pipeline |
 | `npm run export:snapshot` | Refresh `data/snapshot.json` for the static build |
 | `npm run etl:sanity-check` | Gate a refreshed snapshot against player/pick-count floors |
 | **Dev** | |

@@ -46,6 +46,8 @@ export const teamArchetypes = [
 ] as const;
 export const tradeStatuses = ['accepted', 'declined', 'force_declined'] as const;
 export const etlSources = ['ktc', 'fantasycalc', 'dynastydaddy', 'rosteraudit'] as const;
+export const sleeperRosterSlotTypes = ['starter', 'bench', 'ir', 'taxi'] as const;
+export const sleeperTradeOfferStatuses = ['pending', 'complete', 'failed'] as const;
 
 const quotedList = (values: readonly string[]) => values.map((value) => `'${value}'`).join(', ');
 
@@ -409,6 +411,136 @@ export const userQueue = sqliteTable(
   (table) => [
     uniqueIndex('user_queue_draft_player_unique').on(table.draftId, table.playerId),
     uniqueIndex('user_queue_draft_rank_unique').on(table.draftId, table.rank),
+  ],
+);
+
+// @spec DFF-SLS-012
+// @spec DFF-SLS-013
+// @spec DFF-SLS-014
+export const sleeperConnections = sqliteTable(
+  'sleeper_connections',
+  {
+    id: text('id').primaryKey(),
+    leagueId: text('league_id').notNull(),
+    leagueName: text('league_name').notNull(),
+    season: text('season').notNull(),
+    userId: text('user_id').notNull(),
+    rosterId: integer('roster_id').notNull(),
+    connectedAt: text('connected_at').notNull(),
+    lastSyncedAt: text('last_synced_at'),
+  },
+  (table) => [uniqueIndex('sleeper_connections_league_unique').on(table.leagueId)],
+);
+
+// @spec DFF-SLS-054
+// @spec DFF-SLS-021
+export const sleeperSyncRuns = sqliteTable('sleeper_sync_runs', {
+  id: text('id').primaryKey(),
+  startedAt: text('started_at').notNull(),
+  completedAt: text('completed_at'),
+  leagueIdsAttempted: text('league_ids_attempted').notNull(),
+  leagueIdsSucceeded: text('league_ids_succeeded').notNull(),
+  error: text('error'),
+});
+
+// @spec DFF-SLS-050
+export const sleeperLeagues = sqliteTable('sleeper_leagues', {
+  leagueId: text('league_id').primaryKey(),
+  name: text('name').notNull(),
+  season: text('season').notNull(),
+  scoringSettings: text('scoring_settings').notNull(),
+  rosterPositions: text('roster_positions').notNull(),
+  totalRosters: integer('total_rosters').notNull(),
+  status: text('status').notNull(),
+  syncedAt: text('synced_at').notNull(),
+});
+
+// @spec DFF-SLS-051
+export const sleeperTeams = sqliteTable(
+  'sleeper_teams',
+  {
+    id: text('id').primaryKey(),
+    leagueId: text('league_id')
+      .notNull()
+      .references(() => sleeperLeagues.leagueId, { onDelete: 'cascade' }),
+    rosterId: integer('roster_id').notNull(),
+    ownerId: text('owner_id'),
+    displayName: text('display_name'),
+    teamName: text('team_name'),
+    wins: integer('wins').notNull(),
+    losses: integer('losses').notNull(),
+    ties: integer('ties').notNull(),
+    pointsFor: real('points_for'),
+    pointsAgainst: real('points_against'),
+  },
+  (table) => [
+    uniqueIndex('sleeper_teams_league_roster_unique').on(table.leagueId, table.rosterId),
+    index('sleeper_teams_league_id_idx').on(table.leagueId),
+  ],
+);
+
+// @spec DFF-SLS-043
+// @spec DFF-SLS-052
+export const sleeperRosters = sqliteTable(
+  'sleeper_rosters',
+  {
+    id: text('id').primaryKey(),
+    leagueId: text('league_id')
+      .notNull()
+      .references(() => sleeperLeagues.leagueId, { onDelete: 'cascade' }),
+    rosterId: integer('roster_id').notNull(),
+    sleeperPlayerId: text('sleeper_player_id').notNull(),
+    playersId: text('players_id').references(() => players.id, { onDelete: 'set null' }),
+    slotType: text('slot_type').notNull(),
+    syncedAt: text('synced_at').notNull(),
+  },
+  (table) => [
+    index('sleeper_rosters_league_roster_idx').on(table.leagueId, table.rosterId),
+    check(
+      'sleeper_rosters_slot_type_check',
+      sql`${table.slotType} in (${sql.raw(quotedList(sleeperRosterSlotTypes))})`,
+    ),
+  ],
+);
+
+// @spec DFF-SLS-042
+export const sleeperPlayerMap = sqliteTable('sleeper_player_map', {
+  sleeperPlayerId: text('sleeper_player_id').primaryKey(),
+  playersId: text('players_id'),
+  sleeperName: text('sleeper_name').notNull(),
+  sleeperPosition: text('sleeper_position').notNull(),
+  matchedAt: text('matched_at').notNull(),
+});
+
+// @spec DFF-SLS-053
+// @spec DFF-SLS-037
+export const sleeperTradeOffers = sqliteTable(
+  'sleeper_trade_offers',
+  {
+    id: text('id').primaryKey(),
+    leagueId: text('league_id')
+      .notNull()
+      .references(() => sleeperLeagues.leagueId, { onDelete: 'cascade' }),
+    transactionId: integer('transaction_id').notNull(),
+    status: text('status').notNull(),
+    proposerRosterId: integer('proposer_roster_id').notNull(),
+    responderRosterIds: text('responder_roster_ids').notNull(),
+    adds: text('adds').notNull(),
+    drops: text('drops').notNull(),
+    draftPicks: text('draft_picks').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('sleeper_trade_offers_league_transaction_unique').on(
+      table.leagueId,
+      table.transactionId,
+    ),
+    index('sleeper_trade_offers_league_id_idx').on(table.leagueId),
+    check(
+      'sleeper_trade_offers_status_check',
+      sql`${table.status} in (${sql.raw(quotedList(sleeperTradeOfferStatuses))})`,
+    ),
   ],
 );
 

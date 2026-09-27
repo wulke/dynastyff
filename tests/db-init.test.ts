@@ -59,6 +59,14 @@ function withDatabase(run: (db: Database.Database, dbPath: string) => void): voi
 // @spec DFF-HIST-010
 // @spec DFF-HIST-020
 // @spec DFF-DEVY-001
+// @spec DFF-SLS-012
+// @spec DFF-SLS-021
+// @spec DFF-SLS-042
+// @spec DFF-SLS-050
+// @spec DFF-SLS-051
+// @spec DFF-SLS-052
+// @spec DFF-SLS-053
+// @spec DFF-SLS-054
 test('db:init creates all tables defined by the data-model LLD', () => {
   withDatabase((db) => {
     const tableNames = db
@@ -78,6 +86,13 @@ test('db:init creates all tables defined by the data-model LLD', () => {
       'player_value_snapshots',
       'players',
       'roster_players',
+      'sleeper_connections',
+      'sleeper_leagues',
+      'sleeper_player_map',
+      'sleeper_rosters',
+      'sleeper_sync_runs',
+      'sleeper_teams',
+      'sleeper_trade_offers',
       'team_pick_assets',
       'teams',
       'trades',

@@ -29,7 +29,8 @@ npm run etl  (or npm run sync:sleeper)
             │       ├── GET /league/{id}
             │       ├── GET /league/{id}/rosters
             │       ├── GET /league/{id}/users
-            │       └── GET /league/{id}/transactions/{week}
+            │       └── GET /league/{id}/transactions/{week}  for weeks 0..currentWeek
+            │             (currentWeek from GET /state/nfl)
             ├── matchPlayers()          — map Sleeper player IDs → players.id
             └── upsert()                — write sleeper_* tables
 ```
@@ -42,6 +43,7 @@ All endpoints are read-only and require no authentication.
 
 | Endpoint | Purpose |
 |---|---|
+| `GET https://api.sleeper.app/v1/state/nfl` | Current NFL season and week (drives the transactions week sweep) |
 | `GET https://api.sleeper.app/v1/user/{username}` | Resolve username → user ID |
 | `GET https://api.sleeper.app/v1/user/{user_id}/leagues/nfl/{season}` | List user's leagues for a season |
 | `GET https://api.sleeper.app/v1/league/{league_id}` | League settings and metadata |
@@ -76,7 +78,7 @@ Sleeper rosters are expressed as arrays of Sleeper player IDs. Mapping them to t
 1. **Sleeper player cache lookup:** The cached `/players/nfl` payload provides `full_name` and `position` for each Sleeper ID.
 2. **Canonical match:** The same name + position fuzzy match used by the ETL pipeline (Dice ≥ 0.85, then `player-aliases.json`) maps the Sleeper name to a `players.id`.
 
-Matched mappings are stored in `sleeper_player_map` (`sleeper_id → players.id`) and reused across sync runs. Unmatched players are recorded with `players_id = NULL` — they appear on the roster but without dynasty value data. A warning is logged per unmatched player.
+Matched mappings are stored in `sleeper_player_map` (`sleeper_id → players.id`) and reused across sync runs. **Only non-null matches are cached** — unmatched players are re-attempted on the next sync so that a player ingested by a later ETL run matches without manual intervention. Unmatched players are recorded on the roster with `players_id = NULL` — they appear on the roster but without dynasty value data. A warning is logged per unmatched player.
 
 ## Data Model
 
@@ -102,6 +104,8 @@ Persistent mapping from Sleeper player IDs to canonical `players.id`. Fields: `s
 
 ### `sleeper_trade_offers`
 One row per pending or recently resolved trade offer. Fields: `league_id`, `transaction_id`, `status` (`pending` | `complete` | `failed`), `proposer_roster_id`, `responder_roster_ids` (JSON array), `adds` (JSON), `drops` (JSON), `draft_picks` (JSON array of pick objects), `created_at`, `updated_at`.
+
+Trade transactions are collected by sweeping `/transactions/{week}` for every week from 0 through the current NFL week (inclusive). The current week is read once per sync from `GET /state/nfl`. Sweep results are deduplicated by `(league_id, transaction_id)` upsert. Sleeper's `dropped` transaction status maps to `failed`. The proposer is `roster_ids[0]` (Sleeper convention); responders are the remaining `roster_ids`.
 
 ## API Surface (Express)
 
@@ -133,20 +137,24 @@ The Express server exposes endpoints for the My Team connection flow and on-dema
 - If `/players/nfl` fetch fails and the cache is absent or expired, the sync is aborted for all leagues and a clear error is logged. If a valid cache exists, the sync proceeds using the stale cache with a warning.
 - If the Sleeper API returns an unexpected shape for a roster or transaction, that payload is skipped and logged. The sync does not fail the entire league.
 
+## Connection UI (Minimal)
+
+The My Team section ships first as a connection surface for Sleeper Sync. The user connects a league either by Sleeper username (`GET /sleeper/user/:username` lists that user's leagues for the current season, filtered to dynasty where the league payload declares a type) or by entering a league ID directly (`GET /sleeper/league/:league_id` preview). Both paths require the username — it binds the connection's `user_id` and `roster_id`. Once connected, the section lists connected leagues with name, season, and last sync status, plus a manual refresh button (`POST /sleeper/sync`). The Roster Overview landing view and refresh-refetch behavior arrive with Season Management (`docs/llds/season-management.md`).
+
 ## Decisions
 
 | Decision | Chosen | Alternatives | Rationale |
 |---|---|---|---|
-| Auth | None — Sleeper public API | OAuth / API key | Sleeper's read endpoints are fully public; no auth reduces friction to zero |
+| Multi-league connections | Supported — one row per league in `sleeper_connections` | Single-league only | Spec'd by DFF-SLS-012/020 ("adds a league", "all connected leagues") |
+| Mid-season players with no ETL match | Store with `players_id = NULL`, warn, continue | Exclude; hard-fail | Spec'd by DFF-SLS-043; rosters stay correct and Season Manager degrades gracefully |
+| Transactions week sweep | All weeks 0..currentWeek via `GET /state/nfl` | Week 0 + trailing N-week window | Complete history makes "recent" well-defined; no missed long-pending offers; idempotent upserts and the 15-minute sync throttle keep call volume sane (≤ ~19 GETs/league/sync) |
+| Player-map caching | Cache only non-null matches | Cache null matches too | A null match re-attempts next sync, so newly ingested ETL players match automatically |
+| Registry cache contents | Trimmed `{ id: { full_name, position } }` | Raw ~5 MB payload | Shrinks the disk cache dramatically while keeping everything matching needs |
 | Player registry cache | Disk cache at `data/sleeper-players-cache.json`, TTL 24h | Fetch per sync; DB cache | ~5 MB payload; disk cache avoids re-fetching on every sync while staying out of the DB schema |
 | Player matching strategy | Dice fuzzy match on Sleeper name → canonical `players.id` | Sleeper ID as foreign key | `players` table is keyed by the ETL sources (KTC/FantasyCalc), not by Sleeper IDs; name match reuses the existing cross-source matching infrastructure |
 | Unmatched players | Store with `players_id = NULL`, warn | Exclude from roster | Unmatched players still appear on the roster (correct) and the Season Manager degrades gracefully for players without dynasty values |
 | Season year logic | Derive from calendar date (≥ September → current year) | User-configured | Automatic derivation eliminates a config option with an obvious default |
 | Sync step position in ETL | Final step after scrapers | Parallel with scrapers | Sleeper sync depends on the `players` table being current so player matching uses the freshest canonical rows |
 | On-load sync threshold | 15 minutes | Always sync; never auto-sync | Dynasty rosters change infrequently; 15 minutes prevents redundant API calls on quick page refreshes |
+| `sleeper_sync_runs.error` | JSON map `{ leagueId: message }` on partial failure, `null` on success | Single concatenated string | Keeps per-league errors queryable for `GET /sleeper/sync/status` |
 
-## Open Questions
-
-- [ ] Should the user be able to connect multiple leagues simultaneously, or is single-league the initial scope?
-- [ ] How should the sync handle mid-season Sleeper roster changes that don't match any ETL player (e.g., a newly signed practice squad player)?
-- [ ] Should `sleeper_trade_offers` fetch all weeks from week 1 of the season, or only recent transactions (last N weeks)?

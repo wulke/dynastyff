@@ -13,6 +13,7 @@ import { createDraftErrorHandler } from '../src/server/app.js';
 import {
   createSeasonOverviewRoute,
   createSeasonTradeAnalyzeRoute,
+  createSeasonTradeRecommendationsRoute,
   createSeasonTradesPendingRoute,
 } from '../src/server/season-routes.js';
 import type { SeasonAdvisor } from '../src/season/seasonAdvisor.js';
@@ -257,6 +258,114 @@ test('POST /trades/analyze rejects unknown or third-party transactions', async (
       body: { transaction_id: 555 },
     });
     assert.equal(unconnected.statusCode, 404);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-050
+// @spec DFF-SM-055
+// @spec DFF-SM-085
+test('GET /season/:league_id/trades/recommendations returns grouped candidates recomputed per request', async () => {
+  const fixture = createSeasonFixture();
+  const fixedNow = () => new Date('2026-09-27T12:00:00.000Z');
+  const route = createSeasonTradeRecommendationsRoute({ databasePath: fixture.dbPath, now: fixedNow });
+
+  try {
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+
+    assert.equal(statusCode, 200);
+    const payload = json as {
+      groups: Record<string, { label: string; candidates: unknown[] }>;
+      lastComputedAt: string;
+    };
+
+    assert.deepEqual(Object.keys(payload.groups).sort(), ['picks', 'qb', 'rb', 'sell', 'te', 'wr']);
+
+    for (const group of Object.values(payload.groups)) {
+      assert.ok(group.candidates.length <= 3, 'groups cap at three candidates');
+    }
+
+    assert.equal(payload.lastComputedAt, '2026-09-27T12:00:00.000Z');
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-031
+test('POST /trades/analyze accepts a hypothetical trade_offer payload', async () => {
+  const fixture = createSeasonFixture();
+  const seen: unknown[] = [];
+  const advisor: SeasonAdvisor = {
+    explainTrade: async (_context, score, offer) => {
+      seen.push({ score, offer });
+      return { narrative: '**Verdict:** Win', claudeUnavailable: false };
+    },
+  };
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const { statusCode, json } = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: {
+        trade_offer: {
+          transactionId: -5,
+          status: 'hypothetical',
+          proposerRosterId: 2,
+          responderRosterIds: [1],
+          adds: { 's-p2-qb': 1 },
+          drops: { 's-p2-qb': 2, 's-wr2': 1 },
+          draftPicks: [],
+          createdAt: '2026-09-27T00:00:00.000Z',
+        },
+      },
+    });
+
+    assert.equal(statusCode, 200);
+    const payload = json as { transactionId: string; score: { verdict: string }; narrative: string | null };
+
+    assert.equal(payload.transactionId, '-5');
+    assert.ok(['win', 'loss', 'neutral'].includes(payload.score.verdict));
+    assert.equal(payload.narrative, '**Verdict:** Win');
+
+    // The advisor receives the hypothetical offer so it can resolve the counterparty roster.
+    const observed = seen[0] as { offer: { proposerRosterId: number } };
+    assert.equal(observed.offer.proposerRosterId, 2);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-031
+test('POST /trades/analyze rejects trade_offer payloads that do not involve the user', async () => {
+  const fixture = createSeasonFixture();
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor: {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+  } });
+
+  try {
+    const thirdParty = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: {
+        trade_offer: {
+          proposerRosterId: 3,
+          responderRosterIds: [4],
+          adds: {},
+          drops: {},
+          draftPicks: [],
+        },
+      },
+    });
+    assert.equal(thirdParty.statusCode, 400);
+
+    const malformed = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { trade_offer: { proposerRosterId: 'two' } },
+    });
+    assert.equal(malformed.statusCode, 400);
   } finally {
     fixture.cleanup();
   }

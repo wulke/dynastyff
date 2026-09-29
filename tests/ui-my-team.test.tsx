@@ -446,7 +446,7 @@ test('pending offers render verdict badges and inline Claude reasoning', async (
 
   await user.click(screen.getByRole('button', { name: /analyze/i }));
 
-  expect(await screen.findByText(/Recommendation/)).toBeInTheDocument();
+  expect(await screen.findByText(/accept the deal/)).toBeInTheDocument();
 
   const analyzeCall = calls.find((call) => call.url === '/season/111/trades/analyze');
   expect(JSON.parse(String(analyzeCall?.init?.body))).toEqual({ transaction_id: '555' });
@@ -475,4 +475,87 @@ test('pending offers show a fallback note when Claude is unavailable', async () 
   await user.click(screen.getByRole('button', { name: /analyze/i }));
 
   expect(await screen.findByText(/Claude is unavailable/i)).toBeInTheDocument();
+});
+
+function recommendationsFixture() {
+  return {
+    groups: {
+      qb: { label: 'QB targets', candidates: [] },
+      rb: {
+        label: 'RB targets',
+        candidates: [
+          {
+            teamRosterId: 2,
+            teamName: 'Rival Squad',
+            rationale: 'Swap surplus WR depth for RB help',
+            score: {
+              transactionId: '-2001',
+              assetsOut: [{ kind: 'player', label: 'Chris Olave', dynastyValue: 3400, direction: 'out' }],
+              assetsIn: [{ kind: 'player', label: 'Breece Hall', dynastyValue: 3800, direction: 'in' }],
+              compositeScore: 18.2,
+              verdict: 'win',
+              warnings: [],
+            },
+            offer: {
+              transactionId: -2001,
+              status: 'hypothetical',
+              proposerRosterId: 2,
+              responderRosterIds: [1],
+              adds: { 'p-rb': 1 },
+              drops: { 'p-rb': 2, 'p-wr': 1 },
+              draftPicks: [],
+              createdAt: '2026-09-27T00:00:00.000Z',
+            },
+          },
+        ],
+      },
+      wr: { label: 'WR targets', candidates: [] },
+      te: { label: 'TE targets', candidates: [] },
+      picks: { label: 'Pick acquisitions', candidates: [] },
+      sell: { label: 'Value sells', candidates: [] },
+    },
+    lastComputedAt: '2026-09-27T12:00:00.000Z',
+  };
+}
+
+// @spec DFF-SM-057
+// @spec DFF-SM-056
+test('trade recommendations render as a grouped accordion and analyze posts the hypothetical offer', async () => {
+  const user = userEvent.setup();
+  const connections = [
+    { id: 'c1', leagueId: '111', leagueName: 'Gridiron Guild', season: '2026', rosterId: 1, lastSyncedAt: '2026-09-27T10:00:00.000Z' },
+  ];
+  const { calls } = stubFetch((url, init) => {
+    if (url === '/sleeper/connections') return { body: connections };
+    if (url === '/sleeper/sync/status') return { body: [] };
+    if (url === '/season/111/overview') return { body: overviewFixture() };
+    if (url === '/season/111/trades/pending') return { body: { trades: [] } };
+    if (url === '/season/111/trades/recommendations') return { body: recommendationsFixture() };
+    if (url === '/season/111/trades/analyze' && init?.method === 'POST') {
+      return {
+        body: {
+          transactionId: '-2001',
+          score: { verdict: 'win' },
+          narrative: '**Verdict:** Win\n**Recommendation:** send it',
+          claudeUnavailable: false,
+        },
+      };
+    }
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  expect(await screen.findByText('Trade Recommendations')).toBeInTheDocument();
+  expect(screen.getByText('RB targets')).toBeInTheDocument();
+  expect(screen.getByText('Rival Squad')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: /analyze/i }));
+
+  expect(await screen.findByText(/send it/)).toBeInTheDocument();
+
+  const analyzeCall = calls.find((call) => call.url === '/season/111/trades/analyze');
+  const body = JSON.parse(String(analyzeCall?.init?.body)) as { trade_offer: { proposerRosterId: number } };
+
+  expect(body.trade_offer.proposerRosterId).toEqual(2);
 });

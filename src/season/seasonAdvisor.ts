@@ -5,7 +5,7 @@
 // @spec DFF-SM-044
 // @spec DFF-SM-072
 // @spec DFF-SM-086
-import type { LeagueContext } from './context.js';
+import type { LeagueContext, SleeperTradeOfferRecord } from './context.js';
 import type { TradeScore } from './tradeScorer.js';
 
 export type AdvisorFetch = (url: string, init?: RequestInit) => Promise<Response>;
@@ -16,7 +16,11 @@ export type AdvisorResult = {
 };
 
 export type SeasonAdvisor = {
-  explainTrade: (context: LeagueContext, score: TradeScore) => Promise<AdvisorResult>;
+  explainTrade: (
+    context: LeagueContext,
+    score: TradeScore,
+    offer?: SleeperTradeOfferRecord,
+  ) => Promise<AdvisorResult>;
 };
 
 const defaultModel = 'claude-sonnet-4-6';
@@ -33,18 +37,30 @@ const responseFormat = `**Verdict:** Win / Loss / Neutral
 
 **Recommendation:** [Single clear sentence]`;
 
-function counterpartyRosterId(context: LeagueContext, score: TradeScore): number | null {
-  const offer = context.pendingOffers.find((entry) => String(entry.transactionId) === score.transactionId);
+function counterpartyRosterId(
+  context: LeagueContext,
+  score: TradeScore,
+  offer?: SleeperTradeOfferRecord,
+): number | null {
+  if (offer) {
+    if (offer.proposerRosterId !== context.userRosterId) {
+      return offer.proposerRosterId;
+    }
 
-  if (!offer) {
+    return offer.responderRosterIds.find((id) => id !== context.userRosterId) ?? null;
+  }
+
+  const pending = context.pendingOffers.find((entry) => String(entry.transactionId) === score.transactionId);
+
+  if (!pending) {
     return null;
   }
 
-  if (offer.proposerRosterId !== context.userRosterId) {
-    return offer.proposerRosterId;
+  if (pending.proposerRosterId !== context.userRosterId) {
+    return pending.proposerRosterId;
   }
 
-  return offer.responderRosterIds.find((id) => id !== context.userRosterId) ?? null;
+  return pending.responderRosterIds.find((id) => id !== context.userRosterId) ?? null;
 }
 
 function rosterLines(context: LeagueContext, rosterId: number): string[] {
@@ -61,11 +77,15 @@ function rosterLines(context: LeagueContext, rosterId: number): string[] {
 
 // @spec DFF-SM-044 — static league context is sent as a cacheable system prefix.
 // @spec DFF-SM-072 — only the user roster, counterparty roster, medians, and the score object.
-function contextSummary(context: LeagueContext, score: TradeScore): string {
+function contextSummary(
+  context: LeagueContext,
+  score: TradeScore,
+  offer?: SleeperTradeOfferRecord,
+): string {
   const medianLines = Object.entries(context.leagueMedians).map(
     ([position, value]) => `- ${position}: ${value}`,
   );
-  const counterparty = counterpartyRosterId(context, score);
+  const counterparty = counterpartyRosterId(context, score, offer);
 
   return [
     'You are a dynasty fantasy football trade analyst. Be opinionated and ground every claim in the provided signal data.',
@@ -144,7 +164,11 @@ export function createSeasonAdvisor({
   model?: string;
   endpoint?: string;
 } = {}): SeasonAdvisor {
-  async function explainTrade(context: LeagueContext, score: TradeScore): Promise<AdvisorResult> {
+  async function explainTrade(
+    context: LeagueContext,
+    score: TradeScore,
+    offer?: SleeperTradeOfferRecord,
+  ): Promise<AdvisorResult> {
     if (!apiKey) {
       return { narrative: null, claudeUnavailable: true };
     }
@@ -155,7 +179,7 @@ export function createSeasonAdvisor({
       system: [
         {
           type: 'text',
-          text: contextSummary(context, score),
+          text: contextSummary(context, score, offer),
           cache_control: { type: 'ephemeral' },
         },
       ],

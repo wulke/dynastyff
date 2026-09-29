@@ -72,7 +72,7 @@ The UI shall display the user's team context classification (contender / rebuild
 The system shall expose `GET /season/:league_id/trades/pending` which returns all pending Sleeper trade offers from `sleeper_trade_offers` **that involve the user's roster** (as proposer or responder), each with a pre-computed `TradeScore`. Pending offers between other teams shall be excluded — the five-signal model is user-perspective only.
 
 **DFF-SM-031** `[x]`
-The system shall expose `POST /season/:league_id/trades/analyze` which accepts a `transaction_id`, computes (or retrieves) the `TradeScore`, invokes Claude with the score and league context, and returns Claude's structured reasoning.
+The system shall expose `POST /season/:league_id/trades/analyze` which accepts a `transaction_id` referencing a synced pending offer or a `trade_offer` payload referencing a hypothetical recommendation candidate, computes (or retrieves) the `TradeScore`, invokes Claude with the score and league context, and returns Claude's structured reasoning.
 
 **DFF-SM-032** `[x]`
 For each trade, the system shall compute a value delta as the sum of `dynasty_value` of all assets received minus the sum of `dynasty_value` of all assets sent. Player values shall use `players.dynasty_value`; pick values shall use `pick_values` keyed by `(year, round)`.
@@ -121,28 +121,28 @@ The system shall cache the `LeagueContext` summary as a prompt prefix using the 
 
 ## Trade Recommendations
 
-**DFF-SM-050** `[ ]`
+**DFF-SM-050** `[x]`
 The system shall expose `GET /season/:league_id/trades/recommendations` which scans all other league rosters and returns proactive trade candidates grouped by roster need.
 
-**DFF-SM-051** `[ ]`
-The system shall identify surplus positions for the user as positions graded A or B where bench depth exceeds the league median for that position.
+**DFF-SM-051** `[x]`
+The system shall identify surplus positions for the user as positions graded A or B where bench depth — the combined dynasty value of bench and taxi players at the position, IR excluded — strictly exceeds the league-median bench depth at that position.
 
-**DFF-SM-052** `[ ]`
-A trade candidate shall be generated for another team when: the user has surplus at a position that team also has surplus at (enabling an outbound asset), and that team has surplus at a position the user grades C or below (providing an inbound asset).
+**DFF-SM-052** `[x]`
+A trade candidate shall be generated for another team when: the user has surplus at a position where that team grades C or below (enabling an outbound asset that team needs), and that team has surplus at a position the user grades C or below (providing an inbound asset).
 
-**DFF-SM-053** `[ ]`
+**DFF-SM-053** `[x]`
 Each trade candidate shall be scored using the same five-signal Trade Scorer. Only candidates with a positive composite score shall be surfaced.
 
-**DFF-SM-054** `[ ]`
+**DFF-SM-054** `[x]`
 Trade candidates shall be grouped by the roster need they address: WR targets, RB targets, QB targets, TE targets, pick acquisitions, and value sells.
 
-**DFF-SM-055** `[ ]`
+**DFF-SM-055** `[x]`
 Each group shall surface at most 3 candidates, ranked by composite score descending.
 
-**DFF-SM-056** `[ ]`
+**DFF-SM-056** `[x]`
 The Trade Recommendations endpoint shall not invoke Claude. Claude is invoked only when the user clicks "Analyze" on a specific candidate, which routes to `POST /season/:league_id/trades/analyze`.
 
-**DFF-SM-057** `[ ]`
+**DFF-SM-057** `[x]`
 The UI shall render trade recommendations in a grouped accordion by need category. Each candidate shall display the counterparty team name, the proposed assets, and the composite score.
 
 ---
@@ -208,7 +208,7 @@ When the user's league has fewer than 4 teams with data (e.g., a partially synce
 **DFF-SM-084** `[x]`
 The Roster Evaluator shall include taxi-squad players in depth scoring and shall exclude IR players from all grade components while retaining them in roster display data.
 
-**DFF-SM-085** `[ ]`
+**DFF-SM-085** `[x]`
 The system shall recompute trade recommendations on every request without a TTL cache; the `lastComputedAt` timestamp shall reflect the actual computation time.
 
 **DFF-SM-086** `[x]`
@@ -216,3 +216,6 @@ The system shall recompute Claude reasoning on each analyze request and shall no
 
 **DFF-SM-087** `[x]`
 When scoring a trade, the system shall attribute assets to the user by direction: players the user receives are those where `adds[player_id]` equals the user's roster ID and players the user sends are those where `drops[player_id]` equals the user's roster ID (or, when the payload omits `drops`, players the trade adds to another roster who are currently on the user's roster); picks the user receives are those whose `owner_id` equals the user's roster ID and picks the user sends are those whose `previous_owner_id` equals the user's roster ID. Assets moving between two other teams shall be excluded.
+
+**DFF-SM-088** `[x]`
+Trade candidate asset selection shall be deterministic: the outbound asset for surplus-based candidates shall be the user's most valuable non-starter (bench or taxi, IR excluded) at the surplus position; the inbound asset for a player swap shall be the counterparty's non-starter at the target position with the dynasty value closest to the outbound asset; the inbound asset for a pick acquisition shall be the counterparty's most valuable owned future pick; and a value sell shall ship the user's most valuable player aged 30 or older at a position the counterparty grades C or below. Hypothetical candidates shall carry synthetic transaction IDs that cannot collide with Sleeper transaction IDs.

@@ -39,7 +39,7 @@ Express Server (src/server/season-routes.ts, registered in app.ts)
 |---|---|---|
 | GET | `/season/:league_id/overview` | Roster grades, percentiles, team context |
 | GET | `/season/:league_id/trades/pending` | Pending Sleeper trade offers with scores |
-| POST | `/season/:league_id/trades/analyze` | Analyze a specific pending trade (with Claude) |
+| POST | `/season/:league_id/trades/analyze` | Analyze a pending trade or a hypothetical candidate (with Claude) |
 | GET | `/season/:league_id/trades/recommendations` | Proactive trade suggestions grouped by need |
 | GET | `/season/:league_id/waivers` | Waiver add/drop pairs with scores |
 | POST | `/season/:league_id/waivers/analyze` | Analyze a specific add/drop pair (with Claude) |
@@ -225,29 +225,45 @@ Scans all other teams' rosters to surface proactive trade opportunities. Results
 
 ### Candidate Generation
 
-For each other team in the league:
-1. Identify the user's surplus positions (grade A or B positions where bench depth exceeds league median).
-2. Identify the other team's surplus positions using the same grade logic.
-3. A trade candidate is generated when: the user has surplus at a position the other team also has surplus at (so they can give something) AND the other team has surplus at a position the user grades C or below (so there's something to receive).
-4. Each candidate is scored with the Trade Scorer's five-signal model.
-5. Only candidates with `compositeScore > 0` (net positive for the user) are surfaced.
+The recommender needs two per-team measures, both computed from the same Roster Evaluator math used by the overview (other teams are graded by evaluating the same `LeagueContext` with `userRosterId` pointed at each team):
+
+- **Letter grade** at each of QB/RB/WR/TE (composite → A/B/C/D/F bands).
+- **Surplus** (DFF-SM-051): grade A or B **and** bench depth — combined dynasty value of bench + taxi players at the position, IR excluded — strictly greater than the league-median bench depth at that position (median across all teams of the same bench-depth measure).
+
+For each other team `T`:
+
+1. Compute `T`-needs = positions where `T` grades C or below, and `T`-surplus = positions where `T` has surplus.
+2. Compute the user's surplus positions and need positions (grade C or below).
+3. **Player swap** — for each `(P, Q)` where `P` is a user-surplus position `T` needs and `Q` is a `T`-surplus position the user needs: outbound = the user's most valuable non-starter (bench or taxi, IR excluded) at `P`; inbound = `T`'s non-starter at `Q` with dynasty value closest to the outbound asset (ties break to the higher value, then lower player ID, for determinism).
+4. **Pick acquisition** — for each user-surplus position `P` that `T` needs: outbound = the user's most valuable non-starter at `P`; inbound = `T`'s most valuable owned future pick (highest `pick_values` entry across `T`'s owned picks in the next three seasons, from the pick inventory that also feeds the liquidity signal).
+5. **Value sell** — for each position `P` where the user has a player aged 30+ and `T` grades C or below at `P`: outbound = the user's most valuable player aged 30+ at `P` (starters allowed — selling a declining starter is the point); inbound = `T`'s most valuable owned future pick.
+
+Candidates are deduplicated by the `(T, outbound, inbound)` triple. A candidate with no eligible inbound asset (e.g. `T` owns no future picks, or has no non-starter at `Q`) is skipped. Every candidate is scored with the same five-signal Trade Scorer; only candidates with `compositeScore > 0` are surfaced (DFF-SM-053).
+
+Each candidate carries a hypothetical offer payload so the UI can send it straight to `POST .../trades/analyze`: the counterparty is the proposer, the user the sole responder, `adds`/`drops` carry the player legs keyed by Sleeper player ID, pick legs ride in `draft_picks` with `previous_owner_id` = counterparty and `owner_id` = user, and the `transactionId` is synthetic and negative (e.g. `-101`) so it can never collide with a real Sleeper transaction ID.
 
 ### Grouping
 
-Candidates are grouped by the roster need they address:
+Candidates are assigned to exactly one group by precedence:
 
-- **WR targets** — trades that improve the user's WR grade
-- **RB targets** — trades that improve the user's RB grade
-- **QB targets** — trades that improve the user's QB grade
-- **TE targets** — trades that improve the user's TE grade
-- **Pick acquisitions** — trades that net the user future draft capital
-- **Value sells** — trades where the user ships aging/surplus assets for youth or picks (sell-high opportunities)
+1. **Value sells** (`sell`) — the outbound asset is a player aged 30+ (DFF-SM-088).
+2. **Pick acquisitions** (`picks`) — the inbound assets include a future pick.
+3. **Position targets** (`wr` / `rb` / `qb` / `te`) — grouped by the inbound player's position.
 
-Each group shows the top 3 candidates by composite score. Claude is not invoked on the full recommendations list — it is invoked when the user drills into a specific candidate via `POST /season/:league_id/trades/analyze`.
+The response always includes all six group keys (empty arrays when a group has no candidates) so clients get a stable shape. Each group is capped at its top 3 candidates by composite score descending (DFF-SM-055). Claude is not invoked on the recommendations list — it is invoked when the user drills into a specific candidate via `POST /season/:league_id/trades/analyze` with the candidate's `offer` payload.
 
 ### Response Shape
 
 ```ts
+type TradeCandidateWithScore = {
+  teamRosterId: number;
+  teamName: string;
+  group: 'qb' | 'rb' | 'wr' | 'te' | 'picks' | 'sell';
+  rationale: string;   // e.g. "Swap surplus WR depth for RB help"
+  score: TradeScore;
+  offer: SleeperTradeOffer;  // hypothetical — POST it to /trades/analyze
+};
+
 type TradeRecommendations = {
   groups: {
     [groupKey: string]: {
@@ -337,6 +353,10 @@ The My Team section is a standalone top-level nav section. It does not share sta
 | Start/sit | Deferred | In scope | Requires a weekly projections source not in the current ETL stack; separate initiative |
 | Pending offers scope | Offers involving the user's roster only | All pending league offers | The five-signal model is user-perspective; third-party trades have no defined user value delta |
 | Trade recommendations caching | Recomputed on every request | TTL cache (e.g., 1 hour) | Pure SQLite reads + in-memory math; consistent with fresh-context-per-request (SM-071); `lastComputedAt` stays accurate |
+| Recommender matching condition | Outbound position must be one the *counterparty grades C or below* | Original SM-052 wording: counterparty *also has surplus* there | Amended spec: a team deep at a position has no reason to acquire more of it; the original condition produced candidates no counterparty would accept |
+| Surplus definition | Bench depth (bench + taxi value, IR excluded) > league-median *bench depth* | Bench depth > league-median total positional value | The median comparison must be symmetric for the threshold to be meaningful; comparing bench value against other teams' full positional value would make surplus nearly unattainable |
+| Hypothetical offer IDs | Synthetic negative transaction IDs on candidate offers | Hash/UUID strings | `SleeperTradeOfferRecord.transactionId` is numeric; negatives cannot collide with Sleeper IDs |
+| Analyzing a candidate | `POST /trades/analyze` accepts `{ trade_offer: … }` alongside `{ transaction_id }` | Score candidates client-side; or persist hypothetical offers | Keeps one scoring path (the same five-signal scorer) and honors SM-056 (Claude only on explicit Analyze) without persisting speculative rows |
 | Taxi/IR in grades | Taxi counts toward depth score; IR excluded from grades | Include both; exclude both | Taxi is real developmental depth (the essence of dynasty); IR contributes nothing near-term |
 | Age curve baselines | Fixed constants (QB 27, RB 24, WR 25, TE 26) | Per-league configurable | Superflex skews value weighting more than age primes; no proven need for config surface |
 | Claude reasoning persistence | Recomputed on demand | Persist to SQLite | Scores recompute from fresh syncs; persisted narratives could contradict changed scores |

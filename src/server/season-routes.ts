@@ -105,7 +105,9 @@ function numericRecord(raw: unknown): Record<string, number> | null {
 }
 
 // @spec DFF-SM-031 — the `trade_offer` body carries the same JSON shape a recommendation's
-// `offer` field returns. It must involve the user's roster; anything else is rejected.
+// `offer` field returns (camelCase `transactionId`; when both `trade_offer` and `transaction_id`
+// are present, `trade_offer` takes precedence). It must involve the user's roster; anything else
+// is rejected so malformed payloads fail as 400s, never 500s.
 function parseTradeOffer(raw: unknown, userRosterId: number): SleeperTradeOfferRecord | null {
   if (raw === null || typeof raw !== 'object') {
     return null;
@@ -118,15 +120,38 @@ function parseTradeOffer(raw: unknown, userRosterId: number): SleeperTradeOfferR
     return null;
   }
 
+  if (
+    body.responderRosterIds !== undefined &&
+    !(Array.isArray(body.responderRosterIds) && body.responderRosterIds.every((id) => typeof id === 'number'))
+  ) {
+    return null;
+  }
+
   const responderRosterIds =
-    Array.isArray(body.responderRosterIds) && body.responderRosterIds.every((id) => typeof id === 'number')
-      ? (body.responderRosterIds as number[])
-      : [];
+    body.responderRosterIds !== undefined ? (body.responderRosterIds as number[]) : [];
   const adds = numericRecord(body.adds);
   const drops = numericRecord(body.drops);
 
-  if (adds === null || drops === null || !Array.isArray(body.draftPicks ?? [])) {
+  if (adds === null || drops === null) {
     return null;
+  }
+
+  const draftPicks: unknown[] = [];
+
+  if (body.draftPicks !== undefined) {
+    if (!Array.isArray(body.draftPicks)) {
+      return null;
+    }
+
+    for (const element of body.draftPicks) {
+      const pick = parseTradeOfferPick(element);
+
+      if (pick === null) {
+        return null;
+      }
+
+      draftPicks.push(pick);
+    }
   }
 
   const involvesUser =
@@ -139,29 +164,54 @@ function parseTradeOffer(raw: unknown, userRosterId: number): SleeperTradeOfferR
     return null;
   }
 
-  const rawTransactionId =
-    typeof body.transactionId === 'number'
-      ? body.transactionId
-      : typeof body.transactionId === 'string' && body.transactionId !== ''
-        ? Number(body.transactionId)
-        : typeof body.transaction_id === 'number'
-          ? body.transaction_id
-          : -1;
-
-  if (!Number.isFinite(rawTransactionId)) {
-    return null;
-  }
+  const rawTransactionId = body.transactionId;
+  const transactionId =
+    typeof rawTransactionId === 'number' && Number.isFinite(rawTransactionId)
+      ? rawTransactionId
+      : typeof rawTransactionId === 'string' && /^-?\d+$/.test(rawTransactionId.trim())
+        ? Number(rawTransactionId.trim())
+        : -1;
 
   return {
-    transactionId: rawTransactionId,
+    transactionId,
     status: typeof body.status === 'string' ? body.status : 'hypothetical',
     proposerRosterId,
     responderRosterIds,
     adds,
     drops,
-    draftPicks: (body.draftPicks ?? []) as unknown[],
+    draftPicks,
     createdAt: typeof body.createdAt === 'string' ? body.createdAt : '',
   };
+}
+
+// Pick legs must carry a season and a positive integer round; roster IDs may be absent but
+// must be numbers when present. Unknown extra fields are dropped rather than passed through.
+function parseTradeOfferPick(raw: unknown): unknown | null {
+  if (raw === null || typeof raw !== 'object') {
+    return null;
+  }
+
+  const pick = raw as Record<string, unknown>;
+
+  const seasonOk = typeof pick.season === 'string' || typeof pick.season === 'number';
+  const roundOk = typeof pick.round === 'number' && Number.isInteger(pick.round) && pick.round >= 1;
+  const idsOk = ['roster_id', 'previous_owner_id', 'owner_id'].every(
+    (key) => pick[key] === undefined || typeof pick[key] === 'number',
+  );
+
+  if (!seasonOk || !roundOk || !idsOk) {
+    return null;
+  }
+
+  const normalized: Record<string, unknown> = { season: String(pick.season), round: pick.round };
+
+  for (const key of ['roster_id', 'previous_owner_id', 'owner_id']) {
+    if (pick[key] !== undefined) {
+      normalized[key] = pick[key];
+    }
+  }
+
+  return normalized;
 }
 
 // @spec DFF-SM-030 — only offers involving the user's roster (proposer or responder).

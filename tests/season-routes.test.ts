@@ -370,3 +370,33 @@ test('POST /trades/analyze rejects trade_offer payloads that do not involve the 
     fixture.cleanup();
   }
 });
+
+// @spec DFF-SM-031
+test('POST /trades/analyze rejects malformed trade_offer payloads with 400s', async () => {
+  const fixture = createSeasonFixture();
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor: {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+  } });
+
+  const base = { proposerRosterId: 2, responderRosterIds: [1], adds: {}, drops: {} };
+
+  try {
+    const cases: Array<{ trade_offer: Record<string, unknown> }> = [
+      { trade_offer: { ...base, draftPicks: [null] } },
+      { trade_offer: { ...base, draftPicks: [{ season: '2027', round: 'one' }] } },
+      { trade_offer: { ...base, draftPicks: [{ round: 1 }] } },
+      { trade_offer: { ...base, draftPicks: [{ season: '2027', round: 0 }] } },
+      { trade_offer: { ...base, draftPicks: [{ season: '2027', round: 1, owner_id: 'one' }] } },
+      { trade_offer: { ...base, responderRosterIds: ['one'] } },
+      { trade_offer: { ...base, adds: { 's-wr2': 'one' } } },
+    ];
+
+    for (const body of cases) {
+      const { statusCode } = await invokeRoute({ route, params: { league_id: seasonLeagueId }, body });
+
+      assert.equal(statusCode, 400, `expected 400 for ${JSON.stringify(body.trade_offer)}`);
+    }
+  } finally {
+    fixture.cleanup();
+  }
+});

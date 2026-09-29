@@ -267,3 +267,26 @@ test('a league with no exploitable imbalances yields empty groups', () => {
     assert.equal(group.candidates.length, 0);
   }
 });
+
+// @spec DFF-SM-088
+// @spec DFF-SM-054
+test('an aging surplus asset resolves to its sell candidate, never a duplicate pick acquisition', () => {
+  // q9 (31y) is both the aging QB and the most valuable non-starter at the user's surplus QB
+  // position; team 2 needs QB, so the sell (q9 -> pick) and pick acquisition (q9 -> same pick)
+  // share the (team, outbound, inbound) key. The sell is drafted first and must win.
+  const recommendations = recommendTrades(buildContext());
+  const candidates = Object.values(recommendations.groups).flatMap((entry) => entry.candidates);
+  const agingOutbound = candidates.filter(
+    (candidate) => candidate.score.assetsOut.some((asset) => asset.label === 'Aging QB'),
+  );
+
+  assert.ok(agingOutbound.length > 0, 'the aging QB must ship in at least one candidate');
+  assert.ok(agingOutbound.every((candidate) => candidate.group === 'sell'));
+
+  // Exactly one candidate per (team, inbound) pair for the aging asset — no pick-acquisition duplicate.
+  const keys = agingOutbound.map((candidate) =>
+    `${candidate.teamRosterId}:${candidate.score.assetsIn.map((asset) => asset.label).join(',')}`,
+  );
+
+  assert.equal(new Set(keys).size, keys.length);
+});

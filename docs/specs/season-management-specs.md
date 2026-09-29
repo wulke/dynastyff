@@ -72,7 +72,7 @@ The UI shall display the user's team context classification (contender / rebuild
 The system shall expose `GET /season/:league_id/trades/pending` which returns all pending Sleeper trade offers from `sleeper_trade_offers` **that involve the user's roster** (as proposer or responder), each with a pre-computed `TradeScore`. Pending offers between other teams shall be excluded — the five-signal model is user-perspective only.
 
 **DFF-SM-031** `[x]`
-The system shall expose `POST /season/:league_id/trades/analyze` which accepts a `transaction_id` referencing a synced pending offer or a `trade_offer` payload referencing a hypothetical recommendation candidate, computes (or retrieves) the `TradeScore`, invokes Claude with the score and league context, and returns Claude's structured reasoning.
+The system shall expose `POST /season/:league_id/trades/analyze` which accepts a `transaction_id` referencing a synced pending offer or a `trade_offer` payload referencing a hypothetical recommendation candidate (when both are present, `trade_offer` takes precedence), computes (or retrieves) the `TradeScore`, invokes Claude with the score and league context, and returns Claude's structured reasoning.
 
 **DFF-SM-032** `[x]`
 For each trade, the system shall compute a value delta as the sum of `dynasty_value` of all assets received minus the sum of `dynasty_value` of all assets sent. Player values shall use `players.dynasty_value`; pick values shall use `pick_values` keyed by `(year, round)`.

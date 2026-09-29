@@ -240,7 +240,7 @@ For each other team `T`:
 
 Candidates are deduplicated by the `(T, outbound, inbound)` triple. A candidate with no eligible inbound asset (e.g. `T` owns no future picks, or has no non-starter at `Q`) is skipped. Every candidate is scored with the same five-signal Trade Scorer; only candidates with `compositeScore > 0` are surfaced (DFF-SM-053).
 
-Each candidate carries a hypothetical offer payload so the UI can send it straight to `POST .../trades/analyze`: the counterparty is the proposer, the user the sole responder, `adds`/`drops` carry the player legs keyed by Sleeper player ID, pick legs ride in `draft_picks` with `previous_owner_id` = counterparty and `owner_id` = user, and the `transactionId` is synthetic and negative (e.g. `-101`) so it can never collide with a real Sleeper transaction ID.
+Each candidate carries a hypothetical offer payload so the UI can send it straight to `POST .../trades/analyze`: the counterparty is the proposer, the user the sole responder, `adds`/`drops` carry the player legs keyed by Sleeper player ID, pick legs ride in `draft_picks` with `previous_owner_id` = counterparty and `owner_id` = user, and the `transactionId` is synthetic and negative (e.g. `-101`) so it can never collide with a real Sleeper transaction ID. The analyze endpoint validates the payload shape (numeric roster IDs, well-formed pick legs) and rejects anything that does not involve the user's roster with a 400; when a request carries both `trade_offer` and `transaction_id`, `trade_offer` wins.
 
 ### Grouping
 

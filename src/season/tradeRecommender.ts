@@ -13,7 +13,7 @@ import {
   type SleeperTradeOfferRecord,
   type TeamRoster,
 } from './context.js';
-import { evaluateRoster } from './rosterEvaluator.js';
+import { evaluateRoster, gradeBCompositeThreshold } from './rosterEvaluator.js';
 import { ownedPicks, scoreTrade, type TradeScore } from './tradeScorer.js';
 
 export type TradeCandidateGroup = 'qb' | 'rb' | 'wr' | 'te' | 'picks' | 'sell';
@@ -43,8 +43,9 @@ const groupLabels: Record<TradeCandidateGroup, string> = {
   sell: 'Value sells',
 };
 
-// Letter-grade bands from the Roster Evaluator: composite >= 70 is B or better ("C or below" = < 70).
-const gradeBThreshold = 70;
+// Letter-grade bands come from the Roster Evaluator (shared constant): composite below the
+// B threshold is "C or below".
+const gradeBThreshold = gradeBCompositeThreshold;
 const agingThreshold = 30;
 
 type TeamOutlook = {
@@ -53,6 +54,8 @@ type TeamOutlook = {
   surplus: Set<PositionGroup>;
   needs: Set<PositionGroup>;
 };
+
+type LeagueMedians = Map<PositionGroup, number>;
 
 function nonStarters(team: TeamRoster, position: PositionGroup): RosterEntry[] {
   // Bench + taxi are the spare parts; IR is never trade bait here (DFF-SM-084 spirit).
@@ -86,7 +89,11 @@ function byValueThenId(a: RosterEntry, b: RosterEntry): number {
 }
 
 // @spec DFF-SM-051 — surplus: grade A/B and bench depth above the league-median bench depth.
-function outlookFor(context: LeagueContext, team: TeamRoster): TeamOutlook {
+function outlookFor(
+  context: LeagueContext,
+  team: TeamRoster,
+  medianBenchDepth: LeagueMedians,
+): TeamOutlook {
   // Other teams are graded by evaluating the same context with the user pointer moved.
   const evaluation = evaluateRoster({ ...context, userRosterId: team.rosterId });
 
@@ -95,16 +102,20 @@ function outlookFor(context: LeagueContext, team: TeamRoster): TeamOutlook {
   const needs = new Set<PositionGroup>();
 
   for (const position of positionGroups) {
-    const composite = evaluation.positions[position]?.composite ?? 50;
+    const composite = evaluation.positions[position]?.composite;
+
+    // A position without a composite was never evaluated — skip rather than inventing a grade.
+    if (composite === undefined) {
+      continue;
+    }
+
     composites[position] = composite;
 
     if (composite < gradeBThreshold) {
       needs.add(position);
     }
 
-    const medianDepth = leagueMedianBenchDepth(context.allRosters, position);
-
-    if (composite >= gradeBThreshold && benchDepth(team, position) > medianDepth) {
+    if (composite >= gradeBThreshold && benchDepth(team, position) > (medianBenchDepth.get(position) ?? 0)) {
       surplus.add(position);
     }
   }
@@ -317,7 +328,12 @@ export function recommendTrades(context: LeagueContext, now: () => Date = () => 
     throw new Error(`User roster ${context.userRosterId} missing from league ${context.league.leagueId}.`);
   }
 
-  const user = outlookFor(context, userTeam);
+  // League-median bench depth per position, computed once for all team outlooks.
+  const medianBenchDepth: LeagueMedians = new Map(
+    positionGroups.map((position) => [position, leagueMedianBenchDepth(context.allRosters, position)]),
+  );
+
+  const user = outlookFor(context, userTeam, medianBenchDepth);
 
   const seen = new Set<string>();
   const byGroup = new Map<TradeCandidateGroup, TradeCandidate[]>();
@@ -327,9 +343,12 @@ export function recommendTrades(context: LeagueContext, now: () => Date = () => 
       continue;
     }
 
-    const counterparty = outlookFor(context, team);
+    const counterparty = outlookFor(context, team, medianBenchDepth);
 
     for (const draft of draftCandidatesFor(context, counterparty, user, picks, now)) {
+      // First draft wins: value sells are generated before pick acquisitions, so an aging
+      // surplus asset resolves to its sell candidate and the identical pick-acquisition
+      // triple is dropped here (grouping precedence for DFF-SM-088/SM-054).
       if (seen.has(draft.key)) {
         continue;
       }

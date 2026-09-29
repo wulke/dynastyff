@@ -71,8 +71,15 @@ function rosterLines(context: LeagueContext, rosterId: number): string[] {
   }
 
   return team.players.map(
-    (entry) => `- ${entry.name} (${entry.position}, ${entry.age ?? '?'}y) — dynasty value ${entry.dynastyValue}`,
+    (entry) => `- ${sanitize(entry.name)} (${entry.position}, ${entry.age ?? '?'}y) — dynasty value ${entry.dynastyValue}`,
   );
+}
+
+// Client- or league-supplied strings (asset labels, warnings, roster and team names) pass
+// through the prompt. Strip characters that could reshape it (emphasis markers, backticks,
+// line breaks) and cap length so nothing can inject instructions or forge the response format.
+function sanitize(text: string): string {
+  return text.replace(/[\u0000-\u001f\u007f*`]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
 // @spec DFF-SM-044 — static league context is sent as a cacheable system prefix.
@@ -105,7 +112,7 @@ function contextSummary(
 
 function tradePrompt(score: TradeScore): string {
   const assets = (label: string, items: TradeScore['assetsIn']): string =>
-    `${label}: ${items.length === 0 ? '(none)' : items.map((asset) => `${asset.label} (value ${asset.dynastyValue})`).join(', ')}`;
+    `${label}: ${items.length === 0 ? '(none)' : items.map((asset) => `${sanitize(asset.label)} (value ${asset.dynastyValue})`).join(', ')}`;
 
   return [
     `Trade ${score.transactionId}:`,
@@ -118,7 +125,7 @@ function tradePrompt(score: TradeScore): string {
     `- positional need: ${score.signals.positionalNeedScore.toFixed(1)}`,
     `- asset liquidity: ${score.signals.assetLiquidity}`,
     `- composite: ${score.compositeScore.toFixed(1)} (${score.verdict})`,
-    score.warnings.length > 0 ? `- warnings: ${score.warnings.join('; ')}` : '',
+    score.warnings.length > 0 ? `- warnings: ${score.warnings.map(sanitize).join('; ')}` : '',
     '',
     'Explain why the composite is what it is. Cite specific dynasty value figures (e.g. "dynasty value: 4200") in every value claim. Highlight the most decisive signal and surface at least one non-obvious factor.',
     'Respond in exactly this format:',

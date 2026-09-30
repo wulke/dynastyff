@@ -149,31 +149,31 @@ The UI shall render trade recommendations in a grouped accordion by need categor
 
 ## Waiver Wire
 
-**DFF-SM-060** `[ ]`
+**DFF-SM-060** `[x]`
 The system shall expose `GET /season/:league_id/waivers` which returns ranked add/drop pairs for free agents in the connected league.
 
-**DFF-SM-061** `[ ]`
+**DFF-SM-061** `[x]`
 The system shall expose `POST /season/:league_id/waivers/analyze` which accepts an add/drop pair, invokes Claude with the pair's score and league context, and returns Claude's structured reasoning.
 
-**DFF-SM-062** `[ ]`
+**DFF-SM-062** `[x]`
 For each free agent with `dynasty_value > 0`, the system shall identify the user's weakest position matching the free agent's position as the target for the add.
 
-**DFF-SM-063** `[ ]`
+**DFF-SM-063** `[x]`
 For each add candidate, the system shall identify the optimal drop candidate as the lowest `dynasty_value` bench player at the same position on the user's roster. When the position is not over the roster limit, no drop candidate is required.
 
-**DFF-SM-064** `[ ]`
+**DFF-SM-064** `[x]`
 The system shall score each add/drop pair on: value delta (add value minus drop value), positional need gap (same signal as trade scoring), and age curve (whether the add is younger than the drop).
 
-**DFF-SM-065** `[ ]`
+**DFF-SM-065** `[x]`
 Only add/drop pairs with a positive value delta and a valid drop candidate (or no drop required) shall be surfaced.
 
-**DFF-SM-066** `[ ]`
+**DFF-SM-066** `[x]`
 The system shall return at most 5 add/drop pairs per position group, ranked by combined value delta and positional need score descending.
 
-**DFF-SM-067** `[ ]`
+**DFF-SM-067** `[x]`
 When `POST /season/:league_id/waivers/analyze` is called, the system shall invoke Claude using the same structured reasoning format as trade analysis (Verdict / Primary signal / Key factors / Non-obvious consideration / Recommendation).
 
-**DFF-SM-068** `[ ]`
+**DFF-SM-068** `[x]`
 The UI shall render each waiver pair as a single row showing the add player (name, position, dynasty value), the drop player (name, position, dynasty value), and a value delta badge. An "Analyze" button shall trigger the Claude reasoning call.
 
 ---

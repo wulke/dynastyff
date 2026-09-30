@@ -209,6 +209,18 @@ type RecommendationsView = {
   groups: Record<string, { label: string; candidates: RecommendationCandidate[] }>;
 };
 
+// @spec DFF-SM-068
+type WaiverPairView = {
+  add: { id: string; name: string; position: string; dynastyValue: number };
+  drop: { id: string; name: string; position: string; dynastyValue: number } | null;
+  valueDelta: number;
+  score: { rankScore: number };
+};
+
+type WaiversView = {
+  pairs: WaiverPairView[];
+};
+
 const verdictTokens: Record<TradeScoreView['verdict'], string> = {
   win: 'border-positive text-positive',
   loss: 'border-negative text-negative',
@@ -364,6 +376,81 @@ function RecommendationsPanel({
           </details>
         ))
       )}
+    </div>
+  );
+}
+
+// @spec DFF-SM-068
+function WaiverWirePanel({
+  waivers,
+  analyses,
+  onAnalyze,
+}: {
+  waivers: WaiversView;
+  analyses: Record<string, TradeAnalysis>;
+  onAnalyze: (key: string, body: Record<string, unknown>) => void;
+}) {
+  if (waivers.pairs.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 rounded-md border border-default bg-surface">
+      <div className="border-b border-default px-3 py-2">
+        <h2 className="font-condensed text-lg font-semibold text-primary">Waiver Wire</h2>
+      </div>
+      {waivers.pairs.map((pair) => {
+        const key = `w-${pair.add.id}`;
+        const analysis = analyses[key];
+
+        return (
+          <div key={key} className="border-b border-default px-3 py-2 text-sm last:border-b-0 hover:bg-surface-hover">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`w-8 font-condensed text-sm font-bold ${positionTextTokens[pair.add.position] ?? 'text-primary'}`}>
+                {pair.add.position}
+              </span>
+              <span className="font-medium text-primary">{pair.add.name}</span>
+              <span className="font-condensed text-xs tabular-nums text-secondary">
+                {pair.add.dynastyValue}
+              </span>
+              <span className="text-muted">→</span>
+              <span className="min-w-0 flex-1 truncate text-xs text-secondary">
+                {pair.drop === null
+                  ? 'No drop needed'
+                  : `Drop ${pair.drop.name} (${pair.drop.dynastyValue})`}
+              </span>
+              <span className="rounded border border-positive px-1.5 py-0.5 font-condensed text-xs tabular-nums text-positive">
+                +{pair.valueDelta}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  onAnalyze(key, {
+                    add_player_id: pair.add.id,
+                    ...(pair.drop === null ? {} : { drop_player_id: pair.drop.id }),
+                  })
+                }
+                disabled={analysis?.loading === true}
+                className="rounded border border-default px-2 py-1 text-xs font-medium text-secondary transition hover:border-strong hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Analyze
+              </button>
+            </div>
+
+            {analysis?.narrative ? (
+              <pre className="mt-2 whitespace-pre-wrap border-l-2 border-accent bg-app px-2 py-1 text-xs text-primary">
+                {analysis.narrative}
+              </pre>
+            ) : null}
+
+            {analysis && analysis.claudeUnavailable && !analysis.narrative ? (
+              <p className="mt-1 text-xs text-muted" role="status">
+                Claude is unavailable — showing signal scores only.
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -589,6 +676,7 @@ export function MyTeamSection() {
   const [pendingTrades, setPendingTrades] = useState<TradeScoreView[]>([]);
   const [analyses, setAnalyses] = useState<Record<string, TradeAnalysis>>({});
   const [recommendations, setRecommendations] = useState<RecommendationsView | null>(null);
+  const [waivers, setWaivers] = useState<WaiversView | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -675,6 +763,20 @@ export function MyTeamSection() {
       } catch {
         if (!cancelled) {
           setRecommendations(null);
+        }
+      }
+
+      try {
+        const payload = (await requestJson(
+          `/season/${encodeURIComponent(selectedLeagueId)}/waivers`,
+        )) as WaiversView;
+
+        if (!cancelled) {
+          setWaivers(payload);
+        }
+      } catch {
+        if (!cancelled) {
+          setWaivers(null);
         }
       }
     };
@@ -828,7 +930,7 @@ export function MyTeamSection() {
   // @spec DFF-SM-031
   // @spec DFF-SM-043
   // @spec DFF-SM-056 — Claude runs only on an explicit Analyze click.
-  async function analyzeTrade(key: string, body: Record<string, unknown>) {
+  async function analyzeTrade(key: string, body: Record<string, unknown>, endpoint: 'trades' | 'waivers') {
     if (selectedLeagueId === null) {
       return;
     }
@@ -840,7 +942,7 @@ export function MyTeamSection() {
 
     try {
       const payload = (await requestJson(
-        `/season/${encodeURIComponent(selectedLeagueId)}/trades/analyze`,
+        `/season/${encodeURIComponent(selectedLeagueId)}/${endpoint}/analyze`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -952,7 +1054,7 @@ export function MyTeamSection() {
         <PendingOffersPanel
           trades={pendingTrades}
           analyses={analyses}
-          onAnalyze={(transactionId) => void analyzeTrade(transactionId, { transaction_id: transactionId })}
+          onAnalyze={(transactionId) => void analyzeTrade(transactionId, { transaction_id: transactionId }, 'trades')}
         />
       ) : null}
 
@@ -960,7 +1062,15 @@ export function MyTeamSection() {
         <RecommendationsPanel
           recommendations={recommendations}
           analyses={analyses}
-          onAnalyze={(key, body) => void analyzeTrade(key, body)}
+          onAnalyze={(key, body) => void analyzeTrade(key, body, 'trades')}
+        />
+      ) : null}
+
+      {waivers !== null ? (
+        <WaiverWirePanel
+          waivers={waivers}
+          analyses={analyses}
+          onAnalyze={(key, body) => void analyzeTrade(key, body, 'waivers')}
         />
       ) : null}
     </section>

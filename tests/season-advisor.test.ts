@@ -253,3 +253,64 @@ test('explainTrade strips prompt-shaping characters from client-influenced strin
   assert.ok(!prompt.includes('**fake**'));
   assert.ok(!prompt.includes('**Verdict:** Loss'));
 });
+
+// @spec DFF-SM-061
+// @spec DFF-SM-067
+test('explainWaiver uses the shared context prefix and the trade response format', async () => {
+  const { fixture, context } = fixtureScore();
+  const fetchImpl = stubAdvisorFetch(() => ({
+    body: { content: [{ type: 'text', text: '**Verdict:** Win' }] },
+  }));
+  const advisor = createSeasonAdvisor({ apiKey: 'test-key', fetchImpl });
+
+  try {
+    const result = await advisor.explainWaiver(context, {
+      add: { id: 'p-fa', name: 'Wire WR', position: 'WR', age: 23, dynastyValue: 1200 },
+      drop: { id: 'p-drop', name: 'Droppable WR', position: 'WR', age: 31, dynastyValue: 400 },
+      valueDelta: 800,
+      score: { valueDeltaScore: 4.0, positionalNeedScore: 6.0, ageCurve: 1, rankScore: 10.0 },
+    });
+
+    assert.equal(result.claudeUnavailable, false);
+
+    const body = JSON.parse(String(fetchImpl.requests[0].init?.body)) as {
+      system: { text: string }[];
+      messages: { content: string }[];
+    };
+
+    // No counterparty roster exists on waivers.
+    assert.ok(body.system[0].text.includes('(none — waiver wire addition)'));
+    assert.ok(body.messages[0].content.includes('Waiver wire add/drop:'));
+    assert.ok(body.messages[0].content.includes('Wire WR'));
+    assert.ok(body.messages[0].content.includes('Droppable WR'));
+    assert.ok(body.messages[0].content.includes('**Non-obvious consideration:**'));
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-061
+test('explainWaiver reports no-drop pairs without inventing a counterparty', async () => {
+  const { fixture, context } = fixtureScore();
+  const fetchImpl = stubAdvisorFetch(() => ({
+    body: { content: [{ type: 'text', text: '**Verdict:** Win' }] },
+  }));
+  const advisor = createSeasonAdvisor({ apiKey: 'test-key', fetchImpl });
+
+  try {
+    const result = await advisor.explainWaiver(context, {
+      add: { id: 'p-fa', name: 'Wire QB', position: 'QB', age: 25, dynastyValue: 900 },
+      drop: null,
+      valueDelta: 900,
+      score: { valueDeltaScore: 4.5, positionalNeedScore: 1.0, ageCurve: 0, rankScore: 5.5 },
+    });
+
+    assert.equal(result.claudeUnavailable, false);
+
+    const body = JSON.parse(String(fetchImpl.requests[0].init?.body)) as { messages: { content: string }[] };
+
+    assert.ok(body.messages[0].content.includes('none required'));
+  } finally {
+    fixture.cleanup();
+  }
+});

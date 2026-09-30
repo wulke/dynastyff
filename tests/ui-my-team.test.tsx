@@ -559,3 +559,68 @@ test('trade recommendations render as a grouped accordion and analyze posts the 
 
   expect(body.trade_offer.proposerRosterId).toEqual(2);
 });
+
+function waiversFixture() {
+  return {
+    pairs: [
+      {
+        add: { id: 'p-fa-wr', name: 'Malik Washington', position: 'WR', dynastyValue: 1200 },
+        drop: { id: 'p-drop-wr', name: 'Darius Slayton', position: 'WR', dynastyValue: 400 },
+        valueDelta: 800,
+        score: { rankScore: 12.5 },
+      },
+      {
+        add: { id: 'p-fa-qb', name: 'Tyler Huntley', position: 'QB', dynastyValue: 900 },
+        drop: null,
+        valueDelta: 900,
+        score: { rankScore: 5.0 },
+      },
+    ],
+  };
+}
+
+// @spec DFF-SM-068
+test('waiver pairs render add/drop rows and analyze posts the pair selection', async () => {
+  const user = userEvent.setup();
+  const connections = [
+    { id: 'c1', leagueId: '111', leagueName: 'Gridiron Guild', season: '2026', rosterId: 1, lastSyncedAt: '2026-09-27T10:00:00.000Z' },
+  ];
+  const { calls } = stubFetch((url, init) => {
+    if (url === '/sleeper/connections') return { body: connections };
+    if (url === '/sleeper/sync/status') return { body: [] };
+    if (url === '/season/111/overview') return { body: overviewFixture() };
+    if (url === '/season/111/trades/pending') return { body: { trades: [] } };
+    if (url === '/season/111/trades/recommendations')
+      return { body: { groups: {}, lastComputedAt: '2026-09-27T12:00:00.000Z' } };
+    if (url === '/season/111/waivers') return { body: waiversFixture() };
+    if (url === '/season/111/waivers/analyze' && init?.method === 'POST') {
+      return {
+        body: {
+          add: { id: 'p-fa-wr' },
+          drop: { id: 'p-drop-wr' },
+          narrative: '**Verdict:** Win\n**Recommendation:** make the add',
+          claudeUnavailable: false,
+        },
+      };
+    }
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  expect(await screen.findByText('Waiver Wire')).toBeInTheDocument();
+  expect(screen.getByText('Malik Washington')).toBeInTheDocument();
+  expect(screen.getByText(/Drop Darius Slayton/)).toBeInTheDocument();
+  expect(screen.getByText(/No drop needed/)).toBeInTheDocument();
+  expect(screen.getByText('+800')).toBeInTheDocument();
+
+  await user.click(screen.getAllByRole('button', { name: /analyze/i })[0]);
+
+  expect(await screen.findByText(/make the add/)).toBeInTheDocument();
+
+  const analyzeCall = calls.find((call) => call.url === '/season/111/waivers/analyze');
+  expect(JSON.parse(String(analyzeCall?.init?.body))).toEqual({
+    add_player_id: 'p-fa-wr',
+    drop_player_id: 'p-drop-wr',
+  });
+});

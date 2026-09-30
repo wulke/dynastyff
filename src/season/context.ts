@@ -320,6 +320,21 @@ export function leagueMedianPositionalValue(allRosters: TeamRoster[], position: 
   return median(teamTotals);
 }
 
+// Median bench depth (bench + taxi value, IR excluded) across all teams at a position — the
+// surplus threshold for the Trade Recommender (DFF-SM-051).
+// @spec DFF-SM-051
+export function leagueMedianBenchDepth(allRosters: TeamRoster[], position: string): number {
+  const teamTotals = allRosters.map((team) =>
+    team.players
+      .filter(
+        (entry) => entry.position === position && (entry.slotType === 'bench' || entry.slotType === 'taxi'),
+      )
+      .reduce((sum, entry) => sum + entry.dynastyValue, 0),
+  );
+
+  return median(teamTotals);
+}
+
 function computeLeagueMedians(allRosters: TeamRoster[]): Record<string, number> {
   const medians: Record<string, number> = {};
 

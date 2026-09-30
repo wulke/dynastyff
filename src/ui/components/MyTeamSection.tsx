@@ -196,6 +196,19 @@ type TradeAnalysis = {
   loading: boolean;
 };
 
+// @spec DFF-SM-057
+type RecommendationCandidate = {
+  teamRosterId: number;
+  teamName: string;
+  rationale: string;
+  score: TradeScoreView;
+  offer: Record<string, unknown>;
+};
+
+type RecommendationsView = {
+  groups: Record<string, { label: string; candidates: RecommendationCandidate[] }>;
+};
+
 const verdictTokens: Record<TradeScoreView['verdict'], string> = {
   win: 'border-positive text-positive',
   loss: 'border-negative text-negative',
@@ -270,6 +283,87 @@ function PendingOffersPanel({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// @spec DFF-SM-054
+// @spec DFF-SM-057
+function RecommendationsPanel({
+  recommendations,
+  analyses,
+  onAnalyze,
+}: {
+  recommendations: RecommendationsView;
+  analyses: Record<string, TradeAnalysis>;
+  onAnalyze: (key: string, body: Record<string, unknown>) => void;
+}) {
+  const groups = Object.entries(recommendations.groups).filter(([, group]) => group.candidates.length > 0);
+
+  return (
+    <div className="mt-3 rounded-md border border-default bg-surface">
+      <div className="border-b border-default px-3 py-2">
+        <h2 className="font-condensed text-lg font-semibold text-primary">Trade Recommendations</h2>
+      </div>
+      {groups.length === 0 ? (
+        <p className="px-3 py-2 text-xs text-muted">No trade candidates right now.</p>
+      ) : (
+        groups.map(([key, group], index) => (
+          <details key={key} open={index === 0} className="border-b border-default last:border-b-0">
+            <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-primary marker:text-muted hover:bg-surface-hover">
+              {group.label}
+              <span className="ml-2 rounded border border-default px-1.5 py-0.5 font-condensed text-xs tabular-nums text-secondary">
+                {group.candidates.length}
+              </span>
+            </summary>
+            {group.candidates.map((candidate) => {
+              const analysis = analyses[String(candidate.offer.transactionId)];
+
+              return (
+                <div key={`${candidate.teamRosterId}-${String(candidate.offer.transactionId)}`} className="border-t border-default px-3 py-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${verdictTokens[candidate.score.verdict]}`}
+                    >
+                      {candidate.score.verdict}
+                    </span>
+                    <span className="font-condensed text-xs tabular-nums text-secondary">
+                      {candidate.score.compositeScore.toFixed(1)}
+                    </span>
+                    <span className="font-medium text-primary">{candidate.teamName}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-muted">{candidate.rationale}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onAnalyze(String(candidate.offer.transactionId), { trade_offer: candidate.offer })
+                      }
+                      disabled={analysis?.loading === true}
+                      className="rounded border border-default px-2 py-1 text-xs font-medium text-secondary transition hover:border-strong hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Analyze
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-secondary">
+                    Send {assetSummary(candidate.score.assetsOut)} · Receive {assetSummary(candidate.score.assetsIn)}
+                  </p>
+
+                  {analysis?.narrative ? (
+                    <pre className="mt-2 whitespace-pre-wrap border-l-2 border-accent bg-app px-2 py-1 text-xs text-primary">
+                      {analysis.narrative}
+                    </pre>
+                  ) : null}
+
+                  {analysis && analysis.claudeUnavailable && !analysis.narrative ? (
+                    <p className="mt-1 text-xs text-muted" role="status">
+                      Claude is unavailable — showing signal scores only.
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </details>
+        ))
+      )}
     </div>
   );
 }
@@ -494,6 +588,7 @@ export function MyTeamSection() {
   const [overviewNonce, setOverviewNonce] = useState(0);
   const [pendingTrades, setPendingTrades] = useState<TradeScoreView[]>([]);
   const [analyses, setAnalyses] = useState<Record<string, TradeAnalysis>>({});
+  const [recommendations, setRecommendations] = useState<RecommendationsView | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -566,6 +661,20 @@ export function MyTeamSection() {
       } catch {
         if (!cancelled) {
           setPendingTrades([]);
+        }
+      }
+
+      try {
+        const payload = (await requestJson(
+          `/season/${encodeURIComponent(selectedLeagueId)}/trades/recommendations`,
+        )) as RecommendationsView;
+
+        if (!cancelled) {
+          setRecommendations(payload);
+        }
+      } catch {
+        if (!cancelled) {
+          setRecommendations(null);
         }
       }
     };
@@ -718,14 +827,15 @@ export function MyTeamSection() {
 
   // @spec DFF-SM-031
   // @spec DFF-SM-043
-  async function analyzeTrade(transactionId: string) {
+  // @spec DFF-SM-056 — Claude runs only on an explicit Analyze click.
+  async function analyzeTrade(key: string, body: Record<string, unknown>) {
     if (selectedLeagueId === null) {
       return;
     }
 
     setAnalyses((current) => ({
       ...current,
-      [transactionId]: { narrative: null, claudeUnavailable: false, loading: true },
+      [key]: { narrative: null, claudeUnavailable: false, loading: true },
     }));
 
     try {
@@ -734,13 +844,13 @@ export function MyTeamSection() {
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ transaction_id: transactionId }),
+          body: JSON.stringify(body),
         },
       )) as { narrative: string | null; claudeUnavailable: boolean };
 
       setAnalyses((current) => ({
         ...current,
-        [transactionId]: {
+        [key]: {
           narrative: payload.narrative,
           claudeUnavailable: payload.claudeUnavailable,
           loading: false,
@@ -749,7 +859,7 @@ export function MyTeamSection() {
     } catch (caught) {
       setAnalyses((current) => ({
         ...current,
-        [transactionId]: {
+        [key]: {
           narrative: caught instanceof Error ? caught.message : String(caught),
           claudeUnavailable: true,
           loading: false,
@@ -842,7 +952,15 @@ export function MyTeamSection() {
         <PendingOffersPanel
           trades={pendingTrades}
           analyses={analyses}
-          onAnalyze={(transactionId) => void analyzeTrade(transactionId)}
+          onAnalyze={(transactionId) => void analyzeTrade(transactionId, { transaction_id: transactionId })}
+        />
+      ) : null}
+
+      {recommendations !== null ? (
+        <RecommendationsPanel
+          recommendations={recommendations}
+          analyses={analyses}
+          onAnalyze={(key, body) => void analyzeTrade(key, body)}
         />
       ) : null}
     </section>

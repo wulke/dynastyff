@@ -273,16 +273,26 @@ function postTradeRoster(
   return [...roster, ...additions];
 }
 
-// @spec DFF-SM-036 — counterparty preference inferred from held future picks vs roster size.
-function pickInventory(context: LeagueContext): Map<number, number> {
+export type OwnedPick = {
+  season: string;
+  round: number;
+  originRosterId: number;
+  ownerId: number;
+  value: number;
+};
+
+// Every pick of the next three seasons with its current owner (traded picks override the
+// original roster). Missing `pick_values` rows score 0, mirroring DFF-SM-082.
+export function ownedPicks(context: LeagueContext): OwnedPick[] {
   const currentSeason = Number(context.league.season);
   const baseSeason = Number.isFinite(currentSeason) ? currentSeason : new Date().getUTCFullYear();
-  const owners = new Map<number, number>();
-
   const tradedIndex = new Map<string, number>();
+
   for (const pick of context.tradedPicks) {
     tradedIndex.set(`${pick.season}:${pick.round}:${pick.rosterId}`, pick.ownerId);
   }
+
+  const picks: OwnedPick[] = [];
 
   for (let offset = 1; offset <= futureSeasonCount; offset += 1) {
     const season = baseSeason + offset;
@@ -290,10 +300,27 @@ function pickInventory(context: LeagueContext): Map<number, number> {
     for (const round of draftRounds) {
       for (const team of context.allRosters) {
         const origin = team.rosterId;
-        const owner = tradedIndex.get(`${season}:${round}:${origin}`) ?? origin;
-        owners.set(owner, (owners.get(owner) ?? 0) + 1);
+        const ownerId = tradedIndex.get(`${season}:${round}:${origin}`) ?? origin;
+        picks.push({
+          season: String(season),
+          round,
+          originRosterId: origin,
+          ownerId,
+          value: context.pickValues[`${season}:${round}`] ?? 0,
+        });
       }
     }
+  }
+
+  return picks;
+}
+
+// @spec DFF-SM-036 — counterparty preference inferred from held future picks vs roster size.
+function pickInventory(context: LeagueContext): Map<number, number> {
+  const owners = new Map<number, number>();
+
+  for (const pick of ownedPicks(context)) {
+    owners.set(pick.ownerId, (owners.get(pick.ownerId) ?? 0) + 1);
   }
 
   return owners;

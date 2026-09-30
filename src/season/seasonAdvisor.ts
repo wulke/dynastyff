@@ -5,7 +5,7 @@
 // @spec DFF-SM-044
 // @spec DFF-SM-072
 // @spec DFF-SM-086
-import type { LeagueContext } from './context.js';
+import type { LeagueContext, SleeperTradeOfferRecord } from './context.js';
 import type { TradeScore } from './tradeScorer.js';
 
 export type AdvisorFetch = (url: string, init?: RequestInit) => Promise<Response>;
@@ -16,7 +16,11 @@ export type AdvisorResult = {
 };
 
 export type SeasonAdvisor = {
-  explainTrade: (context: LeagueContext, score: TradeScore) => Promise<AdvisorResult>;
+  explainTrade: (
+    context: LeagueContext,
+    score: TradeScore,
+    offer?: SleeperTradeOfferRecord,
+  ) => Promise<AdvisorResult>;
 };
 
 const defaultModel = 'claude-sonnet-4-6';
@@ -33,18 +37,30 @@ const responseFormat = `**Verdict:** Win / Loss / Neutral
 
 **Recommendation:** [Single clear sentence]`;
 
-function counterpartyRosterId(context: LeagueContext, score: TradeScore): number | null {
-  const offer = context.pendingOffers.find((entry) => String(entry.transactionId) === score.transactionId);
+function counterpartyRosterId(
+  context: LeagueContext,
+  score: TradeScore,
+  offer?: SleeperTradeOfferRecord,
+): number | null {
+  if (offer) {
+    if (offer.proposerRosterId !== context.userRosterId) {
+      return offer.proposerRosterId;
+    }
 
-  if (!offer) {
+    return offer.responderRosterIds.find((id) => id !== context.userRosterId) ?? null;
+  }
+
+  const pending = context.pendingOffers.find((entry) => String(entry.transactionId) === score.transactionId);
+
+  if (!pending) {
     return null;
   }
 
-  if (offer.proposerRosterId !== context.userRosterId) {
-    return offer.proposerRosterId;
+  if (pending.proposerRosterId !== context.userRosterId) {
+    return pending.proposerRosterId;
   }
 
-  return offer.responderRosterIds.find((id) => id !== context.userRosterId) ?? null;
+  return pending.responderRosterIds.find((id) => id !== context.userRosterId) ?? null;
 }
 
 function rosterLines(context: LeagueContext, rosterId: number): string[] {
@@ -55,17 +71,28 @@ function rosterLines(context: LeagueContext, rosterId: number): string[] {
   }
 
   return team.players.map(
-    (entry) => `- ${entry.name} (${entry.position}, ${entry.age ?? '?'}y) — dynasty value ${entry.dynastyValue}`,
+    (entry) => `- ${sanitize(entry.name)} (${entry.position}, ${entry.age ?? '?'}y) — dynasty value ${entry.dynastyValue}`,
   );
+}
+
+// Client- or league-supplied strings (asset labels, warnings, roster and team names) pass
+// through the prompt. Strip characters that could reshape it (emphasis markers, backticks,
+// line breaks) and cap length so nothing can inject instructions or forge the response format.
+function sanitize(text: string): string {
+  return text.replace(/[\u0000-\u001f\u007f*`]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
 // @spec DFF-SM-044 — static league context is sent as a cacheable system prefix.
 // @spec DFF-SM-072 — only the user roster, counterparty roster, medians, and the score object.
-function contextSummary(context: LeagueContext, score: TradeScore): string {
+function contextSummary(
+  context: LeagueContext,
+  score: TradeScore,
+  offer?: SleeperTradeOfferRecord,
+): string {
   const medianLines = Object.entries(context.leagueMedians).map(
     ([position, value]) => `- ${position}: ${value}`,
   );
-  const counterparty = counterpartyRosterId(context, score);
+  const counterparty = counterpartyRosterId(context, score, offer);
 
   return [
     'You are a dynasty fantasy football trade analyst. Be opinionated and ground every claim in the provided signal data.',
@@ -85,7 +112,7 @@ function contextSummary(context: LeagueContext, score: TradeScore): string {
 
 function tradePrompt(score: TradeScore): string {
   const assets = (label: string, items: TradeScore['assetsIn']): string =>
-    `${label}: ${items.length === 0 ? '(none)' : items.map((asset) => `${asset.label} (value ${asset.dynastyValue})`).join(', ')}`;
+    `${label}: ${items.length === 0 ? '(none)' : items.map((asset) => `${sanitize(asset.label)} (value ${asset.dynastyValue})`).join(', ')}`;
 
   return [
     `Trade ${score.transactionId}:`,
@@ -98,7 +125,7 @@ function tradePrompt(score: TradeScore): string {
     `- positional need: ${score.signals.positionalNeedScore.toFixed(1)}`,
     `- asset liquidity: ${score.signals.assetLiquidity}`,
     `- composite: ${score.compositeScore.toFixed(1)} (${score.verdict})`,
-    score.warnings.length > 0 ? `- warnings: ${score.warnings.join('; ')}` : '',
+    score.warnings.length > 0 ? `- warnings: ${score.warnings.map(sanitize).join('; ')}` : '',
     '',
     'Explain why the composite is what it is. Cite specific dynasty value figures (e.g. "dynasty value: 4200") in every value claim. Highlight the most decisive signal and surface at least one non-obvious factor.',
     'Respond in exactly this format:',
@@ -144,7 +171,11 @@ export function createSeasonAdvisor({
   model?: string;
   endpoint?: string;
 } = {}): SeasonAdvisor {
-  async function explainTrade(context: LeagueContext, score: TradeScore): Promise<AdvisorResult> {
+  async function explainTrade(
+    context: LeagueContext,
+    score: TradeScore,
+    offer?: SleeperTradeOfferRecord,
+  ): Promise<AdvisorResult> {
     if (!apiKey) {
       return { narrative: null, claudeUnavailable: true };
     }
@@ -155,7 +186,7 @@ export function createSeasonAdvisor({
       system: [
         {
           type: 'text',
-          text: contextSummary(context, score),
+          text: contextSummary(context, score, offer),
           cache_control: { type: 'ephemeral' },
         },
       ],

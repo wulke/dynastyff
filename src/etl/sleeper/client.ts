@@ -3,6 +3,7 @@ import type {
   SleeperLeaguePayload,
   SleeperNflStatePayload,
   SleeperRosterPayload,
+  SleeperTradedPickPayload,
   SleeperTransactionPayload,
   SleeperUserEntryPayload,
   SleeperUserPayload,
@@ -61,6 +62,9 @@ export function createSleeperClient({
     // @spec DFF-SLS-033
     fetchLeagueTransactions: (leagueId: string, week: number): Promise<SleeperTransactionPayload[]> =>
       getJson(`/league/${leagueId}/transactions/${week}`),
+    // @spec DFF-SLS-090
+    fetchLeagueTradedPicks: (leagueId: string): Promise<SleeperTradedPickPayload[]> =>
+      getJson(`/league/${leagueId}/traded_picks`),
     // @spec DFF-SLS-034
     fetchPlayerRegistry: (): Promise<Record<string, unknown>> => getJson('/players/nfl'),
   };

@@ -544,6 +544,32 @@ export const sleeperTradeOffers = sqliteTable(
   ],
 );
 
+// @spec DFF-SLS-091
+export const sleeperTradedPicks = sqliteTable(
+  'sleeper_traded_picks',
+  {
+    id: text('id').primaryKey(),
+    leagueId: text('league_id')
+      .notNull()
+      .references(() => sleeperLeagues.leagueId, { onDelete: 'cascade' }),
+    season: text('season').notNull(),
+    round: integer('round').notNull(),
+    rosterId: integer('roster_id').notNull(),
+    previousOwnerId: integer('previous_owner_id').notNull(),
+    ownerId: integer('owner_id').notNull(),
+    syncedAt: text('synced_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('sleeper_traded_picks_league_season_round_roster_unique').on(
+      table.leagueId,
+      table.season,
+      table.round,
+      table.rosterId,
+    ),
+    index('sleeper_traded_picks_league_id_idx').on(table.leagueId),
+  ],
+);
+
 export const draftsRelations = relations(drafts, ({ one, many }) => ({
   teams: many(teams),
   draftOrder: many(draftOrder),

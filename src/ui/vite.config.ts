@@ -18,6 +18,9 @@ export default defineConfig({
       '/sleeper': {
         target: resolveApiBaseUrl(),
       },
+      '/season': {
+        target: resolveApiBaseUrl(),
+      },
       '/configs': {
         target: resolveApiBaseUrl(),
       },

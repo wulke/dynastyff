@@ -93,6 +93,7 @@ test('db:init creates all tables defined by the data-model LLD', () => {
       'sleeper_sync_runs',
       'sleeper_teams',
       'sleeper_trade_offers',
+      'sleeper_traded_picks',
       'team_pick_assets',
       'teams',
       'trades',

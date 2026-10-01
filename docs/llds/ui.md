@@ -213,7 +213,7 @@ A panel that slides in from the right, overlaying the draft board. Toggled by an
 - Chat interface: scrollable message history, text input at bottom
 - User types their reasoning; each message sends `POST /drafts/:id/advisor/chat`
 - Shows a typing indicator (animated dots) while waiting for Claude
-- Conversation resets on `ADVISOR_RESET` (pick committed or turn changed)
+- Conversation resets on `ADVISOR_RESET` after the user commits a pick
 
 Both tabs are available simultaneously; user switches between them with tab headers inside the panel.
 

@@ -426,7 +426,6 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         draftState: {
           ...state.draftState,
           currentPickNumber: action.payload.pick_number,
-          advisorResetVersion: state.draftState.advisorResetVersion + 1,
           yourTurnVersion: state.draftState.yourTurnVersion + 1,
         },
       };

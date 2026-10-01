@@ -58,7 +58,7 @@ import {
   TradeOfferSubmissionValidationError,
 } from './config.js';
 import { mapSleeperLeagueSettings } from './sleeper-config-import.js';
-import { createSeasonOverviewRoute, createSeasonTradeAnalyzeRoute, createSeasonTradeRecommendationsRoute, createSeasonTradesPendingRoute } from './season-routes.js';
+import { createSeasonOverviewRoute, createSeasonTradeAnalyzeRoute, createSeasonTradeRecommendationsRoute, createSeasonTradesPendingRoute, createSeasonWaiverAnalyzeRoute, createSeasonWaiversRoute } from './season-routes.js';
 import {
   createSleeperConnectionsCreateRoute,
   createSleeperConnectionsDeleteRoute,
@@ -133,6 +133,8 @@ export function createDraftApp({
   app.get('/season/:league_id/overview', createSeasonOverviewRoute({ databasePath }));
   app.get('/season/:league_id/trades/pending', createSeasonTradesPendingRoute({ databasePath }));
   app.get('/season/:league_id/trades/recommendations', createSeasonTradeRecommendationsRoute({ databasePath }));
+  app.get('/season/:league_id/waivers', createSeasonWaiversRoute({ databasePath }));
+  app.post('/season/:league_id/waivers/analyze', createSeasonWaiverAnalyzeRoute({ databasePath }));
   app.post('/season/:league_id/trades/analyze', createSeasonTradeAnalyzeRoute({ databasePath }));
   app.get('/league-imports/sleeper/:leagueId', createSleeperLeagueImportRoute());
   app.get('/configs', createLeagueConfigsListRoute({ databasePath }));

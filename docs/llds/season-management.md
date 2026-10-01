@@ -281,20 +281,41 @@ Scores free agent additions paired with their optimal drop candidate. Called by 
 
 ### Add/Drop Pair Algorithm
 
-For each free agent with `dynasty_value > 0`:
-1. Identify the user's weakest position that matches the free agent's position.
-2. Find the optimal drop candidate: the user's lowest `dynasty_value` player at that position who is not a starter (bench only). If the position is not over its roster limit, no drop is needed.
-3. Score the swap:
-   - **Value delta:** `free_agent.dynasty_value - drop_candidate.dynasty_value` (positive = net gain)
-   - **Positional need:** same positional need gap signal as the Trade Scorer
-   - **Age curve:** whether the add is younger than the drop
-4. Only pairs with positive value delta AND a non-null drop candidate (or no drop needed) are surfaced.
+For each free agent with `dynasty_value > 0` (pool capped at the top 50 by dynasty value — waivers are about the best available, not the whole player universe):
+1. The free agent's position is the target position group for the add.
+2. Determine whether a drop is required: the roster is *over its limit* when the user's non-IR player count is at or above the league's total slot count (`roster_positions.length`, which includes bench slots). Under the limit → no drop required. Over the limit → the drop candidate is the user's lowest-`dynasty_value` bench player at the same position (bench only — taxi is developmental depth and is never a waiver drop); if there is no bench player at that position while over the limit, the pair is skipped.
+3. Score the pair:
+   - **Value delta:** `free_agent.dynasty_value - drop_candidate.dynasty_value` (`0` when no drop is required); normalized to the trade scorer's scale (`100 × delta / user non-IR roster value`, clamped ±100).
+   - **Positional need:** the same before/after composite-diff signal as the Trade Scorer — the post-add roster (drop removed, free agent added with the slot-fill rule from DFF-SM-034: vacant starting slot at the position, else bench) is re-evaluated and the target position's composite delta becomes the score.
+   - **Age curve:** `+1` when the add is younger than the drop, `−1` when older, `0` on ties, unknown ages, or no drop. Reported as a signal; not part of the ranking.
+4. Only pairs with a strictly positive value delta AND a valid drop (or no drop required) are surfaced.
 
-Pairs are ranked by combined value delta + positional need score. Top 5 pairs per position group are returned.
+Ranking score = normalized value delta + positional need score. Pairs are ranked by it descending, capped at 5 per position group. The response is recomputed on every request (mirroring DFF-SM-085) and carries the actual computation time.
+
+### Response Shape
+
+```ts
+type WaiverPair = {
+  add: { id, name, position, age, dynastyValue };   // players-table free agent
+  drop: { id, name, position, age, dynastyValue } | null;
+  valueDelta: number;                                // raw dynasty points
+  score: {
+    valueDeltaScore: number;                         // normalized ±100
+    positionalNeedScore: number;
+    ageCurve: -1 | 0 | 1;
+    rankScore: number;                               // valueDeltaScore + positionalNeedScore
+  };
+};
+
+type WaiverPairs = {
+  pairs: WaiverPair[];        // flat, rankScore descending, ≤5 per position group
+  lastComputedAt: string;
+};
+```
 
 ### Claude Reasoning (analyze endpoint)
 
-`POST /season/:league_id/waivers/analyze` invokes Claude with the pair's score object and the `LeagueContext`. Claude evaluates whether the swap is net-positive in context — factoring in the user's competitive window, the drop candidate's role, and any non-obvious considerations about the free agent.
+`POST /season/:league_id/waivers/analyze` accepts `{ add_player_id, drop_player_id? }` (players-table IDs from the pair listing; omit `drop_player_id` for no-drop pairs). The pair is re-derived server-side — the add must currently be a free agent in the connected league and the drop, when present, a bench player on the user's roster — so client payloads can only select, never fabricate, a pair. Claude is invoked with the pair's score object and the `LeagueContext` (user roster, league medians, the pair — there is no counterparty roster in a waiver swap). Claude evaluates whether the swap is net-positive in context — factoring in the user's competitive window, the drop candidate's role, and any non-obvious considerations about the free agent.
 
 **Response format:** Same structure as trade analysis (Verdict / Primary signal / Key factors / Non-obvious / Recommendation).
 
@@ -357,6 +378,10 @@ The My Team section is a standalone top-level nav section. It does not share sta
 | Surplus definition | Bench depth (bench + taxi value, IR excluded) > league-median *bench depth* | Bench depth > league-median total positional value | The median comparison must be symmetric for the threshold to be meaningful; comparing bench value against other teams' full positional value would make surplus nearly unattainable |
 | Hypothetical offer IDs | Synthetic negative transaction IDs on candidate offers | Hash/UUID strings | `SleeperTradeOfferRecord.transactionId` is numeric; negatives cannot collide with Sleeper IDs |
 | Analyzing a candidate | `POST /trades/analyze` accepts `{ trade_offer: … }` alongside `{ transaction_id }` | Score candidates client-side; or persist hypothetical offers | Keeps one scoring path (the same five-signal scorer) and honors SM-056 (Claude only on explicit Analyze) without persisting speculative rows |
+| Waiver "over the roster limit" | Non-IR player count ≥ `roster_positions.length` (total slots incl. bench) | Per-position bench caps | Sleeper exposes no per-position max; total slots is the only league-defined limit |
+| Waiver drop candidate | Lowest-value bench player at the add's position; taxi never dropped | Lowest-value bench player league-wide | Position-matched drops keep the swap's positional-need signal honest; taxi is developmental |
+| Waiver free-agent pool | Top 50 by dynasty value | Entire un-rostered pool | Scoring is O(evaluateRoster) per candidate; the actionable waiver tier is the top of the pool |
+| Waiver ranking | valueDeltaScore + positionalNeedScore (age reported, not ranked) | Weighted blend | DFF-SM-066 ranks by "value delta and positional need"; age is a tie-breaking signal for the human, not the sort |
 | Taxi/IR in grades | Taxi counts toward depth score; IR excluded from grades | Include both; exclude both | Taxi is real developmental depth (the essence of dynasty); IR contributes nothing near-term |
 | Age curve baselines | Fixed constants (QB 27, RB 24, WR 25, TE 26) | Per-league configurable | Superflex skews value weighting more than age primes; no proven need for config surface |
 | Claude reasoning persistence | Recomputed on demand | Persist to SQLite | Scores recompute from fresh syncs; persisted narratives could contradict changed scores |

@@ -15,6 +15,14 @@ import { evaluateRoster } from '../season/rosterEvaluator.js';
 import { recommendTrades } from '../season/tradeRecommender.js';
 import { createSeasonAdvisor, type SeasonAdvisor } from '../season/seasonAdvisor.js';
 import { scoreTrade } from '../season/tradeScorer.js';
+import {
+  isOverRosterLimit,
+  lowestValueBenchPlayer,
+  scoreWaiverPair,
+  scoreWaiverPairs,
+  type WaiverPair,
+} from '../season/waiverScorer.js';
+import type { PlayerWithValue, RosterEntry } from '../season/context.js';
 
 export type SeasonRouteOptions = {
   databasePath?: string;
@@ -267,6 +275,126 @@ export function createSeasonTradeRecommendationsRoute({
   };
 }
 
+// @spec DFF-SM-060
+// @spec DFF-SM-066 — recomputed per request; `lastComputedAt` is the actual computation time.
+export function createSeasonWaiversRoute({
+  databasePath,
+  now = () => new Date(),
+}: SeasonRouteOptions = {}): RequestHandler {
+  return (request, response) => {
+    const leagueId = leagueIdFrom(request);
+
+    if (!leagueId) {
+      response.status(400).json({ error: 'A league ID is required.' });
+      return;
+    }
+
+    try {
+      const context = assembleLeagueContext(databasePath, leagueId);
+      const { pairs } = scoreWaiverPairs(context);
+
+      response.status(200).json({ pairs, lastComputedAt: now().toISOString() });
+    } catch (error) {
+      if (!handleContextError(error, response)) {
+        throw error;
+      }
+    }
+  };
+}
+
+// @spec DFF-SM-061
+// @spec DFF-SM-067
+export function createSeasonWaiverAnalyzeRoute({
+  databasePath,
+  advisor = createSeasonAdvisor(),
+}: SeasonAdvisorRouteOptions = {}): RequestHandler {
+  return async (request, response) => {
+    const leagueId = leagueIdFrom(request);
+
+    if (!leagueId) {
+      response.status(400).json({ error: 'A league ID is required.' });
+      return;
+    }
+
+    const body = (request.body ?? {}) as { add_player_id?: unknown; drop_player_id?: unknown };
+    const addId = typeof body.add_player_id === 'string' && body.add_player_id !== '' ? body.add_player_id : null;
+
+    if (addId === null) {
+      response.status(400).json({ error: 'An add_player_id is required.' });
+      return;
+    }
+
+    try {
+      const context = assembleLeagueContext(databasePath, leagueId);
+
+      // The pair is re-derived server-side: the add must be a current free agent, the drop a
+      // bench player on the user's roster — clients can only select, never fabricate, pairs.
+      const add: PlayerWithValue | undefined = context.freeAgents.find(
+        (candidate) => candidate.id === addId && candidate.dynastyValue > 0,
+      );
+
+      if (add === undefined) {
+        response.status(404).json({ error: `Player ${addId} is not an available free agent.` });
+        return;
+      }
+
+      let drop: RosterEntry | null = null;
+
+      if (body.drop_player_id !== undefined) {
+        if (typeof body.drop_player_id !== 'string') {
+          response.status(400).json({ error: 'drop_player_id must be a player ID.' });
+          return;
+        }
+
+        drop =
+          context.userRoster.find(
+            (entry) =>
+              entry.playersId === body.drop_player_id &&
+              entry.slotType === 'bench' &&
+              entry.playersId !== null,
+          ) ?? null;
+
+        if (drop === null) {
+          response.status(404).json({
+            error: `Player ${String(body.drop_player_id)} is not a droppable bench player on your roster.`,
+          });
+          return;
+        }
+      } else if (isOverRosterLimit(context)) {
+        response.status(400).json({ error: 'A drop_player_id is required while the roster is full.' });
+        return;
+      }
+
+      const { valueDelta, score } = scoreWaiverPair(context, add, drop);
+      const pair: WaiverPair = {
+        add: { ...add },
+        drop:
+          drop === null
+            ? null
+            : {
+                id: drop.playersId ?? '',
+                name: drop.name,
+                position: drop.position,
+                age: drop.age,
+                dynastyValue: drop.dynastyValue,
+              },
+        valueDelta,
+        score,
+      };
+      const analysis = await advisor.explainWaiver(context, pair);
+
+      response.status(200).json({
+        ...pair,
+        narrative: analysis.narrative,
+        claudeUnavailable: analysis.claudeUnavailable,
+      });
+    } catch (error) {
+      if (!handleContextError(error, response)) {
+        throw error;
+      }
+    }
+  };
+}
 // @spec DFF-SM-031
 // @spec DFF-SM-043 — Claude failure returns the raw score with `claudeUnavailable`.
 export function createSeasonTradeAnalyzeRoute({

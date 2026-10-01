@@ -242,6 +242,21 @@ function leagueAveragePlayerAge(context: LeagueContext): number {
   return ages.reduce((sum, age) => sum + age, 0) / ages.length;
 }
 
+// @spec DFF-SM-034 — slot-fill rule shared with the Waiver Scorer: a joining player takes a
+// vacant starting slot at their position, else bench.
+export function nextSlotType(
+  roster: RosterEntry[],
+  position: string,
+  rosterPositions: string[],
+): RosterEntry['slotType'] {
+  const starterSlots = rosterPositions.filter((slot) => slot === position).length;
+  const currentStarters = roster.filter(
+    (row) => row.position === position && row.slotType === 'starter',
+  ).length;
+
+  return currentStarters < starterSlots ? 'starter' : 'bench';
+}
+
 // @spec DFF-SM-034 — received players fill a vacant starting slot at their position, else bench.
 function postTradeRoster(
   context: LeagueContext,
@@ -262,11 +277,7 @@ function postTradeRoster(
   const additions: RosterEntry[] = [];
 
   for (const entry of received) {
-    const starterSlots = context.league.rosterPositions.filter((slot) => slot === entry.position).length;
-    const currentStarters = [...roster, ...additions].filter(
-      (row) => row.position === entry.position && row.slotType === 'starter',
-    ).length;
-    const slotType: RosterEntry['slotType'] = currentStarters < starterSlots ? 'starter' : 'bench';
+    const slotType = nextSlotType([...roster, ...additions], entry.position, context.league.rosterPositions);
     additions.push({ ...entry, slotType });
   }
 

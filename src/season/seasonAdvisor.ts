@@ -7,6 +7,7 @@
 // @spec DFF-SM-086
 import type { LeagueContext, SleeperTradeOfferRecord } from './context.js';
 import type { TradeScore } from './tradeScorer.js';
+import type { WaiverPair } from './waiverScorer.js';
 
 export type AdvisorFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -21,6 +22,7 @@ export type SeasonAdvisor = {
     score: TradeScore,
     offer?: SleeperTradeOfferRecord,
   ) => Promise<AdvisorResult>;
+  explainWaiver: (context: LeagueContext, pair: WaiverPair) => Promise<AdvisorResult>;
 };
 
 const defaultModel = 'claude-sonnet-4-6';
@@ -83,16 +85,11 @@ function sanitize(text: string): string {
 }
 
 // @spec DFF-SM-044 — static league context is sent as a cacheable system prefix.
-// @spec DFF-SM-072 — only the user roster, counterparty roster, medians, and the score object.
-function contextSummary(
-  context: LeagueContext,
-  score: TradeScore,
-  offer?: SleeperTradeOfferRecord,
-): string {
+// @spec DFF-SM-072 — only the user roster, counterparty roster (none on waivers), medians, and the score object.
+function contextSummary(context: LeagueContext, counterpartyId: number | null): string {
   const medianLines = Object.entries(context.leagueMedians).map(
     ([position, value]) => `- ${position}: ${value}`,
   );
-  const counterparty = counterpartyRosterId(context, score, offer);
 
   return [
     'You are a dynasty fantasy football trade analyst. Be opinionated and ground every claim in the provided signal data.',
@@ -103,7 +100,7 @@ function contextSummary(
     ...rosterLines(context, context.userRosterId),
     '',
     'Counterparty roster:',
-    ...(counterparty === null ? ['(unknown)'] : rosterLines(context, counterparty)),
+    ...(counterpartyId === null ? ['(none — waiver wire addition)'] : rosterLines(context, counterpartyId)),
     '',
     'League median positional value (depth totals):',
     ...medianLines,
@@ -133,6 +130,28 @@ function tradePrompt(score: TradeScore): string {
   ]
     .filter((line) => line !== '')
     .join('\n');
+}
+
+function waiverPrompt(pair: WaiverPair): string {
+  const player = (entry: WaiverPair['add']): string =>
+    `${sanitize(entry.name)} (${entry.position}, ${entry.age ?? '?'}y) — dynasty value ${entry.dynastyValue}`;
+
+  return [
+    'Waiver wire add/drop:',
+    `- Add: ${player(pair.add)}`,
+    pair.drop === null
+      ? '- Drop: none required (roster under the limit)'
+      : `- Drop: ${player(pair.drop)}`,
+    '',
+    'Pair score:',
+    `- value delta: ${pair.score.valueDeltaScore.toFixed(1)} (raw ${pair.valueDelta} dynasty points)`,
+    `- positional need: ${pair.score.positionalNeedScore.toFixed(1)}`,
+    `- age curve: ${pair.score.ageCurve === 1 ? 'add is younger' : pair.score.ageCurve === -1 ? 'add is older' : 'neutral'}`,
+    '',
+    'Explain whether this waiver swap is net-positive in context. Cite specific dynasty value figures (e.g. "dynasty value: 1200") in every value claim. Factor in the user roster, the drop candidate role, and the competitive window. Highlight the most decisive signal and surface at least one non-obvious factor.',
+    'Respond in exactly this format:',
+    responseFormat,
+  ].join('\n');
 }
 
 function extractText(payload: unknown): string | null {
@@ -171,11 +190,8 @@ export function createSeasonAdvisor({
   model?: string;
   endpoint?: string;
 } = {}): SeasonAdvisor {
-  async function explainTrade(
-    context: LeagueContext,
-    score: TradeScore,
-    offer?: SleeperTradeOfferRecord,
-  ): Promise<AdvisorResult> {
+  // @spec DFF-SM-043 — any failure yields `claudeUnavailable` so the raw score is always usable.
+  async function requestNarrative(systemText: string, userText: string): Promise<AdvisorResult> {
     if (!apiKey) {
       return { narrative: null, claudeUnavailable: true };
     }
@@ -186,11 +202,11 @@ export function createSeasonAdvisor({
       system: [
         {
           type: 'text',
-          text: contextSummary(context, score, offer),
+          text: systemText,
           cache_control: { type: 'ephemeral' },
         },
       ],
-      messages: [{ role: 'user', content: tradePrompt(score) }],
+      messages: [{ role: 'user', content: userText }],
     };
 
     try {
@@ -218,5 +234,22 @@ export function createSeasonAdvisor({
     }
   }
 
-  return { explainTrade };
+  async function explainTrade(
+    context: LeagueContext,
+    score: TradeScore,
+    offer?: SleeperTradeOfferRecord,
+  ): Promise<AdvisorResult> {
+    return requestNarrative(
+      contextSummary(context, counterpartyRosterId(context, score, offer)),
+      tradePrompt(score),
+    );
+  }
+
+  // @spec DFF-SM-061
+  // @spec DFF-SM-067 — same structured reasoning format as trade analysis.
+  async function explainWaiver(context: LeagueContext, pair: WaiverPair): Promise<AdvisorResult> {
+    return requestNarrative(contextSummary(context, null), waiverPrompt(pair));
+  }
+
+  return { explainTrade, explainWaiver };
 }

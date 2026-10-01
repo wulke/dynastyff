@@ -15,6 +15,8 @@ import {
   createSeasonTradeAnalyzeRoute,
   createSeasonTradeRecommendationsRoute,
   createSeasonTradesPendingRoute,
+  createSeasonWaiverAnalyzeRoute,
+  createSeasonWaiversRoute,
 } from '../src/server/season-routes.js';
 import type { SeasonAdvisor } from '../src/season/seasonAdvisor.js';
 import { createSeasonFixture, seasonLeagueId } from './season-fixture.js';
@@ -180,6 +182,7 @@ test('POST /season/:league_id/trades/analyze returns the score plus reasoning', 
   const fixture = createSeasonFixture();
   const advisor: SeasonAdvisor = {
     explainTrade: async () => ({ narrative: '**Verdict:** Neutral', claudeUnavailable: false }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
   };
   const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
 
@@ -212,6 +215,7 @@ test('POST /trades/analyze surfaces claudeUnavailable when the advisor fails', a
   const fixture = createSeasonFixture();
   const advisor: SeasonAdvisor = {
     explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
   };
   const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
 
@@ -238,6 +242,7 @@ test('POST /trades/analyze rejects unknown or third-party transactions', async (
   const fixture = createSeasonFixture();
   const advisor: SeasonAdvisor = {
     explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
   };
   const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
 
@@ -301,6 +306,7 @@ test('POST /trades/analyze accepts a hypothetical trade_offer payload', async ()
       seen.push({ score, offer });
       return { narrative: '**Verdict:** Win', claudeUnavailable: false };
     },
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
   };
   const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
 
@@ -342,6 +348,7 @@ test('POST /trades/analyze rejects trade_offer payloads that do not involve the 
   const fixture = createSeasonFixture();
   const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor: {
     explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
   } });
 
   try {
@@ -376,6 +383,7 @@ test('POST /trades/analyze rejects malformed trade_offer payloads with 400s', as
   const fixture = createSeasonFixture();
   const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor: {
     explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
   } });
 
   const base = { proposerRosterId: 2, responderRosterIds: [1], adds: {}, drops: {} };
@@ -395,6 +403,111 @@ test('POST /trades/analyze rejects malformed trade_offer payloads with 400s', as
       const { statusCode } = await invokeRoute({ route, params: { league_id: seasonLeagueId }, body });
 
       assert.equal(statusCode, 400, `expected 400 for ${JSON.stringify(body.trade_offer)}`);
+    }
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-060
+test('GET /season/:league_id/waivers returns ranked no-drop pairs for the fixture league', async () => {
+  const fixture = createSeasonFixture();
+  const fixedNow = () => new Date('2026-09-27T12:00:00.000Z');
+  const route = createSeasonWaiversRoute({ databasePath: fixture.dbPath, now: fixedNow });
+
+  try {
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+
+    assert.equal(statusCode, 200);
+    const payload = json as {
+      pairs: { add: { name: string }; drop: unknown; valueDelta: number; score: { rankScore: number } }[];
+      lastComputedAt: string;
+    };
+
+    // Fixture: 7 non-IR players vs 8 league slots — under the limit, so no drops.
+    assert.equal(payload.lastComputedAt, '2026-09-27T12:00:00.000Z');
+    assert.ok(payload.pairs.length >= 2);
+    assert.ok(payload.pairs.every((pair) => pair.drop === null));
+    assert.equal(payload.pairs[0].add.name, 'Free Agent QB');
+
+    const ranks = payload.pairs.map((pair) => pair.score.rankScore);
+    assert.deepEqual(ranks, [...ranks].sort((a, b) => b - a));
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-061
+// @spec DFF-SM-067
+test('POST /waivers/analyze re-derives the pair server-side and returns Claude reasoning', async () => {
+  const fixture = createSeasonFixture();
+  const seen: unknown[] = [];
+  const advisor: SeasonAdvisor = {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async (_context, pair) => {
+      seen.push(pair);
+      return { narrative: '**Verdict:** Win', claudeUnavailable: false };
+    },
+  };
+  const route = createSeasonWaiverAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const { statusCode, json } = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { add_player_id: 'p-fa2' },
+    });
+
+    assert.equal(statusCode, 200);
+    const payload = json as {
+      add: { id: string; name: string };
+      drop: unknown;
+      valueDelta: number;
+      score: { rankScore: number };
+      narrative: string | null;
+      claudeUnavailable: boolean;
+    };
+
+    assert.equal(payload.add.id, 'p-fa2');
+    assert.equal(payload.drop, null);
+    assert.ok(payload.valueDelta > 0);
+    assert.equal(payload.narrative, '**Verdict:** Win');
+    assert.equal(payload.claudeUnavailable, false);
+
+    const pair = seen[0] as { add: { id: string } };
+    assert.equal(pair.add.id, 'p-fa2');
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-061
+test('POST /waivers/analyze rejects fabricated pairs', async () => {
+  const fixture = createSeasonFixture();
+  const advisor: SeasonAdvisor = {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
+  };
+  const route = createSeasonWaiverAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const cases: Array<{ statusCode: number; body: Record<string, unknown> }> = [
+      { statusCode: 400, body: {} },
+      { statusCode: 400, body: { add_player_id: 5 } },
+      { statusCode: 404, body: { add_player_id: 'p-nope' } },
+      { statusCode: 404, body: { add_player_id: 'p-qb1' } }, // rostered — not a free agent
+      { statusCode: 404, body: { add_player_id: 'p-fa1', drop_player_id: 'p-fa2' } }, // drop not on roster
+      { statusCode: 400, body: { add_player_id: 'p-fa1', drop_player_id: 7 } },
+    ];
+
+    for (const expected of cases) {
+      const { statusCode } = await invokeRoute({
+        route,
+        params: { league_id: seasonLeagueId },
+        body: expected.body,
+      });
+
+      assert.equal(statusCode, expected.statusCode, `expected ${expected.statusCode} for ${JSON.stringify(expected.body)}`);
     }
   } finally {
     fixture.cleanup();

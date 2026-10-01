@@ -200,12 +200,21 @@ function transactionsPayload(week: number): Array<Record<string, unknown>> {
   return [];
 }
 
+function tradedPicksPayload(): Array<Record<string, unknown>> {
+  return [
+    { season: '2027', round: 1, roster_id: 2, previous_owner_id: 2, owner_id: 1 },
+    { season: '2027', round: 2, roster_id: 1, previous_owner_id: 1, owner_id: 2 },
+    { season: '2028', round: 1, roster_id: 1, previous_owner_id: 1, owner_id: 1 },
+  ];
+}
+
 function createHappyPathRoutes(): Record<string, RouteHandler> {
   return {
     '/state/nfl': () => ({ season: '2026', week: 2, season_type: 'regular' }),
     '/league/111111111111111111': leaguePayload,
     '/league/111111111111111111/rosters': rostersPayload,
     '/league/111111111111111111/users': usersPayload,
+    '/league/111111111111111111/traded_picks': tradedPicksPayload,
     '/league/111111111111111111/transactions/0': () => transactionsPayload(0),
     '/league/111111111111111111/transactions/1': () => transactionsPayload(1),
     '/league/111111111111111111/transactions/2': () => transactionsPayload(2),
@@ -746,6 +755,144 @@ test('a player ingested after a failed match is matched on the next sync', async
         .prepare("SELECT players_id FROM sleeper_rosters WHERE sleeper_player_id = 'p2'")
         .get() as { players_id: string | null };
       assert.equal(chase.players_id, 'wr-jamarr-chase');
+    } finally {
+      db.close();
+    }
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SLS-090
+// @spec DFF-SLS-091
+test('the traded-pick inventory is fetched and persisted per league', async () => {
+  const fixture = createFixture();
+  const logger = createLogger();
+
+  {
+    const db = openDb(fixture);
+    try {
+      seedConnection(db, '111111111111111111', 'Gridiron Guild');
+    } finally {
+      db.close();
+    }
+  }
+
+  const routes = createHappyPathRoutes();
+  const fetchImpl = createFakeSleeperFetch(routes);
+
+  try {
+    await runSleeperSync(syncOptions(fixture, fetchImpl, logger));
+
+    assert.ok(
+      fetchImpl.calls.some((call) => call.endsWith('/league/111111111111111111/traded_picks')),
+      'expected the traded_picks endpoint to be fetched',
+    );
+
+    const db = openDb(fixture);
+    try {
+      const rows = db
+        .prepare(
+          'SELECT season, round, roster_id, previous_owner_id, owner_id FROM sleeper_traded_picks WHERE league_id = ? ORDER BY season, round',
+        )
+        .all('111111111111111111') as Array<{
+        season: string;
+        round: number;
+        roster_id: number;
+        previous_owner_id: number;
+        owner_id: number;
+      }>;
+
+      assert.deepEqual(rows, [
+        { season: '2027', round: 1, roster_id: 2, previous_owner_id: 2, owner_id: 1 },
+        { season: '2027', round: 2, roster_id: 1, previous_owner_id: 1, owner_id: 2 },
+        { season: '2028', round: 1, roster_id: 1, previous_owner_id: 1, owner_id: 1 },
+      ]);
+    } finally {
+      db.close();
+    }
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SLS-091
+test('traded-pick rows are replaced, not accumulated, across syncs', async () => {
+  const fixture = createFixture();
+  const logger = createLogger();
+
+  {
+    const db = openDb(fixture);
+    try {
+      seedConnection(db, '111111111111111111', 'Gridiron Guild');
+    } finally {
+      db.close();
+    }
+  }
+
+  const routes = createHappyPathRoutes();
+  const fetchImpl = createFakeSleeperFetch(routes);
+
+  try {
+    await runSleeperSync(syncOptions(fixture, fetchImpl, logger));
+
+    routes['/league/111111111111111111/traded_picks'] = () => [
+      { season: '2027', round: 1, roster_id: 2, previous_owner_id: 2, owner_id: 1 },
+    ];
+
+    await runSleeperSync(syncOptions(fixture, fetchImpl, logger));
+
+    const db = openDb(fixture);
+    try {
+      const count = db
+        .prepare('SELECT COUNT(*) AS count FROM sleeper_traded_picks WHERE league_id = ?')
+        .get('111111111111111111') as { count: number };
+
+      assert.equal(count.count, 1);
+    } finally {
+      db.close();
+    }
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SLS-092
+test('malformed traded-pick entries are skipped with a warning', async () => {
+  const fixture = createFixture();
+  const logger = createLogger();
+
+  {
+    const db = openDb(fixture);
+    try {
+      seedConnection(db, '111111111111111111', 'Gridiron Guild');
+    } finally {
+      db.close();
+    }
+  }
+
+  const routes = createHappyPathRoutes();
+  routes['/league/111111111111111111/traded_picks'] = () => [
+    { season: '2027', round: 1, roster_id: 2, previous_owner_id: 2, owner_id: 1 },
+    { season: '2027', round: 2, roster_id: 1 },
+    { round: 3, roster_id: 1, previous_owner_id: 1, owner_id: 2 },
+  ];
+  const fetchImpl = createFakeSleeperFetch(routes);
+
+  try {
+    await runSleeperSync(syncOptions(fixture, fetchImpl, logger));
+
+    const db = openDb(fixture);
+    try {
+      const rows = db
+        .prepare('SELECT season, round FROM sleeper_traded_picks WHERE league_id = ?')
+        .all('111111111111111111') as Array<{ season: string; round: number }>;
+
+      assert.deepEqual(rows, [{ season: '2027', round: 1 }]);
+      assert.ok(
+        logger.warnings.some((message) => message.includes('traded-pick entry with missing fields')),
+        'expected a warning for the skipped entries',
+      );
     } finally {
       db.close();
     }

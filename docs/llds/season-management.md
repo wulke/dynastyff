@@ -20,10 +20,11 @@ Drives specs: `docs/specs/season-management-specs.md`
 
 ## Architecture
 
+The domain logic lives in `src/season/`; the Express handlers live in `src/server/season-routes.ts` alongside the other route factories (`sleeper-routes.ts`, `app.ts`), following the repo's established server-module convention.
+
 ```
-Express Server
+Express Server (src/server/season-routes.ts, registered in app.ts)
     └── src/season/
-            ├── router.ts              — Express route handlers
             ├── context.ts             — shared context assembly (roster + league state)
             ├── rosterEvaluator.ts     — grade + percentile scoring
             ├── tradeScorer.ts         — five-signal trade scoring
@@ -38,7 +39,7 @@ Express Server
 |---|---|---|
 | GET | `/season/:league_id/overview` | Roster grades, percentiles, team context |
 | GET | `/season/:league_id/trades/pending` | Pending Sleeper trade offers with scores |
-| POST | `/season/:league_id/trades/analyze` | Analyze a specific pending trade (with Claude) |
+| POST | `/season/:league_id/trades/analyze` | Analyze a pending trade or a hypothetical candidate (with Claude) |
 | GET | `/season/:league_id/trades/recommendations` | Proactive trade suggestions grouped by need |
 | GET | `/season/:league_id/waivers` | Waiver add/drop pairs with scores |
 | POST | `/season/:league_id/waivers/analyze` | Analyze a specific add/drop pair (with Claude) |
@@ -112,6 +113,7 @@ type RosterOverview = {
     [position: string]: {
       grade: LetterGrade;
       percentile: number;
+      composite: number;        // 0–100 weighted composite the grade derives from
       valueScore: number;
       ageCurveScore: number;
       depthScore: number;
@@ -126,6 +128,15 @@ The roster overview response does **not** include a Claude call — it is a pure
 ## Trade Scorer
 
 Scores each pending Sleeper trade offer **involving the user's roster** against five signals. Offers between two other teams are excluded — the five-signal model is strictly the user's perspective (value delta "for the user" is undefined for third-party trades). Used in `GET /season/:league_id/trades/pending` (all pending offers involving the user) and `POST /season/:league_id/trades/analyze` (single offer with Claude reasoning).
+
+### Asset Direction
+
+A pending offer's assets are attributed to the user by direction, using Sleeper's transaction payload:
+
+- **Players** — `adds[player_id] = receiving_roster_id`, `drops[player_id] = giving_roster_id`. The user **receives** players where `adds[id] === user_roster_id`; the user **sends** players where `drops[id] === user_roster_id`.
+- **Picks** — each pick object carries `roster_id` (the pick's origin), `previous_owner_id`, and `owner_id` (post-trade owner). The user **receives** picks where `owner_id === user_roster_id`; the user **sends** picks where `previous_owner_id === user_roster_id`.
+
+`GET /season/:league_id/trades/pending` is scoped to offers where the user's roster is the proposer or one of the responders (DFF-SM-030); third-party offers have no defined user value delta and are excluded.
 
 ### Five-Signal Model
 
@@ -165,6 +176,22 @@ type TradeScore = {
 
 The composite score is the final number passed to Claude. Claude does not recompute it — it interprets it.
 
+### Signal Normalization
+
+Every signal is expressed on the −100…+100 scale before weighting, so the composite is directly interpretable and the ±10 verdict band is meaningful.
+
+| Signal | Formula | Base weight |
+|---|---|---|
+| **valueDelta** | `raw = Σ value(assets in) − Σ value(assets out)`; `normalized = clamp(100 × raw / max(userRosterValue, 1), −100, 100)`. Player value = `players.dynasty_value`; pick value = the `pick_values` row for `(year, round)` with `pick_in_round = 0`. | 0.5 |
+| **ageCurveScore** | `raw = weightedMeanAge(in) − weightedMeanAge(out)` (weights = dynasty value; unweighted when total weight is 0); `normalized = clamp(100 × raw / leagueAveragePlayerAge, −100, 100)`. Positive = buying older. The composite uses **−ageCurveScore** (getting younger raises the score). | 0.2 base, ×1.4 rebuilder |
+| **positionalNeedScore** | Apply the trade to the user's roster (players only) and re-evaluate with that roster replaced in place, so league-wide normalization stays consistent; received players fill a vacant starting slot at their position when one exists (per the league's roster positions), otherwise bench. `raw = Σ over affected positions (composite_after − composite_before)`; `normalized = clamp(raw, −100, 100)`. Picks do not affect positional grades, so a picks-only trade scores 0. | 0.2, ×1.4 contender |
+| **assetLiquidity** | Counterparty pick-to-player ratio = `heldPicks / max(rosteredPlayers, 1)`; pick-hungry when below half the league-median ratio, pick-averse when above 1.5×. Then `+100` if the assets the user sends match what that counterparty wants (sends picks to a pick-hungry team, or players to a pick-averse team), `−100` if misaligned, `0` when neutral or unknown. | 0.1 |
+| **teamContextMultiplier** | Value delta: ×0.8 contender, ×1.2 rebuilder. Positional need: ×1.4 contender. Age (already sign-inverted): ×1.4 rebuilder. Weights are renormalized by their sum. | — |
+
+`compositeScore = clamp(Σ (weighted signals) / Σ weights, −100, 100)`; verdict `win` when composite > +10, `loss` when < −10, otherwise `neutral` (DFF-SM-037/038).
+
+Picks with no matching `pick_values` row contribute 0 and add a warning entry to the `TradeScore` (DFF-SM-082).
+
 ### Claude Reasoning (analyze endpoint)
 
 `POST /season/:league_id/trades/analyze` invokes Claude with the full `LeagueContext` and the `TradeScore` object. Claude's role is to explain *why* the composite score is what it is, surface non-obvious factors (schedule context, injury risk, the other team's situation), and give the user a clear recommendation with caveats.
@@ -198,29 +225,45 @@ Scans all other teams' rosters to surface proactive trade opportunities. Results
 
 ### Candidate Generation
 
-For each other team in the league:
-1. Identify the user's surplus positions (grade A or B positions where bench depth exceeds league median).
-2. Identify the other team's surplus positions using the same grade logic.
-3. A trade candidate is generated when: the user has surplus at a position the other team also has surplus at (so they can give something) AND the other team has surplus at a position the user grades C or below (so there's something to receive).
-4. Each candidate is scored with the Trade Scorer's five-signal model.
-5. Only candidates with `compositeScore > 0` (net positive for the user) are surfaced.
+The recommender needs two per-team measures, both computed from the same Roster Evaluator math used by the overview (other teams are graded by evaluating the same `LeagueContext` with `userRosterId` pointed at each team):
+
+- **Letter grade** at each of QB/RB/WR/TE (composite → A/B/C/D/F bands).
+- **Surplus** (DFF-SM-051): grade A or B **and** bench depth — combined dynasty value of bench + taxi players at the position, IR excluded — strictly greater than the league-median bench depth at that position (median across all teams of the same bench-depth measure).
+
+For each other team `T`:
+
+1. Compute `T`-needs = positions where `T` grades C or below, and `T`-surplus = positions where `T` has surplus.
+2. Compute the user's surplus positions and need positions (grade C or below).
+3. **Player swap** — for each `(P, Q)` where `P` is a user-surplus position `T` needs and `Q` is a `T`-surplus position the user needs: outbound = the user's most valuable non-starter (bench or taxi, IR excluded) at `P`; inbound = `T`'s non-starter at `Q` with dynasty value closest to the outbound asset (ties break to the higher value, then lower player ID, for determinism).
+4. **Pick acquisition** — for each user-surplus position `P` that `T` needs: outbound = the user's most valuable non-starter at `P`; inbound = `T`'s most valuable owned future pick (highest `pick_values` entry across `T`'s owned picks in the next three seasons, from the pick inventory that also feeds the liquidity signal).
+5. **Value sell** — for each position `P` where the user has a player aged 30+ and `T` grades C or below at `P`: outbound = the user's most valuable player aged 30+ at `P` (starters allowed — selling a declining starter is the point); inbound = `T`'s most valuable owned future pick.
+
+Candidates are deduplicated by the `(T, outbound, inbound)` triple. A candidate with no eligible inbound asset (e.g. `T` owns no future picks, or has no non-starter at `Q`) is skipped. Every candidate is scored with the same five-signal Trade Scorer; only candidates with `compositeScore > 0` are surfaced (DFF-SM-053).
+
+Each candidate carries a hypothetical offer payload so the UI can send it straight to `POST .../trades/analyze`: the counterparty is the proposer, the user the sole responder, `adds`/`drops` carry the player legs keyed by Sleeper player ID, pick legs ride in `draft_picks` with `previous_owner_id` = counterparty and `owner_id` = user, and the `transactionId` is synthetic and negative (e.g. `-101`) so it can never collide with a real Sleeper transaction ID. The analyze endpoint validates the payload shape (numeric roster IDs, well-formed pick legs) and rejects anything that does not involve the user's roster with a 400; when a request carries both `trade_offer` and `transaction_id`, `trade_offer` wins.
 
 ### Grouping
 
-Candidates are grouped by the roster need they address:
+Candidates are assigned to exactly one group by precedence:
 
-- **WR targets** — trades that improve the user's WR grade
-- **RB targets** — trades that improve the user's RB grade
-- **QB targets** — trades that improve the user's QB grade
-- **TE targets** — trades that improve the user's TE grade
-- **Pick acquisitions** — trades that net the user future draft capital
-- **Value sells** — trades where the user ships aging/surplus assets for youth or picks (sell-high opportunities)
+1. **Value sells** (`sell`) — the outbound asset is a player aged 30+ (DFF-SM-088).
+2. **Pick acquisitions** (`picks`) — the inbound assets include a future pick.
+3. **Position targets** (`wr` / `rb` / `qb` / `te`) — grouped by the inbound player's position.
 
-Each group shows the top 3 candidates by composite score. Claude is not invoked on the full recommendations list — it is invoked when the user drills into a specific candidate via `POST /season/:league_id/trades/analyze`.
+The response always includes all six group keys (empty arrays when a group has no candidates) so clients get a stable shape. Each group is capped at its top 3 candidates by composite score descending (DFF-SM-055). Claude is not invoked on the recommendations list — it is invoked when the user drills into a specific candidate via `POST /season/:league_id/trades/analyze` with the candidate's `offer` payload.
 
 ### Response Shape
 
 ```ts
+type TradeCandidateWithScore = {
+  teamRosterId: number;
+  teamName: string;
+  group: 'qb' | 'rb' | 'wr' | 'te' | 'picks' | 'sell';
+  rationale: string;   // e.g. "Swap surplus WR depth for RB help"
+  score: TradeScore;
+  offer: SleeperTradeOffer;  // hypothetical — POST it to /trades/analyze
+};
+
 type TradeRecommendations = {
   groups: {
     [groupKey: string]: {
@@ -238,20 +281,41 @@ Scores free agent additions paired with their optimal drop candidate. Called by 
 
 ### Add/Drop Pair Algorithm
 
-For each free agent with `dynasty_value > 0`:
-1. Identify the user's weakest position that matches the free agent's position.
-2. Find the optimal drop candidate: the user's lowest `dynasty_value` player at that position who is not a starter (bench only). If the position is not over its roster limit, no drop is needed.
-3. Score the swap:
-   - **Value delta:** `free_agent.dynasty_value - drop_candidate.dynasty_value` (positive = net gain)
-   - **Positional need:** same positional need gap signal as the Trade Scorer
-   - **Age curve:** whether the add is younger than the drop
-4. Only pairs with positive value delta AND a non-null drop candidate (or no drop needed) are surfaced.
+For each free agent with `dynasty_value > 0` (pool capped at the top 50 by dynasty value — waivers are about the best available, not the whole player universe):
+1. The free agent's position is the target position group for the add.
+2. Determine whether a drop is required: the roster is *over its limit* when the user's non-IR player count is at or above the league's total slot count (`roster_positions.length`, which includes bench slots). Under the limit → no drop required. Over the limit → the drop candidate is the user's lowest-`dynasty_value` bench player at the same position (bench only — taxi is developmental depth and is never a waiver drop); if there is no bench player at that position while over the limit, the pair is skipped.
+3. Score the pair:
+   - **Value delta:** `free_agent.dynasty_value - drop_candidate.dynasty_value` (`0` when no drop is required); normalized to the trade scorer's scale (`100 × delta / user non-IR roster value`, clamped ±100).
+   - **Positional need:** the same before/after composite-diff signal as the Trade Scorer — the post-add roster (drop removed, free agent added with the slot-fill rule from DFF-SM-034: vacant starting slot at the position, else bench) is re-evaluated and the target position's composite delta becomes the score.
+   - **Age curve:** `+1` when the add is younger than the drop, `−1` when older, `0` on ties, unknown ages, or no drop. Reported as a signal; not part of the ranking.
+4. Only pairs with a strictly positive value delta AND a valid drop (or no drop required) are surfaced.
 
-Pairs are ranked by combined value delta + positional need score. Top 5 pairs per position group are returned.
+Ranking score = normalized value delta + positional need score. Pairs are ranked by it descending, capped at 5 per position group. The response is recomputed on every request (mirroring DFF-SM-085) and carries the actual computation time.
+
+### Response Shape
+
+```ts
+type WaiverPair = {
+  add: { id, name, position, age, dynastyValue };   // players-table free agent
+  drop: { id, name, position, age, dynastyValue } | null;
+  valueDelta: number;                                // raw dynasty points
+  score: {
+    valueDeltaScore: number;                         // normalized ±100
+    positionalNeedScore: number;
+    ageCurve: -1 | 0 | 1;
+    rankScore: number;                               // valueDeltaScore + positionalNeedScore
+  };
+};
+
+type WaiverPairs = {
+  pairs: WaiverPair[];        // flat, rankScore descending, ≤5 per position group
+  lastComputedAt: string;
+};
+```
 
 ### Claude Reasoning (analyze endpoint)
 
-`POST /season/:league_id/waivers/analyze` invokes Claude with the pair's score object and the `LeagueContext`. Claude evaluates whether the swap is net-positive in context — factoring in the user's competitive window, the drop candidate's role, and any non-obvious considerations about the free agent.
+`POST /season/:league_id/waivers/analyze` accepts `{ add_player_id, drop_player_id? }` (players-table IDs from the pair listing; omit `drop_player_id` for no-drop pairs). The pair is re-derived server-side — the add must currently be a free agent in the connected league and the drop, when present, a bench player on the user's roster — so client payloads can only select, never fabricate, a pair. Claude is invoked with the pair's score object and the `LeagueContext` (user roster, league medians, the pair — there is no counterparty roster in a waiver swap). Claude evaluates whether the swap is net-positive in context — factoring in the user's competitive window, the drop candidate's role, and any non-obvious considerations about the free agent.
 
 **Response format:** Same structure as trade analysis (Verdict / Primary signal / Key factors / Non-obvious / Recommendation).
 
@@ -300,6 +364,9 @@ The My Team section is a standalone top-level nav section. It does not share sta
 | Roster overview without Claude | Pure algorithm output | Claude on every page load | Overview is high-frequency (loads on every visit); Claude cost and latency are only justified when the user is actively evaluating a specific decision |
 | Five-signal trade model | Value delta + age curve + positional need + team context + asset liquidity | Value delta only | Single-signal trade evaluation is exactly what Sleeper already provides; the multi-signal model is the differentiated value |
 | Composite score normalization | -100 to +100 with ±10 neutral band | Raw weighted sum | Normalized score is immediately interpretable by both the UI and Claude; the neutral band avoids false precision on marginal trades |
+| Claude client | Raw `fetch` + injectable `fetchImpl`, `ANTHROPIC_API_KEY`, `cache_control: ephemeral` | `@anthropic-ai/sdk` | Mirrors the Sleeper client pattern; no new dependency; fully testable offline with a stubbed fetch (CI needs no key) |
+| Claude unavailable | Return the raw score with `claudeUnavailable: true` | Fail the request | The algorithmic output is always useful; the narrative is an enhancement (DFF-SM-043) |
+| Asset liquidity input | Synced traded-pick inventory (`sleeper_traded_picks`) | Infer from transaction history | Authoritative and cheap; avoids a signal that always reads neutral (DFF-SLS-090/091) |
 | Trade recommendation grouping | By roster need | Flat ranked list | Need-based grouping matches how dynasty managers think; makes the "why" self-evident without requiring Claude on the list view |
 | Waiver add/drop pairing | Always pair add with optimal drop | Add-only | An add recommendation that ignores what you'd have to drop is incomplete; pairing is mandatory for actionability |
 | Claude context size | User roster + counterparty roster + league medians + score object | Full league rosters | Full league context inflates token cost with data irrelevant to the specific decision; medians capture league context compactly |
@@ -307,6 +374,14 @@ The My Team section is a standalone top-level nav section. It does not share sta
 | Start/sit | Deferred | In scope | Requires a weekly projections source not in the current ETL stack; separate initiative |
 | Pending offers scope | Offers involving the user's roster only | All pending league offers | The five-signal model is user-perspective; third-party trades have no defined user value delta |
 | Trade recommendations caching | Recomputed on every request | TTL cache (e.g., 1 hour) | Pure SQLite reads + in-memory math; consistent with fresh-context-per-request (SM-071); `lastComputedAt` stays accurate |
+| Recommender matching condition | Outbound position must be one the *counterparty grades C or below* | Original SM-052 wording: counterparty *also has surplus* there | Amended spec: a team deep at a position has no reason to acquire more of it; the original condition produced candidates no counterparty would accept |
+| Surplus definition | Bench depth (bench + taxi value, IR excluded) > league-median *bench depth* | Bench depth > league-median total positional value | The median comparison must be symmetric for the threshold to be meaningful; comparing bench value against other teams' full positional value would make surplus nearly unattainable |
+| Hypothetical offer IDs | Synthetic negative transaction IDs on candidate offers | Hash/UUID strings | `SleeperTradeOfferRecord.transactionId` is numeric; negatives cannot collide with Sleeper IDs |
+| Analyzing a candidate | `POST /trades/analyze` accepts `{ trade_offer: … }` alongside `{ transaction_id }` | Score candidates client-side; or persist hypothetical offers | Keeps one scoring path (the same five-signal scorer) and honors SM-056 (Claude only on explicit Analyze) without persisting speculative rows |
+| Waiver "over the roster limit" | Non-IR player count ≥ `roster_positions.length` (total slots incl. bench) | Per-position bench caps | Sleeper exposes no per-position max; total slots is the only league-defined limit |
+| Waiver drop candidate | Lowest-value bench player at the add's position; taxi never dropped | Lowest-value bench player league-wide | Position-matched drops keep the swap's positional-need signal honest; taxi is developmental |
+| Waiver free-agent pool | Top 50 by dynasty value | Entire un-rostered pool | Scoring is O(evaluateRoster) per candidate; the actionable waiver tier is the top of the pool |
+| Waiver ranking | valueDeltaScore + positionalNeedScore (age reported, not ranked) | Weighted blend | DFF-SM-066 ranks by "value delta and positional need"; age is a tie-breaking signal for the human, not the sort |
 | Taxi/IR in grades | Taxi counts toward depth score; IR excluded from grades | Include both; exclude both | Taxi is real developmental depth (the essence of dynasty); IR contributes nothing near-term |
 | Age curve baselines | Fixed constants (QB 27, RB 24, WR 25, TE 26) | Per-league configurable | Superflex skews value weighting more than age primes; no proven need for config surface |
 | Claude reasoning persistence | Recomputed on demand | Persist to SQLite | Scores recompute from fresh syncs; persisted narratives could contradict changed scores |

@@ -73,6 +73,14 @@ export type SleeperTransactionPayload = {
   status_updated?: unknown;
 };
 
+export type SleeperTradedPickPayload = {
+  season?: unknown;
+  round?: unknown;
+  roster_id?: unknown;
+  previous_owner_id?: unknown;
+  owner_id?: unknown;
+};
+
 export type PlayerRegistryEntry = {
   fullName: string;
   position: string;

@@ -21,6 +21,7 @@ export type TeamContext = {
 export type PositionEvaluation = {
   grade: LetterGrade;
   percentile: number;
+  composite: number;
   valueScore: number;
   rawStarterValue: number;
   ageCurveScore: number;
@@ -40,6 +41,10 @@ const positionGroups = ['QB', 'RB', 'WR', 'TE'] as const;
 type PositionGroup = (typeof positionGroups)[number];
 
 const primeAges: Record<PositionGroup, number> = { QB: 27, RB: 24, WR: 25, TE: 26 };
+
+// Composite band boundaries: A >= 85, B >= 70, C >= 55, D >= 40, else F. Exported so downstream
+// consumers (e.g. the Trade Recommender's surplus/need thresholds) share the single source.
+export const gradeBCompositeThreshold = 70;
 
 // @spec DFF-SM-016
 export function toLetterGrade(composite: number): LetterGrade {
@@ -280,6 +285,7 @@ export function evaluateRoster(context: LeagueContext): RosterOverview {
     positions[position] = {
       grade: toLetterGrade(stats.userComposite),
       percentile: stats.percentile,
+      composite: stats.userComposite,
       valueScore: stats.valueScore,
       rawStarterValue: stats.rawStarterValue,
       ageCurveScore: stats.ageCurveScore,

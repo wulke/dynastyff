@@ -1,5 +1,8 @@
 // @spec DFF-SM-010
 // @spec DFF-SM-018
+// @spec DFF-SM-030
+// @spec DFF-SM-031
+// @spec DFF-SM-043
 // @spec DFF-SM-081
 // @spec DFF-SM-083
 import test from 'node:test';
@@ -7,17 +10,27 @@ import assert from 'node:assert/strict';
 import type { Request, RequestHandler, Response } from 'express';
 
 import { createDraftErrorHandler } from '../src/server/app.js';
-import { createSeasonOverviewRoute } from '../src/server/season-routes.js';
+import {
+  createSeasonOverviewRoute,
+  createSeasonTradeAnalyzeRoute,
+  createSeasonTradeRecommendationsRoute,
+  createSeasonTradesPendingRoute,
+  createSeasonWaiverAnalyzeRoute,
+  createSeasonWaiversRoute,
+} from '../src/server/season-routes.js';
+import type { SeasonAdvisor } from '../src/season/seasonAdvisor.js';
 import { createSeasonFixture, seasonLeagueId } from './season-fixture.js';
 
 async function invokeRoute({
   route,
   params,
+  body,
 }: {
   route: RequestHandler;
   params?: Record<string, string>;
+  body?: unknown;
 }): Promise<{ statusCode: number; json: unknown }> {
-  const request = { params } as Request;
+  const request = { params, body } as Request;
   const errorHandler = createDraftErrorHandler();
   let statusCode = 200;
   let responseBody: unknown;
@@ -131,6 +144,371 @@ test('overview returns 404 for unknown leagues and unconnected leagues', async (
     const unconnected = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
     assert.equal(unconnected.statusCode, 404);
     assert.equal((unconnected.json as { code: string }).code, 'NOT_CONNECTED');
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-030
+test('GET /season/:league_id/trades/pending returns only offers involving the user', async () => {
+  const fixture = createSeasonFixture();
+  const route = createSeasonTradesPendingRoute({ databasePath: fixture.dbPath });
+
+  try {
+    // A pending offer between two other teams must not surface.
+    fixture.db
+      .prepare(
+        "INSERT INTO sleeper_trade_offers (id, league_id, transaction_id, status, proposer_roster_id, responder_roster_ids, adds, drops, draft_picks, created_at, updated_at) VALUES ('t3', ?, 557, 'pending', 3, ?, '{}', '{}', '[]', '2026-09-26T19:00:00.000Z', '2026-09-26T19:00:00.000Z')",
+      )
+      .run(seasonLeagueId, JSON.stringify([4]));
+
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+
+    assert.equal(statusCode, 200);
+    const trades = (json as { trades: { transactionId: string; verdict: string }[] }).trades;
+
+    assert.deepEqual(
+      trades.map((trade) => trade.transactionId),
+      ['555'],
+    );
+    assert.ok(['win', 'loss', 'neutral'].includes(trades[0].verdict));
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-031
+test('POST /season/:league_id/trades/analyze returns the score plus reasoning', async () => {
+  const fixture = createSeasonFixture();
+  const advisor: SeasonAdvisor = {
+    explainTrade: async () => ({ narrative: '**Verdict:** Neutral', claudeUnavailable: false }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
+  };
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const { statusCode, json } = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { transaction_id: 555 },
+    });
+
+    assert.equal(statusCode, 200);
+    const payload = json as {
+      transactionId: string;
+      score: { verdict: string; compositeScore: number };
+      narrative: string | null;
+      claudeUnavailable: boolean;
+    };
+
+    assert.equal(payload.transactionId, '555');
+    assert.ok(['win', 'loss', 'neutral'].includes(payload.score.verdict));
+    assert.equal(payload.narrative, '**Verdict:** Neutral');
+    assert.equal(payload.claudeUnavailable, false);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-043
+test('POST /trades/analyze surfaces claudeUnavailable when the advisor fails', async () => {
+  const fixture = createSeasonFixture();
+  const advisor: SeasonAdvisor = {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
+  };
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const { statusCode, json } = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { transaction_id: '555' },
+    });
+
+    assert.equal(statusCode, 200);
+    const payload = json as { claudeUnavailable: boolean; score: unknown; narrative: string | null };
+
+    assert.equal(payload.claudeUnavailable, true);
+    assert.equal(payload.narrative, null);
+    assert.ok(payload.score, 'the raw score is still returned');
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-031
+test('POST /trades/analyze rejects unknown or third-party transactions', async () => {
+  const fixture = createSeasonFixture();
+  const advisor: SeasonAdvisor = {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
+  };
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const unknown = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { transaction_id: 999 },
+    });
+    assert.equal(unknown.statusCode, 404);
+
+    const missingBody = await invokeRoute({ route, params: { league_id: seasonLeagueId }, body: {} });
+    assert.equal(missingBody.statusCode, 400);
+
+    const unconnected = await invokeRoute({
+      route,
+      params: { league_id: 'other' },
+      body: { transaction_id: 555 },
+    });
+    assert.equal(unconnected.statusCode, 404);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-050
+// @spec DFF-SM-055
+// @spec DFF-SM-085
+test('GET /season/:league_id/trades/recommendations returns grouped candidates recomputed per request', async () => {
+  const fixture = createSeasonFixture();
+  const fixedNow = () => new Date('2026-09-27T12:00:00.000Z');
+  const route = createSeasonTradeRecommendationsRoute({ databasePath: fixture.dbPath, now: fixedNow });
+
+  try {
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+
+    assert.equal(statusCode, 200);
+    const payload = json as {
+      groups: Record<string, { label: string; candidates: unknown[] }>;
+      lastComputedAt: string;
+    };
+
+    assert.deepEqual(Object.keys(payload.groups).sort(), ['picks', 'qb', 'rb', 'sell', 'te', 'wr']);
+
+    for (const group of Object.values(payload.groups)) {
+      assert.ok(group.candidates.length <= 3, 'groups cap at three candidates');
+    }
+
+    assert.equal(payload.lastComputedAt, '2026-09-27T12:00:00.000Z');
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-031
+test('POST /trades/analyze accepts a hypothetical trade_offer payload', async () => {
+  const fixture = createSeasonFixture();
+  const seen: unknown[] = [];
+  const advisor: SeasonAdvisor = {
+    explainTrade: async (_context, score, offer) => {
+      seen.push({ score, offer });
+      return { narrative: '**Verdict:** Win', claudeUnavailable: false };
+    },
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
+  };
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const { statusCode, json } = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: {
+        trade_offer: {
+          transactionId: -5,
+          status: 'hypothetical',
+          proposerRosterId: 2,
+          responderRosterIds: [1],
+          adds: { 's-p2-qb': 1 },
+          drops: { 's-p2-qb': 2, 's-wr2': 1 },
+          draftPicks: [],
+          createdAt: '2026-09-27T00:00:00.000Z',
+        },
+      },
+    });
+
+    assert.equal(statusCode, 200);
+    const payload = json as { transactionId: string; score: { verdict: string }; narrative: string | null };
+
+    assert.equal(payload.transactionId, '-5');
+    assert.ok(['win', 'loss', 'neutral'].includes(payload.score.verdict));
+    assert.equal(payload.narrative, '**Verdict:** Win');
+
+    // The advisor receives the hypothetical offer so it can resolve the counterparty roster.
+    const observed = seen[0] as { offer: { proposerRosterId: number } };
+    assert.equal(observed.offer.proposerRosterId, 2);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-031
+test('POST /trades/analyze rejects trade_offer payloads that do not involve the user', async () => {
+  const fixture = createSeasonFixture();
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor: {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
+  } });
+
+  try {
+    const thirdParty = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: {
+        trade_offer: {
+          proposerRosterId: 3,
+          responderRosterIds: [4],
+          adds: {},
+          drops: {},
+          draftPicks: [],
+        },
+      },
+    });
+    assert.equal(thirdParty.statusCode, 400);
+
+    const malformed = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { trade_offer: { proposerRosterId: 'two' } },
+    });
+    assert.equal(malformed.statusCode, 400);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-031
+test('POST /trades/analyze rejects malformed trade_offer payloads with 400s', async () => {
+  const fixture = createSeasonFixture();
+  const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor: {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
+  } });
+
+  const base = { proposerRosterId: 2, responderRosterIds: [1], adds: {}, drops: {} };
+
+  try {
+    const cases: Array<{ trade_offer: Record<string, unknown> }> = [
+      { trade_offer: { ...base, draftPicks: [null] } },
+      { trade_offer: { ...base, draftPicks: [{ season: '2027', round: 'one' }] } },
+      { trade_offer: { ...base, draftPicks: [{ round: 1 }] } },
+      { trade_offer: { ...base, draftPicks: [{ season: '2027', round: 0 }] } },
+      { trade_offer: { ...base, draftPicks: [{ season: '2027', round: 1, owner_id: 'one' }] } },
+      { trade_offer: { ...base, responderRosterIds: ['one'] } },
+      { trade_offer: { ...base, adds: { 's-wr2': 'one' } } },
+    ];
+
+    for (const body of cases) {
+      const { statusCode } = await invokeRoute({ route, params: { league_id: seasonLeagueId }, body });
+
+      assert.equal(statusCode, 400, `expected 400 for ${JSON.stringify(body.trade_offer)}`);
+    }
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-060
+test('GET /season/:league_id/waivers returns ranked no-drop pairs for the fixture league', async () => {
+  const fixture = createSeasonFixture();
+  const fixedNow = () => new Date('2026-09-27T12:00:00.000Z');
+  const route = createSeasonWaiversRoute({ databasePath: fixture.dbPath, now: fixedNow });
+
+  try {
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+
+    assert.equal(statusCode, 200);
+    const payload = json as {
+      pairs: { add: { name: string }; drop: unknown; valueDelta: number; score: { rankScore: number } }[];
+      lastComputedAt: string;
+    };
+
+    // Fixture: 7 non-IR players vs 8 league slots — under the limit, so no drops.
+    assert.equal(payload.lastComputedAt, '2026-09-27T12:00:00.000Z');
+    assert.ok(payload.pairs.length >= 2);
+    assert.ok(payload.pairs.every((pair) => pair.drop === null));
+    assert.equal(payload.pairs[0].add.name, 'Free Agent QB');
+
+    const ranks = payload.pairs.map((pair) => pair.score.rankScore);
+    assert.deepEqual(ranks, [...ranks].sort((a, b) => b - a));
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-061
+// @spec DFF-SM-067
+test('POST /waivers/analyze re-derives the pair server-side and returns Claude reasoning', async () => {
+  const fixture = createSeasonFixture();
+  const seen: unknown[] = [];
+  const advisor: SeasonAdvisor = {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async (_context, pair) => {
+      seen.push(pair);
+      return { narrative: '**Verdict:** Win', claudeUnavailable: false };
+    },
+  };
+  const route = createSeasonWaiverAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const { statusCode, json } = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { add_player_id: 'p-fa2' },
+    });
+
+    assert.equal(statusCode, 200);
+    const payload = json as {
+      add: { id: string; name: string };
+      drop: unknown;
+      valueDelta: number;
+      score: { rankScore: number };
+      narrative: string | null;
+      claudeUnavailable: boolean;
+    };
+
+    assert.equal(payload.add.id, 'p-fa2');
+    assert.equal(payload.drop, null);
+    assert.ok(payload.valueDelta > 0);
+    assert.equal(payload.narrative, '**Verdict:** Win');
+    assert.equal(payload.claudeUnavailable, false);
+
+    const pair = seen[0] as { add: { id: string } };
+    assert.equal(pair.add.id, 'p-fa2');
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-061
+test('POST /waivers/analyze rejects fabricated pairs', async () => {
+  const fixture = createSeasonFixture();
+  const advisor: SeasonAdvisor = {
+    explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
+    explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
+  };
+  const route = createSeasonWaiverAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
+
+  try {
+    const cases: Array<{ statusCode: number; body: Record<string, unknown> }> = [
+      { statusCode: 400, body: {} },
+      { statusCode: 400, body: { add_player_id: 5 } },
+      { statusCode: 404, body: { add_player_id: 'p-nope' } },
+      { statusCode: 404, body: { add_player_id: 'p-qb1' } }, // rostered — not a free agent
+      { statusCode: 404, body: { add_player_id: 'p-fa1', drop_player_id: 'p-fa2' } }, // drop not on roster
+      { statusCode: 400, body: { add_player_id: 'p-fa1', drop_player_id: 7 } },
+    ];
+
+    for (const expected of cases) {
+      const { statusCode } = await invokeRoute({
+        route,
+        params: { league_id: seasonLeagueId },
+        body: expected.body,
+      });
+
+      assert.equal(statusCode, expected.statusCode, `expected ${expected.statusCode} for ${JSON.stringify(expected.body)}`);
+    }
   } finally {
     fixture.cleanup();
   }

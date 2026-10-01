@@ -50,6 +50,7 @@ All endpoints are read-only and require no authentication.
 | `GET https://api.sleeper.app/v1/league/{league_id}/rosters` | All team rosters (player IDs) |
 | `GET https://api.sleeper.app/v1/league/{league_id}/users` | Team owner names and display names |
 | `GET https://api.sleeper.app/v1/league/{league_id}/transactions/{week}` | Trade offers (pending and recent) |
+| `GET https://api.sleeper.app/v1/league/{league_id}/traded_picks` | Current pick ownership inventory (post-trade) |
 | `GET https://api.sleeper.app/v1/players/nfl` | Full NFL player registry (bulk, cached) |
 
 The Sleeper player registry (`/players/nfl`) is a large payload (~5 MB). It is fetched once per sync run and cached to disk at `data/sleeper-players-cache.json`. The cache is refreshed if it is older than 24 hours or missing. The cache is not committed to the repository.
@@ -107,6 +108,11 @@ One row per pending or recently resolved trade offer. Fields: `league_id`, `tran
 
 Trade transactions are collected by sweeping `/transactions/{week}` for every week from 0 through the current NFL week (inclusive). The current week is read once per sync from `GET /state/nfl`. Sweep results are deduplicated by `(league_id, transaction_id)` upsert. Sleeper's `dropped` transaction status maps to `failed`. The proposer is `roster_ids[0]` (Sleeper convention); responders are the remaining `roster_ids`.
 
+### `sleeper_traded_picks`
+One row per draft pick whose ownership has moved, per league. Fields: `league_id`, `season`, `round`, `roster_id` (the pick's original owner — its origin), `previous_owner_id`, `owner_id` (current owner after all trades), `synced_at`. Rows are replaced wholesale per league on each sync (like `sleeper_rosters`) and keyed uniquely by `(league_id, season, round, roster_id)`.
+
+This inventory is what lets Season Management infer each team's future draft capital — notably the Trade Scorer's asset-liquidity signal, which compares a counterparty's pick-to-player ratio against the league median. Picks that a team has acquired are recoverable by `owner_id`; picks it has sent away move to another `owner_id` while keeping their original `roster_id`.
+
 ## API Surface (Express)
 
 The Express server exposes endpoints for the My Team connection flow and on-demand sync.
@@ -148,6 +154,7 @@ The My Team section ships first as a connection surface for Sleeper Sync. The us
 | Multi-league connections | Supported — one row per league in `sleeper_connections` | Single-league only | Spec'd by DFF-SLS-012/020 ("adds a league", "all connected leagues") |
 | Mid-season players with no ETL match | Store with `players_id = NULL`, warn, continue | Exclude; hard-fail | Spec'd by DFF-SLS-043; rosters stay correct and Season Manager degrades gracefully |
 | Transactions week sweep | All weeks 0..currentWeek via `GET /state/nfl` | Week 0 + trailing N-week window | Complete history makes "recent" well-defined; no missed long-pending offers; idempotent upserts and the 15-minute sync throttle keep call volume sane (≤ ~19 GETs/league/sync) |
+| Traded-pick inventory | Synced via `GET /league/{id}/traded_picks` | Derive pick ownership from trade transactions | The dedicated endpoint is authoritative and cheap (one GET/league); deriving it from the transactions sweep would miss pre-season/off-platform moves and complicate the sync (DFF-SLS-090/091) |
 | Player-map caching | Cache only non-null matches | Cache null matches too | A null match re-attempts next sync, so newly ingested ETL players match automatically |
 | Registry cache contents | Trimmed `{ id: { full_name, position } }` | Raw ~5 MB payload | Shrinks the disk cache dramatically while keeping everything matching needs |
 | Player registry cache | Disk cache at `data/sleeper-players-cache.json`, TTL 24h | Fetch per sync; DB cache | ~5 MB payload; disk cache avoids re-fetching on every sync while staying out of the DB schema |

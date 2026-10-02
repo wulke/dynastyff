@@ -126,7 +126,9 @@ export function AdvisorPanel({ draftId, isOpen, onClose }: AdvisorPanelProps) {
         const response = await fetch(`/drafts/${draftId}/advisor/chat`, {
           method: 'DELETE',
         });
-        if (!response.ok) throw new Error('Advisor reset failed.');
+        if (!response.ok) {
+          throw new Error('Advisor reset failed.');
+        }
       } catch {
         showToast(ADVISOR_ERROR_MESSAGE);
       }
@@ -156,11 +158,17 @@ export function AdvisorPanel({ draftId, isOpen, onClose }: AdvisorPanelProps) {
         throw new Error('Advisor payload was invalid.');
       }
 
-      if (yourTurnVersionRef.current === requestTurnVersion) setAdvice(payload);
+      if (yourTurnVersionRef.current === requestTurnVersion) {
+        setAdvice(payload);
+      }
     } catch {
-      showToast(ADVISOR_ERROR_MESSAGE);
+      if (yourTurnVersionRef.current === requestTurnVersion) {
+        showToast(ADVISOR_ERROR_MESSAGE);
+      }
     } finally {
-      setIsAdviceLoading(false);
+      if (yourTurnVersionRef.current === requestTurnVersion) {
+        setIsAdviceLoading(false);
+      }
     }
   }
 
@@ -215,9 +223,13 @@ export function AdvisorPanel({ draftId, isOpen, onClose }: AdvisorPanelProps) {
         },
       ]);
     } catch {
-      showToast(ADVISOR_ERROR_MESSAGE);
+      if (resetVersionRef.current === requestResetVersion) {
+        showToast(ADVISOR_ERROR_MESSAGE);
+      }
     } finally {
-      setIsChatLoading(false);
+      if (resetVersionRef.current === requestResetVersion) {
+        setIsChatLoading(false);
+      }
     }
   }
 

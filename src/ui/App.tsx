@@ -1065,7 +1065,7 @@ export function DraftApp() {
               onSubmitComposer={handleSubmitTradeComposer}
               onCloseComposer={handleCloseTradeComposer}
             />
-            <AdvisorPanel draftId={draftState.draftId ?? ''} isOpen={isAdvisorOpen} />
+            {draftState.draftId ? <AdvisorPanel draftId={draftState.draftId} isOpen={isAdvisorOpen} onClose={() => setIsAdvisorOpen(false)} /> : null}
           </div>
         ) : null}
 

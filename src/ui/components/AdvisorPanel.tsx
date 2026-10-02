@@ -16,6 +16,7 @@ import { useDraftContext } from '../context/DraftContext.js';
 type AdvisorPanelProps = {
   draftId: string;
   isOpen: boolean;
+  onClose(): void;
 };
 
 type AdvisorTab = 'advise' | 'grill';
@@ -87,7 +88,7 @@ function createMessageId(role: ChatMessage['role']): string {
 // @spec DFF-UI-048
 // @spec DFF-UI-081
 // @spec DFF-UI-085
-export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
+export function AdvisorPanel({ draftId, isOpen, onClose }: AdvisorPanelProps) {
   const { draftState, showToast } = useDraftContext();
   const [activeTab, setActiveTab] = useState<AdvisorTab>('advise');
   const [advice, setAdvice] = useState<AdviceResponse | null>(null);
@@ -122,9 +123,10 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
 
     void (async () => {
       try {
-        await fetch(`/drafts/${draftId}/advisor/chat`, {
+        const response = await fetch(`/drafts/${draftId}/advisor/chat`, {
           method: 'DELETE',
         });
+        if (!response.ok) throw new Error('Advisor reset failed.');
       } catch {
         showToast(ADVISOR_ERROR_MESSAGE);
       }
@@ -136,6 +138,7 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
       return;
     }
 
+    const requestTurnVersion = yourTurnVersion;
     setIsAdviceLoading(true);
 
     try {
@@ -153,7 +156,7 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
         throw new Error('Advisor payload was invalid.');
       }
 
-      setAdvice(payload);
+      if (yourTurnVersionRef.current === requestTurnVersion) setAdvice(payload);
     } catch {
       showToast(ADVISOR_ERROR_MESSAGE);
     } finally {
@@ -170,6 +173,7 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
       return;
     }
 
+    const requestResetVersion = advisorResetVersion;
     setMessages((currentMessages) => [
       ...currentMessages,
       {
@@ -201,6 +205,7 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
         throw new Error('Advisor chat payload was invalid.');
       }
 
+      if (resetVersionRef.current !== requestResetVersion) return;
       setMessages((currentMessages) => [
         ...currentMessages,
         {
@@ -221,18 +226,16 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-y-4 right-4 z-20 flex justify-end">
+    <div className="pointer-events-none fixed inset-y-4 right-4 z-40 flex justify-end">
       <aside
         data-testid="advisor-panel"
-        className="pointer-events-auto flex h-[calc(100%-2rem)] w-[23.75rem] translate-x-0 flex-col overflow-hidden rounded-md border border-default bg-surface-raised shadow-sm transition-transform duration-200 ease-out"
+        className="pointer-events-auto flex h-full w-[23.75rem] translate-x-0 flex-col overflow-hidden rounded-md border border-default bg-surface-raised shadow-sm transition-transform duration-200 ease-out"
       >
         <div className="border-b border-default px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-accent">Draft Companion</p>
           <div className="mt-2 flex items-center justify-between gap-2">
             <h2 className="font-condensed text-xl font-bold tracking-tight text-primary">Advisor</h2>
-            <div className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
-              Live
-            </div>
+            <button type="button" onClick={onClose} className="rounded border border-default px-2 py-0.5 text-xs font-medium text-secondary hover:border-strong hover:text-primary">Close</button>
           </div>
           <div role="tablist" aria-label="Advisor modes" className="mt-3 grid grid-cols-2 gap-1 border-b border-default">
             <button

@@ -141,6 +141,14 @@ export function createSnapshotCopyPlugin(snapshotPath = snapshotSourcePath): Plu
 export default defineConfig({
   root: uiStaticRoot,
   base: '/dynastyff/',
+  resolve: {
+    alias: [
+      {
+        find: /.*\/AdvisorPanel\.js$/,
+        replacement: path.resolve(uiStaticRoot, 'AdvisorPanel.tsx'),
+      },
+    ],
+  },
   plugins: [react(), createStaticBuildGuardPlugin(), createSnapshotCopyPlugin()],
   build: {
     outDir: path.resolve(uiStaticRoot, '../../dist/static'),

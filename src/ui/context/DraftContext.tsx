@@ -108,6 +108,8 @@ export type DraftState = {
   status: 'idle' | 'in_progress' | 'completed';
   isHydrating: boolean;
   currentPickNumber: number | null;
+  advisorResetVersion: number;
+  yourTurnVersion: number;
   rosterConfig: DraftConfig['rosterConfig'] | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
@@ -319,6 +321,8 @@ function createEmptyDraftState(draftId: string): DraftState {
     status: 'in_progress',
     isHydrating: true,
     currentPickNumber: null,
+    advisorResetVersion: 0,
+    yourTurnVersion: 0,
     rosterConfig: null,
     teams: [],
     draftOrder: [],
@@ -567,6 +571,8 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
     status: payload.status,
     isHydrating: false,
     currentPickNumber: payload.current_pick_number,
+    advisorResetVersion: existingState?.advisorResetVersion ?? 0,
+    yourTurnVersion: existingState?.yourTurnVersion ?? 0,
     rosterConfig: payload.roster_config ?? existingState?.rosterConfig ?? null,
     teams: payload.teams.map((team) => ({
       id: team.id,
@@ -716,6 +722,7 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         draftState: {
           ...state.draftState,
           currentPickNumber: action.payload.pick_number,
+          yourTurnVersion: state.draftState.yourTurnVersion + 1,
         },
       };
     case 'TRADE_OFFERED':
@@ -809,7 +816,17 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
       };
     // @spec DFF-UI-036
     case 'ADVISOR_RESET':
-      return state;
+      if (!state.draftState) {
+        return state;
+      }
+
+      return {
+        ...state,
+        draftState: {
+          ...state.draftState,
+          advisorResetVersion: state.draftState.advisorResetVersion + 1,
+        },
+      };
     case 'SSE_STATUS':
       if (!state.draftState) {
         return state;
@@ -1239,7 +1256,6 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
 
     try {
-      dispatch({ type: 'ADVISOR_RESET' });
       const response = await fetch(`/drafts/${draftId}/pick`, {
         method: 'POST',
         headers: {
@@ -1252,6 +1268,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
         throw new Error(GENERIC_PICK_ERROR);
       }
 
+      dispatch({ type: 'ADVISOR_RESET' });
       return true;
     } catch {
       setToastMessage(GENERIC_PICK_ERROR);
@@ -1392,6 +1409,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
         submitTradeOffer,
         updateQueue,
         newDraft,
+        showToast: showError,
       }}
     >
       {toastMessage ? <DraftToast message={toastMessage} /> : null}

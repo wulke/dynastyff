@@ -22,6 +22,8 @@ type DraftBoardProps = {
   draftState: DraftState;
   isInteractionBlocked?: boolean;
   onTeamHeaderClick?: (teamId: string) => void;
+  isAdvisorOpen?: boolean;
+  onToggleAdvisor?: () => void;
 };
 
 type DraftedPlayerSummary = {
@@ -267,6 +269,8 @@ export function DraftBoard({
   draftState,
   isInteractionBlocked = false,
   onTeamHeaderClick,
+  isAdvisorOpen = false,
+  onToggleAdvisor,
 }: DraftBoardProps) {
   const rounds = Array.from(new Set(draftState.draftOrder.map((slot) => slot.round))).sort((a, b) => a - b);
   const [layout, setLayout] = useState<LayoutMode>(getStoredLayout);
@@ -294,6 +298,18 @@ export function DraftBoard({
               Connecting…
             </span>
           ) : null}
+          <button
+            type="button"
+            onClick={onToggleAdvisor}
+            disabled={isInteractionBlocked}
+            className={`rounded border px-3 py-1.5 text-sm font-medium transition ${
+              isAdvisorOpen
+                ? 'border-accent bg-accent/10 text-primary'
+                : 'border-default text-secondary hover:border-strong hover:text-primary'
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            Advisor
+          </button>
           <button
             type="button"
             data-testid="layout-toggle"

@@ -109,6 +109,7 @@ export function AdvisorPanel({ draftId, isOpen, onClose }: AdvisorPanelProps) {
 
     yourTurnVersionRef.current = yourTurnVersion;
     setAdvice(null);
+    setIsAdviceLoading(false);
   }, [yourTurnVersion]);
 
   useEffect(() => {

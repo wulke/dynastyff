@@ -73,7 +73,7 @@ DynastyDaddy remains implemented as a scraper module, but it is temporarily excl
 
 1. `runScrapers()` launches KTC, FantasyCalc, and RosterAudit with a maximum concurrency of 2.
 2. KTC and FantasyCalc parse asset names like `2027 Early 1st` with the ETL pick regex, returning `{ year, round, tier? }` from the shared parser, then average any tier variants for the same `(year, round)` into a single row and emit current-state `pickValues` keyed by `(year, round, pick_in_round = 0)`.
-3. `runEtl()` inserts an `etl_runs` row at the start of execution with the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and `completed_at = NULL`.
+3. `runEtl()` inserts an `etl_runs` row only after the scraper phase confirms that at least one active scraper succeeded; the row records the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and starts with `completed_at = NULL`.
 4. Each successful source is processed in its own database transaction:
    - normalize that source's player and pick values
    - write raw `player_value_snapshots` and `pick_value_snapshots`
@@ -114,7 +114,7 @@ If `player-aliases.json` exists but contains malformed JSON, ETL fails before an
 
 ## Startup Pick Parsing
 
-KTC and RosterAudit publish startup draft pick values using the naming format `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`). A new `parseStartupPickName` function (in `shared.ts`) extracts `round` and `pick_in_round` from this format:
+KTC publishes startup draft pick values using the naming format `"Startup R.PP"` (e.g. `"Startup 1.04"`, `"Startup 3.11"`). A new `parseStartupPickName` function (in `shared.ts`) extracts `round` and `pick_in_round` from this format:
 
 ```
 Regex: /^startup\s+(?<round>\d+)\.(?<pickInRound>\d+)$/i
@@ -122,7 +122,7 @@ Regex: /^startup\s+(?<round>\d+)\.(?<pickInRound>\d+)$/i
 
 Rows matching this pattern are emitted as `RawPickValue` entries with `year = current calendar year`, `round`, `pick_in_round`, and `rawValue`. They are not averaged across tier variants (startup slots have no tier concept) and do not go through the existing `parsePickAssetName` future-pick path.
 
-FantasyCalc's startup pick naming format is to be determined by inspecting the live source at implementation time. Once identified, the same `parseStartupPickName` regex or an equivalent shall be applied.
+FantasyCalc and RosterAudit exact startup slots are verified against the live source as of 2026-05-28. Both currently publish exact current-year slots using names like `"2026 Pick 1.04"` alongside round-level future assets like `"2026 1st"` and `"2027 Early 1st"`. Their scrapers shall treat current-year exact-slot names as startup picks, extracting the same `{ round, pick_in_round }` shape and assigning `year = current calendar year` at ETL run time.
 
 ## Normalization
 
@@ -145,7 +145,10 @@ Only source columns that successfully matched the canonical player row participa
 
 ## Partial Failure Behavior
 
-Partial-failure handling is specified for issue #6 and has not been implemented in this slice.
+- Each active scraper runs inside its own error boundary. If a scraper throws an unrecoverable error, ETL logs `[ETL] WARN: {source} scraper failed — {message}. Excluding from this run.` and continues with the remaining sources.
+- If at least one scraper succeeds, ETL proceeds with normalization, aggregation, and upsert using only the successful source payloads.
+- If all active scrapers fail, ETL exits with code `1` before inserting `etl_runs` or writing any hot-path tables or snapshot tables.
+- When ETL updates an existing player during a partial-failure run, per-source columns for failed scrapers remain unchanged; ETL does not overwrite those existing values with `NULL`.
 
 ## Edge Case Probe
 
@@ -154,7 +157,8 @@ Partial-failure handling is specified for issue #6 and has not been implemented 
 - KTC returns no supported players -> exit before any source writes; leave the `etl_runs` row incomplete so draft pinning ignores it
 - KTC or FantasyCalc returns an `RDP`/`PICK` row whose name matches `YYYY [tier] Nth` -> store it as a pick value row for the extracted `(year, round)` pair instead of dropping it as an unsupported player position
 - KTC or FantasyCalc returns an `RDP`/`PICK` row whose name does not match the ETL pick regex -> treat it as a non-pick asset and exclude it from `pickValues`
-- KTC or RosterAudit returns a row beginning with `"Startup"` whose name does not match `Startup R.PP` -> log a warning and exclude from `pickValues`; do not treat as a player row
+- KTC returns a row beginning with `"Startup"` whose name does not match `Startup R.PP` -> log a warning and exclude from `pickValues`; do not treat as a player row
+- FantasyCalc or RosterAudit returns a current-year exact-pick row that does not match `YYYY Pick R.PP` -> exclude it from `pickValues`; do not collapse it into a round-level future pick
 - ETL run contains no startup pick rows for the current year -> continue normally; log a warning so operators know to re-run ETL before starting a draft
 - DynastyDaddy runtime instability -> keep the scraper module in the codebase, but exclude it from the live `npm run etl` source list until re-enabled
 
@@ -165,7 +169,7 @@ All writes use Drizzle ORM against the shared SQLite database.
 **Players:**
 - Canonical rows are established by the highest-priority matched source: `KTC -> FantasyCalc -> DynastyDaddy -> RosterAudit`.
 - Existing row matching uses normalized-name exact match first, then same-position Dice fuzzy match, then alias override.
-- On KTC match: update canonical name, metadata, `value_ktc`, `dynasty_value`, `adp` when provided, and `updated_at`.
+- On KTC match: update canonical name, metadata, `value_ktc`, `dynasty_value`, `adp` when provided, and `updated_at`, while preserving existing non-KTC value columns for any sources excluded from the current run.
 - On non-KTC match: update the corresponding `value_*` column, update `adp` when provided, recompute `dynasty_value`, and update `updated_at`.
 - On unmatched KTC row: insert a new row with a generated UUID and `NULL` for all missing source columns.
 - On unmatched non-KTC row: log a warning and exclude that player's value from the hot `players` table for the run.

@@ -54,9 +54,19 @@ function withDatabase(run: (db: Database.Database, dbPath: string) => void): voi
 // @spec DFF-DATA-070
 // @spec DFF-DATA-080
 // @spec DFF-DATA-090
+// @spec DFF-DATA-094
 // @spec DFF-HIST-001
 // @spec DFF-HIST-010
 // @spec DFF-HIST-020
+// @spec DFF-DEVY-001
+// @spec DFF-SLS-012
+// @spec DFF-SLS-021
+// @spec DFF-SLS-042
+// @spec DFF-SLS-050
+// @spec DFF-SLS-051
+// @spec DFF-SLS-052
+// @spec DFF-SLS-053
+// @spec DFF-SLS-054
 test('db:init creates all tables defined by the data-model LLD', () => {
   withDatabase((db) => {
     const tableNames = db
@@ -65,20 +75,55 @@ test('db:init creates all tables defined by the data-model LLD', () => {
       .map((row) => (row as { name: string }).name);
 
     assert.deepEqual(tableNames, [
+      'devy_players',
       'draft_order',
       'drafts',
       'etl_runs',
+      'league_configs',
       'pick_value_snapshots',
       'pick_values',
       'picks',
       'player_value_snapshots',
       'players',
       'roster_players',
+      'sleeper_connections',
+      'sleeper_leagues',
+      'sleeper_player_map',
+      'sleeper_rosters',
+      'sleeper_sync_runs',
+      'sleeper_teams',
+      'sleeper_trade_offers',
+      'sleeper_traded_picks',
       'team_pick_assets',
       'teams',
       'trades',
       'user_queue',
     ]);
+  });
+});
+
+// @spec DFF-DATA-094
+test('league_configs includes the documented saved-config columns', () => {
+  withDatabase((db) => {
+    const columns = db.prepare("PRAGMA table_info('league_configs')").all() as Array<{
+      name: string;
+      type: string;
+      notnull: number;
+      pk: number;
+    }>;
+
+    const columnMap = new Map(columns.map((column) => [column.name, column]));
+
+    assert.equal(columnMap.get('id')?.pk, 1);
+    assert.equal(columnMap.get('name')?.type, 'TEXT');
+    assert.equal(columnMap.get('name')?.notnull, 1);
+    assert.equal(columnMap.get('team_count')?.type, 'INTEGER');
+    assert.equal(columnMap.get('rounds')?.type, 'INTEGER');
+    assert.equal(columnMap.get('scoring_format')?.type, 'TEXT');
+    assert.equal(columnMap.get('roster_slots')?.type, 'TEXT');
+    assert.equal(columnMap.get('pick_position')?.type, 'INTEGER');
+    assert.equal(columnMap.get('future_pick_years')?.type, 'INTEGER');
+    assert.equal(columnMap.get('created_at')?.type, 'TEXT');
   });
 });
 

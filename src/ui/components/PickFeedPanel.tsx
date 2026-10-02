@@ -3,126 +3,145 @@
 // @spec DFF-UI-102
 // @spec DFF-UI-103
 // @spec DFF-UI-104
+// @spec DFF-UI-144
+// @spec DFF-UI-165
 import { useMemo } from 'react';
 import type { DraftState } from '../context/DraftContext.js';
+import { getTradeAssetPresentation } from './tradeAssetPresentation.js';
 
 type PickFeedPanelProps = {
   draftState: DraftState;
 };
 
+type DraftLogEntry =
+  | { id: string; type: 'pick'; sortKey: string; pickNumber: number; playerId: string }
+  | { id: string; type: 'trade'; sortKey: string; trade: DraftState['trades'][number] };
+
 // @spec DFF-UI-103
-function getPositionBadgeClass(position: string): string {
-  const base = 'inline-block rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em]';
+function getPlayerName(draftState: DraftState, playerId: string): string {
+  return draftState.playerCatalog[playerId]?.name ?? playerId;
+}
 
-  if (position === 'QB') {
-    return `${base} border-amber-400/30 bg-amber-400/10 text-amber-200`;
+// @spec DFF-UI-103
+function getPickLabel(draftState: DraftState, pickNumber: number): string {
+  const slot = draftState.draftOrder.find((entry) => entry.pickNumber === pickNumber) ?? null;
+  if (!slot) return '—';
+  return `${slot.round}.${slot.pickInRound}`;
+}
+
+function getTeamName(draftState: DraftState, teamId: string): string {
+  return draftState.teams.find((team) => team.id === teamId)?.name ?? teamId;
+}
+
+function summarizeTradeAssets(draftState: DraftState, assets: unknown[]): string {
+  if (assets.length === 0) {
+    return 'nothing';
   }
 
-  if (position === 'RB') {
-    return `${base} border-blue-400/30 bg-blue-400/10 text-blue-200`;
+  return assets
+    .map((asset) =>
+      getTradeAssetPresentation(asset, draftState, {
+        futurePickLabelStyle: 'abbreviated',
+        playerLabelStyle: 'name-only',
+      }).label,
+    )
+    .join(', ');
+}
+
+// @spec DFF-UI-165
+function getTradeSummary(draftState: DraftState, trade: DraftState['trades'][number]): string {
+  return `${getTeamName(draftState, trade.initiatingTeamId)} traded ${summarizeTradeAssets(draftState, trade.assetsSent)} to ${getTeamName(draftState, trade.receivingTeamId)} for ${summarizeTradeAssets(draftState, trade.assetsReceived)}`;
+}
+
+// @spec DFF-UI-165
+function formatLogTimestamp(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
   }
 
-  if (position === 'WR') {
-    return `${base} border-emerald-400/30 bg-emerald-400/10 text-emerald-200`;
-  }
-
-  if (position === 'TE') {
-    return `${base} border-purple-400/30 bg-purple-400/10 text-purple-200`;
-  }
-
-  if (position === 'PICK' || position === 'RDP') {
-    return `${base} border-yellow-400/30 bg-yellow-400/10 text-yellow-200`;
-  }
-
-  return `${base} border-stone-400/30 bg-stone-400/10 text-stone-400`;
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes} UTC`;
 }
 
 // @spec DFF-UI-103
 // @spec DFF-UI-101
 // @spec DFF-UI-102
+// @spec DFF-UI-144
+// @spec DFF-UI-165
 export function PickFeedPanel({ draftState }: PickFeedPanelProps) {
   // @spec DFF-UI-101
-  // Sort picks by pickNumber descending so most recent pick appears at the top
-  const feedEntries = useMemo(
-    () => [...draftState.picks].sort((left, right) => right.pickNumber - left.pickNumber),
-    [draftState.picks],
+  const feedEntries = useMemo<DraftLogEntry[]>(
+    () =>
+      [
+        ...draftState.picks.map((pick) => ({
+          id: String(pick.pickNumber),
+          type: 'pick' as const,
+          sortKey: pick.pickedAt,
+          pickNumber: pick.pickNumber,
+          playerId: pick.playerId,
+        })),
+        ...draftState.trades.map((trade) => ({
+          id: trade.id,
+          type: 'trade' as const,
+          sortKey: trade.createdAt,
+          trade,
+        })),
+      ].sort((left, right) => right.sortKey.localeCompare(left.sortKey)),
+    [draftState.picks, draftState.trades],
   );
-
-  // @spec DFF-UI-103
-  function getTeamName(teamId: string): string {
-    const team = draftState.teams.find((t) => t.id === teamId);
-    return team?.name ?? teamId;
-  }
-
-  // @spec DFF-UI-103
-  function getPlayerName(playerId: string): string {
-    const player = draftState.playerCatalog[playerId];
-    return player?.name ?? playerId;
-  }
-
-  // @spec DFF-UI-103
-  function getPlayerPosition(playerId: string): string {
-    const player = draftState.playerCatalog[playerId];
-    return player?.position ?? 'NA';
-  }
-
-  // @spec DFF-UI-103
-  function getPickSlot(pickNumber: number): { round: number; pickInRound: number } | null {
-    const slot = draftState.draftOrder.find((s) => s.pickNumber === pickNumber);
-    return slot ? { round: slot.round, pickInRound: slot.pickInRound } : null;
-  }
 
   // @spec DFF-UI-100
   // @spec DFF-UI-101
   // @spec DFF-UI-102
   // @spec DFF-UI-103
   // @spec DFF-UI-104
+  // @spec DFF-UI-144
   return (
     <section
       data-testid="pick-feed-panel"
-      className="w-full rounded-[2rem] border border-stone-800 bg-stone-900/90 p-6 shadow-2xl shadow-black/20"
+      className="flex h-full w-full min-h-0 flex-col rounded-md border border-default bg-surface"
     >
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-stone-400">
-          Pick Feed
-        </h2>
-        <span className="rounded-full border border-stone-700 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-stone-500">
-          {feedEntries.length} pick{feedEntries.length !== 1 ? 's' : ''}
+      <div className="flex items-center justify-between gap-2 border-b border-default px-3 py-2">
+        <h2 className="font-condensed text-xs font-semibold uppercase tracking-widest text-muted">Pick Feed</h2>
+        <span className="font-condensed text-[0.6rem] font-semibold uppercase tracking-widest text-muted tabular-nums">
+          {feedEntries.length} event{feedEntries.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      {/* @spec DFF-UI-100: Fixed max height with independent scroll */}
-      <div className="mt-4 max-h-[28rem] space-y-2 overflow-y-auto" data-testid="pick-feed-scroll-container">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2" data-testid="pick-feed-scroll-container">
         {feedEntries.length === 0 ? (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-sm text-stone-600">No picks yet</p>
+          <div className="flex items-center justify-center py-8">
+            <p className="text-xs text-muted">No picks yet</p>
           </div>
         ) : (
-          feedEntries.map((pick) => {
-            const playerName = getPlayerName(pick.playerId);
-            const position = getPlayerPosition(pick.playerId);
-            const teamName = getTeamName(pick.teamId);
-            const pickSlot = getPickSlot(pick.pickNumber);
-
-            return (
-              <div
-                key={pick.pickNumber}
-                data-testid={`pick-feed-entry-${pick.pickNumber}`}
-                className="flex items-center justify-between rounded-xl border border-stone-800 bg-stone-950/60 px-4 py-3 transition hover:border-stone-700"
-              >
-                <div className="flex items-center gap-3">
-                  <p className="text-sm font-semibold text-stone-50">{playerName}</p>
-                  <span className={getPositionBadgeClass(position)}>{position}</span>
-                </div>
-                <div className="flex items-center gap-3 text-right">
-                  <p className="text-sm text-stone-400">{teamName}</p>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                    {pickSlot ? `Rd ${pickSlot.round}, Pick ${pickSlot.pickInRound}` : '—'}
-                  </p>
-                </div>
-              </div>
-            );
-          })
+          <ol className="space-y-1">
+            {feedEntries.map((entry) =>
+              entry.type === 'pick' ? (
+                <li
+                  key={entry.id}
+                  data-testid={`pick-feed-entry-${entry.pickNumber}`}
+                  className="rounded border border-default bg-app px-2 py-1.5 text-xs text-secondary"
+                >
+                  <p className="tabular-nums">{`${getPickLabel(draftState, entry.pickNumber)} — ${getPlayerName(draftState, entry.playerId)}`}</p>
+                </li>
+              ) : (
+                <li
+                  key={entry.id}
+                  data-testid={`pick-feed-entry-${entry.trade.id}`}
+                  className="rounded border border-default bg-app px-2 py-1.5 text-xs text-secondary"
+                >
+                  <p className="font-condensed tabular-nums text-muted">{formatLogTimestamp(entry.trade.createdAt)}</p>
+                  <p>{getTradeSummary(draftState, entry.trade)}</p>
+                </li>
+              ),
+            )}
+          </ol>
         )}
       </div>
     </section>

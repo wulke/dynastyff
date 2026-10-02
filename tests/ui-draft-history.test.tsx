@@ -92,9 +92,26 @@ function emitStateSyncWithHistoryData() {
         { pick_number: 5, round: 2, pick_in_round: 2, team_id: 'team-2' },
         { pick_number: 6, round: 2, pick_in_round: 3, team_id: 'team-1' },
       ],
+      roster_config: {
+        QB: 1,
+        RB: 1,
+        WR: 1,
+        TE: 1,
+        FLEX: 0,
+        SF: 0,
+        bench: 0,
+      },
       picks: [],
       roster_players: [],
       team_pick_assets: [],
+      startup_pick_values: [
+        { global_pick_number: 1, dynasty_value: 9100 },
+        { global_pick_number: 2, dynasty_value: 9000 },
+        { global_pick_number: 3, dynasty_value: 8900 },
+        { global_pick_number: 4, dynasty_value: 8800 },
+        { global_pick_number: 5, dynasty_value: 8700 },
+        { global_pick_number: 6, dynasty_value: 8600 },
+      ],
       user_queue: [],
       available_players: [
         { id: 'player-1', name: 'Josh Allen', position: 'QB', nfl_team: 'BUF', age: 30, is_rookie: false, dynasty_value: 9999, adp: 1 },
@@ -145,6 +162,7 @@ function simulateCompleteDraft() {
       status: 'accepted',
       assets_sent: [{ type: 'player', player_id: 'player-1' }],
       assets_received: [{ type: 'future_pick', year: 2027, round: 1 }],
+      created_at: '2026-05-22T17:55:00.000Z',
     });
   });
 
@@ -154,6 +172,74 @@ function simulateCompleteDraft() {
       draft_id: 'history-draft-1',
       completed_at: '2026-05-22T18:00:00.000Z',
     });
+  });
+}
+
+function setupDraftHistoryFetches(draftId = 'history-draft-1') {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+
+    if (url === '/drafts' && !init?.method) {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
+    if (url === '/drafts' && init?.method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ draftId }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
+    if (url === `/drafts/${draftId}/state`) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            draft_id: draftId,
+            status: 'in_progress',
+            current_pick_number: 1,
+            teams: [],
+            draft_order: [],
+            roster_config: {
+              QB: 1,
+              RB: 1,
+              WR: 1,
+              TE: 1,
+              FLEX: 0,
+              SF: 0,
+              bench: 0,
+            },
+            picks: [],
+            roster_players: [],
+            team_pick_assets: [],
+            user_queue: [],
+            available_players: [],
+            trades: [],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+    }
+
+    if (url === `/drafts/${draftId}/queue`) {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
   });
 }
 
@@ -169,31 +255,77 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('draft history view', () => {
-  // @spec DFF-UI-060
-  // @spec DFF-UI-065
-  test('renders history view after draft_complete with three tab pills and a New Draft button', async () => {
-    const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+async function renderAppToConfig() {
+  render(<App />);
+  await screen.findByRole('heading', { name: /config screen/i }, { timeout: 5_000 });
+}
 
-    render(<App />);
+describe('draft history view', () => {
+  // @spec DFF-UI-145
+  // @spec DFF-UI-149
+  test('renders the draft grade summary view after clicking the completion banner CTA', async () => {
+    const user = userEvent.setup();
+    setupDraftHistoryFetches();
+
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
+
+    expect(screen.getByRole('heading', { name: /draft grade summary/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view full history/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /new draft/i })).toBeInTheDocument();
+  }, 10_000);
+
+  // @spec DFF-UI-147
+  // @spec DFF-UI-148
+  // @spec DFF-UI-149
+  // @spec DFF-GRADE-003
+  // @spec DFF-GRADE-040
+  // @spec DFF-GRADE-041
+  test('draft grade summary view renders the overall grade, rubric breakdown, and final roster', async () => {
+    const user = userEvent.setup();
+    setupDraftHistoryFetches();
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSyncWithHistoryData();
+    simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
+
+    expect(screen.getByRole('heading', { name: /draft grade summary/i })).toBeInTheDocument();
+    expect(screen.getByTestId('grade-summary-leaderboard')).toBeInTheDocument();
+    expect(screen.getByTestId('grade-summary-team-team-2')).toHaveAttribute('data-user-team', 'true');
+    expect(screen.getAllByText(/overall grade/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/value over expected adp/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/positional balance/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/roster construction/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: /final roster/i })).toBeInTheDocument();
+    expect(screen.getByText('Bijan Robinson')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /pick log/i })).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-149
+  // @spec DFF-UI-060
+  // @spec DFF-UI-065
+  test('view full history from the draft grade summary opens the history tabs', async () => {
+    const user = userEvent.setup();
+    setupDraftHistoryFetches();
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSyncWithHistoryData();
+    simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
-    // @spec DFF-UI-060 - three tab pills
     expect(screen.getByRole('tab', { name: /pick log/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /roster view/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /trade log/i })).toBeInTheDocument();
-
-    // @spec DFF-UI-065 - New Draft button
     expect(screen.getByRole('button', { name: /new draft/i })).toBeInTheDocument();
   });
 
@@ -201,18 +333,14 @@ describe('draft history view', () => {
   // @spec DFF-UI-061
   test('pick log tab shows all picks in chronological order with round, pick number, team, player, position, and value', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // The Pick Log tab should be visible by default
@@ -251,18 +379,14 @@ describe('draft history view', () => {
   // @spec DFF-UI-063
   test('roster view tab shows one card per team with players grouped by position and user team highlighted', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Switch to Roster View tab
@@ -279,12 +403,10 @@ describe('draft history view', () => {
     const userCard = within(rosterPanel).getByTestId('history-team-card-team-2');
     expect(userCard.getAttribute('data-user-team')).toBe('true');
 
-    // Team-1 (Bob) has Josh Allen (QB) — Rd 1 drafted, value 9,999
+    // Team-1 (Bob) traded away Josh Allen, so the roster view shows no QB after completion
     const bobCard = within(rosterPanel).getByTestId('history-team-card-team-1');
-    expect(within(bobCard).getByText('Josh Allen')).toBeInTheDocument();
-    expect(within(bobCard).getByText('Rd 1')).toBeInTheDocument();
-    expect(within(bobCard).getByText('9,999')).toBeInTheDocument();
-    expect(within(bobCard).getByText('QB')).toBeInTheDocument();
+    expect(within(bobCard).queryByText('Josh Allen')).not.toBeInTheDocument();
+    expect(within(bobCard).getAllByText('—').length).toBeGreaterThan(0);
 
     // Team-2 (You) has Bijan Robinson (RB) — Rd 1 drafted, value 9,500
     const youCard = within(rosterPanel).getByTestId('history-team-card-team-2');
@@ -293,11 +415,12 @@ describe('draft history view', () => {
     expect(within(youCard).getByText('9,500')).toBeInTheDocument();
     expect(within(youCard).getByText('RB')).toBeInTheDocument();
 
-    // Team-3 (Sue) has Justin Jefferson (WR) — Rd 1 drafted, and Brock Bowers (TE) — Rd 2 drafted
+    // Team-3 (Sue) receives Josh Allen via trade, while retaining both drafted players
     const sueCard = within(rosterPanel).getByTestId('history-team-card-team-3');
+    expect(within(sueCard).getByText('Josh Allen')).toBeInTheDocument();
     expect(within(sueCard).getByText('Justin Jefferson')).toBeInTheDocument();
     expect(within(sueCard).getByText('Brock Bowers')).toBeInTheDocument();
-    expect(within(sueCard).getByText('Rd 1')).toBeInTheDocument();
+    expect(within(sueCard).getAllByText('Rd 1')).toHaveLength(2);
     expect(within(sueCard).getByText('Rd 2')).toBeInTheDocument();
     expect(within(sueCard).getByText('9,700')).toBeInTheDocument();
     expect(within(sueCard).getByText('8,800')).toBeInTheDocument();
@@ -309,18 +432,14 @@ describe('draft history view', () => {
   // @spec DFF-UI-064
   test('trade log tab shows trades with teams, assets exchanged, and outcome', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Switch to Trade Log tab
@@ -349,21 +468,63 @@ describe('draft history view', () => {
     expect(within(tradeRow).getByText(/accepted/i)).toBeInTheDocument();
   });
 
+  // @spec DFF-SPKV-060
+  // @spec DFF-SPKV-061
+  test('trade log shows startup pick slots with a STARTUP badge, zero-padded label, and inline value', async () => {
+    const user = userEvent.setup();
+    setupDraftHistoryFetches();
+
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+    emitStateSyncWithHistoryData();
+
+    act(() => {
+      MockEventSource.instances[0]?.emit('trade_offered', {
+        trade_id: 'trade-startup-history',
+        initiating_team_id: 'team-3',
+        receiving_team_id: 'team-2',
+        assets_sent: [{ type: 'pick_slot', pick_number: 4 }],
+        assets_received: [{ type: 'player', player_id: 'player-2' }],
+        is_bot_to_bot: false,
+      });
+      MockEventSource.instances[0]?.emit('trade_resolved', {
+        trade_id: 'trade-startup-history',
+        status: 'accepted',
+        assets_sent: [{ type: 'pick_slot', pick_number: 4 }],
+        assets_received: [{ type: 'player', player_id: 'player-2' }],
+      });
+      MockEventSource.instances[0]?.emit('draft_complete', {
+        draft_id: 'history-draft-1',
+        completed_at: '2026-05-22T18:00:00.000Z',
+      });
+    });
+
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
+    await user.click(screen.getByRole('button', { name: /view full history/i }));
+    await user.click(screen.getByRole('tab', { name: /trade log/i }));
+
+    const tradeRow = within(screen.getByRole('tabpanel', { name: /trade log/i })).getByTestId(
+      'history-trade-trade-startup-history',
+    );
+
+    expect(within(tradeRow).getByText('STARTUP')).toBeInTheDocument();
+    expect(within(tradeRow).getByText('Startup 2.01')).toBeInTheDocument();
+    expect(within(tradeRow).getByText('8,800')).toBeInTheDocument();
+    expect(within(tradeRow).getByText('Bijan Robinson')).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-065
   test('new draft button transitions back to config screen', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Click New Draft button
@@ -378,18 +539,14 @@ describe('draft history view', () => {
   // @spec DFF-UI-061
   test('pick log tab is the default active tab', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-draft-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches();
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
     emitStateSyncWithHistoryData();
     simulateCompleteDraft();
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Pick Log tabpanel should be visible by default
@@ -404,14 +561,9 @@ describe('draft history view', () => {
   // @spec DFF-UI-064
   test('renders empty-state messages in all three tabs when no data exists', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'history-empty-1' }), {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    setupDraftHistoryFetches('history-empty-1');
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -440,6 +592,7 @@ describe('draft history view', () => {
       });
     });
 
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     // Pick Log — empty state

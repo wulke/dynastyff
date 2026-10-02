@@ -13,8 +13,42 @@ export type DraftAvailablePlayer = {
   age: number | null;
   is_rookie: boolean;
   dynasty_value: number;
+  dynasty_value_tep?: number | null;
+  dynasty_value_tepp?: number | null;
+  dynasty_value_teppp?: number | null;
   adp: number | null;
 };
+
+// @spec DFF-HIST-062
+export function getDraftedPlayersForDraft({
+  databasePath,
+  draftId,
+}: {
+  databasePath: string;
+  draftId: string;
+}): DraftAvailablePlayer[] {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    return db
+      .select({
+        id: players.id,
+        name: players.name,
+        position: players.position,
+        nfl_team: players.nflTeam,
+        age: players.age,
+        is_rookie: players.isRookie,
+        dynasty_value: players.dynastyValue,
+        adp: players.adp,
+      })
+      .from(players)
+      .innerJoin(picks, and(eq(players.id, picks.playerId), eq(picks.draftId, draftId)))
+      .orderBy(asc(picks.pickNumber))
+      .all() as DraftAvailablePlayer[];
+  } finally {
+    sqlite.close();
+  }
+}
 
 // @spec DFF-HIST-062
 export function getAvailablePlayersForDraft({
@@ -49,6 +83,9 @@ export function getAvailablePlayersForDraft({
           age: players.age,
           is_rookie: players.isRookie,
           dynasty_value: players.dynastyValue,
+          dynasty_value_tep: players.dynastyValueTep,
+          dynasty_value_tepp: players.dynastyValueTepp,
+          dynasty_value_teppp: players.dynastyValueTeppp,
           adp: players.adp,
         })
         .from(players)
@@ -95,6 +132,9 @@ export function getAvailablePlayersForDraft({
         age: players.age,
         is_rookie: players.isRookie,
         adp: players.adp,
+        dynasty_value_tep: players.dynastyValueTep,
+        dynasty_value_tepp: players.dynastyValueTepp,
+        dynasty_value_teppp: players.dynastyValueTeppp,
         source: playerValueSnapshots.source,
         raw_value: playerValueSnapshots.rawValue,
       })
@@ -110,6 +150,9 @@ export function getAvailablePlayersForDraft({
       age: number | null;
       is_rookie: boolean;
       adp: number | null;
+      dynasty_value_tep: number | null;
+      dynasty_value_tepp: number | null;
+      dynasty_value_teppp: number | null;
       source: string;
       raw_value: number;
     }>;
@@ -127,6 +170,9 @@ export function getAvailablePlayersForDraft({
           age: row.age,
           is_rookie: row.is_rookie,
           dynasty_value: 0,
+          dynasty_value_tep: row.dynasty_value_tep,
+          dynasty_value_tepp: row.dynasty_value_tepp,
+          dynasty_value_teppp: row.dynasty_value_teppp,
           adp: row.adp,
         });
       }

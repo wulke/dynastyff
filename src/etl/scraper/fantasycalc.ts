@@ -2,6 +2,8 @@
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
 // @spec DFF-ETL-090
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
 import fs from 'node:fs/promises';
 
 import { loadFixtureScraperResult, parsePickAssetName } from './shared.js';
@@ -26,11 +28,51 @@ type FantasyCalcApiEntry = {
   };
 };
 
+type ParseApiResponseOptions = {
+  currentYear?: number;
+};
+
+const exactPickAssetNamePattern = /^(?<year>\d{4})\s+pick\s+(?<round>\d+)\.(?<pickInRound>\d+)$/i;
+
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+function parseCurrentYearExactPickName(
+  name: string,
+  currentYear: number,
+): { round: number; pickInRound: number } | null {
+  const match = exactPickAssetNamePattern.exec(name.trim());
+
+  if (!match?.groups) {
+    return null;
+  }
+
+  const year = Number(match.groups.year);
+  const round = Number(match.groups.round);
+  const pickInRound = Number(match.groups.pickInRound);
+
+  if (year !== currentYear || !Number.isInteger(round) || !Number.isInteger(pickInRound)) {
+    return null;
+  }
+
+  if (round < 1 || pickInRound < 1) {
+    return null;
+  }
+
+  return { round, pickInRound };
+}
+
 // @spec DFF-ETL-012
 // @spec DFF-ETL-090
 // @spec DFF-ETL-091
-function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, 'players' | 'pickValues'> {
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+function parseApiResponse(
+  entries: FantasyCalcApiEntry[],
+  options: ParseApiResponseOptions = {},
+): Pick<ScraperResult, 'players' | 'pickValues'> {
+  const currentYear = options.currentYear ?? new Date().getFullYear();
   const players: RawPlayer[] = [];
+  const startupPickValues: RawPickValue[] = [];
   const pickAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();
 
   for (const entry of entries) {
@@ -48,6 +90,18 @@ function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, '
     }
 
     if (position === 'PICK') {
+      const parsedExactPick = parseCurrentYearExactPickName(name, currentYear);
+
+      if (parsedExactPick) {
+        startupPickValues.push({
+          year: currentYear,
+          round: parsedExactPick.round,
+          pickInRound: parsedExactPick.pickInRound,
+          rawValue,
+        });
+        continue;
+      }
+
       const parsedPick = parsePickAssetName(name);
 
       if (parsedPick) {
@@ -80,11 +134,14 @@ function parseApiResponse(entries: FantasyCalcApiEntry[]): Pick<ScraperResult, '
     });
   }
 
-  const pickValues: RawPickValue[] = Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({
-    year,
-    round,
-    rawValue: sum / count,
-  }));
+  const pickValues: RawPickValue[] = [
+    ...startupPickValues,
+    ...Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({
+      year,
+      round,
+      rawValue: sum / count,
+    })),
+  ];
 
   return { players, pickValues };
 }

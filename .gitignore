@@ -1,5 +1,6 @@
 .env
 .env.*
+.envrc
 __pycache__/
 *.pyc
 .venv/
@@ -11,3 +12,4 @@ data/dynastyff.sqlite-shm
 data/dynastyff.sqlite-wal
 data/dynastyff.db
 dist/
+coverage/

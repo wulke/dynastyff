@@ -41,7 +41,7 @@ import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
 import { extractKtcRowsFromPage, scrapeKtcPlayers } from '../src/etl/scraper/ktc.js';
 import { scrapeRosterAudit } from '../src/etl/scraper/rosteraudit.js';
-import { parsePickAssetName, waitForScraperPageReady } from '../src/etl/scraper/shared.js';
+import { parsePickAssetName, parseStartupPickName, waitForScraperPageReady } from '../src/etl/scraper/shared.js';
 import type { RawPlayer, ScraperResult } from '../src/etl/types.js';
 
 function createTempDatabase(): { db: Database.Database; dbPath: string; cleanup: () => void } {
@@ -87,6 +87,49 @@ test('etl CLI prints a schema help message when the local database is missing et
 
   try {
     fs.writeFileSync(dbPath, '');
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--import', 'tsx', 'src/etl/index.ts'],
+          {
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              DYNASTYFF_DB_PATH: dbPath,
+              DYNASTYFF_KTC_FIXTURE_PATH: path.join(tempDir, 'ktc-empty.json'),
+              DYNASTYFF_FANTASYCALC_FIXTURE_PATH: path.join(tempDir, 'fantasycalc-empty.json'),
+              DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH: path.join(tempDir, 'rosteraudit-empty.json'),
+            },
+            stdio: 'pipe',
+          },
+        ),
+      (error: unknown) => {
+        if (!(error instanceof Error) || !('stderr' in error)) {
+          return false;
+        }
+
+        const stderr = String((error as Error & { stderr?: Buffer }).stderr ?? '');
+        return stderr.includes('Run `npm run db:init`');
+      },
+    );
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ETL-002
+test('etl CLI prints a schema help message when the local database is missing a column added by a newer schema', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-stale-column-'));
+  const dbPath = path.join(tempDir, 'stale-column.sqlite');
+
+  try {
+    initializeDatabase(dbPath);
+
+    const db = new Database(dbPath);
+    db.exec('ALTER TABLE players DROP COLUMN dynasty_value_tep');
+    db.close();
 
     assert.throws(
       () =>
@@ -177,6 +220,37 @@ test('normalizePlayers assigns 9999 when KTC returns exactly one supported playe
   ]);
 
   assert.equal(player.normalizedValue, 9999);
+});
+
+// @spec DFF-ETL-032
+test('normalizePlayers warns and assigns 9999 when a source returns exactly one supported player', () => {
+  const warnings: string[] = [];
+
+  const [player] = normalizePlayers(
+    [
+      {
+        name: 'Solo Player',
+        position: 'TE',
+        nflTeam: 'KC',
+        age: 25,
+        isRookie: false,
+        rawValue: 777,
+        adp: 42,
+      },
+    ],
+    {
+      source: 'ktc',
+      valueType: 'player',
+      warn: (message) => {
+        warnings.push(message);
+      },
+    },
+  );
+
+  assert.equal(player.normalizedValue, 9999);
+  assert.deepEqual(warnings, [
+    '[ETL] WARN: ktc returned exactly one player; assigning normalized value 9999.',
+  ]);
 });
 
 test('normalizePlayers assigns 9999 when all supported players share the same raw value', () => {
@@ -299,6 +373,88 @@ test('parsePickAssetName returns year, round, and optional tier for supported pi
   assert.equal(parsePickAssetName('Rookie Pick'), null);
 });
 
+// @spec DFF-SPKV-010
+test('parseStartupPickName returns round and pickInRound for Startup R.PP names', () => {
+  assert.deepEqual(parseStartupPickName('Startup 1.04'), {
+    round: 1,
+    pickInRound: 4,
+  });
+  assert.deepEqual(parseStartupPickName('startup 3.11'), {
+    round: 3,
+    pickInRound: 11,
+  });
+  assert.deepEqual(parseStartupPickName('STARTUP 12.1'), {
+    round: 12,
+    pickInRound: 1,
+  });
+  assert.equal(parseStartupPickName('Startup 1'), null);
+  assert.equal(parseStartupPickName('Startup X.04'), null);
+});
+
+// @spec DFF-SPKV-010
+// @spec DFF-SPKV-012
+// @spec DFF-SPKV-013
+test('scrapeKtcPlayers fixture path emits startup pick rows and warns on malformed Startup names', async () => {
+  const currentYear = new Date().getFullYear();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fixturePath = path.join(tempDir, 'ktc-startup.json');
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  fs.writeFileSync(
+    fixturePath,
+    JSON.stringify([
+      {
+        name: 'Alpha QB',
+        position: 'QB',
+        nflTeam: 'BUF',
+        age: 24,
+        isRookie: false,
+        rawValue: 100,
+        adp: 12.5,
+      },
+      {
+        name: 'Startup 1.04',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 900,
+        adp: null,
+      },
+      {
+        name: 'Startup 1.XX',
+        position: 'RDP',
+        nflTeam: 'FA',
+        age: null,
+        isRookie: false,
+        rawValue: 999,
+        adp: null,
+      },
+    ]),
+  );
+
+  process.env.DYNASTYFF_KTC_FIXTURE_PATH = fixturePath;
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    const result = await scrapeKtcPlayers();
+
+    assert.deepEqual(result.pickValues, [
+      { year: currentYear, round: 1, pickInRound: 4, rawValue: 900 },
+    ]);
+    assert.deepEqual(warnings, [
+      '[ETL] WARN: ktc returned malformed startup pick asset "Startup 1.XX". Excluding from pick values.',
+    ]);
+  } finally {
+    console.warn = originalWarn;
+    delete process.env.DYNASTYFF_KTC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 // @spec DFF-ETL-090
 // @spec DFF-ETL-091
 test('scrapeKtcPlayers fixture path splits RDP rows into pick values, averages tier variants, and filters unsupported positions', async () => {
@@ -408,6 +564,74 @@ test('scrapeKtcPlayers fixture path splits RDP rows into pick values, averages t
   }
 });
 
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+test('FantasyCalc API-shape fixture parsing emits current-year exact PICK rows as startup pick values', async () => {
+  const currentYear = new Date().getFullYear();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fixturePath = path.join(tempDir, 'fantasycalc-startup-api.json');
+
+  fs.writeFileSync(
+    fixturePath,
+    JSON.stringify([
+      {
+        value: 456,
+        player: {
+          name: 'Bravo WR',
+          position: 'WR',
+          team: 'CIN',
+          age: 23,
+          rookie: false,
+        },
+      },
+      {
+        value: 789,
+        player: {
+          name: `${currentYear} Pick 1.04`,
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+      {
+        value: 654,
+        player: {
+          name: `${currentYear + 1} 1st`,
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+      {
+        value: 333,
+        player: {
+          name: `${currentYear} Pick X.04`,
+          position: 'PICK',
+          team: '',
+          age: null,
+          rookie: false,
+        },
+      },
+    ]),
+  );
+
+  process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH = fixturePath;
+
+  try {
+    const result = await scrapeFantasyCalc();
+
+    assert.deepEqual(result.pickValues, [
+      { year: currentYear, round: 1, pickInRound: 4, rawValue: 789 },
+      { year: currentYear + 1, round: 1, rawValue: 654 },
+    ]);
+  } finally {
+    delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 // @spec DFF-ETL-090
 // @spec DFF-ETL-091
 test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', async () => {
@@ -489,6 +713,69 @@ test('FantasyCalc API-shape fixture parsing emits PICK rows as pick values', asy
     });
   } finally {
     delete process.env.DYNASTYFF_FANTASYCALC_FIXTURE_PATH;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+test('RosterAudit API-shape fixture parsing emits exact current-year pick rows as startup pick values', async () => {
+  const currentYear = new Date().getFullYear();
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-etl-fixture-'));
+  const fixturePath = path.join(tempDir, 'rosteraudit-startup-api.json');
+
+  fs.writeFileSync(
+    fixturePath,
+    JSON.stringify([
+      {
+        type: 'player',
+        name: 'Bravo WR',
+        position: 'WR',
+        team: 'CIN',
+        age: 23,
+        value: 456,
+      },
+      {
+        type: 'pick',
+        name: `${currentYear} Pick 1.04`,
+        pick_season: currentYear,
+        pick_round: 1,
+        pick_slot: '04',
+        is_exact: true,
+        value: 789,
+      },
+      {
+        type: 'pick',
+        name: `${currentYear + 1} Early 1st`,
+        pick_season: currentYear + 1,
+        pick_round: 1,
+        pick_slot: null,
+        is_exact: false,
+        value: 654,
+      },
+      {
+        type: 'pick',
+        name: `${currentYear} Pick X.04`,
+        pick_season: currentYear,
+        pick_round: 1,
+        pick_slot: null,
+        is_exact: true,
+        value: 333,
+      },
+    ]),
+  );
+
+  process.env.DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH = fixturePath;
+
+  try {
+    const result = await scrapeRosterAudit();
+
+    assert.deepEqual(result.pickValues, [
+      { year: currentYear, round: 1, pickInRound: 4, rawValue: 789 },
+      { year: currentYear + 1, round: 1, rawValue: 654 },
+    ]);
+  } finally {
+    delete process.env.DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH;
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
@@ -644,6 +931,7 @@ test('extractKtcRowsFromPage serializes without tsx helper references', async ()
 });
 
 // @spec DFF-ETL-090
+// @spec DFF-TEP-001
 test('extractKtcRowsFromPage includes RDP rows from embedded playersArray', async () => {
   const rows = await extractKtcRowsFromPage({
     evaluate: async <T>(pageFunction: () => T | Promise<T>) => {
@@ -687,6 +975,41 @@ test('extractKtcRowsFromPage includes RDP rows from embedded playersArray', asyn
       isRookie: false,
       rawValue: 3500,
       adp: null,
+    },
+  ]);
+});
+
+// @spec DFF-TEP-001
+test('extractKtcRowsFromPage extracts KTC TE-premium value tiers', async () => {
+  const rows = await extractKtcRowsFromPage({
+    evaluate: async <T>(pageFunction: () => T | Promise<T>) => {
+      (globalThis as Record<string, unknown>).playersArray = [
+        {
+          playerName: 'Premium Tight End',
+          position: 'TE',
+          team: 'KC',
+          age: 25,
+          rookie: false,
+          superflexValues: { value: 5000, startupAdp: 42 },
+          tep: { value: 6000 },
+          tepp: { value: 7000 },
+          teppp: { value: 8000 },
+        },
+      ];
+      return pageFunction() as T;
+    },
+  });
+
+  assert.deepEqual(rows, [
+    {
+      name: 'Premium Tight End',
+      position: 'TE',
+      nflTeam: 'KC',
+      age: 25,
+      isRookie: false,
+      rawValue: 5000,
+      tePremiumValues: { tep: 6000, tepp: 7000, teppp: 8000 },
+      adp: 42,
     },
   ]);
 });
@@ -875,6 +1198,218 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
   }
 });
 
+// @spec DFF-ETL-050
+// @spec DFF-ETL-051
+// @spec DFF-ETL-041
+// @spec DFF-ETL-070
+// @spec DFF-ETL-071
+test('runEtl logs a warning and continues when one scraper fails', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () =>
+        makeKtcResult([
+          {
+            name: 'Alpha QB',
+            position: 'QB',
+            nflTeam: 'BUF',
+            age: 24,
+            isRookie: false,
+            rawValue: 100,
+            adp: 12.5,
+          },
+        ],
+        [{ year: 2027, round: 1, rawValue: 500 }],
+      ),
+      scrapeFantasycalc: async () => {
+        throw new Error('fantasycalc exploded');
+      },
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [],
+        pickValues: [{ year: 2028, round: 1, rawValue: 200 }],
+      }),
+      now: () => '2026-05-28T10:00:00.000Z',
+    });
+
+    const playerCount = db.prepare('SELECT COUNT(*) AS count FROM players').get() as { count: number };
+    const etlRun = db
+      .prepare(
+        `SELECT completed_at, sources_succeeded
+         FROM etl_runs`,
+      )
+      .get() as { completed_at: string | null; sources_succeeded: string };
+    const pickValues = db
+      .prepare(
+        `SELECT year, round, pick_in_round, dynasty_value
+         FROM pick_values
+         ORDER BY year, round, pick_in_round`,
+      )
+      .all() as Array<{
+        year: number;
+        round: number;
+        pick_in_round: number;
+        dynasty_value: number;
+      }>;
+
+    assert.equal(exitCode, 0);
+    assert.equal(playerCount.count, 1);
+    assert.deepEqual(etlRun, {
+      completed_at: '2026-05-28T10:00:00.000Z',
+      sources_succeeded: '["ktc","rosteraudit"]',
+    });
+    assert.deepEqual(pickValues, [
+      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 9999 },
+      { year: 2028, round: 1, pick_in_round: 0, dynasty_value: 9999 },
+    ]);
+    assert.ok(
+      warnings.includes(
+        '[ETL] WARN: fantasycalc scraper failed — fantasycalc exploded. Excluding from this run.',
+      ),
+    );
+  } finally {
+    console.warn = originalWarn;
+    cleanup();
+  }
+});
+
+// @spec DFF-ETL-050
+// @spec DFF-ETL-051
+// @spec DFF-ETL-053
+// @spec DFF-ETL-041
+// @spec DFF-ETL-070
+// @spec DFF-ETL-071
+test('runEtl continues when KTC fails and updates matching non-KTC rows plus pick values', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    db.prepare(
+      `INSERT INTO players (
+        id,
+        name,
+        position,
+        nfl_team,
+        age,
+        is_rookie,
+        dynasty_value,
+        value_ktc,
+        value_fantasycalc,
+        value_dynastydaddy,
+        value_rosteraudit,
+        adp,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'player-ktc-failed',
+      'Existing Player',
+      'WR',
+      'SEA',
+      27,
+      0,
+      1234,
+      1234,
+      4321,
+      null,
+      null,
+      55.5,
+      '2026-05-18T10:00:00.000Z',
+    );
+
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => {
+        throw new Error('ktc exploded');
+      },
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [
+          {
+            name: 'Existing Player',
+            position: 'WR',
+            nflTeam: 'SEA',
+            age: 26,
+            isRookie: false,
+            rawValue: 700,
+            adp: 11.2,
+          },
+        ],
+        pickValues: [{ year: 2027, round: 1, rawValue: 400 }],
+      }),
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+      now: () => '2026-05-28T10:30:00.000Z',
+    });
+
+    const etlRun = db
+      .prepare(
+        `SELECT completed_at, sources_succeeded
+         FROM etl_runs`,
+      )
+      .get() as { completed_at: string | null; sources_succeeded: string };
+    const player = db
+      .prepare(
+        `SELECT
+          id,
+          dynasty_value,
+          value_ktc,
+          value_fantasycalc,
+          value_rosteraudit,
+          adp,
+          updated_at
+        FROM players
+        WHERE id = ?`,
+      )
+      .get('player-ktc-failed');
+    const pickValues = db
+      .prepare(
+        `SELECT year, round, pick_in_round, dynasty_value
+         FROM pick_values
+         ORDER BY year, round, pick_in_round`,
+      )
+      .all() as Array<{
+        year: number;
+        round: number;
+        pick_in_round: number;
+        dynasty_value: number;
+      }>;
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(etlRun, {
+      completed_at: '2026-05-28T10:30:00.000Z',
+      sources_succeeded: '["fantasycalc","rosteraudit"]',
+    });
+    assert.deepEqual(player, {
+      id: 'player-ktc-failed',
+      dynasty_value: 5617,
+      value_ktc: 1234,
+      value_fantasycalc: 9999,
+      value_rosteraudit: null,
+      adp: 11.2,
+      updated_at: '2026-05-28T10:30:00.000Z',
+    });
+    assert.deepEqual(pickValues, [
+      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 9999 },
+    ]);
+    assert.ok(warnings.includes('[ETL] WARN: ktc scraper failed — ktc exploded. Excluding from this run.'));
+  } finally {
+    console.warn = originalWarn;
+    cleanup();
+  }
+});
+
 // @spec DFF-ETL-031
 // @spec DFF-ETL-041
 // @spec DFF-ETL-070
@@ -1014,6 +1549,9 @@ test('runEtl aggregates pick values across sources and updates existing round-le
 });
 
 // @spec DFF-SPKV-014
+// @spec DFF-SPKV-020
+// @spec DFF-SPKV-021
+// @spec DFF-SPKV-030
 // @spec DFF-SPKV-031
 // @spec DFF-SPKV-032
 test('runEtl stores startup pick slot rows separately from round-level future pick rows', async () => {
@@ -1108,6 +1646,66 @@ test('runEtl stores startup pick slot rows separately from round-level future pi
   }
 });
 
+// @spec DFF-SPKV-035
+test('runEtl warns and continues when no startup pick values are written for the current year', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () =>
+        makeKtcResult(
+          [
+            {
+              name: 'Alpha QB',
+              position: 'QB',
+              nflTeam: 'BUF',
+              age: 24,
+              isRookie: false,
+              rawValue: 100,
+              adp: 10,
+            },
+          ],
+          [{ year: 2027, round: 1, rawValue: 500 }],
+        ),
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: [],
+        pickValues: [{ year: 2028, round: 1, rawValue: 100 }],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: [],
+        pickValues: [],
+      }),
+      now: () => '2026-05-20T07:00:00.000Z',
+    });
+
+    const pickValues = db
+      .prepare('SELECT year, round, pick_in_round FROM pick_values ORDER BY year, round, pick_in_round')
+      .all() as Array<{ year: number; round: number; pick_in_round: number }>;
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(pickValues, [
+      { year: 2027, round: 1, pick_in_round: 0 },
+      { year: 2028, round: 1, pick_in_round: 0 },
+    ]);
+    assert.match(
+      warnings[warnings.length - 1] ?? '',
+      /\[ETL\] WARN: no startup pick values were written for 2026\. Re-run ETL before starting a draft\./,
+    );
+  } finally {
+    console.warn = originalWarn;
+    cleanup();
+  }
+});
+
 test('runEtl updates an existing player matched by name and position', async () => {
   const { db, dbPath, cleanup } = createTempDatabase();
 
@@ -1185,6 +1783,92 @@ test('runEtl updates an existing player matched by name and position', async () 
       value_fantasycalc: 4321,
       adp: 11.2,
       updated_at: '2026-05-18T21:00:00.000Z',
+    });
+  } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-ETL-053
+test('runEtl preserves existing per-source values when another scraper fails', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+
+  try {
+    db.prepare(
+      `INSERT INTO players (
+        id,
+        name,
+        position,
+        nfl_team,
+        age,
+        is_rookie,
+        dynasty_value,
+        value_ktc,
+        value_fantasycalc,
+        value_dynastydaddy,
+        value_rosteraudit,
+        adp,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'player-1',
+      'Existing Player',
+      'WR',
+      'SEA',
+      27,
+      0,
+      1234,
+      1234,
+      4321,
+      null,
+      null,
+      55.5,
+      '2026-05-18T10:00:00.000Z',
+    );
+
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () =>
+        makeKtcResult([
+          {
+            name: 'Existing Player',
+            position: 'WR',
+            nflTeam: 'SEA',
+            age: 26,
+            isRookie: false,
+            rawValue: 999,
+            adp: 11.2,
+          },
+        ]),
+      scrapeFantasycalc: async () => {
+        throw new Error('fantasycalc exploded');
+      },
+      scrapeRosteraudit: async () => ({ source: 'rosteraudit', players: [], pickValues: [] }),
+      now: () => '2026-05-28T11:00:00.000Z',
+    });
+
+    const row = db
+      .prepare(
+        `SELECT
+          id,
+          dynasty_value,
+          value_ktc,
+          value_fantasycalc,
+          adp,
+          updated_at
+        FROM players
+        WHERE name = ? AND position = ?`,
+      )
+      .get('Existing Player', 'WR');
+
+    assert.equal(exitCode, 0);
+    assert.deepEqual(row, {
+      id: 'player-1',
+      dynasty_value: 7160,
+      value_ktc: 9999,
+      value_fantasycalc: 4321,
+      adp: 11.2,
+      updated_at: '2026-05-28T11:00:00.000Z',
     });
   } finally {
     cleanup();
@@ -1533,6 +2217,59 @@ test('runEtl exits non-zero and leaves the etl run incomplete when KTC yields no
       },
     ]);
   } finally {
+    cleanup();
+  }
+});
+
+// @spec DFF-ETL-050
+// @spec DFF-ETL-052
+test('runEtl exits non-zero and performs no database writes when all scrapers fail', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+
+  console.warn = (message?: unknown, ...optionalParams: unknown[]) => {
+    warnings.push([message, ...optionalParams].map(String).join(' '));
+  };
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => {
+        throw new Error('ktc exploded');
+      },
+      scrapeFantasycalc: async () => {
+        throw new Error('fantasycalc exploded');
+      },
+      scrapeRosteraudit: async () => {
+        throw new Error('rosteraudit exploded');
+      },
+      now: () => '2026-05-28T12:00:00.000Z',
+    });
+
+    const playerCount = db.prepare('SELECT COUNT(*) AS count FROM players').get() as { count: number };
+    const runCount = db.prepare('SELECT COUNT(*) AS count FROM etl_runs').get() as { count: number };
+    const playerSnapshotCount = db
+      .prepare('SELECT COUNT(*) AS count FROM player_value_snapshots')
+      .get() as { count: number };
+    const pickValueCount = db.prepare('SELECT COUNT(*) AS count FROM pick_values').get() as { count: number };
+    const pickSnapshotCount = db
+      .prepare('SELECT COUNT(*) AS count FROM pick_value_snapshots')
+      .get() as { count: number };
+
+    assert.equal(exitCode, 1);
+    assert.equal(playerCount.count, 0);
+    assert.equal(runCount.count, 0);
+    assert.equal(playerSnapshotCount.count, 0);
+    assert.equal(pickValueCount.count, 0);
+    assert.equal(pickSnapshotCount.count, 0);
+    assert.deepEqual(warnings, [
+      '[ETL] WARN: ktc scraper failed — ktc exploded. Excluding from this run.',
+      '[ETL] WARN: fantasycalc scraper failed — fantasycalc exploded. Excluding from this run.',
+      '[ETL] WARN: rosteraudit scraper failed — rosteraudit exploded. Excluding from this run.',
+    ]);
+  } finally {
+    console.warn = originalWarn;
     cleanup();
   }
 });

@@ -8,6 +8,8 @@
 // @spec DFF-ENGINE-062
 // @spec DFF-ENGINE-063
 // @spec DFF-DATA-093
+// @spec DFF-DATA-095
+// @spec DFF-DATA-096
 import express, {
   type ErrorRequestHandler,
   type Express,
@@ -16,10 +18,24 @@ import express, {
   type Response,
 } from 'express';
 
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { createDrizzleDb } from '../db/client.js';
-import { createBotChainCoordinator, type BotChainCoordinator } from '../draft/bot-chain.js';
-import { draftOrder, drafts, picks, players, teams, tradeStatuses } from '../db/schema.js';
+import {
+  createBotChainCoordinator,
+  TradeOfferCoordinatorError,
+  type BotChainCoordinator,
+} from '../draft/bot-chain.js';
+import type { ArchetypeConfig } from '../draft/archetype-config.js';
+import {
+  draftOrder,
+  devyPlayers,
+  drafts,
+  leagueConfigs,
+  picks,
+  players,
+  teams,
+  tradeStatuses,
+} from '../db/schema.js';
 import {
   createDraft,
   deleteDraftQueueEntry,
@@ -37,23 +53,97 @@ import {
   parseCreateDraftConfig,
   parsePickSubmission,
   parseQueueSubmission,
+  parseSavedLeagueConfig,
+  parseTradeOfferSubmission,
+  TradeOfferSubmissionValidationError,
 } from './config.js';
+import { mapSleeperLeagueSettings } from './sleeper-config-import.js';
+import { createSeasonOverviewRoute, createSeasonTradeAnalyzeRoute, createSeasonTradeRecommendationsRoute, createSeasonTradesPendingRoute, createSeasonWaiverAnalyzeRoute, createSeasonWaiversRoute } from './season-routes.js';
+import {
+  createSleeperConnectionsCreateRoute,
+  createSleeperConnectionsDeleteRoute,
+  createSleeperConnectionsListRoute,
+  createSleeperLeaguePreviewRoute,
+  createSleeperSyncRoute,
+  createSleeperSyncStatusRoute,
+  createSleeperUserRoute,
+} from './sleeper-routes.js';
 
 type CreateDraftServerOptions = {
   databasePath: string;
+  archetypeConfig?: ArchetypeConfig;
   botChain?: BotChainCoordinator;
+  fetchImpl?: typeof fetch;
+};
+
+type SavedLeagueConfigRouteOptions = {
+  databasePath: string;
+  idGenerator?: () => string;
+  now?: () => string;
+};
+
+type SleeperLeagueImportRouteOptions = {
+  fetchImpl?: typeof fetch;
+};
+
+type SavedLeagueConfigApiRecord = {
+  id: string;
+  name: string;
+  team_count: number;
+  rounds: number;
+  scoring_format: string;
+  te_premium_tier: string;
+  roster_slots: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    BN: number;
+  };
+  pick_position: number;
+  future_pick_years: number;
+  created_at: string;
 };
 
 export function createDraftApp({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
+  fetchImpl,
 }: CreateDraftServerOptions): Express {
   const app = express();
 
   app.use(express.json());
+  // @spec DFF-SLS-010
+  app.get('/sleeper/user/:username', createSleeperUserRoute({ fetchImpl }));
+  // @spec DFF-SLS-011
+  app.get('/sleeper/league/:league_id', createSleeperLeaguePreviewRoute({ fetchImpl }));
+  // @spec DFF-SLS-012
+  app.post('/sleeper/connections', createSleeperConnectionsCreateRoute({ databasePath, fetchImpl }));
+  // @spec DFF-SLS-013
+  app.delete('/sleeper/connections/:id', createSleeperConnectionsDeleteRoute({ databasePath }));
+  // @spec DFF-SLS-014
+  app.get('/sleeper/connections', createSleeperConnectionsListRoute({ databasePath }));
+  // @spec DFF-SLS-020
+  app.post('/sleeper/sync', createSleeperSyncRoute({ databasePath, fetchImpl }));
+  // @spec DFF-SLS-021
+  app.get('/sleeper/sync/status', createSleeperSyncStatusRoute({ databasePath }));
+  app.get('/season/:league_id/overview', createSeasonOverviewRoute({ databasePath }));
+  app.get('/season/:league_id/trades/pending', createSeasonTradesPendingRoute({ databasePath }));
+  app.get('/season/:league_id/trades/recommendations', createSeasonTradeRecommendationsRoute({ databasePath }));
+  app.get('/season/:league_id/waivers', createSeasonWaiversRoute({ databasePath }));
+  app.post('/season/:league_id/waivers/analyze', createSeasonWaiverAnalyzeRoute({ databasePath }));
+  app.post('/season/:league_id/trades/analyze', createSeasonTradeAnalyzeRoute({ databasePath }));
+  app.get('/league-imports/sleeper/:leagueId', createSleeperLeagueImportRoute());
+  app.get('/configs', createLeagueConfigsListRoute({ databasePath }));
+  app.get('/devy-players', createDevyPlayersListRoute({ databasePath }));
+  app.post('/configs', createLeagueConfigsCreateRoute({ databasePath }));
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath, botChain }));
   app.post('/drafts/:id/pick', createDraftPickRoute({ databasePath, botChain }));
+  app.post('/drafts/:id/trade-offer', createDraftTradeOfferRoute({ databasePath, botChain }));
   app.post('/drafts/:id/trade-response', createDraftTradeResponseRoute({ databasePath, botChain }));
   app.post('/drafts/:id/queue', createDraftQueuePostRoute({ databasePath }));
   app.get('/drafts/:id/queue', createDraftQueueGetRoute({ databasePath }));
@@ -66,13 +156,136 @@ export function createDraftApp({
   return app;
 }
 
+// @spec DFF-DEVY-040
+// @spec DFF-DEVY-041
+export function createDevyPlayersListRoute({ databasePath }: { databasePath: string }): RequestHandler {
+  return (_request, response, next) => {
+    const { db, sqlite } = createDrizzleDb(databasePath);
+    try {
+      response.status(200).json(db.select({
+        id: devyPlayers.id, name: devyPlayers.name, position: devyPlayers.position, school: devyPlayers.school,
+        schoolCode: devyPlayers.schoolCode, draftYear: devyPlayers.draftYear, valueSuperflex: devyPlayers.valueSuperflex, valueOneQb: devyPlayers.valueOneQb,
+      }).from(devyPlayers).orderBy(desc(devyPlayers.valueSuperflex), asc(devyPlayers.name)).all());
+    } catch (error) { next(error); } finally { sqlite.close(); }
+  };
+}
+
+// @spec DFF-UI-193
+// @spec DFF-UI-194
+// @spec DFF-UI-195
+export function createSleeperLeagueImportRoute({
+  fetchImpl = fetch,
+}: SleeperLeagueImportRouteOptions = {}): RequestHandler {
+  return async (request, response) => {
+    const requestedLeagueId = request.params.leagueId;
+    const leagueId = Array.isArray(requestedLeagueId) ? undefined : requestedLeagueId;
+
+    if (!/^\d+$/.test(leagueId ?? '')) {
+      response.status(400).json({ error: 'Enter a valid Sleeper league ID or URL.' });
+      return;
+    }
+
+    try {
+      const sleeperResponse = await fetchImpl(`https://api.sleeper.app/v1/league/${leagueId}`);
+
+      if (!sleeperResponse.ok) {
+        throw new Error(`Sleeper returned ${sleeperResponse.status}.`);
+      }
+
+      response.status(200).json(mapSleeperLeagueSettings(await sleeperResponse.json()));
+    } catch {
+      response.status(502).json({ error: 'Could not import Sleeper league settings. Check the league ID and try again.' });
+    }
+  };
+}
+
+// @spec DFF-DATA-095
+export function createLeagueConfigsListRoute({
+  databasePath,
+}: SavedLeagueConfigRouteOptions): RequestHandler {
+  return (_request, response, next) => {
+    const { db, sqlite } = createDrizzleDb(databasePath);
+
+    try {
+      const rows = db
+        .select()
+        .from(leagueConfigs)
+        .orderBy(desc(leagueConfigs.createdAt))
+        .all();
+
+      response.status(200).json(rows.map((row) => toSavedLeagueConfigApiRecord(row)));
+    } catch (error) {
+      next(error);
+    } finally {
+      sqlite.close();
+    }
+  };
+}
+
+// @spec DFF-DATA-096
+export function createLeagueConfigsCreateRoute({
+  databasePath,
+  idGenerator = () => crypto.randomUUID(),
+  now = () => new Date().toISOString(),
+}: SavedLeagueConfigRouteOptions): RequestHandler {
+  return (request, response, next) => {
+    const { db, sqlite } = createDrizzleDb(databasePath);
+
+    try {
+      const config = parseSavedLeagueConfig(request.body);
+      const record = {
+        id: idGenerator(),
+        name: config.name,
+        teamCount: config.teamCount,
+        rounds: config.rounds,
+        scoringFormat: config.scoringFormat,
+        tePremiumTier: config.tePremiumTier,
+        rosterSlots: JSON.stringify({
+          QB: config.rosterConfig.QB,
+          RB: config.rosterConfig.RB,
+          WR: config.rosterConfig.WR,
+          TE: config.rosterConfig.TE,
+          FLEX: config.rosterConfig.FLEX,
+          SF: config.rosterConfig.SF,
+          BN: config.rosterConfig.bench,
+        }),
+        pickPosition: config.userPickPosition,
+        futurePickYears: config.futurePickYears,
+        createdAt: now(),
+      } as const;
+
+      db.insert(leagueConfigs).values(record).run();
+
+      response.status(201).json(
+        toSavedLeagueConfigApiRecord({
+          id: record.id,
+          name: record.name,
+          teamCount: record.teamCount,
+          rounds: record.rounds,
+          scoringFormat: record.scoringFormat,
+          tePremiumTier: record.tePremiumTier,
+          rosterSlots: record.rosterSlots,
+          pickPosition: record.pickPosition,
+          futurePickYears: record.futurePickYears,
+          createdAt: record.createdAt,
+        }),
+      );
+    } catch (error) {
+      next(error);
+    } finally {
+      sqlite.close();
+    }
+  };
+}
+
 // @spec DFF-ENGINE-001
 // @spec DFF-ENGINE-002
 // @spec DFF-ENGINE-002b
 // @spec DFF-ENGINE-030
 export function createDraftRoute({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
 }: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
     try {
@@ -87,12 +300,59 @@ export function createDraftRoute({
   };
 }
 
+// @spec DFF-DATA-095
+// @spec DFF-DATA-096
+function toSavedLeagueConfigApiRecord(row: typeof leagueConfigs.$inferSelect): SavedLeagueConfigApiRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    team_count: row.teamCount,
+    rounds: row.rounds,
+    scoring_format: row.scoringFormat,
+    te_premium_tier: row.tePremiumTier,
+    roster_slots: parseSavedLeagueConfigRosterSlots(row.rosterSlots),
+    pick_position: row.pickPosition,
+    future_pick_years: row.futurePickYears,
+    created_at: row.createdAt,
+  };
+}
+
+// @spec DFF-DATA-095
+function parseSavedLeagueConfigRosterSlots(
+  value: string,
+): SavedLeagueConfigApiRecord['roster_slots'] {
+  const parsed = JSON.parse(value) as Partial<SavedLeagueConfigApiRecord['roster_slots']>;
+
+  if (
+    typeof parsed.QB !== 'number' ||
+    typeof parsed.RB !== 'number' ||
+    typeof parsed.WR !== 'number' ||
+    typeof parsed.TE !== 'number' ||
+    typeof parsed.FLEX !== 'number' ||
+    typeof parsed.SF !== 'number' ||
+    typeof parsed.BN !== 'number'
+  ) {
+    throw new Error('Invalid saved league config roster_slots JSON.');
+  }
+
+  return {
+    QB: parsed.QB,
+    RB: parsed.RB,
+    WR: parsed.WR,
+    TE: parsed.TE,
+    FLEX: parsed.FLEX,
+    SF: parsed.SF,
+    BN: parsed.BN,
+  };
+}
+
 // @spec DFF-ENGINE-020
 // @spec DFF-ENGINE-021
 // @spec DFF-ENGINE-022
 export function createDraftPickRoute({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
 }: CreateDraftServerOptions): RequestHandler {
   return (request, response, next) => {
     try {
@@ -140,33 +400,74 @@ export function createDraftPickRoute({
 // @spec DFF-ENGINE-043
 export function createDraftTradeResponseRoute({
   databasePath,
-  botChain = createBotChainCoordinator({ databasePath }),
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
 }: CreateDraftServerOptions): RequestHandler {
-  return (request, response) => {
-    const draftId = readDraftIdParam(request);
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
 
-    if (!draftId) {
-      response.status(404).json({ error: 'Draft not found.' });
-      return;
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const status = readTradeResponseStatus(request.body);
+
+      if (!status) {
+        response.status(400).json({
+          error: 'Invalid trade response: status must be accepted, declined, or force_declined.',
+        });
+        return;
+      }
+
+      const resumed = botChain.resolvePendingTrade(draftId, status);
+
+      if (!resumed) {
+        response.status(409).json({ error: 'No pending trade for this draft.' });
+        return;
+      }
+
+      response.status(200).json({ ok: true });
+    } catch (error) {
+      next(error);
     }
+  };
+}
 
-    const status = readTradeResponseStatus(request.body);
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+export function createDraftTradeOfferRoute({
+  databasePath,
+  archetypeConfig,
+  botChain = createBotChainCoordinator({ databasePath, archetypeConfig }),
+}: CreateDraftServerOptions): RequestHandler {
+  return (request, response, next) => {
+    try {
+      const draftId = readDraftIdParam(request);
 
-    if (!status) {
-      response.status(400).json({
-        error: 'Invalid trade response: status must be accepted, declined, or force_declined.',
+      if (!draftId) {
+        response.status(404).json({ error: 'Draft not found.' });
+        return;
+      }
+
+      const submission = parseTradeOfferSubmission(request.body);
+      const tradeId = botChain.submitUserTradeOffer({
+        draftId,
+        targetTeamId: submission.targetTeamId,
+        offeredAssets: submission.offeredAssets,
+        requestedAssets: submission.requestedAssets,
       });
-      return;
+
+      response.status(202).json({ ok: true, tradeId });
+    } catch (error) {
+      if (error instanceof TradeOfferCoordinatorError) {
+        response.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+
+      next(error);
     }
-
-    const resumed = botChain.resolvePendingTrade(draftId, status);
-
-    if (!resumed) {
-      response.status(409).json({ error: 'No pending trade for this draft.' });
-      return;
-    }
-
-    response.status(200).json({ ok: true });
   };
 }
 
@@ -368,10 +669,15 @@ export function createDraftErrorHandler(): ErrorRequestHandler {
     }
 
     // @spec DFF-DATA-093
-    if (error instanceof QueueSubmissionValidationError) {
-      response.status(400).json({ error: error.message });
-      return;
-    }
+  if (error instanceof QueueSubmissionValidationError) {
+    response.status(400).json({ error: error.message });
+    return;
+  }
+
+  if (error instanceof TradeOfferSubmissionValidationError) {
+    response.status(400).json({ error: error.message });
+    return;
+  }
 
     if (isJsonBodyParseError(error)) {
       response.status(400).json({ error: 'Invalid draft config: request body must be valid JSON.' });

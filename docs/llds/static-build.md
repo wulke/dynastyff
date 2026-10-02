@@ -31,15 +31,15 @@ The static build actively guards this boundary at build time. The Vite config re
 Browser runtime (no server):
 ┌───────────────────────────────────────────────────┐
 │  src/ui-static/App.tsx                            │
-│                                                   │
-│  fetch('/dynastyff/data/snapshot.json')           │
+│    snapshot fetch + stale warning + full-screen   │
+│    loading/error surfaces                         │
 │         ↓                                         │
-│  InMemoryDraftContext                             │
+│  InMemoryDraftContextProvider                     │
 │    src/draft/engine.ts  ←→  src/draft/bot.ts     │
 │         ↓                                         │
-│  Shared React components (src/ui/components/)     │
-│    Config  │  Draft Board + DraftRoom  │  History │
-│            │  (full grid + picks UI)   │   View   │
+│  Shared DraftApp shell (src/ui/App.tsx)           │
+│    Config │ Drafting │ Grade Summary │ History    │
+│    status bar │ completion banner │ history flow  │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -172,20 +172,13 @@ Source-specific value columns (`value_ktc`, `value_fantasycalc`, etc.) are omitt
 
 ### Loading in the static app
 
-`src/ui-static/App.tsx` issues a single `fetch` call to `./data/snapshot.json` (relative to the page base) at app mount, before any draft config is displayed. The static Vite build copies the repository snapshot file into `dist/static/data/snapshot.json`, so the browser fetch resolves without a server. The snapshot is held in React state and passed to the `InMemoryDraftContext` when a draft is created. If the fetch fails, a full-screen error is shown and the app is unusable — there is no draft without data.
+`src/ui-static/App.tsx` issues a single `fetch` call to `./data/snapshot.json` (relative to the page base) at app mount, before any draft config is displayed. The static Vite build copies the repository snapshot file into `dist/static/data/snapshot.json`, so the browser fetch resolves without a server. `src/ui-static/App.tsx` stops at loading the snapshot into React state, showing the stale-data warning, and rendering the full-screen loading/error surfaces. Once the snapshot is ready, it passes the snapshot into `InMemoryDraftContextProvider` and renders the shared `DraftApp` shell from `src/ui/App.tsx`. If the fetch fails, a full-screen error is shown and the app is unusable — there is no draft without data.
 
 ## GitHub Actions Workflows
 
-### ETL snapshot workflow (`etl-snapshot.yml`)
+### Scheduled ETL refresh workflow (`scheduled-refresh.yml`)
 
-Triggered by `workflow_dispatch` only. Steps:
-1. Checkout repo
-2. Set up Node 22, `npm ci`
-3. Install Playwright browsers (`npx playwright install --with-deps chromium`)
-4. Run `npm run etl` (populates `data/dynastyff.sqlite`)
-5. Run `npm run export:snapshot` (writes `data/snapshot.json`)
-6. Commit and push `data/snapshot.json` back to the triggering branch using the GitHub Actions bot identity (`github-actions[bot]`)
-7. If no changes to `snapshot.json`, skip commit and exit cleanly
+Triggered weekly by `schedule` and on-demand by `workflow_dispatch`; see `llds/etl-scheduling.md` for the full design. Runs the ETL and `export:snapshot` from a fresh (non-persisted) database, gates the result behind `npm run etl:sanity-check`, and — only if the snapshot changed — opens a PR against `main` rather than pushing directly. Replaces the earlier direct-push `etl-snapshot.yml`.
 
 The SQLite file is not committed — only `snapshot.json`.
 
@@ -230,13 +223,15 @@ The static app wires an `InMemoryDraftContext` implementation (manages in-memory
 
 Components reference `useDraftContext()` and are unaware of which implementation is active.
 
-In the current static slice, `src/ui-static/App.tsx` reuses the shared `DraftConfigScreen` and `DraftBoard` from `src/ui/components/` for the config and drafting views. The `DraftRoom` component wraps the `DraftBoard` grid alongside the available players list and recent picks feed, providing the full drafting experience in-browser. After draft completion, the shared `HistoryView` component renders the three-tab summary (Pick Log, Roster View, Trade Log).
+`src/ui-static/App.tsx` is intentionally thin. It owns only snapshot loading, stale-snapshot warning state, and the full-screen loading/error surfaces. It does not own the view-state machine, draft-room layout, completion banner, or history transition logic. Once the snapshot is ready, it wraps `InMemoryDraftContextProvider` around the shared `DraftApp` export from `src/ui/App.tsx`.
+
+All view-state decisions (`config`, `drafting`, `grade-summary`, `history`), the drafting status bar, the three-column drafting layout, the completion banner, and the `View Full History` transition are owned by `DraftApp`. This makes the static build and HTTP build render the same draft-room UX from a single source of truth.
 
 **Dev mode:** Running `npm run dev:static` starts Vite's dev server with the static build's config. The `createSnapshotCopyPlugin` serves `data/snapshot.json` at runtime via a `configureServer` middleware so the snapshot fetch succeeds. The `base: '/dynastyff/'` path is handled correctly in both dev and production builds.
 
 ## Session History
 
-In the static build, draft history is in-memory only — it does not survive a page refresh. `InMemoryDraftContext` maintains a `sessionHistory: CompletedDraft[]` array. When `currentTeam` returns `null` (all picks exhausted), the engine transitions the draft to `completed`, and the context appends a `CompletedDraft` snapshot to `sessionHistory` before transitioning the view state to `history`.
+In the static build, draft history is in-memory only — it does not survive a page refresh. `InMemoryDraftContext` maintains a `sessionHistory: CompletedDraft[]` array. When `currentTeam` returns `null` (all picks exhausted), the engine transitions the draft to `completed` and the context appends a `CompletedDraft` snapshot to `sessionHistory`.
 
 ```ts
 type CompletedDraft = {
@@ -251,9 +246,9 @@ type CompletedDraft = {
 };
 ```
 
-The history view renders the shared `HistoryView` component with three tabs (Pick Log, Roster View, Trade Log) using `draftState` from the completed draft — the same component used by the server-backed build. The `buildDraftState` function populates `playerCatalog` from all snapshot players so drafted players are renderable with their metadata.
+The shared `DraftApp` keeps the user in the drafting shell when the draft completes so the completion banner can render over the Draft Board. If the user clicks `View Draft Grade`, `DraftApp` transitions to the shared grade summary screen; if the user then clicks `View Full History`, `DraftApp` transitions to the shared `HistoryView` component with the same Pick Log, Roster View, and Trade Log tabs used by the server-backed build. The `buildDraftState` function populates `playerCatalog` from all snapshot players so drafted players are renderable with their metadata.
 
-`newDraft()` clears only the active draft state. Snapshot data and `sessionHistory` remain in memory so the user can run another mock in the same tab session, though the UI only shows the most recently completed draft at a time.
+`newDraft()` clears only the active draft state. Snapshot data and `sessionHistory` remain in memory so the user can run another mock in the same tab session, though the static build still does not expose persisted `GET /drafts` review flows because there is no Express server in that context.
 
 ## File Layout
 
@@ -286,7 +281,7 @@ data/
 .github/
   workflows/
     ci.yml               — existing
-    etl-snapshot.yml     — NEW
+    scheduled-refresh.yml — see llds/etl-scheduling.md
     pages.yml            — NEW
 ```
 

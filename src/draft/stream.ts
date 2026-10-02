@@ -5,7 +5,12 @@
 // @spec DFF-ENGINE-014
 // @spec DFF-ENGINE-015
 import { and, asc, eq, isNull } from 'drizzle-orm';
-import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
+import {
+  getAvailablePlayersForDraft,
+  getDraftedPlayersForDraft,
+  type DraftAvailablePlayer,
+} from './available-players.js';
+import { parseDraftRosterConfig, type DraftRosterConfig } from './roster-config.js';
 
 import { createDrizzleDb } from '../db/client.js';
 import { draftOrder, drafts, picks, rosterPlayers, teamPickAssets, teams, userQueue } from '../db/schema.js';
@@ -14,6 +19,7 @@ export type DraftStateSyncPayload = {
   draft_id: string;
   status: string;
   current_pick_number: number | null;
+  roster_config: DraftRosterConfig;
   teams: Array<{
     id: string;
     name: string;
@@ -46,6 +52,7 @@ export type DraftStateSyncPayload = {
     rank: number;
   }>;
   available_players: DraftAvailablePlayer[];
+  drafted_players: DraftAvailablePlayer[];
 };
 
 export type DraftStreamEvent =
@@ -85,6 +92,7 @@ export type DraftStreamEvent =
         status: string;
         assets_sent: unknown[];
         assets_received: unknown[];
+        created_at: string;
       };
     }
   | {
@@ -189,6 +197,7 @@ export function emitTradeResolvedEvent(event: {
   status: string;
   assetsSent: unknown[];
   assetsReceived: unknown[];
+  createdAt: string;
 }): void {
   publishDraftEvent(event.draftId, {
     event: 'trade_resolved',
@@ -197,6 +206,7 @@ export function emitTradeResolvedEvent(event: {
       status: event.status,
       assets_sent: event.assetsSent,
       assets_received: event.assetsReceived,
+      created_at: event.createdAt,
     },
   });
 }
@@ -230,6 +240,7 @@ export function getDraftStateSyncPayload({
       .select({
         id: drafts.id,
         status: drafts.status,
+        roster_config: drafts.rosterConfig,
       })
       .from(drafts)
       .where(eq(drafts.id, draftId))
@@ -253,6 +264,7 @@ export function getDraftStateSyncPayload({
       draft_id: draft.id,
       status: draft.status,
       current_pick_number: currentPick?.pickNumber ?? null,
+      roster_config: parseDraftRosterConfig(draft.roster_config),
       teams: db
         .select({
           id: teams.id,
@@ -315,6 +327,7 @@ export function getDraftStateSyncPayload({
         .orderBy(asc(userQueue.rank))
         .all(),
       available_players: getAvailablePlayersForDraft({ databasePath, draftId }),
+      drafted_players: getDraftedPlayersForDraft({ databasePath, draftId }),
     };
   } finally {
     sqlite.close();

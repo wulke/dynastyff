@@ -15,6 +15,18 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/sleeper': {
+        target: resolveApiBaseUrl(),
+      },
+      '/season': {
+        target: resolveApiBaseUrl(),
+      },
+      '/configs': {
+        target: resolveApiBaseUrl(),
+      },
+      '/league-imports': {
+        target: resolveApiBaseUrl(),
+      },
       '/drafts': {
         target: resolveApiBaseUrl(),
       },

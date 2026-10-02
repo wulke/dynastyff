@@ -2,13 +2,61 @@
 // @spec DFF-STATIC-014
 // @spec DFF-STATIC-015
 // @spec DFF-STATIC-016
+// @spec DFF-UI-154
+// @spec DFF-UI-157
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { App } from '../src/ui-static/App.js';
+import type { Snapshot } from '../src/ui/types.js';
 
 const fetchMock = vi.fn<typeof fetch>();
+
+// @spec DFF-UI-154
+// @spec DFF-UI-157
+function createSnapshot(): Snapshot {
+  return {
+    exportedAt: '2026-05-20T00:00:00.000Z',
+    players: Array.from({ length: 24 }, (_, index) => ({
+      id: `player-${index + 1}`,
+      name: `Player ${index + 1}`,
+      position: (['QB', 'RB', 'WR', 'TE'] as const)[index % 4]!,
+      nflTeam: 'BUF',
+      age: 24,
+      isRookie: false,
+      dynastyValue: 9000 - index,
+      adp: index + 1,
+    })),
+    pickValues: [{ year: 2027, round: 1, dynastyValue: 6200 }],
+  };
+}
+
+// @spec DFF-UI-154
+// @spec DFF-UI-157
+function mockStaticFetches(snapshot: Snapshot, draftsStatus = 404) {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === './data/snapshot.json' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify(snapshot), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(new Response('missing', { status: draftsStatus }));
+    }
+
+    return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+  });
+}
 
 function createDeferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -177,7 +225,7 @@ describe('static snapshot app', () => {
       await screen.findByText(/player data is over 30 days old/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', {
+      await screen.findByRole('heading', {
         name: /config screen/i,
       }),
     ).toBeInTheDocument();
@@ -228,5 +276,50 @@ describe('static snapshot app', () => {
       }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/player data is over 30 days old/i)).not.toBeInTheDocument();
+  });
+
+  // @spec DFF-UI-154
+  // @spec DFF-UI-157
+  // @spec DFF-UI-159
+  // @spec DFF-UI-180
+  // @spec DFF-UI-181
+  // @spec DFF-UI-182
+  test('resolves the snapshot fetch and renders the shared tabbed drafting shell after starting a static draft', async () => {
+    const deferred = createDeferred<Response>();
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+
+      if (url === './data/snapshot.json' && method === 'GET') {
+        return deferred.promise;
+      }
+
+      if (url === '/drafts' && method === 'GET') {
+        return Promise.resolve(new Response('missing', { status: 404 }));
+      }
+
+      return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+    });
+
+    render(<App />);
+
+    const user = userEvent.setup();
+    deferred.resolve(
+      new Response(JSON.stringify(createSnapshot()), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+    await screen.findByRole('heading', { name: /config screen/i });
+    await user.click(screen.getByRole('button', { name: /start draft/i }));
+
+    expect(await screen.findByTestId('draft-status-bar')).toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: /draft view tabs/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^board$/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: /^draft board$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^available players$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^pick feed$/i })).not.toBeInTheDocument();
   });
 });

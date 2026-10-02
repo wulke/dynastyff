@@ -1,10 +1,13 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-012
 // @spec DFF-ETL-090
+// @spec DFF-SPKV-010
+// @spec DFF-SPKV-012
+// @spec DFF-SPKV-013
 import fs from 'node:fs/promises';
 
 import type { Page } from 'playwright';
-import { parsePickAssetName } from './shared.js';
+import { parsePickAssetName, parseStartupPickName } from './shared.js';
 import type { RawPickValue, RawPlayer, ScraperResult, SupportedEtlPosition } from '../types.js';
 
 const KTC_URL = 'https://keeptradecut.com/dynasty-rankings';
@@ -17,20 +20,52 @@ type ScrapedRow = {
   age: number | null;
   isRookie: boolean;
   rawValue: number;
+  tePremiumValues?: { tep: number | null; tepp: number | null; teppp: number | null };
   adp: number | null;
+};
+
+type NormalizeScrapedRowsOptions = {
+  currentYear?: number;
+  warn?: (message: string) => void;
 };
 
 // @spec DFF-ETL-012
 // @spec DFF-ETL-090
 // @spec DFF-ETL-091
-function normalizeScrapedRows(rows: readonly ScrapedRow[]): ScraperResult {
+// @spec DFF-SPKV-010
+// @spec DFF-SPKV-012
+// @spec DFF-SPKV-013
+function normalizeScrapedRows(
+  rows: readonly ScrapedRow[],
+  options: NormalizeScrapedRowsOptions = {},
+): ScraperResult {
+  const currentYear = options.currentYear ?? new Date().getFullYear();
+  const warn = options.warn ?? ((message: string) => console.warn(message));
   const players: RawPlayer[] = [];
+  const startupPickValues: RawPickValue[] = [];
   const pickAccumulator = new Map<string, { sum: number; count: number; year: number; round: number }>();
 
   for (const row of rows) {
     const position = row.position.toUpperCase();
 
     if (position === 'RDP') {
+      const parsedStartupPick = parseStartupPickName(row.name);
+
+      if (parsedStartupPick) {
+        startupPickValues.push({
+          year: currentYear,
+          round: parsedStartupPick.round,
+          pickInRound: parsedStartupPick.pickInRound,
+          rawValue: row.rawValue,
+        });
+        continue;
+      }
+
+      if (/^startup\b/i.test(row.name.trim())) {
+        warn(`[ETL] WARN: ktc returned malformed startup pick asset "${row.name}". Excluding from pick values.`);
+        continue;
+      }
+
       const parsedPick = parsePickAssetName(row.name);
 
       if (parsedPick) {
@@ -59,15 +94,19 @@ function normalizeScrapedRows(rows: readonly ScrapedRow[]): ScraperResult {
       age: row.age,
       isRookie: row.isRookie,
       rawValue: row.rawValue,
+      ...(row.tePremiumValues ? { tePremiumValues: row.tePremiumValues } : {}),
       adp: row.adp,
     });
   }
 
-  const pickValues: RawPickValue[] = Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({
-    year,
-    round,
-    rawValue: sum / count,
-  }));
+  const pickValues: RawPickValue[] = [
+    ...startupPickValues,
+    ...Array.from(pickAccumulator.values()).map(({ sum, count, year, round }) => ({
+      year,
+      round,
+      rawValue: sum / count,
+    })),
+  ];
 
   return {
     source: 'ktc',
@@ -97,6 +136,9 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
           value?: number;
           startupAdp?: number | null;
         };
+        tep?: { value?: number };
+        tepp?: { value?: number };
+        teppp?: { value?: number };
       }>;
     }).playersArray;
 
@@ -119,6 +161,17 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
                 age: typeof player.age === 'number' ? player.age : null,
                 isRookie: Boolean(player.rookie),
                 rawValue: player.superflexValues.value,
+                ...((typeof player.tep?.value === 'number' ||
+                  typeof player.tepp?.value === 'number' ||
+                  typeof player.teppp?.value === 'number')
+                  ? {
+                      tePremiumValues: {
+                        tep: typeof player.tep?.value === 'number' ? player.tep.value : null,
+                        tepp: typeof player.tepp?.value === 'number' ? player.tepp.value : null,
+                        teppp: typeof player.teppp?.value === 'number' ? player.teppp.value : null,
+                      },
+                    }
+                  : {}),
                 adp:
                   typeof player.superflexValues.startupAdp === 'number'
                     ? player.superflexValues.startupAdp

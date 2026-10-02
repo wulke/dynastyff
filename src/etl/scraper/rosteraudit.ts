@@ -1,6 +1,8 @@
 // @spec DFF-ETL-010
 // @spec DFF-ETL-012
 // @spec DFF-ETL-013
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
 import fs from 'node:fs/promises';
 
 import { loadFixtureScraperResult } from './shared.js';
@@ -33,6 +35,8 @@ type RosterAuditApiPage = {
   total_pages?: number;
 };
 
+const exactPickAssetNamePattern = /^(?<year>\d{4})\s+pick\s+(?<round>\d+)\.(?<pickInRound>\d+)$/i;
+
 function parsePlayer(entry: RosterAuditApiEntry): RawPlayer | null {
   const name = typeof entry.name === 'string' ? entry.name.trim() : null;
   const position = typeof entry.position === 'string' ? entry.position.toUpperCase() : null;
@@ -55,21 +59,80 @@ function parsePlayer(entry: RosterAuditApiEntry): RawPlayer | null {
   };
 }
 
-function parsePickValue(entry: RosterAuditApiEntry): RawPickValue | null {
-  // Skip exact per-slot picks; keep only early/mid/late generics
-  if (entry.is_exact === true) return null;
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+function parseCurrentYearExactPickEntry(
+  entry: RosterAuditApiEntry,
+  currentYear: number,
+): RawPickValue | null {
+  const year = typeof entry.pick_season === 'number' ? entry.pick_season : null;
+  const round = typeof entry.pick_round === 'number' ? entry.pick_round : null;
+  const rawValue = typeof entry.value === 'number' ? entry.value : null;
+
+  if (entry.is_exact !== true || year !== currentYear || round === null || rawValue === null) {
+    return null;
+  }
+
+  const pickSlotRaw =
+    typeof entry.pick_slot === 'number'
+      ? entry.pick_slot
+      : typeof entry.pick_slot === 'string'
+        ? Number.parseInt(entry.pick_slot, 10)
+        : null;
+
+  if (pickSlotRaw !== null && Number.isInteger(pickSlotRaw) && pickSlotRaw >= 1) {
+    return { year: currentYear, round, pickInRound: pickSlotRaw, rawValue };
+  }
+
+  const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+  const match = exactPickAssetNamePattern.exec(name);
+
+  if (!match?.groups) {
+    return null;
+  }
+
+  const nameYear = Number(match.groups.year);
+  const nameRound = Number(match.groups.round);
+  const pickInRound = Number(match.groups.pickInRound);
+
+  if (
+    nameYear !== currentYear ||
+    nameRound !== round ||
+    !Number.isInteger(pickInRound) ||
+    pickInRound < 1
+  ) {
+    return null;
+  }
+
+  return { year: currentYear, round, pickInRound, rawValue };
+}
+
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+function parsePickValue(entry: RosterAuditApiEntry, currentYear: number): RawPickValue | null {
+  const exactPick = parseCurrentYearExactPickEntry(entry, currentYear);
+
+  if (exactPick) {
+    return exactPick;
+  }
 
   const year = typeof entry.pick_season === 'number' ? entry.pick_season : null;
   const round = typeof entry.pick_round === 'number' ? entry.pick_round : null;
   const rawValue = typeof entry.value === 'number' ? entry.value : null;
 
-  if (year === null || round === null || rawValue === null) return null;
+  if (entry.is_exact === true || year === null || round === null || rawValue === null) return null;
 
   return { year, round, rawValue };
 }
 
-function parseEntries(entries: RosterAuditApiEntry[]): { players: RawPlayer[]; pickValues: RawPickValue[] } {
+// @spec DFF-SPKV-011
+// @spec DFF-SPKV-012
+function parseEntries(
+  entries: RosterAuditApiEntry[],
+  currentYear = new Date().getFullYear(),
+): { players: RawPlayer[]; pickValues: RawPickValue[] } {
   const players: RawPlayer[] = [];
+  const startupPickValues: RawPickValue[] = [];
   // Deduplicate by (year, round): the API can return multiple non-exact entries
   // for the same round (e.g. early/mid/late generics), which would violate the
   // UNIQUE(run_id, year, round, source) snapshot constraint.
@@ -77,8 +140,13 @@ function parseEntries(entries: RosterAuditApiEntry[]): { players: RawPlayer[]; p
 
   for (const entry of entries) {
     if (entry.type === 'pick' || entry.position === 'PICK') {
-      const pick = parsePickValue(entry);
+      const pick = parsePickValue(entry, currentYear);
       if (pick) {
+        if ((pick.pickInRound ?? 0) >= 1) {
+          startupPickValues.push(pick);
+          continue;
+        }
+
         const key = `${pick.year}-${pick.round}`;
         const acc = pickValueAccumulator.get(key);
         if (acc) {
@@ -94,11 +162,14 @@ function parseEntries(entries: RosterAuditApiEntry[]): { players: RawPlayer[]; p
     }
   }
 
-  const pickValues: RawPickValue[] = Array.from(pickValueAccumulator.values()).map(({ sum, count, year, round }) => ({
-    year,
-    round,
-    rawValue: sum / count,
-  }));
+  const pickValues: RawPickValue[] = [
+    ...startupPickValues,
+    ...Array.from(pickValueAccumulator.values()).map(({ sum, count, year, round }) => ({
+      year,
+      round,
+      rawValue: sum / count,
+    })),
+  ];
 
   return { players, pickValues };
 }
@@ -139,16 +210,19 @@ export async function scrapeRosterAudit(): Promise<ScraperResult> {
   const fixturePath = process.env.DYNASTYFF_ROSTERAUDIT_FIXTURE_PATH;
 
   if (fixturePath) {
-    const fixtureResult = await loadFixtureScraperResult(fixturePath, 'rosteraudit');
-
-    if (fixtureResult.players.length > 0 || fixtureResult.pickValues.length > 0) {
-      return fixtureResult;
-    }
-
     const rawFixture = await fs.readFile(fixturePath, 'utf8');
     const parsed = JSON.parse(rawFixture) as
       | RosterAuditApiEntry[]
-      | { players?: RosterAuditApiEntry[] };
+      | { players?: RosterAuditApiEntry[]; pickValues?: RawPickValue[] };
+
+    if (!Array.isArray(parsed)) {
+      const fixtureResult = await loadFixtureScraperResult(fixturePath, 'rosteraudit');
+
+      if (fixtureResult.players.length > 0 || fixtureResult.pickValues.length > 0) {
+        return fixtureResult;
+      }
+    }
+
     const entries = Array.isArray(parsed) ? parsed : (parsed.players ?? []);
     const { players, pickValues } = parseEntries(entries);
 

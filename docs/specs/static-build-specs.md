@@ -92,14 +92,17 @@ The system shall implement `src/draft/bot.ts` as an isomorphic module exporting 
 **DFF-STATIC-033** `[x]` → #52
 `selectBotPick` shall throw an `InvariantError` if `available` is empty.
 
-**DFF-STATIC-034** `[x]` → #56
-The static build's bot loop shall delay 1.5–3 seconds (randomly sampled) between successive bot picks to simulate realistic draft pacing.
+**DFF-STATIC-034** `[D]` → #56
+~~The static build's bot loop shall delay 1.5–3 seconds (randomly sampled) between successive bot picks to simulate realistic draft pacing.~~
+*Retired by UI Unification Epic; static bot loop timing behaviour is covered by `tests/in-memory-draft-engine.test.ts` and the shared `InMemoryDraftContextProvider`.*
 
-**DFF-STATIC-035** `[x]` → #56
-The static build's bot loop shall halt and yield control to the user when `currentTeam(state)` returns a team flagged `isUser = true`.
+**DFF-STATIC-035** `[D]` → #56
+~~The static build's bot loop shall halt and yield control to the user when `currentTeam(state)` returns a team flagged `isUser = true`.~~
+*Retired by UI Unification Epic; static bot loop halt-on-user-turn behaviour is covered by `tests/in-memory-draft-engine.test.ts` and the shared `InMemoryDraftContextProvider`.*
 
-**DFF-STATIC-036** `[x]` → #56
-During an active static draft, the system shall render an in-browser Draft Room showing the current turn indicator, the Draft Board grid (rounds × teams), the available undrafted player list, and a recent-picks list using player names rather than raw player IDs.
+**DFF-STATIC-036** `[D]` → #56
+~~During an active static draft, the system shall render an in-browser Draft Room showing the current turn indicator, the Draft Board grid (rounds × teams), the available undrafted player list, and a recent-picks list using player names rather than raw player IDs.~~
+*Retired by UI Unification Epic; the static Draft Room is replaced by the shared three-column layout specified in DFF-UI-130 through DFF-UI-139 and DFF-UI-154.*
 
 **DFF-STATIC-037** `[x]` → #56
 If the static bot loop encounters an invariant failure while selecting or submitting a bot pick, the system shall halt the bot loop and display an error toast indicating the draft cannot continue.
@@ -108,20 +111,25 @@ If the static bot loop encounters an invariant failure while selecting or submit
 
 ## GitHub Actions: ETL Snapshot Workflow
 
-**DFF-STATIC-040** `[x]` → #57
-The system shall provide a GitHub Actions workflow file at `.github/workflows/etl-snapshot.yml` triggered exclusively by `workflow_dispatch`.
+**DFF-STATIC-040** `[D]` → #57
+~~The system shall provide a GitHub Actions workflow file at `.github/workflows/etl-snapshot.yml` triggered exclusively by `workflow_dispatch`.~~
+*Retired by the Scheduled ETL Refresh effort; `etl-snapshot.yml` is removed and replaced by `scheduled-refresh.yml`'s PR-based flow, per `docs/specs/etl-scheduling-specs.md`.*
 
-**DFF-STATIC-041** `[x]` → #57
-The ETL snapshot workflow shall: install Node 22, run `npm ci`, install Playwright Chromium (`npx playwright install --with-deps chromium`), run `npm run etl`, and run `npm run export:snapshot`.
+**DFF-STATIC-041** `[D]` → #57
+~~The ETL snapshot workflow shall: install Node 22, run `npm ci`, install Playwright Chromium (`npx playwright install --with-deps chromium`), run `npm run etl`, and run `npm run export:snapshot`.~~
+*Retired; equivalent steps now live in `scheduled-refresh.yml` per DFF-SCHED-003.*
 
-**DFF-STATIC-042** `[x]` → #57
-After `export:snapshot` completes, the ETL snapshot workflow shall commit and push `data/snapshot.json` to the branch that triggered the workflow using the `github-actions[bot]` identity.
+**DFF-STATIC-042** `[D]` → #57
+~~After `export:snapshot` completes, the ETL snapshot workflow shall commit and push `data/snapshot.json` to the branch that triggered the workflow using the `github-actions[bot]` identity.~~
+*Retired; `scheduled-refresh.yml` opens a PR instead of pushing directly, per DFF-SCHED-022.*
 
-**DFF-STATIC-043** `[x]` → #57
-If `data/snapshot.json` is unchanged after the export (no diff), the ETL snapshot workflow shall skip the commit step and exit cleanly without error.
+**DFF-STATIC-043** `[D]` → #57
+~~If `data/snapshot.json` is unchanged after the export (no diff), the ETL snapshot workflow shall skip the commit step and exit cleanly without error.~~
+*Retired by DFF-SCHED-020, same behavior in `scheduled-refresh.yml`.*
 
-**DFF-STATIC-044** `[x]` → #57
-If `npm run export:snapshot` exits with a non-zero code, the ETL snapshot workflow shall fail the job and not attempt a commit.
+**DFF-STATIC-044** `[D]` → #57
+~~If `npm run export:snapshot` exits with a non-zero code, the ETL snapshot workflow shall fail the job and not attempt a commit.~~
+*Retired; `scheduled-refresh.yml` fails the job the same way — no dedicated replacement ID, this is standard step-failure propagation.*
 
 ---
 
@@ -155,8 +163,9 @@ Existing `src/ui/` components shall reference `useDraftContext()` for all draft 
 **DFF-STATIC-062** `[x]` → #54
 The main app (`src/ui/App.tsx`) shall wire an `HttpDraftContext` implementation of `DraftContextValue` that calls Express HTTP endpoints and subscribes to the SSE stream.
 
-**DFF-STATIC-063** `[x]` → #56
-The static app (`src/ui-static/App.tsx`) shall wire an `InMemoryDraftContext` implementation of `DraftContextValue` that operates entirely in browser memory using the in-memory draft engine.
+**DFF-STATIC-063** `[D]` → #56
+~~The static app (`src/ui-static/App.tsx`) shall wire an `InMemoryDraftContext` implementation of `DraftContextValue` that operates entirely in browser memory using the in-memory draft engine.~~
+*Retired by UI Unification Epic; the static app now wraps `InMemoryDraftContextProvider` around the shared `DraftApp` (DFF-UI-152) rather than defining its own view-state machine.*
 
 ---
 
@@ -166,10 +175,10 @@ The static app (`src/ui-static/App.tsx`) shall wire an `InMemoryDraftContext` im
 The static app's `InMemoryDraftContext` shall maintain a `sessionHistory` array that accumulates one `CompletedDraft` entry per finished draft session.
 
 **DFF-STATIC-071** `[x]` → #56
-When a draft transitions to `completed`, the context shall append a `CompletedDraft` snapshot to `sessionHistory` before transitioning the view state to `history`.
+When a draft transitions to `completed`, the context shall append a `CompletedDraft` snapshot to `sessionHistory`. Any later transition into the shared History view is controlled by `DraftApp`.
 
 **DFF-STATIC-072** `[x]` → #56
-The history view in the static app shall render the `HistoryView` component with three tabs (Pick Log, Roster View, Trade Log) using the completed draft's `draftState`. The `sessionHistory` array continues to accumulate completed drafts in the background.
+When the user opens full history in the static app, the shared History view shall render the `HistoryView` component with three tabs (Pick Log, Roster View, Trade Log) using the completed draft's `draftState`. The `sessionHistory` array continues to accumulate completed drafts in the background.
 
 **DFF-STATIC-073** `[x]` → #56
 Session history shall not be persisted to `localStorage` or any browser storage API — it is intentionally lost on page refresh.

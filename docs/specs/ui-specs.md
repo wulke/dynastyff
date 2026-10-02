@@ -18,10 +18,10 @@ When a draft is successfully created via POST /drafts, the system shall transiti
 When a `draft_complete` SSE event is received, the system shall render a completion banner over the Draft Board without navigating away.
 
 **DFF-UI-005** `[x]` → #81
-The draft completion banner shall display a congratulatory message, the user's team name, and a `View Full History` call to action.
+The draft completion banner shall display a congratulatory message, the user's team name, and a `View Draft Grade` call to action.
 
 **DFF-UI-006** `[x]` → #81
-When the user clicks `View Full History` from the draft completion banner, the system shall transition to the History view.
+When the user clicks `View Draft Grade` from the draft completion banner, the system shall transition to the dedicated draft grade summary view.
 
 **DFF-UI-007** `[x]` → #81
 While the draft completion banner is open, the Draft Board grid shall remain visible behind it and shall not be interactive.
@@ -36,20 +36,35 @@ When the user clicks "New Draft" from the History view, the system shall transit
 **DFF-UI-010** `[x]` → #15
 The Config screen shall render input fields for: config name, team count (8–16), rounds (10–30), scoring format (PPR / Half PPR / Standard), roster slots per position (QB, RB, WR, TE, FLEX, SF, BN), pick position (1–team_count), and future pick years (1–5).
 
-**DFF-UI-011** `[ ]` → #16
+**DFF-UI-011** `[x]` → #16
 When the Config screen loads, the system shall fetch saved configs from GET /configs and display them in a dropdown.
 
-**DFF-UI-012** `[ ]` → #16
+**DFF-UI-011b** `[x]` → #16
+If GET /configs returns an error or the response is not a valid array, the system shall render the Config screen without any saved config options; no error toast shall be shown.
+
+**DFF-UI-012** `[x]` → #16
 When the user selects a saved config from the dropdown, the system shall populate all form fields with that config's values.
 
-**DFF-UI-013** `[ ]` → #16
+**DFF-UI-013** `[x]` → #16
 When the user clicks "Save", the system shall POST /configs with the current form values and add the saved config to the dropdown.
+
+**DFF-UI-013b** `[x]` → #16
+If POST /configs returns an error, the system shall display an error toast: "Failed to save config." and re-enable the Save button.
 
 **DFF-UI-014** `[x]` → #15
 When the user clicks "Start Draft", the system shall POST /drafts with the current form values and, on success, transition to the Drafting view.
 
 **DFF-UI-015** `[x]` → #15
 If POST /drafts returns an error, the system shall display an error toast and remain on the Config screen.
+
+**DFF-UI-193** `[x]` → #169
+When the user submits a valid Sleeper league ID or full Sleeper league URL on the Config screen, the system shall fetch its public settings and pre-fill the editable team count, scoring format, TE-premium tier, and QB/RB/WR/TE/FLEX/SF/BN roster fields.
+
+**DFF-UI-194** `[x]` → #169
+When the system maps a Sleeper league response, it shall derive scoring from `scoring_settings.rec`, TE premium from `scoring_settings.bonus_rec_te`, and supported roster slots from `roster_positions`; it shall derive the Config screen's rounds suggestion from the mapped roster-slot total and shall not use `draft_rounds`.
+
+**DFF-UI-195** `[x]` → #169
+If a Sleeper league import is invalid, unreachable, or malformed, the system shall show a clear inline error and retain the user's current manual Config screen values for editing and draft creation.
 
 ---
 
@@ -83,26 +98,51 @@ The Draft Board shall scroll horizontally to accommodate rounds beyond the initi
 
 ## Available Players List
 
-**DFF-UI-030** `[ ]` → #18
+**DFF-UI-030** `[x]` → #18
 The Available Players list shall render all players not yet picked, sorted by `dynasty_value` descending.
 
-**DFF-UI-031** `[ ]` → #18
-The Available Players list shall include position filter buttons: ALL, QB, RB, WR, TE, and Picks. Selecting a filter shall immediately narrow the displayed list.
+**DFF-UI-031** `[x]` → #18
+The Available Players list shall include a single compact position-filter control with options for ALL, QB, RB, WR, TE, and Picks. Changing the selected option shall immediately narrow the displayed list.
 
-**DFF-UI-032** `[ ]` → #18
+**DFF-UI-032** `[x]` → #18
 The Available Players list shall include a name search input. Entering text shall filter the list client-side on player name, case-insensitively.
 
-**DFF-UI-033** `[ ]` → #18
+**DFF-UI-033** `[x]` → #18
 Each player row shall display: player name, position badge, NFL team, age, and dynasty value.
 
-**DFF-UI-034** `[ ]` → #18
+**DFF-UI-034** `[x]` → #18
 When a `pick_made` SSE event is received, the picked player shall be removed from the Available Players list client-side.
 
-**DFF-UI-035** `[ ]` → #18
-When it is not the user's turn, the Available Players list shall display a "Bot is picking…" state and player rows shall not be interactive.
+**DFF-UI-035** `[x]` → #18
+When it is not the user's turn, the Available Players list shall remain visible, the player rows shall not be interactive, and turn ownership shall continue to be communicated by the shared drafting status bar.
 
-**DFF-UI-036** `[ ]` → #18
-When the user clicks a player row during their turn, the system shall POST /drafts/:id/pick with that player's id and dispatch ADVISOR_RESET.
+**DFF-UI-036** `[x]` → #18
+When the user clicks a player row during their turn, the system shall select that player and expand that row inline with `Draft [Name]` and `Cancel` actions before POST /drafts/:id/pick is submitted.
+
+---
+
+## Targets Panel
+
+**DFF-UI-120** `[x]` → #85
+During the user's turn, the system shall render a Targets panel alongside the Available Players list.
+
+**DFF-UI-121** `[x]` → #85
+On draft-room hydration, the system shall fetch GET /drafts/:id/queue and display the queued players in ascending rank order.
+
+**DFF-UI-122** `[x]` → #85
+Each Targets panel row shall display the player name, a color-coded position badge, and dynasty value.
+
+**DFF-UI-123** `[x]` → #85
+When the user clicks a Targets panel row during their turn, the system shall select that player and render the same inline row expansion flow used by the Available Players list.
+
+**DFF-UI-124** `[x]` → #85
+When a `pick_made` SSE event is processed by the reducer, the picked player shall be removed from the Targets panel client-side.
+
+**DFF-UI-125** `[x]` → #85
+When the user's queue is empty, the Targets panel shall render the message "No targets added yet".
+
+**DFF-UI-126** `[x]` → #85
+When it is not the user's turn, the Targets panel shall remain visible and its player rows shall not be interactive.
 
 ---
 
@@ -139,17 +179,59 @@ When the user commits a pick (ADVISOR_RESET dispatched), the system shall DELETE
 
 ## Trade Modal
 
-**DFF-UI-050** `[ ]` → #19
-When a `trade_offered` SSE event is received, the system shall open a blocking modal that prevents interaction with the Draft Board until the user responds.
+**DFF-UI-050** `[x]` → #19
+When a `trade_offered` SSE event is received, the system shall open a blocking modal that prevents interaction with the drafting workspace until the user responds.
 
-**DFF-UI-051** `[ ]` → #19
+**DFF-UI-051** `[x]` → #19
 For user-targeted trades (`is_bot_to_bot: false`), the trade modal shall display assets offered and assets requested, with "Accept" and "Decline" buttons.
 
-**DFF-UI-052** `[ ]` → #19
+**DFF-UI-052** `[x]` → #19
 For bot-to-bot trades (`is_bot_to_bot: true`), the trade modal shall display the trade details with "OK" (acknowledge; trade stands) and "Force Decline" (user vetoes) buttons.
 
-**DFF-UI-053** `[ ]` → #19
+**DFF-UI-053** `[x]` → #19
 When the user responds to the trade modal, the system shall POST /drafts/:id/trade-response with the appropriate status and close the modal.
+
+**DFF-UI-054** `[x]` → #19
+When the user clicks "OK" for a bot-to-bot trade, the system shall POST /drafts/:id/trade-response with status `accepted`.
+
+**DFF-UI-055** `[x]` → #19
+When the user clicks "Force Decline" for a bot-to-bot trade, the system shall POST /drafts/:id/trade-response with status `force_declined`.
+
+**DFF-UI-056** `[x]` → #86
+When the user clicks a bot team column header on the draft board, the system shall open the trade modal in propose mode targeting that team without closing the draft room.
+
+**DFF-UI-057** `[x]` → #86
+In trade propose mode, the modal shall render a team selector dropdown that lets the user switch the targeted bot team without closing the modal.
+
+**DFF-UI-058** `[x]` → #86
+In trade propose mode, the modal shall render client-side position filter pills (`ALL`, `QB`, `RB`, `WR`, `TE`) for both player asset lists; draft picks shall remain visible and unfiltered.
+
+**DFF-UI-058f** `[x]` → #116
+In trade propose mode, when the modal renders the picks section for either side, the system shall include unresolved startup pick slots from that team's `draftState.draftOrder` entries as `pick_slot` assets while continuing to show true future picks from `draftState.teamPickAssets`.
+
+**DFF-UI-058g** `[x]` → #116
+In trade propose mode, the modal shall keep both `pick_slot` and `future_pick` assets visible and unfiltered regardless of the active player-position pill.
+
+**DFF-UI-058h** `[x]` → #116
+When the trade compose UI renders startup pick slots from `draftState.draftOrder`, the system shall preserve them as `pick_slot` assets and shall not relabel or coerce them into `future_pick` assets.
+
+**DFF-UI-059** `[x]` → #86
+When the user submits a proposed trade, the system shall POST /drafts/:id/trade-offer with the selected offered assets, requested assets, and target team id, then keep the modal open while awaiting the bot result over SSE.
+
+**DFF-UI-059b** `[x]` → #86
+While a user-initiated trade offer is pending, the trade modal shall show a non-dismissible awaiting state rather than Accept / Decline controls.
+
+**DFF-UI-059c** `[x]` → #86
+When the bot resolves a user-initiated trade offer over SSE, the trade modal shall update in place to show whether the offer was accepted or declined.
+
+**DFF-UI-059d** `[x]` → #86
+When the user receives a bot-to-user trade offer, the modal shall render a `Counter` action alongside `Accept` and `Decline`.
+
+**DFF-UI-059e** `[x]` → #86
+When the user clicks `Counter` on a bot-to-user trade offer, the modal shall transition to propose mode targeting the same bot team and pre-populate the offer with the original trade assets reversed.
+
+**DFF-UI-059f** `[x]`
+While the trade modal is in editable propose mode before submit, the system shall provide a dismiss action that closes the modal without posting `POST /drafts/:id/trade-offer`.
 
 ---
 
@@ -196,7 +278,7 @@ For each SSE event type (`pick_made`, `your_turn`, `trade_offered`, `trade_resol
 
 ## Error and Loading States
 
-**DFF-UI-080** `[ ]` → #18
+**DFF-UI-080** `[x]` → #18
 While GET /drafts/:id/state is in flight at draft start, the Available Players list shall render skeleton rows in place of player data.
 
 **DFF-UI-081** `[x]` → #20
@@ -208,8 +290,11 @@ The draft header shall display an SSE connection status badge showing "Connectin
 **DFF-UI-083** `[x]` → #54
 If SSE reconnect attempts are exhausted (backoff cap reached with no reconnect), the system shall display an error toast: "Lost connection to draft server. Refresh to reconnect."
 
-**DFF-UI-084** `[ ]` → #18
+**DFF-UI-084** `[x]` → #18
 If POST /drafts/:id/pick returns an error, the system shall display a toast: "Pick failed — player may already be taken."
+
+**DFF-UI-119** `[x]` → #18
+If GET /drafts/:id/state fails after a successful draft-creation response, the system shall display an error toast and return to the Config screen instead of remaining stuck in the Available Players loading state.
 
 **DFF-UI-085** `[x]` → #20
 If an advisor API call returns an error, the system shall display a toast: "Advisor unavailable. Try again."
@@ -251,7 +336,7 @@ Every position badge on the Draft Board shall be color-coded by position: QB=amb
 ## Pick Feed Panel
 
 **DFF-UI-100** `[x]` → #82
-The Pick Feed panel shall be rendered alongside the Draft Board during the drafting view. It shall have a fixed maximum height and scroll independently of the Draft Board.
+The Pick Feed panel shall be rendered alongside the Draft Board during the drafting view as a compact, scrollable running list of completed picks.
 
 **DFF-UI-101** `[x]` → #82
 On initial load, the Pick Feed panel shall hydrate from the picks already present in `draftState.picks`, sorted in reverse-chronological order (most recent pick at the top).
@@ -260,7 +345,203 @@ On initial load, the Pick Feed panel shall hydrate from the picks already presen
 When a `pick_made` SSE event is processed by the reducer, the newly added pick shall appear as an entry prepended to the top of the Pick Feed panel in real time, without a page reload or re-fetch.
 
 **DFF-UI-103** `[x]` → #82
-Each Pick Feed entry shall display: player name, a color-coded position badge, the drafting team name, the round number, and the pick-in-round formatted as `"Rd N, Pick M"`.
+Each Pick Feed entry shall display a concise line in the format `"Round.Pick - Player Name"` (for example, `"1.1 - Bijan Robinson"`). If the pick number cannot be resolved to a draft-order slot, the entry shall render an em dash (`—`) in place of the `Round.Pick` prefix.
 
 **DFF-UI-104** `[x]` → #82
 When `draftState.picks` is empty, the Pick Feed panel shall render an empty-state message saying "No picks yet" without crashing.
+
+---
+
+## Drafts List Page
+
+**DFF-UI-110** `[x]` → #80
+When the application loads and drafts exist in the GET /drafts response, the system shall render the Drafts List page instead of the Config screen.
+
+**DFF-UI-111** `[x]` → #80
+When the application loads and no drafts exist in the GET /drafts response, the system shall render the Config screen.
+
+**DFF-UI-112** `[x]` → #80
+The Drafts List page shall display a table with columns: draft identifier, status (In Progress / Completed), date created, team count, rounds, and scoring format.
+
+**DFF-UI-113** `[x]` → #80
+The Drafts List page shall display a Resume button only for in-progress drafts. When clicked, the system shall navigate to the Drafting view for that draft.
+
+**DFF-UI-114** `[x]` → #80
+The Drafts List page shall display a Review button for all drafts. When clicked, the system shall navigate to the Draft History view for that draft.
+
+**DFF-UI-115** `[x]` → #80
+The Drafts List page shall display a "New Draft" button. When clicked, the system shall navigate to the Config screen.
+
+**DFF-UI-116** `[x]` → #80
+When the Drafts List page is loading draft data, the system shall display a loading state instead of rendering the table.
+
+**DFF-UI-117** `[x]` → #80
+When the GET /drafts request fails, the system shall display an error toast and fall back to the Config screen.
+
+**DFF-UI-118** `[x]` → #80
+When the GET /drafts request returns an empty array, the system shall render the Config screen.
+
+---
+
+## 3-Column Drafting Layout
+
+> **Superseded by DFF-UI-180 through DFF-UI-192.** The 3-column expand/collapse layout is replaced by a single-pane tabbed view. Specs DFF-UI-130 through DFF-UI-137 are retired.
+
+~~**DFF-UI-130**~~
+~~**DFF-UI-131**~~
+~~**DFF-UI-132**~~
+~~**DFF-UI-133**~~
+~~**DFF-UI-134**~~
+~~**DFF-UI-135**~~
+~~**DFF-UI-136**~~
+~~**DFF-UI-137**~~
+
+---
+
+## Drafting Status Bar
+
+**DFF-UI-138** `[x]`
+A persistent status bar shall be rendered above the tab strip during the drafting view and shall remain visible regardless of which tab is active. It shall display: the current pick number out of total picks, and whose turn it is ("Your turn" or the current bot team name).
+
+**DFF-UI-139** `[x]`
+The turn-status badge ("Your turn" / "Bot is picking…") shall be removed from the Draft Board header and the Available Players panel header. The status bar shall be the single location for turn status in the drafting view.
+
+---
+
+## Available Players / Targets Tabs
+
+**DFF-UI-140** `[x]` → #97
+The Available Players column shall render two tabs: "Available" and "Targets". The active tab shall be visually distinguished with the amber accent style used elsewhere in the UI.
+
+**DFF-UI-141** `[x]` → #97
+The "Available" tab shall render the existing Available Players list content: position filters, name search input, and the scrollable player rows.
+
+**DFF-UI-142** `[x]` → #97
+The "Targets" tab shall render the existing Targets panel content: queued players in ascending rank order, with the empty state message "No targets added yet" when the queue is empty.
+
+**DFF-UI-143** `[x]` → #97
+The Targets panel shall no longer be rendered as a side-by-side inner grid within the Available Players panel. Its content shall only be accessible via the "Targets" tab within the Available Players column.
+
+---
+
+## Pick Feed Column
+
+**DFF-UI-144** `[x]` → #98
+The Pick Feed panel shall fill the full height of its column. The fixed `max-h-[28rem]` constraint shall be removed; the feed shall scroll independently within the available column height.
+
+---
+
+## Draft Grade Summary View
+
+**DFF-UI-145** `[x]` → #88
+When the user clicks `View Draft Grade` from the draft completion banner, the system shall navigate to a dedicated draft grade summary view for the completed draft.
+
+**DFF-UI-146** `[x]` → #88
+When the user clicks `Review` for a completed draft from the Drafts List page, the system shall load that draft and navigate to the draft grade summary view instead of the history tabs.
+
+**DFF-UI-147** `[x]` → #88
+The draft grade summary view shall display the user's overall draft grade prominently, including both the numeric `0-100` score and the mapped letter grade.
+
+**DFF-UI-148** `[x]` → #88
+The draft grade summary view shall display the user's grade breakdown for value over expected ADP, positional balance, and roster construction using the approved grade-summary rubric.
+
+**DFF-UI-149** `[x]` → #88
+The draft grade summary view shall display the user's final roster alongside the grade breakdown and shall expose a `View Full History` action that navigates to the existing Draft History view.
+
+---
+
+## Traded Startup Pick Visibility
+
+**DFF-UI-163** `[x]` → #120
+When an accepted trade transfers an unresolved startup pick slot, the Draft Board shall keep that slot rendered in its original snake-order grid position and shall display the current owner on the cell.
+
+**DFF-UI-164** `[x]` → #120
+When a `pick_made` SSE event is received for a traded startup pick slot, the corresponding Draft Board cell shall remain in the original draft slot while attributing the selected player to the slot's current owner.
+
+**DFF-UI-165** `[x]` → #120
+The right-column draft log shall render trade resolutions from either hydrated `draftState.trades` or live `trade_resolved` SSE events inline with picks, newest first, with a timestamped summary describing the teams and assets exchanged.
+
+---
+
+## In-Draft Derived Pick Value
+
+**DFF-UI-170** `[x]` → #131
+During an in-progress draft, the system shall compute an in-draft derived dynasty value for each unfilled startup pick slot using the formula `availablePlayers[G - currentPickNumber - 1]?.dynastyValue ?? 0`, where `G` is the slot's global pick number and `currentPickNumber` is the next pick number to be made. This computation shall be a pure client-side function over `DraftState` with no server round-trip.
+
+**DFF-UI-171** `[x]` → #134
+When displaying dynasty values for startup pick slot assets during an in-progress draft, the system shall use the derived value from DFF-UI-170 in place of the ETL-scraped `startupPickValues` entry. No blending of the two values shall occur.
+
+---
+
+## Trade Balance Summary
+
+**DFF-UI-172** `[x]` → #134
+The trade composer shall render a balance summary row below the asset selection panels, showing: total dynasty value offered by the user, total dynasty value requested from the target, and the net delta (received minus sent).
+
+**DFF-UI-173** `[x]` → #134
+The balance summary net delta shall be color-coded using semantic tokens: positive delta (`text-positive`) when the user receives more than they send; negative delta (`text-negative`) when the user sends more; zero delta (`text-muted`).
+
+**DFF-UI-174** `[x]` → #134
+The incoming bot trade offer modal shall render the same balance summary row as the trade composer (DFF-UI-172), driven by `pendingTrade.assetsSent` and `pendingTrade.assetsReceived` from the user's perspective.
+
+**DFF-UI-175** `[x]` → #134
+When computing dynasty values for the balance summary, unfilled startup pick slots shall use the in-draft derived value per DFF-UI-170 if the draft is in progress; otherwise the ETL-scraped value from `startupPickValues` shall be used.
+
+---
+
+## Post-Draft Trade Activity
+
+**DFF-UI-176** `[ ]`
+The draft grade summary view shall conditionally render a "Trade Activity" section below the existing rubric breakdown and final roster panels. This section shall only be shown when the user participated in at least one accepted trade.
+
+**DFF-UI-177** `[ ]`
+Each entry in the Trade Activity section shall display: the round the trade occurred, the initiating and receiving team names, each side's assets with dynasty values, and the net value delta from the user's perspective.
+
+**DFF-UI-178** `[ ]`
+For `pick_slot` assets in trade entries, the dynasty value shall be the dynasty value of the player ultimately drafted with that pick, resolved via the completed `picks` log and `playerCatalog`. When a pick slot was never used by draft end, its dynasty value shall be 0.
+
+**DFF-UI-179** `[ ]`
+The Trade Activity section shall display only trades involving the user's team.
+
+---
+
+## Tabbed Drafting View
+
+**DFF-UI-180** `[x]`
+The drafting view shall render a single full-width pane with a tab strip containing four tabs: **Board**, **Players**, **Feed**, and **Roster**. The 3-column expand/collapse layout is removed.
+
+**DFF-UI-181** `[x]`
+The drafting status bar (DFF-UI-138) shall be rendered above the tab strip and shall remain visible regardless of the active tab.
+
+**DFF-UI-182** `[x]`
+The **Board** tab shall be the default selected tab when the drafting view loads or is resumed.
+
+**DFF-UI-183** `[x]`
+The **Board** tab shall render the Draft Board at full available width. The Row/Column layout toggle (DFF-UI-088) shall be preserved.
+
+**DFF-UI-184** `[x]`
+The **Players** tab shall render the Available Players panel at full available width, including the nested **Available** and **Targets** sub-tabs (DFF-UI-140 through DFF-UI-143).
+
+**DFF-UI-185** `[x]` → #150
+When the user selects a player (expanding that row inline with Draft and Cancel actions) and then switches tabs, the selection state shall be preserved. The Draft and Cancel actions shall remain available when the user returns to the **Players** tab.
+
+**DFF-UI-186** `[x]`
+The **Feed** tab shall render the Pick Feed panel at full available width. All existing Pick Feed behavior (DFF-UI-101 through DFF-UI-104) shall be preserved.
+
+**DFF-UI-187** `[x]` → #151
+The **Roster** tab shall render a `TeamRosterPanel` instead of a placeholder stub.
+
+**DFF-UI-188** `[x]` → #151
+When the **Roster** tab opens, the system shall render a team dropdown listing every `draftState.teams.name` value and shall pre-select the user's team.
+
+**DFF-UI-189** `[x]` → #151
+When a team is selected in the **Roster** tab, the system shall render that team's picks in ascending `pickNumber` order, and each row shall show the `round.pick_in_round` label, player name, position badge, and dynasty value. If the selected team has no picks, the system shall render `No picks yet`.
+
+**DFF-UI-190** `[x]` → #151
+When a `pick_made` SSE event updates `draftState.picks`, the **Roster** tab shall update in real time for the currently selected team without re-fetching draft state.
+
+**DFF-UI-191** `[x]`
+The Trade modal shall overlay the entire drafting view including the status bar and tab strip, consistent with its existing behavior (DFF-UI-050).
+
+**DFF-UI-192** `[x]`
+The draft completion banner (DFF-UI-003 through DFF-UI-007) shall overlay the entire drafting view including the status bar and tab strip, consistent with its existing behavior.

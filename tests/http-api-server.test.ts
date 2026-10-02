@@ -9,6 +9,8 @@
 // @spec DFF-ENGINE-062
 // @spec DFF-ENGINE-063
 // @spec DFF-DATA-093
+// @spec DFF-DATA-095
+// @spec DFF-DATA-096
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -28,10 +30,13 @@ import {
   createDraftQueuePostRoute,
   createDraftPickRoute,
   createDraftStateRoute,
+  createDraftTradeOfferRoute,
   createDraftTradeResponseRoute,
   createDraftHistoryRoute,
+  createLeagueConfigsCreateRoute,
+  createLeagueConfigsListRoute,
 } from '../src/server/app.js';
-import { parseCreateDraftConfig } from '../src/server/config.js';
+import { parseCreateDraftConfig, parseSavedLeagueConfig } from '../src/server/config.js';
 import { resolveApiBaseUrl } from '../src/server/runtime.js';
 import viteConfig from '../src/ui/vite.config.js';
 
@@ -43,6 +48,27 @@ function createTempDatabasePath(prefix: string): string {
 function createDraftRequestBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     configName: 'Startup 12',
+    teamCount: 12,
+    rounds: 20,
+    scoringFormat: 'ppr',
+    rosterSlots: {
+      QB: 1,
+      RB: 2,
+      WR: 3,
+      TE: 1,
+      FLEX: 1,
+      SF: 1,
+      BN: 6,
+    },
+    pickPosition: 6,
+    futurePickYears: 3,
+    ...overrides,
+  };
+}
+
+function createSavedConfigRequestBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    configName: 'Default Home League',
     teamCount: 12,
     rounds: 20,
     scoringFormat: 'ppr',
@@ -94,6 +120,139 @@ function seedPlayer(db: Database.Database, playerId: string, name: string, posit
       id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
     ) VALUES (?, ?, ?, 'BUF', 25, 0, 5000, ?)`,
   ).run(playerId, name, position, '2026-05-18T00:00:00.000Z');
+}
+
+function countTrades(db: Database.Database, draftId: string): number {
+  const row = db
+    .prepare('SELECT COUNT(*) AS total FROM trades WHERE draft_id = ?')
+    .get(draftId) as { total: number };
+
+  return row.total;
+}
+
+function readRosterPlayerTeam(db: Database.Database, draftId: string, playerId: string): string | null {
+  const row = db
+    .prepare('SELECT team_id FROM roster_players WHERE draft_id = ? AND player_id = ?')
+    .get(draftId, playerId) as { team_id: string } | undefined;
+
+  return row?.team_id ?? null;
+}
+
+function createTradeOfferDraftFixture(databasePath: string): {
+  db: Database.Database;
+  draftId: string;
+  userTeamId: string;
+  botTeamId: string;
+} {
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  seedPlayer(db, 'player-user-1', 'User Player 1', 'QB');
+  seedPlayer(db, 'player-user-2', 'User Player 2', 'RB');
+  seedPlayer(db, 'player-bot-1', 'Bot Player 1', 'WR');
+  seedPlayer(db, 'player-bot-2', 'Bot Player 2', 'TE');
+
+  const draftId = createDraft({
+    databasePath,
+    config: {
+      teamCount: 2,
+      rounds: 2,
+      scoringFormat: 'ppr',
+      userPickPosition: 1,
+      futurePickYears: 1,
+      futurePickRounds: 1,
+      rosterConfig: {
+        QB: 1,
+        RB: 2,
+        WR: 3,
+        TE: 1,
+        FLEX: 1,
+        SF: 1,
+        bench: 6,
+      },
+    },
+    now: () => '2026-05-18T20:00:00.000Z',
+    random: () => 0,
+  });
+
+  const teams = db
+    .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+    .all(draftId) as Array<{ id: string; is_user: number }>;
+  const userTeamId = teams.find((team) => team.is_user === 1)!.id;
+  const botTeamId = teams.find((team) => team.is_user === 0)!.id;
+
+  db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+    'roster-user-1',
+    draftId,
+    userTeamId,
+    'player-user-1',
+  );
+  db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+    'roster-user-2',
+    draftId,
+    userTeamId,
+    'player-user-2',
+  );
+  db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+    'roster-bot-1',
+    draftId,
+    botTeamId,
+    'player-bot-1',
+  );
+  db.prepare('INSERT INTO roster_players (id, draft_id, team_id, player_id) VALUES (?, ?, ?, ?)').run(
+    'roster-bot-2',
+    draftId,
+    botTeamId,
+    'player-bot-2',
+  );
+
+  return {
+    db,
+    draftId,
+    userTeamId,
+    botTeamId,
+  };
+}
+
+function seedCompletedEtlRun(db: Database.Database, runId = 'run-completed-latest'): string {
+  db.prepare(
+    `INSERT INTO etl_runs (
+      id, started_at, completed_at, sources_attempted, sources_succeeded
+    ) VALUES (?, ?, ?, ?, ?)`,
+  ).run(
+    runId,
+    '2026-05-18T21:00:00.000Z',
+    '2026-05-18T21:20:00.000Z',
+    '["ktc","fantasycalc","dynastydaddy","rosteraudit"]',
+    '["ktc","fantasycalc"]',
+  );
+
+  return runId;
+}
+
+function seedStartupPickValue(
+  db: Database.Database,
+  {
+    id,
+    year,
+    round,
+    pickInRound,
+    dynastyValue,
+    updatedAt = '2026-05-18T21:20:00.000Z',
+  }: {
+    id: string;
+    year: number;
+    round: number;
+    pickInRound: number;
+    dynastyValue: number;
+    updatedAt?: string;
+  },
+): void {
+  db.prepare(
+    `INSERT INTO pick_values (
+      id, year, round, pick_in_round, dynasty_value, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(id, year, round, pickInRound, dynastyValue, updatedAt);
 }
 
 async function invokeRoute({
@@ -157,6 +316,12 @@ async function invokeDraftRoute(
       trigger: (draftId: string) => void;
       waitForIdle: (draftId: string) => Promise<void>;
       resolvePendingTrade: (draftId: string, status: 'accepted' | 'declined' | 'force_declined') => boolean;
+      submitUserTradeOffer: (input: {
+        draftId: string;
+        targetTeamId: string;
+        offeredAssets: unknown[];
+        requestedAssets: unknown[];
+      }) => string;
     };
   } = {},
 ) {
@@ -167,7 +332,28 @@ async function invokeDraftRoute(
         trigger: () => undefined,
         waitForIdle: async () => undefined,
         resolvePendingTrade: () => false,
+        submitUserTradeOffer: () => 'trade-user-offer-default',
       },
+    }),
+    body,
+  });
+}
+
+async function invokeConfigsListRoute(databasePath: string) {
+  return invokeRoute({
+    route: createLeagueConfigsListRoute({ databasePath }),
+  });
+}
+
+async function invokeConfigsCreateRoute(
+  databasePath: string,
+  body: Record<string, unknown>,
+) {
+  return invokeRoute({
+    route: createLeagueConfigsCreateRoute({
+      databasePath,
+      idGenerator: () => 'league-config-1',
+      now: () => '2026-06-04T15:00:00.000Z',
     }),
     body,
   });
@@ -185,6 +371,40 @@ async function invokePickRoute(
         trigger: () => undefined,
         waitForIdle: async () => undefined,
         resolvePendingTrade: () => false,
+        submitUserTradeOffer: () => 'trade-user-offer-default',
+      },
+    }),
+    body,
+    params: { id: draftId },
+  });
+}
+
+async function invokeTradeOfferRoute(
+  databasePath: string,
+  draftId: string,
+  body: unknown,
+  options: {
+    botChain?: {
+      trigger: (draftId: string) => void;
+      waitForIdle: (draftId: string) => Promise<void>;
+      resolvePendingTrade: (draftId: string, status: 'accepted' | 'declined' | 'force_declined') => boolean;
+      submitUserTradeOffer: (input: {
+        draftId: string;
+        targetTeamId: string;
+        offeredAssets: unknown[];
+        requestedAssets: unknown[];
+      }) => string;
+    };
+  } = {},
+) {
+  return invokeRoute({
+    route: createDraftTradeOfferRoute({
+      databasePath,
+      botChain: options.botChain ?? {
+        trigger: () => undefined,
+        waitForIdle: async () => undefined,
+        resolvePendingTrade: () => false,
+        submitUserTradeOffer: () => 'trade-user-offer-default',
       },
     }),
     body,
@@ -344,6 +564,7 @@ test('POST /drafts auto-starts the bot chain when the first open slot belongs to
 
     const botChain = createBotChainCoordinator({
       databasePath,
+      randomness: 0,
       now: () => '2026-05-22T19:00:00.000Z',
       random: () => 0,
       sleep: async () => undefined,
@@ -591,6 +812,7 @@ test('POST /drafts/:id/pick triggers consecutive bot picks with a 3-5 second del
     const delayCalls: number[] = [];
     const botChain = createBotChainCoordinator({
       databasePath,
+      randomness: 0,
       random: () => 0.5,
       sleep: async (delayMs) => {
         delayCalls.push(delayMs);
@@ -686,6 +908,8 @@ test('POST /drafts/:id/pick completes the draft automatically when the bot chain
     });
     const botChain = createBotChainCoordinator({
       databasePath,
+      randomness: 0,
+      random: () => 0.99,
       sleep: async () => undefined,
     });
 
@@ -1165,6 +1389,256 @@ test('POST /drafts/:id/trade-response returns 409 when no trade is pending', asy
     assert.deepEqual(response.json, {
       error: 'No pending trade for this draft.',
     });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when the target team is invalid', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-invalid-target-');
+  initializeDatabase(databasePath);
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: 'missing-team',
+      offeredAssets: [],
+      requestedAssets: [],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer.',
+    });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when the target team is the user team', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-user-target-');
+  initializeDatabase(databasePath);
+
+  try {
+    const { db, draftId, userTeamId, botTeamId } = createTradeOfferDraftFixture(databasePath);
+
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: userTeamId,
+      offeredAssets: [{ type: 'player', player_id: 'player-user-1' }],
+      requestedAssets: [{ type: 'player', player_id: 'player-bot-1' }],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer.',
+    });
+    assert.equal(countTrades(db, draftId), 0);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-user-1'), userTeamId);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-bot-1'), botTeamId);
+
+    db.close();
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when offered assets are not on the user roster', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-invalid-offered-assets-');
+  initializeDatabase(databasePath);
+
+  try {
+    const { db, draftId, userTeamId, botTeamId } = createTradeOfferDraftFixture(databasePath);
+
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: botTeamId,
+      offeredAssets: [{ type: 'player', player_id: 'player-bot-1' }],
+      requestedAssets: [{ type: 'player', player_id: 'player-bot-2' }],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer.',
+    });
+    assert.equal(countTrades(db, draftId), 0);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-user-1'), userTeamId);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-bot-1'), botTeamId);
+
+    db.close();
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when requested assets are not on the target bot roster', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-invalid-requested-assets-');
+  initializeDatabase(databasePath);
+
+  try {
+    const { db, draftId, userTeamId, botTeamId } = createTradeOfferDraftFixture(databasePath);
+
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: botTeamId,
+      offeredAssets: [{ type: 'player', player_id: 'player-user-1' }],
+      requestedAssets: [{ type: 'player', player_id: 'player-user-2' }],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer.',
+    });
+    assert.equal(countTrades(db, draftId), 0);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-user-2'), userTeamId);
+    assert.equal(readRosterPlayerTeam(db, draftId, 'player-bot-1'), botTeamId);
+
+    db.close();
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+// @spec DFF-ENGINE-038
+test('POST /drafts/:id/trade-offer returns 400 when required fields are missing', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-missing-fields-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 2,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 1,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeTradeOfferRoute(databasePath, draftId, {
+      targetTeamId: 'team-1',
+      offeredAssets: [],
+    }, {
+      botChain: createBotChainCoordinator({ databasePath, randomness: 0 }),
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid trade offer: requestedAssets must be an array.',
+    });
+    assert.equal(countTrades(db, draftId), 0);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ENGINE-034
+test('POST /drafts/:id/trade-offer forwards a valid proposal to the bot chain and returns the trade id', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-trade-offer-valid-');
+  initializeDatabase(databasePath);
+
+  try {
+    const { db, draftId, botTeamId } = createTradeOfferDraftFixture(databasePath);
+
+    const submitCalls: Array<{
+      draftId: string;
+      targetTeamId: string;
+      offeredAssets: unknown[];
+      requestedAssets: unknown[];
+    }> = [];
+
+    const submitUserTradeOffer = (input: {
+      draftId: string;
+      targetTeamId: string;
+      offeredAssets: unknown[];
+      requestedAssets: unknown[];
+    }) => {
+      submitCalls.push(input);
+      return 'trade-user-offer-1';
+    };
+
+    const response = await invokeTradeOfferRoute(
+      databasePath,
+      draftId,
+      {
+        targetTeamId: botTeamId,
+        offeredAssets: [{ type: 'player', player_id: 'player-user-1' }],
+        requestedAssets: [{ type: 'player', player_id: 'player-bot-1' }],
+      },
+      {
+        botChain: {
+          trigger: () => undefined,
+          waitForIdle: async () => undefined,
+          resolvePendingTrade: () => false,
+          submitUserTradeOffer,
+        },
+      },
+    );
+
+    assert.equal(response.statusCode, 202);
+    assert.deepEqual(response.json, { ok: true, tradeId: 'trade-user-offer-1' });
+    assert.deepEqual(submitCalls, [
+      {
+        draftId,
+        targetTeamId: botTeamId,
+        offeredAssets: [{ type: 'player', player_id: 'player-user-1' }],
+        requestedAssets: [{ type: 'player', player_id: 'player-bot-1' }],
+      },
+    ]);
+
+    db.close();
   } finally {
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
   }
@@ -2000,6 +2474,15 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
       draft_id: string;
       status: string;
       current_pick_number: number | null;
+      roster_config: {
+        QB: number;
+        RB: number;
+        WR: number;
+        TE: number;
+        FLEX: number;
+        SF: number;
+        bench: number;
+      };
       teams: Array<{ id: string; name: string; is_user: boolean; archetype: string | null }>;
       draft_order: Array<{ pick_number: number; round: number; pick_in_round: number; team_id: string }>;
       picks: Array<{ pick_number: number; team_id: string; player_id: string; picked_at: string }>;
@@ -2007,6 +2490,7 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
       team_pick_assets: Array<{ team_id: string; year: number; round: number }>;
       user_queue: Array<{ player_id: string; rank: number }>;
       available_players: Array<{ id: string; dynasty_value: number }>;
+      drafted_players: Array<{ id: string; name: string; position: string }>;
       trades: Array<{
         id: string;
         round: number;
@@ -2021,6 +2505,15 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
     assert.equal(body.draft_id, draftId);
     assert.equal(body.status, 'in_progress');
     assert.equal(body.current_pick_number, 2);
+    assert.deepEqual(body.roster_config, {
+      QB: 1,
+      RB: 2,
+      WR: 3,
+      TE: 1,
+      FLEX: 1,
+      SF: 1,
+      bench: 6,
+    });
     assert.equal(body.teams.length, 4);
     assert.deepEqual(body.teams.map((team) => team.name), ['Bob', 'You', 'Carl', 'Dana']);
     assert.deepEqual(
@@ -2055,6 +2548,18 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
       })),
       [{ id: 'player-queued', dynasty_value: 5000 }],
     );
+    assert.deepEqual(body.drafted_players, [
+      {
+        id: 'player-picked',
+        name: 'Picked Player',
+        position: 'QB',
+        nfl_team: 'BUF',
+        age: 25,
+        is_rookie: false,
+        dynasty_value: 5000,
+        adp: null,
+      },
+    ]);
     assert.deepEqual(body.trades, [
       {
         id: 'trade-row-id',
@@ -2064,8 +2569,141 @@ test('GET /drafts/:id/state returns the persisted draft snapshot plus trades for
         assets_sent: [{ type: 'pick', year: 2027, round: 1 }],
         assets_received: [{ type: 'player', player_id: 'player-picked' }],
         status: 'declined',
+        created_at: '2026-05-18T20:06:00.000Z',
       },
     ]);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-SPKV-043
+test('GET /drafts/:id/state includes startup pick values as a serializable array', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-startup-picks-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedCompletedEtlRun(db);
+    seedStartupPickValue(db, { id: 'startup-1-01', year: 2026, round: 1, pickInRound: 1, dynastyValue: 9100 });
+    seedStartupPickValue(db, { id: 'startup-1-02', year: 2026, round: 1, pickInRound: 2, dynastyValue: 9000 });
+    seedStartupPickValue(db, { id: 'startup-1-03', year: 2026, round: 1, pickInRound: 3, dynastyValue: 8900 });
+    seedStartupPickValue(db, { id: 'startup-1-04', year: 2026, round: 1, pickInRound: 4, dynastyValue: 8800 });
+    seedStartupPickValue(db, { id: 'startup-1-05', year: 2026, round: 1, pickInRound: 5, dynastyValue: 8700 });
+    seedStartupPickValue(db, { id: 'startup-1-06', year: 2026, round: 1, pickInRound: 6, dynastyValue: 8600 });
+    seedStartupPickValue(db, { id: 'startup-1-07', year: 2026, round: 1, pickInRound: 7, dynastyValue: 8500 });
+    seedStartupPickValue(db, { id: 'startup-1-08', year: 2026, round: 1, pickInRound: 8, dynastyValue: 8400 });
+    seedStartupPickValue(db, { id: 'startup-1-09', year: 2026, round: 1, pickInRound: 9, dynastyValue: 7900 });
+    seedStartupPickValue(db, { id: 'startup-1-10', year: 2026, round: 1, pickInRound: 10, dynastyValue: 7800 });
+    seedStartupPickValue(db, { id: 'startup-1-11', year: 2026, round: 1, pickInRound: 11, dynastyValue: 7700 });
+    seedStartupPickValue(db, { id: 'startup-1-12', year: 2026, round: 1, pickInRound: 12, dynastyValue: 7600 });
+    seedStartupPickValue(db, { id: 'startup-2-01', year: 2026, round: 2, pickInRound: 1, dynastyValue: 6800 });
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 8,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 4,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T22:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeRoute({
+      route: createDraftStateRoute({ databasePath }),
+      params: { id: draftId },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = response.json as {
+      startup_pick_values: Array<{ global_pick_number: number; dynasty_value: number }>;
+    };
+
+    assert.deepEqual(body.startup_pick_values, [
+      { global_pick_number: 1, dynasty_value: 9100 },
+      { global_pick_number: 2, dynasty_value: 9000 },
+      { global_pick_number: 3, dynasty_value: 8900 },
+      { global_pick_number: 4, dynasty_value: 8800 },
+      { global_pick_number: 5, dynasty_value: 8700 },
+      { global_pick_number: 6, dynasty_value: 8600 },
+      { global_pick_number: 7, dynasty_value: 8500 },
+      { global_pick_number: 8, dynasty_value: 8400 },
+      { global_pick_number: 9, dynasty_value: 7900 },
+      { global_pick_number: 10, dynasty_value: 7800 },
+      { global_pick_number: 11, dynasty_value: 7700 },
+      { global_pick_number: 12, dynasty_value: 7600 },
+      { global_pick_number: 13, dynasty_value: 6800 },
+      { global_pick_number: 14, dynasty_value: 6800 },
+      { global_pick_number: 15, dynasty_value: 6800 },
+      { global_pick_number: 16, dynasty_value: 6800 },
+    ]);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-SPKV-044
+test('GET /drafts/:id/state returns an empty startup pick values array when no current-year startup rows were seeded', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-empty-startup-picks-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    seedCompletedEtlRun(db);
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 8,
+        rounds: 2,
+        scoringFormat: 'ppr',
+        userPickPosition: 4,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T22:00:00.000Z',
+      random: () => 0,
+    });
+
+    const response = await invokeRoute({
+      route: createDraftStateRoute({ databasePath }),
+      params: { id: draftId },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = response.json as {
+      startup_pick_values: Array<{ global_pick_number: number; dynasty_value: number }>;
+    };
+
+    assert.deepEqual(body.startup_pick_values, []);
   } finally {
     db.close();
     fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
@@ -2260,6 +2898,7 @@ test('GET /drafts returns all persisted drafts with history metadata', async () 
       created_at: string;
       completed_at: string | null;
       status: string;
+      scoring_format: string;
       team_count: number;
       rounds: number;
     }>;
@@ -2270,6 +2909,7 @@ test('GET /drafts returns all persisted drafts with history metadata', async () 
         created_at: '2026-05-18T19:00:00.000Z',
         completed_at: null,
         status: 'in_progress',
+        scoring_format: 'half_ppr',
         team_count: 4,
         rounds: 3,
       },
@@ -2278,6 +2918,7 @@ test('GET /drafts returns all persisted drafts with history metadata', async () 
         created_at: '2026-05-18T18:00:00.000Z',
         completed_at: completedAt,
         status: 'completed',
+        scoring_format: 'standard',
         team_count: 2,
         rounds: 2,
       },
@@ -2319,6 +2960,228 @@ test('GET /drafts returns 500 when the drafts table is unavailable', async () =>
   }
 });
 
+// @spec DFF-DATA-095
+// @spec DFF-TEP-002
+test('GET /configs returns all saved configs ordered by created_at descending', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-list-');
+  initializeDatabase(databasePath);
+  const db = new Database(databasePath);
+  db.pragma('foreign_keys = ON');
+
+  try {
+    db.prepare(
+      `INSERT INTO league_configs (
+        id,
+        name,
+        team_count,
+        rounds,
+        scoring_format,
+        roster_slots,
+        pick_position,
+        future_pick_years,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'league-config-older',
+      'Older Build',
+      10,
+      18,
+      'half_ppr',
+      JSON.stringify({ QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 0, BN: 5 }),
+      3,
+      2,
+      '2026-06-03T10:00:00.000Z',
+    );
+
+    db.prepare(
+      `INSERT INTO league_configs (
+        id,
+        name,
+        team_count,
+        rounds,
+        scoring_format,
+        roster_slots,
+        pick_position,
+        future_pick_years,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'league-config-newer',
+      'Newest Build',
+      12,
+      20,
+      'ppr',
+      JSON.stringify({ QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 1, BN: 6 }),
+      6,
+      3,
+      '2026-06-04T09:00:00.000Z',
+    );
+
+    const response = await invokeConfigsListRoute(databasePath);
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json, [
+      {
+        id: 'league-config-newer',
+        name: 'Newest Build',
+        team_count: 12,
+        rounds: 20,
+        scoring_format: 'ppr',
+        te_premium_tier: 'off',
+        roster_slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 1, BN: 6 },
+        pick_position: 6,
+        future_pick_years: 3,
+        created_at: '2026-06-04T09:00:00.000Z',
+      },
+      {
+        id: 'league-config-older',
+        name: 'Older Build',
+        team_count: 10,
+        rounds: 18,
+        scoring_format: 'half_ppr',
+        te_premium_tier: 'off',
+        roster_slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SF: 0, BN: 5 },
+        pick_position: 3,
+        future_pick_years: 2,
+        created_at: '2026-06-03T10:00:00.000Z',
+      },
+    ]);
+  } finally {
+    db.close();
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-095
+test('GET /configs returns 500 when the league_configs table is unavailable', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-list-error-');
+
+  try {
+    const response = await invokeConfigsListRoute(databasePath);
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.json, { error: 'Internal server error.' });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-096
+// @spec DFF-TEP-002
+test('POST /configs persists a saved config and returns the created record', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-');
+  initializeDatabase(databasePath);
+
+  try {
+    const response = await invokeConfigsCreateRoute(
+      databasePath,
+      createSavedConfigRequestBody({
+        configName: 'Road To Sundays',
+        teamCount: 14,
+        rounds: 22,
+        scoringFormat: 'standard',
+        pickPosition: 9,
+        futurePickYears: 4,
+        rosterSlots: {
+          QB: 1,
+          RB: 2,
+          WR: 4,
+          TE: 1,
+          FLEX: 2,
+          SF: 1,
+          BN: 7,
+        },
+      }),
+    );
+
+    assert.equal(response.statusCode, 201);
+    assert.deepEqual(response.json, {
+      id: 'league-config-1',
+      name: 'Road To Sundays',
+      team_count: 14,
+      rounds: 22,
+      scoring_format: 'standard',
+      te_premium_tier: 'off',
+      roster_slots: { QB: 1, RB: 2, WR: 4, TE: 1, FLEX: 2, SF: 1, BN: 7 },
+      pick_position: 9,
+      future_pick_years: 4,
+      created_at: '2026-06-04T15:00:00.000Z',
+    });
+
+    const db = new Database(databasePath);
+
+    try {
+      const row = db
+        .prepare(
+          `SELECT
+             id,
+             name,
+             team_count,
+             rounds,
+             scoring_format,
+             te_premium_tier,
+             roster_slots,
+             pick_position,
+             future_pick_years,
+             created_at
+           FROM league_configs
+           WHERE id = ?`,
+        )
+        .get('league-config-1') as
+        | {
+            id: string;
+            name: string;
+            team_count: number;
+            rounds: number;
+            scoring_format: string;
+            te_premium_tier: string;
+            roster_slots: string;
+            pick_position: number;
+            future_pick_years: number;
+            created_at: string;
+          }
+        | undefined;
+
+      assert.deepEqual(row, {
+        id: 'league-config-1',
+        name: 'Road To Sundays',
+        team_count: 14,
+        rounds: 22,
+        scoring_format: 'standard',
+        te_premium_tier: 'off',
+        roster_slots: JSON.stringify({ QB: 1, RB: 2, WR: 4, TE: 1, FLEX: 2, SF: 1, BN: 7 }),
+        pick_position: 9,
+        future_pick_years: 4,
+        created_at: '2026-06-04T15:00:00.000Z',
+      });
+    } finally {
+      db.close();
+    }
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-096
+test('POST /configs returns 400 when configName is missing', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-invalid-');
+  initializeDatabase(databasePath);
+
+  try {
+    const requestBody = createSavedConfigRequestBody();
+    delete requestBody.configName;
+
+    const response = await invokeConfigsCreateRoute(databasePath, requestBody);
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json, {
+      error: 'Invalid saved config: configName must be a string.',
+    });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
 test('Vite dev server proxies /drafts requests to the backend server', () => {
   const serverConfig = viteConfig.server;
   const proxyConfig = serverConfig?.proxy?.['/drafts'];
@@ -2328,13 +3191,25 @@ test('Vite dev server proxies /drafts requests to the backend server', () => {
   assert.equal(proxyConfig.target, resolveApiBaseUrl());
 });
 
-test('parseCreateDraftConfig maps UI camelCase config into the service draft config shape', () => {
+// @spec DFF-DATA-095
+test('Vite dev server proxies /configs requests to the backend server', () => {
+  const serverConfig = viteConfig.server;
+  const proxyConfig = serverConfig?.proxy?.['/configs'];
+
+  assert.ok(serverConfig);
+  assert.ok(proxyConfig && typeof proxyConfig !== 'string');
+  assert.equal(proxyConfig.target, resolveApiBaseUrl());
+});
+
+// @spec DFF-TEP-002
+test('parseCreateDraftConfig maps an independent TE-premium tier into the service draft config shape', () => {
   const config = parseCreateDraftConfig(
     createDraftRequestBody({
       configName: 'Standard Build',
       teamCount: 8,
       rounds: 10,
       scoringFormat: 'standard',
+      tePremiumTier: 'tep',
       rosterSlots: {
         QB: 1,
         RB: 3,
@@ -2353,6 +3228,7 @@ test('parseCreateDraftConfig maps UI camelCase config into the service draft con
     teamCount: 8,
     rounds: 10,
     scoringFormat: 'standard',
+    tePremiumTier: 'tep',
     userPickPosition: 8,
     futurePickYears: 1,
     futurePickRounds: 10,
@@ -2361,6 +3237,50 @@ test('parseCreateDraftConfig maps UI camelCase config into the service draft con
       RB: 3,
       WR: 2,
       TE: 2,
+      FLEX: 0,
+      SF: 0,
+      bench: 5,
+    },
+  });
+});
+
+// @spec DFF-DATA-096
+// @spec DFF-TEP-002
+test('parseSavedLeagueConfig maps the saved-config request body into the persistence shape', () => {
+  const config = parseSavedLeagueConfig(
+    createSavedConfigRequestBody({
+      configName: 'Saved Setup',
+      teamCount: 8,
+      rounds: 10,
+      scoringFormat: 'half_ppr',
+      pickPosition: 2,
+      futurePickYears: 1,
+      rosterSlots: {
+        QB: 1,
+        RB: 2,
+        WR: 2,
+        TE: 1,
+        FLEX: 0,
+        SF: 0,
+        BN: 5,
+      },
+    }),
+  );
+
+  assert.deepEqual(config, {
+    name: 'Saved Setup',
+    teamCount: 8,
+    rounds: 10,
+    scoringFormat: 'half_ppr',
+    tePremiumTier: 'off',
+    userPickPosition: 2,
+    futurePickYears: 1,
+    futurePickRounds: 10,
+    rosterConfig: {
+      QB: 1,
+      RB: 2,
+      WR: 2,
+      TE: 1,
       FLEX: 0,
       SF: 0,
       bench: 5,

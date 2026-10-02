@@ -16,6 +16,7 @@ import {
   type DraftState,
   DraftContextProvider,
   type QueueEntry,
+  type TradeResponseStatus,
 } from '../ui/context/DraftContext.js';
 import type { DraftConfig, Snapshot } from '../ui/types.js';
 
@@ -61,14 +62,17 @@ function buildDraftState(
   return {
     draftId: engineState.draftId,
     status: engineState.status,
+    isHydrating: false,
     currentPickNumber: engineState.status === 'completed' ? null : engineState.picks.length + 1,
     advisorResetVersion: 0,
     yourTurnVersion: 0,
+    rosterConfig: engineState.config.rosterConfig,
     teams: engineState.teams,
     draftOrder: engineState.draftOrder,
     picks: engineState.picks,
     rosterPlayers: engineState.rosterPlayers,
     teamPickAssets: engineState.teamPickAssets,
+    startupPickValues: [],
     userQueue: engineState.userQueue,
     playerCatalog,
     availablePlayers: syncedPlayers.map((player) => ({
@@ -94,11 +98,13 @@ function buildCompletedDraft(state: DraftState, completedAt: string): CompletedD
   return {
     draftId: state.draftId ?? '',
     completedAt,
+    rosterConfig: state.rosterConfig,
     teams: state.teams,
     draftOrder: state.draftOrder,
     picks: state.picks,
     rosterPlayers: state.rosterPlayers,
     teamPickAssets: state.teamPickAssets,
+    startupPickValues: state.startupPickValues,
     trades: state.trades,
   };
 }
@@ -242,12 +248,12 @@ export function InMemoryDraftContextProvider({
 
   // @spec DFF-STATIC-035
   // @spec DFF-STATIC-063
-  function submitPick(playerId: string) {
+  async function submitPick(playerId: string): Promise<boolean> {
     const currentState = engineStateRef.current;
     const teamOnClock = currentState ? currentTeam(currentState) : null;
 
     if (!currentState || !teamOnClock?.isUser) {
-      return;
+      return false;
     }
 
     const nextEngineState = applyDraftState(submitEnginePick(currentState, playerId));
@@ -255,6 +261,8 @@ export function InMemoryDraftContextProvider({
     if (nextEngineState.status !== 'completed') {
       enterBotLoop(nextEngineState);
     }
+
+    return true;
   }
 
   // @spec DFF-STATIC-063
@@ -283,15 +291,46 @@ export function InMemoryDraftContextProvider({
     setDraftState(null);
   }
 
+  // @spec DFF-UI-113
+  // @spec DFF-UI-114
+  async function loadDraft(_draftId: string) {
+    // Static build does not support loading persisted drafts
+    return false;
+  }
+
+  // @spec DFF-UI-117
+  function showError(_message: string) {
+    // Static build does not expose the shared HTTP toast surface
+  }
+
+  // @spec DFF-UI-053
+  // @spec DFF-UI-054
+  // @spec DFF-UI-055
+  async function respondToTrade(_status: TradeResponseStatus): Promise<boolean> {
+    return false;
+  }
+
+  // @spec DFF-UI-059
+  async function submitTradeOffer(
+    _targetTeamId: string,
+    _offeredAssets: unknown[],
+    _requestedAssets: unknown[],
+  ) {
+    return { ok: false, tradeId: null };
+  }
+
   const value: DraftContextValue = {
     snapshot,
     draftState,
     sessionHistory,
     startDraft,
+    loadDraft,
+    showError,
     submitPick,
+    respondToTrade,
+    submitTradeOffer,
     updateQueue,
     newDraft,
-    showToast: setDraftError,
   };
 
   return (

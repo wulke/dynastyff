@@ -224,17 +224,17 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
     <div className="pointer-events-none absolute inset-y-4 right-4 z-20 flex justify-end">
       <aside
         data-testid="advisor-panel"
-        className="pointer-events-auto flex h-[calc(100%-2rem)] w-[23.75rem] flex-col overflow-hidden rounded-[1.75rem] border border-stone-700/80 bg-stone-950/95 shadow-2xl shadow-black/40"
+        className="pointer-events-auto flex h-[calc(100%-2rem)] w-[23.75rem] translate-x-0 flex-col overflow-hidden rounded-md border border-default bg-surface-raised shadow-sm transition-transform duration-200 ease-out"
       >
-        <div className="border-b border-stone-800 px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-300">Draft Companion</p>
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <h2 className="text-2xl font-semibold tracking-tight text-stone-50">Advisor</h2>
-            <div className="rounded-full border border-stone-700 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-stone-400">
+        <div className="border-b border-default px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Draft Companion</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <h2 className="font-condensed text-xl font-bold tracking-tight text-primary">Advisor</h2>
+            <div className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
               Live
             </div>
           </div>
-          <div role="tablist" aria-label="Advisor modes" className="mt-4 grid grid-cols-2 gap-2 rounded-full bg-stone-900 p-1">
+          <div role="tablist" aria-label="Advisor modes" className="mt-3 grid grid-cols-2 gap-1 border-b border-default">
             <button
               type="button"
               role="tab"
@@ -242,10 +242,10 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
               onClick={() => {
                 setActiveTab('advise');
               }}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded px-2.5 py-1 text-xs font-semibold uppercase tracking-wide transition ${
                 activeTab === 'advise'
-                  ? 'bg-amber-300 text-stone-950'
-                  : 'text-stone-300 hover:bg-stone-800'
+                  ? 'bg-accent text-accent-fg'
+                  : 'text-muted hover:text-secondary'
               }`}
             >
               Advise Me
@@ -257,10 +257,10 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
               onClick={() => {
                 setActiveTab('grill');
               }}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded px-2.5 py-1 text-xs font-semibold uppercase tracking-wide transition ${
                 activeTab === 'grill'
-                  ? 'bg-amber-300 text-stone-950'
-                  : 'text-stone-300 hover:bg-stone-800'
+                  ? 'bg-accent text-accent-fg'
+                  : 'text-muted hover:text-secondary'
               }`}
             >
               Grill Me
@@ -269,48 +269,48 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
         </div>
 
         {activeTab === 'advise' ? (
-          <div className="flex flex-1 flex-col px-5 py-5">
+          <div className="flex flex-1 flex-col px-3 py-2">
             <button
               type="button"
               onClick={() => {
                 void handleAdviseMe();
               }}
               disabled={isAdviceLoading}
-              className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-wait disabled:opacity-80"
+              className="inline-flex items-center justify-center gap-2 self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg transition hover:bg-accent-hover disabled:cursor-wait disabled:opacity-80"
             >
               Advise Me
             </button>
 
             {isAdviceLoading ? (
-              <div className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-stone-800 bg-stone-900/80 px-4 py-3 text-sm text-stone-300">
-                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-amber-300" />
+              <div className="mt-3 inline-flex items-center gap-2 rounded border border-default bg-surface px-3 py-2 text-sm text-secondary">
+                <span className="h-2.5 w-2.5 animate-pulse rounded bg-accent" />
                 <span>Getting recommendation…</span>
               </div>
             ) : null}
 
             {advice ? (
-              <div className="mt-5 space-y-5 overflow-y-auto pr-1">
-                <section className="rounded-[1.25rem] border border-stone-800 bg-stone-900/70 p-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-stone-400">Recommendation</h3>
-                  <p className="mt-3 text-base font-semibold text-stone-50">{advice.recommendation}</p>
+              <div className="mt-3 space-y-3 overflow-y-auto pr-1">
+                <section className="rounded-md border border-default bg-surface p-3">
+                  <h3 className="font-condensed text-lg font-semibold text-primary">Recommendation</h3>
+                  <p className="mt-2 text-sm font-semibold text-primary">{advice.recommendation}</p>
                 </section>
 
-                <section className="rounded-[1.25rem] border border-stone-800 bg-stone-900/70 p-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-stone-400">Key Factors</h3>
-                  <ul className="mt-3 space-y-3 text-sm leading-6 text-stone-200">
+                <section className="rounded-md border border-default bg-surface p-3">
+                  <h3 className="font-condensed text-lg font-semibold text-primary">Key Factors</h3>
+                  <ul className="mt-2 space-y-1 text-sm leading-5 text-secondary">
                     {advice.keyFactors.map((factor) => (
-                      <li key={factor} className="rounded-2xl bg-stone-950/60 px-3 py-2">
+                      <li key={factor} className="rounded bg-app px-2 py-1">
                         {factor}
                       </li>
                     ))}
                   </ul>
                 </section>
 
-                <section className="rounded-[1.25rem] border border-stone-800 bg-stone-900/70 p-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-stone-400">Caveats</h3>
-                  <ul className="mt-3 space-y-3 text-sm leading-6 text-stone-200">
+                <section className="rounded-md border border-default bg-surface p-3">
+                  <h3 className="font-condensed text-lg font-semibold text-primary">Caveats</h3>
+                  <ul className="mt-2 space-y-1 text-sm leading-5 text-secondary">
                     {advice.caveats.map((caveat) => (
-                      <li key={caveat} className="rounded-2xl bg-stone-950/60 px-3 py-2">
+                      <li key={caveat} className="rounded bg-app px-2 py-1">
                         {caveat}
                       </li>
                     ))}
@@ -321,10 +321,10 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-              <div className="space-y-3">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+              <div className="space-y-2">
                 {messages.length === 0 ? (
-                  <div className="rounded-[1.25rem] border border-dashed border-stone-700 bg-stone-900/60 px-4 py-5 text-sm leading-6 text-stone-400">
+                  <div className="rounded-md border border-dashed border-default bg-surface px-3 py-3 text-sm leading-5 text-muted">
                     Pressure-test your draft plan. The advisor will challenge assumptions and surface missed trade-offs.
                   </div>
                 ) : null}
@@ -332,13 +332,13 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
                 {messages.map((message) => (
                   <article
                     key={message.id}
-                    className={`rounded-[1.25rem] px-4 py-3 text-sm leading-6 ${
+                    className={`rounded-md px-3 py-2 text-sm leading-5 ${
                       message.role === 'user'
-                        ? 'ml-8 border border-amber-300/20 bg-amber-300/10 text-amber-100'
-                        : 'mr-8 border border-stone-800 bg-stone-900/80 text-stone-100'
+                        ? 'ml-8 border border-accent bg-accent/10 text-primary'
+                        : 'mr-8 border border-default bg-surface text-primary'
                     }`}
                   >
-                    <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-stone-500">
+                    <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
                       {message.role === 'user' ? 'You' : 'Advisor'}
                     </p>
                     <p>{message.content}</p>
@@ -346,19 +346,21 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
                 ))}
 
                 {isChatLoading ? (
-                  <div className="mr-8 rounded-[1.25rem] border border-stone-800 bg-stone-900/80 px-4 py-3 text-sm text-stone-300">
-                    <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-stone-500">
+                  <div className="mr-8 rounded-md border border-default bg-surface px-3 py-2 text-sm text-secondary">
+                    <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
                       Advisor
                     </p>
-                    <div className="inline-flex items-center gap-2">
-                      <span>Advisor is thinking…</span>
+                    <div className="inline-flex items-center gap-1" aria-label="Advisor is thinking">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:150ms]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:300ms]" />
                     </div>
                   </div>
                 ) : null}
               </div>
             </div>
 
-            <form onSubmit={(event) => void handleChatSubmit(event)} className="border-t border-stone-800 px-5 py-4">
+            <form onSubmit={(event) => void handleChatSubmit(event)} className="border-t border-default px-3 py-2">
               <label htmlFor="advisor-chat-input" className="sr-only">
                 Share your reasoning
               </label>
@@ -370,14 +372,14 @@ export function AdvisorPanel({ draftId, isOpen }: AdvisorPanelProps) {
                 }}
                 placeholder="Share your reasoning..."
                 rows={3}
-                className="w-full resize-none rounded-[1.25rem] border border-stone-700 bg-stone-900/80 px-4 py-3 text-sm text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-amber-300"
+                className="w-full resize-none rounded border border-default bg-app px-3 py-2 text-sm text-primary outline-none transition placeholder:text-muted focus:border-strong"
               />
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-stone-500">Current pick only</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-wide text-muted">Current pick only</p>
                 <button
                   type="submit"
                   disabled={isChatLoading || !draftReasoning.trim()}
-                  className="rounded-full bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Send
                 </button>

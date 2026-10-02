@@ -40,6 +40,7 @@ import {
 import { scrapeFantasyCalc } from './scraper/fantasycalc.js';
 import { scrapeKtcPlayers } from './scraper/ktc.js';
 import { scrapeRosterAudit } from './scraper/rosteraudit.js';
+import { runSleeperSync } from './sleeper/sync.js';
 import { type EtlSource, type NormalizedPickValue, type NormalizedPlayer, type RawPlayer, type ScraperResult } from './types.js';
 
 type RunEtlOptions = {
@@ -48,6 +49,7 @@ type RunEtlOptions = {
   scrapeKtc?: () => Promise<ScraperResult>;
   scrapeFantasycalc?: () => Promise<ScraperResult>;
   scrapeRosteraudit?: () => Promise<ScraperResult>;
+  sleeperSync?: (options: { databasePath?: string }) => Promise<unknown>;
   now?: () => string;
 };
 
@@ -61,6 +63,9 @@ const activeEtlSources = ['ktc', 'fantasycalc', 'rosteraudit'] as const satisfie
 type PlayerIdRow = { id: string };
 type PickValueIdRow = { id: string };
 type PickValueSnapshotRow = { source: EtlSource; rawValue: number };
+type ScraperRunOutcome =
+  | { source: EtlSource; ok: true; result: ScraperResult }
+  | { source: EtlSource; ok: false; error: unknown };
 
 type PlayerRow = PlayerMatchCandidate;
 
@@ -82,12 +87,12 @@ type EtlStatements = {
 };
 
 // @spec DFF-ETL-002
-function isMissingEtlRunsTableError(error: unknown): boolean {
+function isStaleSchemaError(error: unknown): boolean {
   return (
     error instanceof Error &&
     'code' in error &&
     error.code === 'SQLITE_ERROR' &&
-    error.message.includes('no such table: etl_runs')
+    (error.message.includes('no such table: etl_runs') || error.message.includes('no such column:'))
   );
 }
 
@@ -112,6 +117,9 @@ function createStatements(sqlite: Database.Database): EtlStatements {
          age,
          is_rookie AS isRookie,
          adp,
+         dynasty_value_tep AS dynastyValueTep,
+         dynasty_value_tepp AS dynastyValueTepp,
+         dynasty_value_teppp AS dynastyValueTeppp,
          value_ktc AS valueKtc,
          value_fantasycalc AS valueFantasycalc,
          value_dynastydaddy AS valueDynastydaddy,
@@ -128,13 +136,16 @@ function createStatements(sqlite: Database.Database): EtlStatements {
         age,
         is_rookie,
         dynasty_value,
+        dynasty_value_tep,
+        dynasty_value_tepp,
+        dynasty_value_teppp,
         value_ktc,
         value_fantasycalc,
         value_dynastydaddy,
         value_rosteraudit,
         adp,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     updateKtcPlayer: sqlite.prepare(
       `UPDATE players
@@ -143,6 +154,9 @@ function createStatements(sqlite: Database.Database): EtlStatements {
            age = ?,
            is_rookie = ?,
            dynasty_value = ?,
+           dynasty_value_tep = ?,
+           dynasty_value_tepp = ?,
+           dynasty_value_teppp = ?,
            value_ktc = ?,
            adp = ?,
            updated_at = ?
@@ -214,6 +228,21 @@ function resolvePickInRound(pickValue: Pick<NormalizedPickValue, 'pickInRound'>)
   return pickValue.pickInRound ?? 0;
 }
 
+// @spec DFF-SPKV-035
+function getCurrentCalendarYear(timestamp: string): number {
+  return new Date(timestamp).getFullYear();
+}
+
+// @spec DFF-SPKV-035
+function hasCurrentYearStartupPickValues(
+  results: readonly ScraperResult[],
+  currentYear: number,
+): boolean {
+  return results.some((result) =>
+    result.pickValues.some((pickValue) => pickValue.year === currentYear && (pickValue.pickInRound ?? 0) >= 1),
+  );
+}
+
 function getPlayerCandidates(
   statements: EtlStatements,
   position: string,
@@ -232,6 +261,7 @@ function matchExistingPlayer(
 // @spec DFF-ETL-040
 // @spec DFF-ETL-060
 // @spec DFF-ETL-061
+// @spec DFF-ETL-053
 function writeKtcPlayer(
   statements: EtlStatements,
   runId: string,
@@ -249,6 +279,7 @@ function writeKtcPlayer(
       existing.valueDynastydaddy,
       existing.valueRosteraudit,
     ]);
+    const premiumValues = getPremiumDynastyValues(player, existing);
 
     statements.updateKtcPlayer.run(
       player.name,
@@ -256,6 +287,9 @@ function writeKtcPlayer(
       player.age,
       player.isRookie ? 1 : 0,
       dynastyValue,
+      premiumValues.tep,
+      premiumValues.tepp,
+      premiumValues.teppp,
       player.normalizedValue,
       player.adp ?? existing.adp,
       timestamp,
@@ -270,6 +304,9 @@ function writeKtcPlayer(
       player.age,
       player.isRookie ? 1 : 0,
       player.normalizedValue,
+      player.tePremiumDynastyValues?.tep ?? null,
+      player.tePremiumDynastyValues?.tepp ?? null,
+      player.tePremiumDynastyValues?.teppp ?? null,
       player.normalizedValue,
       null,
       null,
@@ -282,9 +319,32 @@ function writeKtcPlayer(
   statements.insertPlayerSnapshot.run(randomUUID(), runId, playerId, 'ktc', player.rawValue);
 }
 
+// @spec DFF-TEP-001
+function getPremiumDynastyValues(
+  player: NormalizedPlayer,
+  existing: PlayerRow,
+): { tep: number | null; tepp: number | null; teppp: number | null } {
+  const aggregate = (premiumValue: number | null | undefined) =>
+    premiumValue === null || premiumValue === undefined
+      ? null
+      : computeAggregatedDynastyValue([
+          premiumValue,
+          existing.valueFantasycalc,
+          existing.valueDynastydaddy,
+          existing.valueRosteraudit,
+        ]);
+
+  return {
+    tep: aggregate(player.tePremiumDynastyValues?.tep),
+    tepp: aggregate(player.tePremiumDynastyValues?.tepp),
+    teppp: aggregate(player.tePremiumDynastyValues?.teppp),
+  };
+}
+
 // @spec DFF-ETL-023
 // @spec DFF-ETL-040
 // @spec DFF-ETL-060
+// @spec DFF-ETL-053
 function writeMatchedSourcePlayer(
   statements: EtlStatements,
   runId: string,
@@ -457,6 +517,17 @@ function writeSourceData(
     valueType: 'player',
     warn: (message) => console.warn(message),
   });
+  const ktcNormalizationContext = result.source === 'ktc' ? createNormalizationContext(result.players) : undefined;
+  const playersWithPremiumValues = normalizedPlayers.map((player) => ({
+    ...player,
+    tePremiumDynastyValues: player.tePremiumValues && ktcNormalizationContext
+      ? {
+          tep: player.tePremiumValues.tep === null ? null : normalizeRawValue(player.tePremiumValues.tep, ktcNormalizationContext),
+          tepp: player.tePremiumValues.tepp === null ? null : normalizeRawValue(player.tePremiumValues.tepp, ktcNormalizationContext),
+          teppp: player.tePremiumValues.teppp === null ? null : normalizeRawValue(player.tePremiumValues.teppp, ktcNormalizationContext),
+        }
+      : undefined,
+  }));
   const normalizedPickValues = normalizePickValues(result.pickValues, {
     source: result.source,
     valueType: 'pick value',
@@ -464,7 +535,7 @@ function writeSourceData(
   });
 
   const transaction = sqlite.transaction(() => {
-    for (const player of normalizedPlayers) {
+    for (const player of playersWithPremiumValues) {
       if (result.source === 'ktc') {
         writeKtcPlayer(statements, runId, player, timestamp, aliasFamilies);
       } else {
@@ -509,7 +580,7 @@ async function runTasksWithConcurrencyLimit<T>(
 }
 
 async function runScraper<T extends ScraperResult>(
-  source: string,
+  source: EtlSource,
   fn: () => Promise<T>,
 ): Promise<T> {
   console.log(`[ETL] [${source}] Scraping...`);
@@ -525,19 +596,60 @@ async function runScraper<T extends ScraperResult>(
 // @spec DFF-ETL-013
 // @spec DFF-ETL-090
 // @spec DFF-ETL-015
+// @spec DFF-ETL-050
 export async function runScrapers(options: RunScrapersOptions = {}): Promise<ScraperResult[]> {
   const scrapeKtc = options.scrapeKtc ?? scrapeKtcPlayers;
   const scrapeFantasycalc = options.scrapeFantasycalc ?? scrapeFantasyCalc;
   const scrapeRosteraudit = options.scrapeRosteraudit ?? scrapeRosterAudit;
 
-  return runTasksWithConcurrencyLimit(
+  const outcomes = await runTasksWithConcurrencyLimit(
     [
-      () => runScraper('ktc', scrapeKtc),
-      () => runScraper('fantasycalc', scrapeFantasycalc),
-      () => runScraper('rosteraudit', scrapeRosteraudit),
+      async (): Promise<ScraperRunOutcome> => {
+        try {
+          return { source: 'ktc', ok: true, result: await runScraper('ktc', scrapeKtc) };
+        } catch (error) {
+          return { source: 'ktc', ok: false, error };
+        }
+      },
+      async (): Promise<ScraperRunOutcome> => {
+        try {
+          return {
+            source: 'fantasycalc',
+            ok: true,
+            result: await runScraper('fantasycalc', scrapeFantasycalc),
+          };
+        } catch (error) {
+          return { source: 'fantasycalc', ok: false, error };
+        }
+      },
+      async (): Promise<ScraperRunOutcome> => {
+        try {
+          return {
+            source: 'rosteraudit',
+            ok: true,
+            result: await runScraper('rosteraudit', scrapeRosteraudit),
+          };
+        } catch (error) {
+          return { source: 'rosteraudit', ok: false, error };
+        }
+      },
     ],
     2,
   );
+
+  const results: ScraperResult[] = [];
+
+  for (const outcome of outcomes) {
+    if (outcome.ok) {
+      results.push(outcome.result);
+      continue;
+    }
+
+    const message = outcome.error instanceof Error ? outcome.error.message : String(outcome.error);
+    console.warn(`[ETL] WARN: ${outcome.source} scraper failed — ${message}. Excluding from this run.`);
+  }
+
+  return results;
 }
 
 // @spec DFF-HIST-002
@@ -547,8 +659,11 @@ export async function runScrapers(options: RunScrapersOptions = {}): Promise<Scr
 // @spec DFF-HIST-050
 // @spec DFF-HIST-051
 // @spec DFF-HIST-052
+// @spec DFF-ETL-051
+// @spec DFF-ETL-052
 export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
   const timestamp = options.now?.() ?? new Date().toISOString();
+  const currentYear = getCurrentCalendarYear(timestamp);
   const sqlite = createDatabase(options.databasePath);
   const runId = randomUUID();
 
@@ -559,14 +674,20 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
     const statements = createStatements(sqlite);
 
     console.log('[ETL] Starting ETL run...');
+    const scraperResults = await runScrapers(options);
+
+    if (scraperResults.length === 0) {
+      console.error('[ETL] ERROR: all scrapers failed. No data was written.');
+      return 1;
+    }
+
     statements.insertRun.run(runId, timestamp, JSON.stringify(activeEtlSources), JSON.stringify([]));
 
-    const scraperResults = await runScrapers(options);
     const resultBySource = new Map(scraperResults.map((result) => [result.source, result]));
     const pickValueNormalizationContexts = new Map<EtlSource, NormalizationContext>();
     const ktcResult = resultBySource.get('ktc');
 
-    if (!ktcResult || ktcResult.players.length === 0) {
+    if (ktcResult && ktcResult.players.length === 0) {
       console.error('[ETL] ERROR: KTC returned no supported players.');
       return 1;
     }
@@ -601,6 +722,23 @@ export async function runEtl(options: RunEtlOptions = {}): Promise<number> {
 
     statements.updateRunCompletion.run(timestamp, JSON.stringify(sourcesSucceeded), runId);
 
+    const successfulResults = scraperResults.filter((result) => sourcesSucceeded.includes(result.source));
+    if (!hasCurrentYearStartupPickValues(successfulResults, currentYear)) {
+      console.warn(
+        `[ETL] WARN: no startup pick values were written for ${currentYear}. Re-run ETL before starting a draft.`,
+      );
+    }
+
+    // @spec DFF-SLS-002
+    // @spec DFF-SLS-004
+    try {
+      const sleeperSync = options.sleeperSync ?? runSleeperSync;
+      await sleeperSync({ databasePath: options.databasePath });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[ETL] WARN: Sleeper sync step failed — ${message}. ETL run completes anyway.`);
+    }
+
     console.log('[ETL] Done.');
     return 0;
   } finally {
@@ -619,10 +757,10 @@ async function main(): Promise<void> {
     const exitCode = await runEtl();
     process.exitCode = exitCode;
   } catch (error) {
-    if (isMissingEtlRunsTableError(error)) {
+    if (isStaleSchemaError(error)) {
       // @spec DFF-ETL-002
       console.error(
-        '[ETL] ERROR: database schema is missing ETL history tables. Run `npm run db:init` to recreate the local SQLite database with the latest schema.',
+        '[ETL] ERROR: local database schema is out of date. Run `npm run db:init` to recreate the local SQLite database with the latest schema.',
       );
       process.exitCode = 1;
       return;

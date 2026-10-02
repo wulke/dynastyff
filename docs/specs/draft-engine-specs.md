@@ -45,6 +45,9 @@ When a trade is initiated, the system shall emit a `trade_offered` event contain
 **DFF-ENGINE-014** `[x]` → #26
 When a trade is resolved, the system shall emit a `trade_resolved` event containing: trade_id, status, assets_sent, and assets_received.
 
+**DFF-ENGINE-014b** `[x]` → #120
+When a trade is resolved, the system shall emit `trade_resolved.created_at` using the persisted trade timestamp so clients can render the draft log in chronological order without a re-fetch.
+
 **DFF-ENGINE-015** `[x]` → #26
 When all picks are exhausted, the system shall emit a `draft_complete` event and set `drafts.status` to `completed`.
 
@@ -85,6 +88,27 @@ When a bot pick is made, the system shall write the pick to `picks`, write owner
 **DFF-ENGINE-033** `[x]` → #28
 When the bot simulator initiates a trade during the bot chain, the system shall pause the chain, emit a `trade_offered` SSE event, and wait for POST /drafts/:id/trade-response before resuming.
 
+**DFF-ENGINE-034** `[x]` → #86
+When a POST /drafts/:id/trade-offer request is received with a valid target bot team id plus offered and requested assets, the system shall emit a `trade_offered` SSE event representing the user-initiated proposal and evaluate the offer asynchronously.
+
+**DFF-ENGINE-035** `[x]` → #86
+While a user-initiated trade offer is pending, the system shall pause the bot chain and shall not process additional bot turns until the trade resolves.
+
+**DFF-ENGINE-036** `[x]` → #86
+When the targeted bot accepts a user-initiated trade offer, the system shall transfer all accepted assets, write the trade to `trades`, emit a `trade_resolved` SSE event with status `accepted`, and resume the bot chain.
+
+**DFF-ENGINE-037** `[x]` → #86
+When the targeted bot declines a user-initiated trade offer, the system shall write the trade to `trades` with status `declined`, emit a `trade_resolved` SSE event, and resume the bot chain without transferring assets.
+
+**DFF-ENGINE-038** `[x]` → #86
+If a POST /drafts/:id/trade-offer request is received with missing fields, an invalid target team, assets not owned by the proposing / targeted teams, or a user-team target, the system shall return a 400 error and shall not emit SSE events or modify draft state.
+
+**DFF-ENGINE-038b** `[ ]` → #87
+When the bot simulator initiates a trade targeting the user during the bot chain, the system shall emit `trade_offered` with `is_bot_to_bot: false` and shall keep the bot chain paused until the offer resolves.
+
+**DFF-ENGINE-038c** `[ ]` → #87
+When a POST /drafts/:id/trade-offer request is received while a bot-to-user offer is pending for that same draft, the system shall resolve the original bot offer as `declined`, evaluate the new user counter-offer, and keep the bot chain paused until the counter resolves.
+
 ---
 
 ## Bot-to-Bot Trade Visibility
@@ -95,20 +119,20 @@ When a bot-to-bot trade is initiated, the system shall pause the bot chain, emit
 **DFF-ENGINE-039b** `[x]` → #28
 For a bot-to-bot trade paused by the draft engine, the system shall require one of two explicit user responses before resuming: acknowledge the trade so it stands, or veto it as `force_declined`.
 
-**DFF-ENGINE-039c** `[ ]` → #10
+**DFF-ENGINE-039c** `[x]` → #10
 If the user chooses "Force Decline" for a bot-to-bot trade, the system shall write the trade to `trades` with status `force_declined` and perform no asset transfer.
 
 ---
 
 ## Trade Resolution
 
-**DFF-ENGINE-040** `[ ]` → #10
+**DFF-ENGINE-040** `[x]` → #10
 When a POST /drafts/:id/trade-response is received with status `accepted`, the system shall transfer all assets as specified, write the trade to `trades`, emit a `trade_resolved` event, and resume the bot chain.
 
-**DFF-ENGINE-041** `[ ]` → #10
+**DFF-ENGINE-041** `[x]` → #10
 When a POST /drafts/:id/trade-response is received with status `declined`, the system shall write the trade to `trades` with status `declined`, emit a `trade_resolved` event, and resume the bot chain without transferring any assets.
 
-**DFF-ENGINE-042** `[ ]` → #10
+**DFF-ENGINE-042** `[x]` → #10
 When a POST /drafts/:id/trade-response is received with status `force_declined`, the system shall write the trade to `trades` with status `force_declined`, emit a `trade_resolved` event, and resume the bot chain without transferring any assets.
 
 **DFF-ENGINE-043** `[x]` → #10
@@ -118,10 +142,10 @@ If a POST /drafts/:id/trade-response is received when no trade is pending, the s
 
 ## Pick Slot Swap
 
-**DFF-ENGINE-050** `[ ]` → #10
+**DFF-ENGINE-050** `[x]` → #10
 When a trade containing pick slot assets is accepted, the system shall update `draft_order.team_id` for each swapped pick slot to reflect the new owner.
 
-**DFF-ENGINE-051** `[ ]` → #10
+**DFF-ENGINE-051** `[x]` → #10
 The system shall only allow swapping pick slots that have not yet been used (i.e. picks whose pick_number is greater than the current pick_number).
 
 ---
@@ -130,6 +154,9 @@ The system shall only allow swapping pick slots that have not yet been used (i.e
 
 **DFF-ENGINE-060** `[x]` → #29
 When a GET /drafts/:id/state request is received, the system shall return the same payload shape as the `state_sync` SSE event (see DFF-ENGINE-010), plus trades (id, round, initiating_team_id, receiving_team_id, assets_sent, assets_received, status)[].
+
+**DFF-ENGINE-060b** `[x]` → #120
+When a GET /drafts/:id/state request returns trades, each trade record shall include `created_at` so the client can hydrate the draft log with persisted trade chronology.
 
 **DFF-ENGINE-061** `[x]` → #29
 The system shall persist all state changes to SQLite immediately as they occur; no state shall exist only in memory at the conclusion of a pick or trade.

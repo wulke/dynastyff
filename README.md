@@ -1,12 +1,12 @@
 # dynastyff
 
-A local web app for practicing dynasty startup drafts. Run a full 12-team snake mock against simulated bots, with an optional Claude-backed advisor for pick guidance and strategy stress-testing.
+A local web app for practicing dynasty startup drafts. Run a full 12-team snake mock against simulated bots, with an optional Claude-backed advisor for pick guidance and strategy stress-testing. A **My Team** section connects your real Sleeper leagues (read-only) and keeps their rosters, teams, and trade offers synced into the local database as the foundation for season management.
 
 ## Prerequisites
 
 - Node.js 20+
 - Playwright (for ETL scraping)
-- `ANTHROPIC_API_KEY` (required for advisor features only; core draft runs offline)
+- `ANTHROPIC_API_KEY` (required for advisor features only — draft pick advice and My Team trade analysis; core draft and roster scoring run offline)
 
 ## Setup
 
@@ -24,8 +24,9 @@ npx playwright install
 cp .env.example .env
 # Add your ANTHROPIC_API_KEY to .env
 
-# Populate the database (scrapes KTC, FantasyCalc, and RosterAudit)
+# Populate NFL and devy player values
 npm run etl
+npm run etl:devy
 
 # Export the browser snapshot used by the static build
 npm run export:snapshot
@@ -37,139 +38,47 @@ npm run serve
 npm run dev
 ```
 
-The Vite dev server proxies `/drafts` requests to `http://localhost:3001`, so both commands should be running for draft creation, state/history reads, and the live draft SSE stream.
+The Vite dev server proxies `/drafts`, `/configs`, `/sleeper`, and `/season` requests to `http://localhost:3001`, so both commands should be running for draft creation, saved-config reads/writes, state/history reads, the live draft SSE stream, and My Team Sleeper connections/sync/roster overview.
 
 Open the Vite URL shown in the terminal to begin.
 
 ## Usage
 
-1. **Configure your league** — set team count, roster slots, scoring, and your draft position on the config screen.
-2. **Start a mock draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically.
-   - On the API-backed draft flow, bot turns continue server-side after every successful user pick with a randomized `3–5s` delay between bot selections.
-   - If your league settings place a bot on the opening slot, the server now auto-starts those opening bot turns immediately after draft creation so the board advances to your first turn without extra input.
-3. **Use the advisor (optional)** — on any pick, choose:
-   - **Advise me** — Claude recommends a pick with dynasty value reasoning.
-   - **Grill me** — share your thinking; Claude pushes back.
-   Open the advisor from the **Advisor** button in the draft board header. The slide-out panel keeps the board interactive while it loads recommendations or chat replies.
-4. **Review history** — when a draft completes, the draft board stays visible behind a completion banner. Click **View Full History** to open the history view with three tabs:
-   - **Pick Log** — chronological list of all picks with round, pick number, team, player name, position badge, and dynasty value at draft time.
-   - **Roster View** — per-team cards with players grouped by position (QB, RB, WR, TE), showing round drafted and dynasty value. Your team card is highlighted.
-   - **Trade Log** — chronological list of all trades with round, teams involved, assets exchanged, and outcome (accepted / declined / force_declined).
-   A "New Draft" button returns you to the config screen.
+1. **Resume or start** — if saved drafts exist, the Drafts List page lets you resume an in-progress draft, review a completed one, or start a new draft. Otherwise you land on the config screen.
+2. **Configure your league** — set team count, roster slots, scoring, and your draft position; optionally import the same settings from a public Sleeper league ID or URL, then adjust any field before starting.
+3. **Draft** — the app runs a full snake draft; bots pick for the other 11 teams automatically, may initiate a value-thresholded trade with another bot before selecting a pick, may proactively bring you trade offers during their turns, and will evaluate your counters before the bot chain resumes. If no available player clears a bot's configured position-value floor, it makes a one-pass attempt to move its current pick for future capital, then fills its greatest open roster need or takes noisy BPA once its roster is full. The live draft room is split into **Board**, **Players**, **Feed**, and **Roster** tabs so you can inspect the draft board, available players, the room-wide pick feed, or a single team's pick log without leaving the room.
+4. **Use the advisor (optional)** — open the **Advisor** control in the Draft Board header for a non-blocking right-side panel. Ask Claude to **Advise me** for a recommendation, or **Grill me** to pressure-test your own reasoning.
+5. **Review your results** — once the draft completes, open the **Draft Grade Summary** for your overall grade, the room leaderboard, and your final roster, then drill into **Full History** (Pick Log / Roster View / Trade Log) if you want it.
+6. **Connect a real league (My Team)** — open **My Team** in the header to connect Sleeper leagues by username or league ID. Connected leagues land on the **Roster Overview**: overall and per-position grades (QB/RB/WR/TE) with percentiles, contender/rebuilder context, and your full roster including taxi/IR. The header warns when synced data is stale; **Refresh** re-syncs from Sleeper. League tabs switch between multiple connected leagues; **Manage connections** exposes sync status and disconnect. Below the roster, **Pending Offers** lists incoming Sleeper trade proposals with a five-signal verdict badge (win / loss / neutral); **Analyze** asks Claude to explain the score (needs `ANTHROPIC_API_KEY`; without it you still get the signal scores). **Trade Recommendations** scans every other roster for exploitable imbalances — surplus positions against counterparties that need them — and groups proactive candidates by the need they address (QB/RB/WR/TE targets, pick acquisitions, value sells; top three per group, positive composites only). Each candidate's **Analyze** posts the hypothetical offer to the same Claude endpoint. **Waiver Wire** scans the league's free agents (top 50 by value) and proposes add/drop pairs — the lowest-value bench player at the position when your roster is full, no drop when it isn't — ranked by value delta plus positional need (max five per position, positive deltas only); **Analyze** gets Claude's take on a specific pair. This completes the Season Management roadmap.
+
+A GitHub Pages–hosted static build (no backend, no advisor) is also available for offline practice; see `docs/llds/static-build.md`.
 
 ## Configuration
 
 | Setting | Default | Notes |
 |---|---|---|
+| Sleeper league import | Optional | Enter a public Sleeper league ID or full league URL to pre-fill team count, scoring, TE premium, and supported roster slots. Sleeper `draft_rounds` is ignored; rounds are suggested from the roster-slot total. |
 | Teams | 12 | |
 | Draft rounds | 20 | |
-| Scoring | PPR | |
+| Scoring | PPR | Base scoring format; TE Premium is selected independently (Off, TE+, TE++, TE+++) |
 | User pick position | Configurable | Selected on the config screen |
 | Future pick years | 3 | |
 
-All settings are configurable on the league config screen before starting a draft.
+All settings are configurable on the league config screen before starting a draft. Claude-backed features — draft pick advice and My Team trade analysis — require `ANTHROPIC_API_KEY` set in `.env`; the core draft loop and all roster/trade scoring run fully offline (trade analysis degrades to signal scores when the key is absent).
 
-The advisor requires `ANTHROPIC_API_KEY` set in `.env`. The core draft loop runs fully offline.
+`config/archetypes.json` tunes bot behavior. For pick scoring, `preferredPositionValueFloors` acts as a hard pre-filter before scoring and triggers the one-pass pick-trade/need/BPA fallback only when every available player misses its position floor; `candidatePoolThreshold` keeps weighted-random sampling inside a score tier near the best candidate, and `needModifier` is a bounded bias-band half-width rather than a raw multiplier: the shipped defaults are `0.05` for `bpa` and `0.25` for the other archetypes, so need/position/youth/handcuff signals can only nudge a player's score within that band around pure dynasty value. `randomness` is applied as score-relative weight jitter, so the same setting has a visible effect whether player scores are in the hundreds or thousands.
 
-## UI Scaffold
-
-Issues `#13`, `#15`, `#17`, and `#54` establish the current frontend shell under `/src/ui`:
-
-- `Config Screen` renders on first load as a real league configuration form
-- `src/ui/context/DraftContext.tsx` owns the HTTP draft lifecycle and exposes `useDraftContext()` for all draft data and actions
-- `Start Draft` now flows through `HttpDraftContext.startDraft()`, which posts the camelCase `POST /drafts` payload and opens `GET /drafts/:id/stream`
-- Successful draft creation transitions the UI into the drafting view and shows the live `Draft Board` immediately
-- The draft board renders round headers, team rows, snake-order slots, a highlighted user row, and a pulsing skeleton for the current bot pick
-- `pick_made` SSE events update the already-rendered board in place without a re-fetch
-- The drafting view continues to show a `Connecting…` SSE badge until the first stream event arrives
-- The draft header now includes an `Advisor` toggle that opens a right-side slide-out panel without blocking the board
-- `Advise Me` posts to `/drafts/:id/advisor/advise`, shows an inline loading state, and renders Recommendation / Key Factors / Caveats sections
-- `Grill Me` posts to `/drafts/:id/advisor/chat`, preserves the current-pick conversation until reset, and clears server/client chat state on the next advisor reset
-- Failed draft creation shows an error toast and keeps the user on the config screen
-- Exhausted SSE reconnect attempts surface a global toast instructing the user to refresh
-- Failed advisor requests surface the shared `Advisor unavailable. Try again.` toast
-- `draft_complete` SSE now renders a blocking completion banner over the live draft board so the final grid remains visible in the background
-- The completion banner shows your team name and a `View Full History` CTA that opens the full History view with Pick Log, Roster View, and Trade Log tabs
-- `New Draft` returns the user to the config screen
-- Human live-browser verification of the board fill behavior remains required before merge per issue `#17`
-
-Current UI commands:
-
-| Command | Purpose |
-|---|---|
-| `npm run serve` | Start the local HTTP API server for draft creation and live `/drafts/:id/stream` SSE updates |
-| `npm run dev` | Start the Vite React frontend from `/src/ui` |
-| `npm run build` | Build the TypeScript backend output and the Vite UI bundle |
-| `npm run preview` | Preview the built Vite UI bundle locally |
-| `npm run test:ui` | Run the UI tests for config submission, draft board rendering, advisor panel flows, draft context, SSE lifecycle transitions, and draft history view |
-
-Static build commands:
-
-| Command | Purpose |
-|---|---|
-| `npm run build:static` | Build the browser-only GitHub Pages bundle into `dist/static/` |
-| `npm run export:snapshot` | Refresh `data/snapshot.json` before building or deploying the static app |
-| `npm run dev:static` | Run the static build in Vite dev mode for local testing (handles the `/dynastyff/` base path; `npx serve dist/static` will not work due to the base path) |
-
-Static draft runtime modules:
-
-- `src/draft/engine.ts` provides the pure in-memory draft state machine used by the browser-only build
-- `src/draft/bot.ts` provides pure bot-pick selection logic shared by the static draft flow
-- `src/ui-static/InMemoryDraftContext.tsx` runs the static draft lifecycle entirely in browser memory, including delayed bot turns and session-only completed-draft history
-
-Current static app behavior:
-
-- `src/ui-static/App.tsx` now supports the full `config → drafting → history` flow without an Express server running
-- Bot turns in the static build resolve locally with a visible `1.5–3s` delay before each pick
-- Completed static drafts are shown in reverse chronological order for the current browser session only
-- Refreshing the page clears static history by design; no `localStorage` or other browser storage APIs are used
-
-GitHub Actions deployment:
-
-- `.github/workflows/etl-snapshot.yml` is a manual `workflow_dispatch` workflow that runs `npm run etl`, runs `npm run export:snapshot`, and commits `data/snapshot.json` back to the triggering branch only when the snapshot changed
-- `.github/workflows/pages.yml` deploys `dist/static/` to GitHub Pages on every push to `main`, with `pages: write` on the build job for artifact upload and `pages: write` plus `id-token: write` on the deploy job
-- Before the first Pages deployment succeeds, set the repository Pages source to `GitHub Actions` in GitHub Settings
-
-Current draft API surface:
-
-| Route | Purpose |
-|---|---|
-| `POST /drafts` | Create a new draft |
-| `POST /drafts/:id/pick` | Submit the user's pick with HTTP-layer validation for turn order and player availability |
-| `POST /drafts/:id/trade-response` | Acknowledge a paused bot-chain trade (`accepted`, `declined`, or `force_declined`) so the draft can resume |
-| `POST /drafts/:id/queue` | Add a player to the user's queue or update that player's rank |
-| `DELETE /drafts/:id/queue/:player_id` | Remove one player from the user's queue |
-| `GET /drafts/:id/queue` | Read the user's queue ordered by ascending rank |
-| `GET /drafts/:id/stream` | Subscribe to live draft SSE updates |
-| `GET /drafts/:id/state` | Read the persisted draft snapshot for page refresh / hydration, including available players |
-| `GET /drafts` | List persisted drafts for history / resume flows |
+Bot decision-making (bounded need-bias pick scoring, trade evaluation, archetype tuning in `config/archetypes.json`) is documented in [`docs/llds/bot-simulator.md`](docs/llds/bot-simulator.md). Draft engine and API behavior is documented in [`docs/llds/draft-engine.md`](docs/llds/draft-engine.md). UI behavior is documented in [`docs/llds/ui.md`](docs/llds/ui.md).
 
 ## ETL
 
-`npm run etl` is a standalone script. It does not require the Express server to be running.
+`npm run etl` scrapes NFL player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables; it then syncs all connected Sleeper leagues as its final step (skipped silently when none are connected — a failed Sleeper sync never fails the ETL run). `npm run sync:sleeper` runs the Sleeper sync in isolation. `npm run etl:devy` independently scrapes KTC's devy board into `devy_players`; it does not mix college values into NFL rankings. Run both before `npm run export:snapshot` to include devy data in the static build. The global **Devy** link opens a browsable college-values view with position, draft-year, and school filters.
 
-Current ETL scope:
+Full scraper, normalization, and matching behavior is documented in [`docs/llds/etl-pipeline.md`](docs/llds/etl-pipeline.md). Sleeper sync behavior (connection flow, week-sweeping trade transactions, player matching, partial failures) is documented in [`docs/llds/sleeper-sync.md`](docs/llds/sleeper-sync.md).
 
-- Runs KTC, FantasyCalc, and RosterAudit scrapers with Playwright headless Chromium
-- Leaves DynastyDaddy disabled in the live ETL job for now due to scraper instability
-- Caps scraper concurrency at 2 in-flight scrapers
-- Filters players to `QB`, `RB`, `WR`, and `TE`
-- Returns a shared scraper contract: players `{ name, position, nflTeam, age, isRookie, rawValue, adp }` and pick values `{ year, round, pickInRound?, rawValue }`
-- Parses KTC and FantasyCalc future pick assets such as `2027 Early 1st` into ETL pick values keyed by `(year, round, pick_in_round)`, using `pick_in_round = 0` for round-level future picks
-- Creates an `etl_runs` record at ETL start and finalizes it with per-source success status on completion
-- Persists raw per-source player and pick snapshots into `player_value_snapshots` and `pick_value_snapshots`
-- Wraps each source's snapshot writes plus `players` / `pick_values` hot-path updates in a single transaction
-- Normalizes player values and pick values per source to `0-9999`
-- Matches non-KTC players onto KTC-backed canonical rows with normalized-name exact match, Dice fuzzy match, and `player-aliases.json` overrides
-- Aggregates player `dynasty_value` as the rounded mean of the non-NULL per-source normalized values
-- Aggregates each `pick_values` `(year, round, pick_in_round)` row as the rounded mean of the current run's non-NULL per-source normalized pick values
-- Treats a missing `player-aliases.json` as an empty alias list and fails fast on malformed alias JSON
-- Upserts the local SQLite `players` and `pick_values` tables from the current ETL write path
-- Exposes `npm run export:snapshot`, which writes `data/snapshot.json` from the current `players` table and round-level `pick_values` rows (`pick_in_round = 0`) for the static browser build
-- Pins each new draft to the latest completed `etl_runs` record when one exists, preserving the value context used at draft creation time
-- Reconstructs draft-scoped player `dynasty_value` reads from the pinned ETL run's `player_value_snapshots`, and falls back to `players` when a draft was created before any ETL run completed
+A weekly GitHub Actions workflow (`.github/workflows/scheduled-refresh.yml`) runs the ETL on a schedule, gates the result with `npm run etl:sanity-check` (fixed player/pick-count floors), and opens a PR with the refreshed `data/snapshot.json` for review rather than pushing to `main` directly. `workflow_dispatch` triggers an on-demand run. See [`docs/llds/etl-scheduling.md`](docs/llds/etl-scheduling.md).
 
-`player-aliases.json` lives at the project root and supports:
+`player-aliases.json` lives at the project root and lets you map scraper name variants onto a canonical player:
 
 ```json
 {
@@ -182,56 +91,56 @@ Current ETL scope:
 }
 ```
 
+## Commands
+
+| Command | Purpose |
+|---|---|
+| **Setup** | |
+| `npm run db:init` | Initialize the local SQLite schema |
+| `npm run etl` | Scrape and normalize player/pick values |
+| `npm run etl:devy` | Scrape and normalize KTC devy player values |
+| `npm run sync:sleeper` | Sync all connected Sleeper leagues without the scraper pipeline |
+| `npm run export:snapshot` | Refresh `data/snapshot.json` for the static build |
+| `npm run etl:sanity-check` | Gate a refreshed snapshot against player/pick-count floors |
+| **Dev** | |
+| `npm run serve` | Start the local HTTP API server and SSE stream |
+| `npm run dev` | Start the Vite React frontend |
+| `npm run dev:static` | Run the static (browser-only) build in Vite dev mode |
+| **Test** | |
+| `npm run test` | Run the full server + UI test suite |
+| `npm run test:server` | Run backend tests |
+| `npm run test:server:slow` | Run the isolated full-draft bot characterization test |
+| `npm run test:ui` | Run UI tests |
+| `npm run test:coverage` | Run tests with coverage thresholds |
+| **Build** | |
+| `npm run build` | Build the TypeScript backend and the Vite UI bundle |
+| `npm run build:static` | Build the browser-only GitHub Pages bundle into `dist/static/` |
+| `npm run preview` | Preview the built Vite UI bundle locally |
+| **Workflow** | |
+| `/grill-me` | Stress-test a feature idea or design before implementing |
+| `/to-issues @<spec-or-lld>` | Break a spec or LLD into independently-grabbable GitHub issues |
+| `./scripts/do-work.sh [claude\|codex\|pi]` | Spin up an agent to implement an open issue |
+
 ## Project Structure
 
 ```
 docs/
   high-level-design.md   # System overview and design decisions
-  llds/                  # Low-level designs per component
-    draft-engine.md
-    bot-simulator.md
-    advisor-agent.md
-    data-model.md
-    etl-pipeline.md
-  specs/                 # EARS specs per component
+  llds/                   # Low-level designs per component
+  specs/                  # EARS specs per component
+config/
+  archetypes.json         # Bot archetype tuning (trade thresholds, floor/tier pick filters, bounded pick-scoring bias bands)
 src/
-  db/
-    init.ts              # SQLite schema init entry point
-    schema.ts            # Shared Drizzle table definitions
-  draft/
-    bot-chain.ts         # Server-side bot chain coordinator for delayed bot turns and paused trade acknowledgements
-    bot.ts               # Pure bot pick selection for the static/browser draft flow
-    engine.ts            # Pure in-memory draft engine for the static/browser draft flow
-    invariant.ts         # Shared invariant error for pure draft modules
-    service.ts           # Transactional draft bootstrap, pick recording, and status updates
-    stream.ts            # Draft SSE snapshot queries and in-process event fanout
-  ui/
-    App.tsx              # Top-level React view-state shell
-    main.tsx             # Vite React entry point
-    index.html           # Vite HTML entry
-    styles.css           # Tailwind entry stylesheet
-    components/
-      AdvisorPanel.tsx   # Slide-out advisor UI for advise-me and grill-me modes
-      DraftBoard.tsx     # Draft board grid with snake-order slot rendering
-      DraftConfigScreen.tsx # League configuration form
-      HistoryView.tsx    # Post-draft history view with Pick Log, Roster View, and Trade Log tabs
-    context/
-      DraftContext.tsx   # Draft state management, SSE lifecycle, and HTTP draft actions
+  db/                     # SQLite schema and init
+  draft/                  # Draft engine, bot logic, and trade/transaction service
+  etl/                    # Scraper pipeline and snapshot export
+  server/                 # Express API and SSE stream
+  ui/                      # React frontend (HTTP-backed)
+  ui-static/              # Browser-only frontend for the GitHub Pages build
+tests/                    # Server and UI test suites
+.github/workflows/        # ETL snapshot refresh and Pages deploy
 ```
-
-## Development Workflow
-
-| Command | Purpose |
-|---|---|
-| `/grill-me` | Stress-test a feature idea or design — Claude interviews you until the plan is solid |
-| `/to-issues @<spec-or-lld>` | Break a spec or LLD into independently-grabbable GitHub issues |
-| `./scripts/do-work.sh` | Spin up an agent to implement an open issue (default: claude; also: `codex`, `pi`) |
-| `./scripts/do-work.sh pi` | Same, but route to the `pi` harness (deepseek via default config) |
-| `./scripts/do-work.sh codex` | Same, but route to Codex |
-| `./scripts/do-work.sh claude` | Same, but explicitly use Claude |
 
 ## Architecture
 
-See [`docs/high-level-design.md`](docs/high-level-design.md) for the full system design.
-
-Component deep-dives: [`docs/llds/`](docs/llds/)
+See [`docs/high-level-design.md`](docs/high-level-design.md) for the full system design, and [`docs/llds/`](docs/llds/) for component deep-dives.

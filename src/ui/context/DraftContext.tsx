@@ -8,6 +8,7 @@
 // @spec DFF-UI-074
 // @spec DFF-UI-082
 // @spec DFF-UI-083
+// @spec DFF-UI-121
 import {
   createContext,
   useContext,
@@ -33,6 +34,7 @@ type Team = {
 };
 
 type DraftOrderSlot = {
+  draftOrderId?: string;
   pickNumber: number;
   round: number;
   pickInRound: number;
@@ -57,7 +59,12 @@ type TeamPickAsset = {
   round: number;
 };
 
-type AvailablePlayer = {
+type StartupPickValue = {
+  globalPickNumber: number;
+  dynastyValue: number;
+};
+
+export type AvailablePlayer = {
   id: string;
   name: string;
   position: string;
@@ -68,7 +75,7 @@ type AvailablePlayer = {
   adp: number | null;
 };
 
-type TradeRecord = {
+export type TradeRecord = {
   id: string;
   round: number;
   initiatingTeamId: string;
@@ -76,6 +83,7 @@ type TradeRecord = {
   assetsSent: unknown[];
   assetsReceived: unknown[];
   status: string;
+  createdAt: string;
 };
 
 type PendingTrade = {
@@ -89,19 +97,27 @@ type PendingTrade = {
 };
 
 type SseStatus = 'connecting' | 'connected' | 'disconnected';
+export type TradeResponseStatus = 'accepted' | 'declined' | 'force_declined';
+export type SubmitTradeOfferResult = {
+  ok: boolean;
+  tradeId: string | null;
+};
 
 export type DraftState = {
   draftId: string | null;
   status: 'idle' | 'in_progress' | 'completed';
+  isHydrating: boolean;
   currentPickNumber: number | null;
   advisorResetVersion: number;
   yourTurnVersion: number;
+  rosterConfig: DraftConfig['rosterConfig'] | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
   playerCatalog: Record<string, AvailablePlayer>;
   picks: PickRecord[];
   rosterPlayers: RosterPlayerRecord[];
   teamPickAssets: TeamPickAsset[];
+  startupPickValues: StartupPickValue[];
   userQueue: QueueEntry[];
   availablePlayers: AvailablePlayer[];
   trades: TradeRecord[];
@@ -113,11 +129,13 @@ export type DraftState = {
 export type CompletedDraft = {
   draftId: string;
   completedAt: string;
+  rosterConfig: DraftConfig['rosterConfig'] | null;
   teams: Team[];
   draftOrder: DraftOrderSlot[];
   picks: PickRecord[];
   rosterPlayers: RosterPlayerRecord[];
   teamPickAssets: TeamPickAsset[];
+  startupPickValues: StartupPickValue[];
   trades: TradeRecord[];
 };
 
@@ -126,10 +144,13 @@ export interface DraftContextValue {
   draftState: DraftState | null;
   sessionHistory: CompletedDraft[];
   startDraft(config: DraftConfig): void;
-  submitPick(playerId: string): void;
+  loadDraft(draftId: string): Promise<boolean>;
+  showError(message: string): void;
+  submitPick(playerId: string): Promise<boolean>;
+  respondToTrade(status: TradeResponseStatus): Promise<boolean>;
+  submitTradeOffer(targetTeamId: string, offeredAssets: unknown[], requestedAssets: unknown[]): Promise<SubmitTradeOfferResult>;
   updateQueue(queue: QueueEntry[]): void;
   newDraft(): void;
-  showToast(message: string): void;
 }
 
 type HttpDraftContextState = {
@@ -141,6 +162,15 @@ type StateSyncPayload = {
   draft_id: string;
   status: 'in_progress' | 'completed';
   current_pick_number: number | null;
+  roster_config?: {
+    QB: number;
+    RB: number;
+    WR: number;
+    TE: number;
+    FLEX: number;
+    SF: number;
+    bench: number;
+  };
   teams: Array<{
     id: string;
     name: string;
@@ -148,6 +178,7 @@ type StateSyncPayload = {
     archetype: string | null;
   }>;
   draft_order: Array<{
+    id?: string;
     pick_number: number;
     round: number;
     pick_in_round: number;
@@ -182,6 +213,30 @@ type StateSyncPayload = {
     dynasty_value: number;
     adp: number | null;
   }>;
+  drafted_players?: Array<{
+    id: string;
+    name: string;
+    position: string;
+    nfl_team: string | null;
+    age: number | null;
+    is_rookie: boolean;
+    dynasty_value: number;
+    adp: number | null;
+  }>;
+  startup_pick_values?: Array<{
+    global_pick_number: number;
+    dynasty_value: number;
+  }>;
+  trades?: Array<{
+    id: string;
+    round: number;
+    initiating_team_id: string;
+    receiving_team_id: string;
+    assets_sent: unknown;
+    assets_received: unknown;
+    status: string;
+    created_at: string;
+  }>;
 };
 
 type PickMadePayload = {
@@ -204,6 +259,7 @@ type TradeOfferedPayload = {
   assets_sent: unknown[];
   assets_received: unknown[];
   is_bot_to_bot: boolean;
+  round?: number;
 };
 
 type TradeResolvedPayload = {
@@ -211,6 +267,7 @@ type TradeResolvedPayload = {
   status: string;
   assets_sent: unknown[];
   assets_received: unknown[];
+  created_at: string;
 };
 
 type DraftCompletePayload = {
@@ -221,14 +278,16 @@ type DraftCompletePayload = {
 type DraftAction =
   | { type: 'DRAFT_CREATED'; draftId: string }
   | { type: 'STATE_SYNC'; payload: StateSyncPayload }
+  | { type: 'QUEUE_SYNC'; queue: QueueEntry[] }
   | { type: 'PICK_MADE'; payload: PickMadePayload }
   | { type: 'YOUR_TURN'; payload: YourTurnPayload }
-  | { type: 'ADVISOR_RESET' }
   | { type: 'TRADE_OFFERED'; payload: TradeOfferedPayload }
   | { type: 'TRADE_RESOLVED'; payload: TradeResolvedPayload }
   | { type: 'DRAFT_COMPLETE'; payload: DraftCompletePayload }
+  | { type: 'ADVISOR_RESET' }
   | { type: 'SSE_STATUS'; status: SseStatus }
-  | { type: 'NEW_DRAFT' };
+  | { type: 'NEW_DRAFT' }
+  | { type: 'LOAD_DRAFT'; payload: StateSyncPayload };
 
 type ToastProps = {
   message: string;
@@ -240,8 +299,12 @@ type DraftCreateResponse = {
 
 const DRAFT_CONTEXT_ERROR = 'Draft context is unavailable.';
 const GENERIC_DRAFT_CREATE_ERROR = 'Draft creation failed. Check your config and try again.';
+const GENERIC_DRAFT_LOAD_ERROR = 'Failed to load draft state.';
 const GENERIC_PICK_ERROR = 'Pick failed — player may already be taken.';
+const GENERIC_TRADE_RESPONSE_ERROR = 'Trade response failed. Try again.';
+const GENERIC_TRADE_OFFER_ERROR = 'Trade proposal failed. Try again.';
 const GENERIC_DISCONNECT_ERROR = 'Lost connection to draft server. Refresh to reconnect.';
+const GENERIC_QUEUE_LOAD_ERROR = 'Failed to load draft queue.';
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000] as const;
 
 const DraftContext = createContext<DraftContextValue | null>(null);
@@ -251,19 +314,23 @@ class DraftCreateUiError extends Error {}
 // @spec DFF-STATIC-060
 // @spec DFF-STATIC-062
 // @spec DFF-UI-071
+// @spec DFF-UI-058f
 function createEmptyDraftState(draftId: string): DraftState {
   return {
     draftId,
     status: 'in_progress',
+    isHydrating: true,
     currentPickNumber: null,
     advisorResetVersion: 0,
     yourTurnVersion: 0,
+    rosterConfig: null,
     teams: [],
     draftOrder: [],
     playerCatalog: {},
     picks: [],
     rosterPlayers: [],
     teamPickAssets: [],
+    startupPickValues: [],
     userQueue: [],
     availablePlayers: [],
     trades: [],
@@ -273,11 +340,23 @@ function createEmptyDraftState(draftId: string): DraftState {
   };
 }
 
-// @spec DFF-STATIC-060
-// @spec DFF-STATIC-062
+// @spec DFF-UI-030
+function sortAvailablePlayers(players: AvailablePlayer[]): AvailablePlayer[] {
+  return [...players].sort((left, right) => right.dynastyValue - left.dynastyValue);
+}
+
 // @spec DFF-UI-071
-function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftState | null): DraftState {
-  const syncedPlayers = payload.available_players.map((player) => ({
+function toUiPlayer(player: {
+  id: string;
+  name: string;
+  position: string;
+  nfl_team: string | null;
+  age: number | null;
+  is_rookie: boolean;
+  dynasty_value: number;
+  adp: number | null;
+}): AvailablePlayer {
+  return {
     id: player.id,
     name: player.name,
     position: player.position,
@@ -286,19 +365,215 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
     isRookie: player.is_rookie,
     dynastyValue: player.dynasty_value,
     adp: player.adp,
-  }));
+  };
+}
+
+type TradeAssetRecord = {
+  type?: string;
+  player_id?: string;
+  playerId?: string;
+  year?: number;
+  round?: number;
+  draft_order_id?: string;
+  draftOrderId?: string;
+  pick_number?: number;
+  pickNumber?: number;
+};
+
+// @spec DFF-UI-165
+function mapTradeRecord(record: {
+  id: string;
+  round: number;
+  initiating_team_id: string;
+  receiving_team_id: string;
+  assets_sent: unknown;
+  assets_received: unknown;
+  status: string;
+  created_at: string;
+}): TradeRecord {
+  return {
+    id: record.id,
+    round: record.round,
+    initiatingTeamId: record.initiating_team_id,
+    receivingTeamId: record.receiving_team_id,
+    assetsSent: Array.isArray(record.assets_sent) ? record.assets_sent : [],
+    assetsReceived: Array.isArray(record.assets_received) ? record.assets_received : [],
+    status: record.status,
+    createdAt: record.created_at,
+  };
+}
+
+function getTradeAssetPlayerId(asset: unknown): string | null {
+  if (!asset || typeof asset !== 'object') {
+    return null;
+  }
+
+  const candidate = asset as TradeAssetRecord;
+  return candidate.player_id ?? candidate.playerId ?? null;
+}
+
+function getTradeAssetPickNumber(asset: unknown): number | null {
+  if (!asset || typeof asset !== 'object') {
+    return null;
+  }
+
+  const candidate = asset as TradeAssetRecord;
+  return candidate.pick_number ?? candidate.pickNumber ?? null;
+}
+
+function getTradeAssetDraftOrderId(asset: unknown): string | null {
+  if (!asset || typeof asset !== 'object') {
+    return null;
+  }
+
+  const candidate = asset as TradeAssetRecord;
+  return candidate.draft_order_id ?? candidate.draftOrderId ?? null;
+}
+
+function transferDraftOrderOwnership(
+  draftOrder: DraftState['draftOrder'],
+  fromTeamId: string,
+  toTeamId: string,
+  assets: unknown[],
+): DraftState['draftOrder'] {
+  return draftOrder.map((slot) => {
+    const shouldTransfer = assets.some((asset) => {
+      const candidate = asset as TradeAssetRecord;
+
+      if (candidate?.type !== 'pick_slot' || slot.teamId !== fromTeamId) {
+        return false;
+      }
+
+      const draftOrderId = getTradeAssetDraftOrderId(asset);
+      const pickNumber = getTradeAssetPickNumber(asset);
+
+      if (draftOrderId !== null && slot.draftOrderId === draftOrderId) {
+        return true;
+      }
+
+      return pickNumber !== null && slot.pickNumber === pickNumber;
+    });
+
+    return shouldTransfer ? { ...slot, teamId: toTeamId } : slot;
+  });
+}
+
+function transferRosterOwnership(
+  rosterPlayers: DraftState['rosterPlayers'],
+  fromTeamId: string,
+  toTeamId: string,
+  assets: unknown[],
+): DraftState['rosterPlayers'] {
+  return rosterPlayers.map((entry) => {
+    const shouldTransfer = assets.some((asset) => {
+      const candidate = asset as TradeAssetRecord;
+      return candidate?.type === 'player' && entry.teamId === fromTeamId && entry.playerId === getTradeAssetPlayerId(asset);
+    });
+
+    return shouldTransfer ? { ...entry, teamId: toTeamId } : entry;
+  });
+}
+
+function transferFuturePickOwnership(
+  teamPickAssets: DraftState['teamPickAssets'],
+  fromTeamId: string,
+  toTeamId: string,
+  assets: unknown[],
+): DraftState['teamPickAssets'] {
+  return teamPickAssets.map((entry) => {
+    const shouldTransfer = assets.some((asset) => {
+      if (!asset || typeof asset !== 'object') {
+        return false;
+      }
+
+      const candidate = asset as TradeAssetRecord;
+      return (
+        candidate.type === 'future_pick' &&
+        entry.teamId === fromTeamId &&
+        entry.year === candidate.year &&
+        entry.round === candidate.round
+      );
+    });
+
+    return shouldTransfer ? { ...entry, teamId: toTeamId } : entry;
+  });
+}
+
+// @spec DFF-UI-163
+// @spec DFF-UI-164
+function applyAcceptedTradeToState(
+  draftState: DraftState,
+  pendingTrade: PendingTrade,
+  resolvedAssetsSent: unknown[],
+  resolvedAssetsReceived: unknown[],
+): DraftState {
+  const afterSentDraftOrder = transferDraftOrderOwnership(
+    draftState.draftOrder,
+    pendingTrade.initiatingTeamId,
+    pendingTrade.receivingTeamId,
+    resolvedAssetsSent,
+  );
+  const afterReceivedDraftOrder = transferDraftOrderOwnership(
+    afterSentDraftOrder,
+    pendingTrade.receivingTeamId,
+    pendingTrade.initiatingTeamId,
+    resolvedAssetsReceived,
+  );
+  const afterSentRoster = transferRosterOwnership(
+    draftState.rosterPlayers,
+    pendingTrade.initiatingTeamId,
+    pendingTrade.receivingTeamId,
+    resolvedAssetsSent,
+  );
+  const afterReceivedRoster = transferRosterOwnership(
+    afterSentRoster,
+    pendingTrade.receivingTeamId,
+    pendingTrade.initiatingTeamId,
+    resolvedAssetsReceived,
+  );
+  const afterSentFuturePicks = transferFuturePickOwnership(
+    draftState.teamPickAssets,
+    pendingTrade.initiatingTeamId,
+    pendingTrade.receivingTeamId,
+    resolvedAssetsSent,
+  );
+  const afterReceivedFuturePicks = transferFuturePickOwnership(
+    afterSentFuturePicks,
+    pendingTrade.receivingTeamId,
+    pendingTrade.initiatingTeamId,
+    resolvedAssetsReceived,
+  );
+
+  return {
+    ...draftState,
+    draftOrder: afterReceivedDraftOrder,
+    rosterPlayers: afterReceivedRoster,
+    teamPickAssets: afterReceivedFuturePicks,
+  };
+}
+
+// @spec DFF-STATIC-060
+// @spec DFF-STATIC-062
+// @spec DFF-UI-071
+// @spec DFF-UI-058f
+function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftState | null): DraftState {
+  const syncedPlayers = sortAvailablePlayers(payload.available_players.map(toUiPlayer));
+  const draftedPlayers = (payload.drafted_players ?? []).map(toUiPlayer);
 
   const playerCatalog = {
     ...(existingState?.playerCatalog ?? {}),
+    ...Object.fromEntries(draftedPlayers.map((player) => [player.id, player])),
     ...Object.fromEntries(syncedPlayers.map((player) => [player.id, player])),
   };
 
   return {
     draftId: payload.draft_id,
     status: payload.status,
+    isHydrating: false,
     currentPickNumber: payload.current_pick_number,
     advisorResetVersion: existingState?.advisorResetVersion ?? 0,
     yourTurnVersion: existingState?.yourTurnVersion ?? 0,
+    rosterConfig: payload.roster_config ?? existingState?.rosterConfig ?? null,
     teams: payload.teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -306,6 +581,7 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
       archetype: team.archetype,
     })),
     draftOrder: payload.draft_order.map((slot) => ({
+      draftOrderId: slot.id,
       pickNumber: slot.pick_number,
       round: slot.round,
       pickInRound: slot.pick_in_round,
@@ -327,12 +603,16 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
       year: asset.year,
       round: asset.round,
     })),
+    startupPickValues: (payload.startup_pick_values ?? []).map((entry) => ({
+      globalPickNumber: entry.global_pick_number,
+      dynastyValue: entry.dynasty_value,
+    })),
     userQueue: payload.user_queue.map((entry) => ({
       playerId: entry.player_id,
       rank: entry.rank,
     })),
     availablePlayers: syncedPlayers,
-    trades: existingState?.trades ?? [],
+    trades: Array.isArray(payload.trades) ? payload.trades.map(mapTradeRecord) : (existingState?.trades ?? []),
     pendingTrade: existingState?.pendingTrade ?? null,
     sseStatus: existingState?.sseStatus ?? 'connected',
     completedAt: existingState?.completedAt ?? null,
@@ -341,15 +621,18 @@ function toDraftStateFromSync(payload: StateSyncPayload, existingState: DraftSta
 
 // @spec DFF-STATIC-060
 // @spec DFF-STATIC-062
+// @spec DFF-UI-058f
 function toCompletedDraft(state: DraftState, completedAt: string): CompletedDraft {
   return {
     draftId: state.draftId ?? '',
     completedAt,
+    rosterConfig: state.rosterConfig,
     teams: state.teams,
     draftOrder: state.draftOrder,
     picks: state.picks,
     rosterPlayers: state.rosterPlayers,
     teamPickAssets: state.teamPickAssets,
+    startupPickValues: state.startupPickValues,
     trades: state.trades,
   };
 }
@@ -361,6 +644,7 @@ function toCompletedDraft(state: DraftState, completedAt: string): CompletedDraf
 // @spec DFF-UI-073
 // @spec DFF-UI-074
 // @spec DFF-UI-025
+// @spec DFF-UI-124
 function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDraftContextState {
   switch (action.type) {
     case 'DRAFT_CREATED':
@@ -372,6 +656,18 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
       return {
         ...state,
         draftState: toDraftStateFromSync(action.payload, state.draftState),
+      };
+    case 'QUEUE_SYNC':
+      if (!state.draftState) {
+        return state;
+      }
+
+      return {
+        ...state,
+        draftState: {
+          ...state.draftState,
+          userQueue: [...action.queue].sort((left, right) => left.rank - right.rank),
+        },
       };
     case 'PICK_MADE': {
       if (!state.draftState) {
@@ -429,38 +725,28 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
           yourTurnVersion: state.draftState.yourTurnVersion + 1,
         },
       };
-    case 'ADVISOR_RESET':
-      if (!state.draftState) {
-        return state;
-      }
-
-      return {
-        ...state,
-        draftState: {
-          ...state.draftState,
-          advisorResetVersion: state.draftState.advisorResetVersion + 1,
-        },
-      };
     case 'TRADE_OFFERED':
       if (!state.draftState) {
         return state;
       }
 
+      const currentDraftState = state.draftState;
+
       // @spec DFF-UI-064
       // Derive round from current pick number if not provided in payload
       const tradeRound =
-        action.payload.round > 0
+        typeof action.payload.round === 'number' && action.payload.round > 0
           ? action.payload.round
-          : state.draftState.currentPickNumber
-            ? state.draftState.draftOrder.find(
-                (slot) => slot.pickNumber === state.draftState.currentPickNumber,
+          : currentDraftState.currentPickNumber
+            ? currentDraftState.draftOrder.find(
+                (slot) => slot.pickNumber === currentDraftState.currentPickNumber,
               )?.round ?? 0
             : 0;
 
       return {
         ...state,
         draftState: {
-          ...state.draftState,
+          ...currentDraftState,
           pendingTrade: {
             tradeId: action.payload.trade_id,
             initiatingTeamId: action.payload.initiating_team_id,
@@ -477,25 +763,37 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
         return state;
       }
 
+      const pendingTrade = state.draftState.pendingTrade;
+      const nextDraftState =
+        pendingTrade && action.payload.status === 'accepted'
+          ? applyAcceptedTradeToState(
+              state.draftState,
+              pendingTrade,
+              action.payload.assets_sent,
+              action.payload.assets_received,
+            )
+          : state.draftState;
+
       return {
         ...state,
         draftState: {
-          ...state.draftState,
+          ...nextDraftState,
           pendingTrade: null,
-          trades: state.draftState.pendingTrade
+          trades: pendingTrade
             ? [
-                ...state.draftState.trades,
+                ...nextDraftState.trades,
                 {
-                  id: state.draftState.pendingTrade.tradeId,
-                  round: state.draftState.pendingTrade.round,
-                  initiatingTeamId: state.draftState.pendingTrade.initiatingTeamId,
-                  receivingTeamId: state.draftState.pendingTrade.receivingTeamId,
+                  id: pendingTrade.tradeId,
+                  round: pendingTrade.round,
+                  initiatingTeamId: pendingTrade.initiatingTeamId,
+                  receivingTeamId: pendingTrade.receivingTeamId,
                   assetsSent: action.payload.assets_sent,
                   assetsReceived: action.payload.assets_received,
                   status: action.payload.status,
+                  createdAt: action.payload.created_at,
                 },
               ]
-            : state.draftState.trades,
+            : nextDraftState.trades,
         },
       };
     case 'DRAFT_COMPLETE':
@@ -516,6 +814,19 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
             ? state.sessionHistory
             : [...state.sessionHistory, toCompletedDraft(state.draftState, action.payload.completed_at)],
       };
+    // @spec DFF-UI-036
+    case 'ADVISOR_RESET':
+      if (!state.draftState) {
+        return state;
+      }
+
+      return {
+        ...state,
+        draftState: {
+          ...state.draftState,
+          advisorResetVersion: state.draftState.advisorResetVersion + 1,
+        },
+      };
     case 'SSE_STATUS':
       if (!state.draftState) {
         return state;
@@ -527,6 +838,13 @@ function draftReducer(state: HttpDraftContextState, action: DraftAction): HttpDr
           ...state.draftState,
           sseStatus: action.status,
         },
+      };
+    case 'LOAD_DRAFT':
+      // @spec DFF-UI-113
+      // @spec DFF-UI-114
+      return {
+        ...state,
+        draftState: toDraftStateFromSync(action.payload, state.draftState),
       };
     case 'NEW_DRAFT':
       return {
@@ -560,6 +878,80 @@ async function readJsonResponse(response: Response): Promise<unknown> {
   } catch {
     throw new DraftCreateUiError(GENERIC_DRAFT_CREATE_ERROR);
   }
+}
+
+// @spec DFF-UI-080
+function isStateSyncPayload(payload: unknown): payload is StateSyncPayload {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const candidate = payload as Partial<StateSyncPayload>;
+  return (
+    typeof candidate.draft_id === 'string' &&
+    Array.isArray(candidate.teams) &&
+    Array.isArray(candidate.draft_order) &&
+    Array.isArray(candidate.picks) &&
+    Array.isArray(candidate.roster_players) &&
+    Array.isArray(candidate.team_pick_assets) &&
+    Array.isArray(candidate.user_queue) &&
+    Array.isArray(candidate.available_players)
+  );
+}
+
+// @spec DFF-UI-121
+function isQueuePayload(payload: unknown): payload is QueueEntry[] {
+  if (!Array.isArray(payload)) {
+    return false;
+  }
+
+  return payload.every((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return false;
+    }
+
+    const candidate = entry as Partial<QueueEntry>;
+    return typeof candidate.playerId === 'string' && typeof candidate.rank === 'number';
+  });
+}
+
+// @spec DFF-UI-080
+async function hydrateDraftState(
+  draftId: string,
+  dispatch: Dispatch<DraftAction>,
+  actionType: 'STATE_SYNC' | 'LOAD_DRAFT',
+): Promise<StateSyncPayload> {
+  const response = await fetch(`/drafts/${draftId}/state`);
+
+  if (!response.ok) {
+    throw new Error(GENERIC_DRAFT_LOAD_ERROR);
+  }
+
+  const payload = await response.json();
+
+  if (!isStateSyncPayload(payload)) {
+    throw new Error(GENERIC_DRAFT_LOAD_ERROR);
+  }
+
+  dispatch({ type: actionType, payload });
+  return payload;
+}
+
+// @spec DFF-UI-121
+async function hydrateDraftQueue(draftId: string, dispatch: Dispatch<DraftAction>): Promise<void> {
+  const response = await fetch(`/drafts/${draftId}/queue`);
+
+  if (!response.ok) {
+    throw new Error(GENERIC_QUEUE_LOAD_ERROR);
+  }
+
+  const payload = await response.json();
+
+  if (!isQueuePayload(payload)) {
+    throw new Error(GENERIC_QUEUE_LOAD_ERROR);
+  }
+
+  dispatch({ type: 'QUEUE_SYNC', queue: payload });
 }
 
 // @spec DFF-UI-083
@@ -763,10 +1155,6 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     setToastMessage(GENERIC_DISCONNECT_ERROR);
   });
 
-  function showToast(message: string) {
-    setToastMessage(message);
-  }
-
   useEffect(() => {
     if (!toastMessage) {
       return undefined;
@@ -779,8 +1167,14 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     return () => window.clearTimeout(timeoutId);
   }, [toastMessage]);
 
+  // @spec DFF-UI-117
+  function showError(message: string) {
+    setToastMessage(message);
+  }
+
   // @spec DFF-UI-014
   // @spec DFF-UI-015
+  // @spec DFF-UI-119
   async function startDraft(config: DraftConfig) {
     if (startDraftInFlightRef.current) {
       return;
@@ -788,6 +1182,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
 
     startDraftInFlightRef.current = true;
     setToastMessage(null);
+    let draftCreated = false;
 
     try {
       const response = await fetch('/drafts', {
@@ -800,6 +1195,7 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
           teamCount: config.teamCount,
           rounds: config.rounds,
           scoringFormat: config.scoringFormat,
+          tePremiumTier: config.tePremiumTier ?? 'off',
           pickPosition: config.userPickPosition,
           futurePickYears: config.futurePickYears,
           rosterSlots: {
@@ -825,9 +1221,25 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
       }
 
       const payload = await readJsonResponse(response);
-      dispatch({ type: 'DRAFT_CREATED', draftId: parseDraftCreateResponse(payload) });
+      const draftId = parseDraftCreateResponse(payload);
+      dispatch({ type: 'DRAFT_CREATED', draftId });
+      draftCreated = true;
+      await hydrateDraftState(draftId, dispatch, 'STATE_SYNC');
+      await hydrateDraftQueue(draftId, dispatch).catch(() => {
+        setToastMessage(GENERIC_QUEUE_LOAD_ERROR);
+      });
     } catch (error) {
-      setToastMessage(error instanceof DraftCreateUiError ? error.message : GENERIC_DRAFT_CREATE_ERROR);
+      if (draftCreated && error instanceof Error && error.message === GENERIC_DRAFT_LOAD_ERROR) {
+        dispatch({ type: 'NEW_DRAFT' });
+      }
+
+      setToastMessage(
+        error instanceof DraftCreateUiError
+          ? error.message
+          : error instanceof Error && error.message === GENERIC_DRAFT_LOAD_ERROR
+            ? GENERIC_DRAFT_LOAD_ERROR
+            : GENERIC_DRAFT_CREATE_ERROR,
+      );
     } finally {
       startDraftInFlightRef.current = false;
     }
@@ -836,11 +1248,11 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
   // @spec DFF-STATIC-060
   // @spec DFF-STATIC-062
   // @spec DFF-UI-084
-  async function submitPick(playerId: string) {
+  async function submitPick(playerId: string): Promise<boolean> {
     const draftId = state.draftState?.draftId;
 
     if (!draftId) {
-      return;
+      return false;
     }
 
     try {
@@ -857,8 +1269,80 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
       }
 
       dispatch({ type: 'ADVISOR_RESET' });
+      return true;
     } catch {
       setToastMessage(GENERIC_PICK_ERROR);
+      return false;
+    }
+  }
+
+  // @spec DFF-UI-053
+  // @spec DFF-UI-054
+  // @spec DFF-UI-055
+  async function respondToTrade(status: TradeResponseStatus): Promise<boolean> {
+    const draftId = state.draftState?.draftId;
+
+    if (!draftId) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`/drafts/${draftId}/trade-response`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error(GENERIC_TRADE_RESPONSE_ERROR);
+      }
+
+      return true;
+    } catch {
+      setToastMessage(GENERIC_TRADE_RESPONSE_ERROR);
+      return false;
+    }
+  }
+
+  // @spec DFF-UI-059
+  async function submitTradeOffer(
+    targetTeamId: string,
+    offeredAssets: unknown[],
+    requestedAssets: unknown[],
+  ): Promise<SubmitTradeOfferResult> {
+    const draftId = state.draftState?.draftId;
+
+    if (!draftId) {
+      return { ok: false, tradeId: null };
+    }
+
+    try {
+      const response = await fetch(`/drafts/${draftId}/trade-offer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetTeamId,
+          offeredAssets,
+          requestedAssets,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(GENERIC_TRADE_OFFER_ERROR);
+      }
+
+      const payload = (await response.json().catch(() => null)) as { tradeId?: unknown } | null;
+      return {
+        ok: true,
+        tradeId: typeof payload?.tradeId === 'string' ? payload.tradeId : null,
+      };
+    } catch {
+      setToastMessage(GENERIC_TRADE_OFFER_ERROR);
+      return { ok: false, tradeId: null };
     }
   }
 
@@ -884,6 +1368,26 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
     }
   }
 
+  // @spec DFF-UI-113
+  // @spec DFF-UI-114
+  // @spec DFF-UI-146
+  async function loadDraft(draftId: string) {
+    try {
+      const payload = await hydrateDraftState(draftId, dispatch, 'LOAD_DRAFT');
+
+      if (payload.status === 'in_progress') {
+        await hydrateDraftQueue(draftId, dispatch).catch(() => {
+          setToastMessage(GENERIC_QUEUE_LOAD_ERROR);
+        });
+      }
+
+      return true;
+    } catch {
+      setToastMessage(GENERIC_DRAFT_LOAD_ERROR);
+      return false;
+    }
+  }
+
   // @spec DFF-STATIC-060
   // @spec DFF-STATIC-062
   function newDraft() {
@@ -898,10 +1402,14 @@ export function HttpDraftContextProvider({ children }: PropsWithChildren) {
         draftState: state.draftState,
         sessionHistory: state.sessionHistory,
         startDraft,
+        loadDraft,
+        showError,
         submitPick,
+        respondToTrade,
+        submitTradeOffer,
         updateQueue,
         newDraft,
-        showToast,
+        showToast: showError,
       }}
     >
       {toastMessage ? <DraftToast message={toastMessage} /> : null}

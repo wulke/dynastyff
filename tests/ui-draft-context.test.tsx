@@ -106,6 +106,53 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+function mockAppBootstrapAndDraftCreation(draftId: string) {
+  fetchMock.mockImplementation((input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url === '/drafts' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/configs' && method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    if (url === '/drafts' && method === 'POST') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ draftId }), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+    }
+
+    throw new Error(`Unhandled fetch in ui-draft-context test: ${method} ${url}`);
+  });
+}
+
+async function renderAppToConfig() {
+  render(<App />);
+  await screen.findByRole('heading', { name: /config screen/i });
+}
+
 function DraftContextHarness() {
   const { startDraft, submitPick, updateQueue, newDraft } = useDraftContext();
 
@@ -164,16 +211,9 @@ describe('HTTP draft context', () => {
   // @spec DFF-UI-082
   test('starts a draft through the context and shows the SSE connecting badge', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-ctx-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation('draft-ctx-123');
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -195,16 +235,9 @@ describe('HTTP draft context', () => {
   // @spec DFF-UI-074
   test('dispatches draft_complete into the app, closes the stream, and waits for the user to open history', async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-stream-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation('draft-stream-123');
 
-    render(<App />);
+    await renderAppToConfig();
 
     await user.click(screen.getByRole('button', { name: /start draft/i }));
 
@@ -249,6 +282,14 @@ describe('HTTP draft context', () => {
     expect(screen.queryByRole('heading', { name: /draft summary/i })).not.toBeInTheDocument();
     expect(stream?.closed).toBe(true);
 
+    await user.click(screen.getByRole('button', { name: /view draft grade/i }));
+
+    expect(
+      await screen.findByRole('heading', {
+        name: /draft grade summary/i,
+      }),
+    ).toBeInTheDocument();
+
     await user.click(screen.getByRole('button', { name: /view full history/i }));
 
     expect(
@@ -291,22 +332,16 @@ describe('HTTP draft context', () => {
   test(
     'reconnects with exponential backoff capped at 30 seconds and shows a disconnect toast when retries are exhausted',
     async () => {
-    vi.useFakeTimers();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-reconnect-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation('draft-reconnect-123');
 
-    render(<App />);
+    await renderAppToConfig();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
       await Promise.resolve();
     });
+
+    vi.useFakeTimers();
 
     const reconnectDelays = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000];
 
@@ -344,22 +379,16 @@ describe('HTTP draft context', () => {
   test(
     'handles malformed SSE payloads by disconnecting and reconnecting instead of throwing',
     async () => {
-    vi.useFakeTimers();
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ draftId: 'draft-malformed-123' }), {
-        status: 201,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    mockAppBootstrapAndDraftCreation('draft-malformed-123');
 
-    render(<App />);
+    await renderAppToConfig();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /start draft/i }));
       await Promise.resolve();
     });
+
+    vi.useFakeTimers();
 
     const initialStream = MockEventSource.instances[0];
     expect(initialStream).toBeDefined();
@@ -395,6 +424,36 @@ describe('HTTP draft context', () => {
           },
         }),
       )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            draft_id: 'draft-pick-123',
+            status: 'in_progress',
+            current_pick_number: 1,
+            teams: [],
+            draft_order: [],
+            picks: [],
+            roster_players: [],
+            team_pick_assets: [],
+            user_queue: [],
+            available_players: [],
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
       .mockResolvedValueOnce(new Response('taken', { status: 400 }));
 
     render(
@@ -407,7 +466,7 @@ describe('HTTP draft context', () => {
     await user.click(screen.getByRole('button', { name: /submit pick/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+      4,
       '/drafts/draft-pick-123/pick',
       expect.objectContaining({
         method: 'POST',
@@ -430,6 +489,36 @@ describe('HTTP draft context', () => {
           },
         }),
       )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            draft_id: 'draft-queue-123',
+            status: 'in_progress',
+            current_pick_number: 1,
+            teams: [],
+            draft_order: [],
+            picks: [],
+            roster_players: [],
+            team_pick_assets: [],
+            user_queue: [],
+            available_players: [],
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     render(
@@ -442,7 +531,7 @@ describe('HTTP draft context', () => {
     await user.click(screen.getByRole('button', { name: /update queue/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+      4,
       '/drafts/draft-queue-123/queue',
       expect.objectContaining({
         method: 'POST',

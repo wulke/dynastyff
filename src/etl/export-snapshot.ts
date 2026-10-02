@@ -26,14 +26,28 @@ export type SnapshotPickValue = {
   dynastyValue: number;
 };
 
+// @spec DFF-DEVY-030
+export type SnapshotDevyPlayer = {
+  id: string;
+  name: string;
+  position: 'QB' | 'RB' | 'WR' | 'TE';
+  school: string | null;
+  schoolCode: string | null;
+  draftYear: number;
+  valueSuperflex: number;
+  valueOneQb: number | null;
+};
+
 export type Snapshot = {
   exportedAt: string;
   players: SnapshotPlayer[];
   pickValues: SnapshotPickValue[];
+  devyPlayers?: SnapshotDevyPlayer[];
 };
 
 type PlayerRow = SnapshotPlayer;
 type PickValueRow = SnapshotPickValue;
+type DevyPlayerRow = SnapshotDevyPlayer;
 
 const defaultSnapshotPath = path.resolve(process.cwd(), 'data', 'snapshot.json');
 
@@ -92,12 +106,18 @@ function loadPickValues(sqlite: Database.Database): SnapshotPickValue[] {
     .all() as PickValueRow[];
 }
 
+// @spec DFF-DEVY-030
+function loadDevyPlayers(sqlite: Database.Database): SnapshotDevyPlayer[] {
+  return sqlite.prepare(`SELECT id, name, position, school, school_code AS schoolCode, draft_year AS draftYear, value_superflex AS valueSuperflex, value_one_qb AS valueOneQb FROM devy_players ORDER BY value_superflex DESC, name ASC`).all() as DevyPlayerRow[];
+}
+
 // @spec DFF-STATIC-011
 export function buildSnapshot(sqlite: Database.Database, now = () => new Date().toISOString()): Snapshot {
   return {
     exportedAt: now(),
     players: loadPlayers(sqlite),
     pickValues: loadPickValues(sqlite),
+    devyPlayers: loadDevyPlayers(sqlite),
   };
 }
 

@@ -2,6 +2,10 @@
 // @spec DFF-ENGINE-002
 // @spec DFF-ENGINE-004
 // @spec DFF-ENGINE-005
+// @spec DFF-ENGINE-040
+// @spec DFF-ENGINE-041
+// @spec DFF-ENGINE-042
+// @spec DFF-ENGINE-050
 // @spec DFF-ENGINE-011
 // @spec DFF-ENGINE-012
 // @spec DFF-ENGINE-013
@@ -24,14 +28,28 @@
 // @spec DFF-DATA-050
 // @spec DFF-DATA-052
 // @spec DFF-DATA-061
+// @spec DFF-DATA-042
+// @spec DFF-DATA-062
+// @spec DFF-DATA-071
+// @spec DFF-DATA-072
+// @spec DFF-DATA-082
 // @spec DFF-DATA-070
 // @spec DFF-DATA-092
 // @spec DFF-HIST-060
 // @spec DFF-HIST-061
+// @spec DFF-SPKV-040
+// @spec DFF-SPKV-041
+// @spec DFF-SPKV-042
+// @spec DFF-SPKV-043
+// @spec DFF-SPKV-044
 import { randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte } from 'drizzle-orm';
-import { getAvailablePlayersForDraft, type DraftAvailablePlayer } from './available-players.js';
+import {
+  getAvailablePlayersForDraft,
+  getDraftedPlayersForDraft,
+  type DraftAvailablePlayer,
+} from './available-players.js';
 import { createDrizzleDb } from '../db/client.js';
 import {
   draftOrder,
@@ -40,8 +58,10 @@ import {
   etlRuns,
   picks,
   players,
+  pickValues,
   rosterPlayers,
   scoringFormats,
+  tePremiumTiers,
   teamArchetypes,
   teamPickAssets,
   teams,
@@ -56,9 +76,11 @@ import {
   emitTradeResolvedEvent,
   emitYourTurnEvent,
 } from './stream.js';
+import { parseDraftRosterConfig, type DraftRosterConfig } from './roster-config.js';
 
 type DraftStatus = (typeof draftStatuses)[number];
 type ScoringFormat = (typeof scoringFormats)[number];
+type TePremiumTier = (typeof tePremiumTiers)[number];
 type TeamArchetype = (typeof teamArchetypes)[number];
 type TradeStatus = (typeof tradeStatuses)[number];
 
@@ -76,6 +98,7 @@ type DraftConfig = {
   teamCount: number;
   rounds: number;
   scoringFormat: ScoringFormat;
+  tePremiumTier?: TePremiumTier;
   userPickPosition: number;
   futurePickYears: number;
   futurePickRounds: number;
@@ -133,6 +156,39 @@ type DeleteDraftQueueEntryOptions = {
   playerId: string;
 };
 
+type TradeAsset = PlayerTradeAsset | PickSlotTradeAsset | FuturePickTradeAsset;
+
+type PlayerTradeAsset = {
+  type: 'player';
+  player_id: string;
+};
+
+type PickSlotTradeAsset = {
+  type: 'pick_slot';
+  draft_order_id?: string;
+  pick_number?: number;
+};
+
+type FuturePickTradeAsset = {
+  type: 'future_pick';
+  year: number;
+  round: number;
+};
+
+type ResolveTradeOptions = {
+  databasePath: string;
+  tradeId: string;
+  draftId: string;
+  pickNumber: number;
+  round: number;
+  initiatingTeamId: string;
+  receivingTeamId: string;
+  assetsSent: unknown[];
+  assetsReceived: unknown[];
+  status: TradeStatus;
+  now?: () => string;
+};
+
 const botTeamNames = [
   'Bob',
   'Carl',
@@ -179,6 +235,8 @@ export type DraftStateSnapshot = {
   draft_id: string;
   status: DraftStatus;
   current_pick_number: number | null;
+  roster_config: DraftRosterConfig;
+  te_premium_tier: TePremiumTier;
   teams: Array<{
     id: string;
     name: string;
@@ -211,6 +269,11 @@ export type DraftStateSnapshot = {
     rank: number;
   }>;
   available_players: DraftAvailablePlayer[];
+  drafted_players: DraftAvailablePlayer[];
+  startup_pick_values: Array<{
+    global_pick_number: number;
+    dynasty_value: number;
+  }>;
   trades: Array<{
     id: string;
     round: number;
@@ -219,6 +282,7 @@ export type DraftStateSnapshot = {
     assets_sent: unknown;
     assets_received: unknown;
     status: TradeStatus;
+    created_at: string;
   }>;
 };
 
@@ -227,6 +291,7 @@ export type DraftHistoryEntry = {
   created_at: string;
   completed_at: string | null;
   status: DraftStatus;
+  scoring_format: ScoringFormat;
   team_count: number;
   rounds: number;
 };
@@ -246,6 +311,30 @@ export type DeleteDraftQueueEntryResult =
   | { status: 'draft_not_found' }
   | { status: 'queue_entry_not_found' };
 
+export type FuturePickAssetValue = {
+  team_id: string;
+  year: number;
+  round: number;
+  dynasty_value: number;
+};
+
+type StartupPickValueReferenceRow = {
+  round: number;
+  pickInRound: number;
+  dynastyValue: number;
+};
+
+type StartupPickValueEntry = {
+  globalPickNumber: number;
+  dynastyValue: number;
+};
+
+export type InMemoryDraftState = {
+  startupPickValues: Map<number, number>;
+};
+
+const inMemoryDraftStates = new Map<string, InMemoryDraftState>();
+
 export function createDraft({
   databasePath,
   config,
@@ -257,20 +346,28 @@ export function createDraft({
   const createdAt = now();
   const baseYear = new Date(createdAt).getUTCFullYear();
   const draftId = idGenerator();
+  const latestCompletedRun = db
+    .select({
+      id: etlRuns.id,
+    })
+    .from(etlRuns)
+    .where(isNotNull(etlRuns.completedAt))
+    .orderBy(desc(etlRuns.startedAt))
+    .get();
+  const startupPickValues = loadStartupPickValuesForDraft({
+    db,
+    draftId,
+    currentYear: baseYear,
+    teamCount: config.teamCount,
+    rounds: config.rounds,
+    etlRunId: latestCompletedRun?.id ?? null,
+  });
+  const serializedStartupPickValues = JSON.stringify(
+    serializeStartupPickValues(startupPickValues.startupPickValues),
+  );
 
   try {
     db.transaction((tx) => {
-      // @spec DFF-HIST-060
-      // @spec DFF-HIST-061
-      const latestCompletedRun = tx
-        .select({
-          id: etlRuns.id,
-        })
-        .from(etlRuns)
-        .where(isNotNull(etlRuns.completedAt))
-        .orderBy(desc(etlRuns.startedAt))
-        .get();
-
       tx.insert(drafts)
         .values({
           id: draftId,
@@ -280,11 +377,13 @@ export function createDraft({
           teamCount: config.teamCount,
           rounds: config.rounds,
           scoringFormat: config.scoringFormat,
+          tePremiumTier: config.tePremiumTier ?? 'off',
           userPickPosition: config.userPickPosition,
           futurePickYears: config.futurePickYears,
           futurePickRounds: config.futurePickRounds,
           rosterConfig: JSON.stringify(config.rosterConfig),
           etlRunId: latestCompletedRun?.id ?? null,
+          startupPickValues: serializedStartupPickValues,
         })
         .run();
 
@@ -314,6 +413,7 @@ export function createDraft({
         .run();
     });
 
+    inMemoryDraftStates.set(draftId, startupPickValues);
     return draftId;
   } finally {
     sqlite.close();
@@ -549,10 +649,19 @@ export function getDraftState({
       .select({
         id: drafts.id,
         status: drafts.status,
+        roster_config: drafts.rosterConfig,
+        te_premium_tier: drafts.tePremiumTier,
+        startup_pick_values: drafts.startupPickValues,
       })
       .from(drafts)
       .where(eq(drafts.id, draftId))
-      .get() as { id: string; status: DraftStatus } | undefined;
+      .get() as {
+        id: string;
+        status: DraftStatus;
+        roster_config: string;
+        te_premium_tier: TePremiumTier;
+        startup_pick_values: string;
+      } | undefined;
 
     if (!draft) {
       return null;
@@ -572,6 +681,8 @@ export function getDraftState({
       draft_id: draft.id,
       status: draft.status,
       current_pick_number: currentPick?.pickNumber ?? null,
+      roster_config: parseDraftRosterConfig(draft.roster_config),
+      te_premium_tier: draft.te_premium_tier,
       teams: db
         .select({
           id: teams.id,
@@ -636,6 +747,8 @@ export function getDraftState({
         .orderBy(asc(userQueue.rank))
         .all(),
       available_players: getAvailablePlayersForDraft({ databasePath, draftId }),
+      drafted_players: getDraftedPlayersForDraft({ databasePath, draftId }),
+      startup_pick_values: parseStartupPickValuesForState(draft.startup_pick_values),
       trades: db
         .select({
           id: trades.id,
@@ -645,6 +758,7 @@ export function getDraftState({
           assets_sent: trades.assetsSent,
           assets_received: trades.assetsReceived,
           status: trades.status,
+          created_at: trades.createdAt,
         })
         .from(trades)
         .where(eq(trades.draftId, draftId))
@@ -671,12 +785,49 @@ export function getDraftHistory({ databasePath }: GetDraftHistoryOptions): Draft
         created_at: drafts.createdAt,
         completed_at: drafts.completedAt,
         status: drafts.status,
+        scoring_format: drafts.scoringFormat,
         team_count: drafts.teamCount,
         rounds: drafts.rounds,
       })
       .from(drafts)
       .orderBy(desc(drafts.createdAt), desc(drafts.id))
       .all() as DraftHistoryEntry[];
+  } finally {
+    sqlite.close();
+  }
+}
+
+// @spec DFF-DATA-072
+export function getFuturePickAssetValuesForDraft({
+  databasePath,
+  draftId,
+}: {
+  databasePath: string;
+  draftId: string;
+}): FuturePickAssetValue[] {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+
+  try {
+    return db
+      .select({
+        team_id: teamPickAssets.teamId,
+        year: teamPickAssets.year,
+        round: teamPickAssets.round,
+        dynasty_value: pickValues.dynastyValue,
+      })
+      .from(teamPickAssets)
+      .innerJoin(
+        pickValues,
+        and(
+          eq(teamPickAssets.year, pickValues.year),
+          eq(teamPickAssets.round, pickValues.round),
+          eq(pickValues.pickInRound, 0),
+        ),
+      )
+      .innerJoin(teams, eq(teamPickAssets.teamId, teams.id))
+      .where(eq(teamPickAssets.draftId, draftId))
+      .orderBy(asc(teams.pickPosition), asc(teamPickAssets.year), asc(teamPickAssets.round))
+      .all() as FuturePickAssetValue[];
   } finally {
     sqlite.close();
   }
@@ -860,6 +1011,75 @@ export function deleteDraftQueueEntry({
   }
 }
 
+// @spec DFF-ENGINE-040
+// @spec DFF-ENGINE-041
+// @spec DFF-ENGINE-042
+// @spec DFF-ENGINE-050
+// @spec DFF-DATA-042
+// @spec DFF-DATA-062
+// @spec DFF-DATA-071
+// @spec DFF-DATA-082
+export function resolveTrade({
+  databasePath,
+  tradeId,
+  draftId,
+  pickNumber,
+  round,
+  initiatingTeamId,
+  receivingTeamId,
+  assetsSent,
+  assetsReceived,
+  status,
+  now = defaultNow,
+}: ResolveTradeOptions): { createdAt: string } {
+  const { sqlite, db } = createDrizzleDb(databasePath);
+  const createdAt = now();
+  const parsedAssetsSent = assetsSent.map(parseTradeAsset);
+  const parsedAssetsReceived = assetsReceived.map(parseTradeAsset);
+
+  try {
+    db.transaction((tx) => {
+      tx.insert(trades)
+        .values({
+          id: tradeId,
+          draftId,
+          pickNumber,
+          round,
+          initiatingTeamId,
+          receivingTeamId,
+          assetsSent: JSON.stringify(assetsSent),
+          assetsReceived: JSON.stringify(assetsReceived),
+          status,
+          createdAt,
+        })
+        .run();
+
+      if (status !== 'accepted') {
+        return;
+      }
+
+      transferTradeAssets({
+        tx,
+        draftId,
+        fromTeamId: initiatingTeamId,
+        toTeamId: receivingTeamId,
+        assets: parsedAssetsSent,
+      });
+      transferTradeAssets({
+        tx,
+        draftId,
+        fromTeamId: receivingTeamId,
+        toTeamId: initiatingTeamId,
+        assets: parsedAssetsReceived,
+      });
+    });
+
+    return { createdAt };
+  } finally {
+    sqlite.close();
+  }
+}
+
 // @spec DFF-ENGINE-013
 export const emitTradeOffered = emitTradeOfferedEvent;
 // @spec DFF-ENGINE-014
@@ -975,12 +1195,311 @@ function buildTeamPickAssets(
   );
 }
 
+function transferTradeAssets({
+  tx,
+  draftId,
+  fromTeamId,
+  toTeamId,
+  assets,
+}: {
+  tx: any;
+  draftId: string;
+  fromTeamId: string;
+  toTeamId: string;
+  assets: TradeAsset[];
+}): void {
+  for (const asset of assets) {
+    if (asset.type === 'player') {
+      const moved = tx
+        .update(rosterPlayers)
+        .set({ teamId: toTeamId })
+        .where(
+          and(
+            eq(rosterPlayers.draftId, draftId),
+            eq(rosterPlayers.teamId, fromTeamId),
+            eq(rosterPlayers.playerId, asset.player_id),
+          ),
+        )
+        .run();
+
+      if (moved.changes !== 1) {
+        throw new Error(`Trade asset transfer failed for player ${asset.player_id}.`);
+      }
+
+      continue;
+    }
+
+    if (asset.type === 'future_pick') {
+      const moved = tx
+        .update(teamPickAssets)
+        .set({ teamId: toTeamId })
+        .where(
+          and(
+            eq(teamPickAssets.draftId, draftId),
+            eq(teamPickAssets.teamId, fromTeamId),
+            eq(teamPickAssets.year, asset.year),
+            eq(teamPickAssets.round, asset.round),
+          ),
+        )
+        .run();
+
+      if (moved.changes !== 1) {
+        throw new Error(`Trade asset transfer failed for future pick ${asset.year} round ${asset.round}.`);
+      }
+
+      continue;
+    }
+
+    // @spec DFF-ENGINE-051
+    const slot = resolveTradePickSlot({ tx, draftId, fromTeamId, asset });
+
+    const existingPick = tx
+      .select({ id: picks.id })
+      .from(picks)
+      .where(eq(picks.draftOrderId, slot.id))
+      .get();
+
+    if (existingPick) {
+      throw new Error(`Trade asset transfer failed for pick slot ${slot.pickNumber}: slot already used.`);
+    }
+
+    const moved = tx
+      .update(draftOrder)
+      .set({ teamId: toTeamId })
+      .where(eq(draftOrder.id, slot.id))
+      .run();
+
+    if (moved.changes !== 1) {
+      throw new Error(`Trade asset transfer failed for pick slot ${slot.pickNumber}.`);
+    }
+  }
+}
+
+function resolveTradePickSlot({
+  tx,
+  draftId,
+  fromTeamId,
+  asset,
+}: {
+  tx: any;
+  draftId: string;
+  fromTeamId: string;
+  asset: PickSlotTradeAsset;
+}): { id: string; pickNumber: number } {
+  if (asset.draft_order_id) {
+    const slot = tx
+      .select({
+        id: draftOrder.id,
+        pickNumber: draftOrder.pickNumber,
+      })
+      .from(draftOrder)
+      .where(
+        and(
+          eq(draftOrder.id, asset.draft_order_id),
+          eq(draftOrder.draftId, draftId),
+          eq(draftOrder.teamId, fromTeamId),
+        ),
+      )
+      .get();
+
+    if (slot) {
+      return slot;
+    }
+  }
+
+  if (asset.pick_number !== undefined) {
+    const slot = tx
+      .select({
+        id: draftOrder.id,
+        pickNumber: draftOrder.pickNumber,
+      })
+      .from(draftOrder)
+      .where(
+        and(
+          eq(draftOrder.draftId, draftId),
+          eq(draftOrder.teamId, fromTeamId),
+          eq(draftOrder.pickNumber, asset.pick_number),
+        ),
+      )
+      .get();
+
+    if (slot) {
+      return slot;
+    }
+  }
+
+  throw new Error('Trade asset transfer failed for pick slot.');
+}
+
+function parseTradeAsset(asset: unknown): TradeAsset {
+  if (isPlayerTradeAsset(asset)) {
+    return asset;
+  }
+
+  if (isPickSlotTradeAsset(asset)) {
+    return asset;
+  }
+
+  if (isFuturePickTradeAsset(asset)) {
+    return asset;
+  }
+
+  throw new Error('Unsupported trade asset payload.');
+}
+
+function isPlayerTradeAsset(asset: unknown): asset is PlayerTradeAsset {
+  return (
+    typeof asset === 'object' &&
+    asset !== null &&
+    (asset as { type?: unknown }).type === 'player' &&
+    typeof (asset as { player_id?: unknown }).player_id === 'string'
+  );
+}
+
+function isPickSlotTradeAsset(asset: unknown): asset is PickSlotTradeAsset {
+  return (
+    typeof asset === 'object' &&
+    asset !== null &&
+    (asset as { type?: unknown }).type === 'pick_slot' &&
+    (typeof (asset as { draft_order_id?: unknown }).draft_order_id === 'string' ||
+      typeof (asset as { pick_number?: unknown }).pick_number === 'number')
+  );
+}
+
+function isFuturePickTradeAsset(asset: unknown): asset is FuturePickTradeAsset {
+  return (
+    typeof asset === 'object' &&
+    asset !== null &&
+    (asset as { type?: unknown }).type === 'future_pick' &&
+    typeof (asset as { year?: unknown }).year === 'number' &&
+    typeof (asset as { round?: unknown }).round === 'number'
+  );
+}
+
 function selectArchetype(random: () => number): TeamArchetype {
   const lastIndex = teamArchetypes.length - 1;
   const index = Math.min(Math.floor(random() * teamArchetypes.length), lastIndex);
 
   return teamArchetypes[index];
 }
+
+// @spec DFF-SPKV-040
+// @spec DFF-SPKV-041
+// @spec DFF-SPKV-042
+// @spec DFF-SPKV-043
+// @spec DFF-SPKV-044
+function loadStartupPickValuesForDraft({
+  db,
+  draftId,
+  currentYear,
+  teamCount,
+  rounds,
+  etlRunId,
+}: {
+  db: ReturnType<typeof createDrizzleDb>['db'];
+  draftId: string;
+  currentYear: number;
+  teamCount: number;
+  rounds: number;
+  etlRunId: string | null;
+}): InMemoryDraftState {
+  const startupPickValueRows = db
+    .select({
+      round: pickValues.round,
+      pickInRound: pickValues.pickInRound,
+      dynastyValue: pickValues.dynastyValue,
+    })
+    .from(pickValues)
+    .where(and(eq(pickValues.year, currentYear), gte(pickValues.pickInRound, 1)))
+    .orderBy(asc(pickValues.round), asc(pickValues.pickInRound))
+    .all() as StartupPickValueReferenceRow[];
+
+  if (startupPickValueRows.length === 0) {
+    console.warn(
+      `[draft] WARN: no startup pick values found for pinned ETL snapshot ${etlRunId ?? 'none'} in ${currentYear}. Continuing with an empty startupPickValues map.`,
+    );
+
+    return {
+      startupPickValues: new Map<number, number>(),
+    };
+  }
+
+  return {
+    startupPickValues: deriveStartupPickValues({
+      teamCount,
+      rounds,
+      startupPickValueRows,
+    }),
+  };
+}
+
+// @spec DFF-SPKV-041
+// @spec DFF-SPKV-042
+function deriveStartupPickValues({
+  teamCount,
+  rounds,
+  startupPickValueRows,
+}: {
+  teamCount: number;
+  rounds: number;
+  startupPickValueRows: StartupPickValueReferenceRow[];
+}): Map<number, number> {
+  const referenceValues = new Map<number, number>();
+
+  for (const row of startupPickValueRows) {
+    referenceValues.set(toGlobalPickNumber(row.round, row.pickInRound, 12), row.dynastyValue);
+  }
+
+  const sortedReferenceGlobals = [...referenceValues.keys()].sort((left, right) => left - right);
+  const lastPublishedGlobalPick = sortedReferenceGlobals.at(-1);
+
+  if (lastPublishedGlobalPick === undefined) {
+    return new Map<number, number>();
+  }
+
+  const lastPublishedDynastyValue = referenceValues.get(lastPublishedGlobalPick);
+
+  if (lastPublishedDynastyValue === undefined) {
+    return new Map<number, number>();
+  }
+
+  const startupPickValues = new Map<number, number>();
+  const totalDraftSlots = teamCount * rounds;
+
+  for (let globalPickNumber = 1; globalPickNumber <= totalDraftSlots; globalPickNumber += 1) {
+    const lookupGlobalPick = Math.min(globalPickNumber, lastPublishedGlobalPick);
+    startupPickValues.set(
+      globalPickNumber,
+      referenceValues.get(lookupGlobalPick) ?? lastPublishedDynastyValue,
+    );
+  }
+
+  return startupPickValues;
+}
+
+// @spec DFF-SPKV-041
+function toGlobalPickNumber(round: number, pickInRound: number, teamCount: number): number {
+  return (round - 1) * teamCount + pickInRound;
+}
+
+// @spec DFF-SPKV-043
+function serializeStartupPickValues(startupPickValues: Map<number, number>): StartupPickValueEntry[] {
+  return [...startupPickValues.entries()]
+    .sort(([leftGlobalPick], [rightGlobalPick]) => leftGlobalPick - rightGlobalPick)
+    .map(([globalPickNumber, dynastyValue]) => ({
+      globalPickNumber,
+      dynastyValue,
+    }));
+}
+
+// @spec DFF-SPKV-043
+function parseStartupPickValuesForState(value: string): DraftStateSnapshot['startup_pick_values'] {
+  return (parseJsonColumn(value) as StartupPickValueEntry[]).map((entry) => ({
+    global_pick_number: entry.globalPickNumber,
+    dynasty_value: entry.dynastyValue,
+  }));
+}
+
 
 function parseJsonColumn(value: string): unknown {
   return JSON.parse(value);

@@ -9,7 +9,7 @@
 // @spec DFF-UI-048
 // @spec DFF-UI-081
 // @spec DFF-UI-085
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -127,23 +127,36 @@ function emitStateSync() {
 
 async function startDraft() {
   const user = userEvent.setup();
-  fetchMock.mockResolvedValueOnce(
-    new Response(JSON.stringify({ draftId: 'draft-advisor-123' }), {
-      status: 201,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }),
-  );
-
   render(<App />);
-  await user.click(screen.getByRole('button', { name: /start draft/i }));
+  await user.click(await screen.findByRole('button', { name: /start draft/i }));
+  await waitFor(() => {
+    expect(MockEventSource.instances).toHaveLength(1);
+  });
   emitStateSync();
   return user;
 }
 
 beforeEach(() => {
   fetchMock.mockReset();
+  fetchMock.mockImplementation(async (input, init) => {
+    const url = String(input);
+
+    if (url === '/drafts' && init?.method === 'POST') {
+      return new Response(JSON.stringify({ draftId: 'draft-advisor-123' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (url === '/drafts' || url === '/configs') {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(null, { status: 204 });
+  });
   MockEventSource.instances = [];
   vi.stubGlobal('fetch', fetchMock);
   vi.stubGlobal('EventSource', MockEventSource as unknown as typeof EventSource);
@@ -199,8 +212,7 @@ describe('advisor panel UI', () => {
     await user.click(screen.getByRole('button', { name: /advisor/i }));
     await user.click(screen.getByRole('button', { name: /^advise me$/i }));
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+    expect(fetchMock).toHaveBeenCalledWith(
       '/drafts/draft-advisor-123/advisor/advise',
       expect.objectContaining({
         method: 'POST',
@@ -244,24 +256,21 @@ describe('advisor panel UI', () => {
   // @spec DFF-UI-046
   // @spec DFF-UI-047
   // @spec DFF-UI-048
-  test('supports grill-me chat, shows a typing indicator, and clears conversation plus resets the server on your_turn', async () => {
+  test('supports grill-me chat, shows a typing indicator, and preserves the conversation until a pick is committed', async () => {
     const user = await startDraft();
     let resolveChat: ((value: Response) => void) | null = null;
     const chatPromise = new Promise<Response>((resolve) => {
       resolveChat = resolve;
     });
 
-    fetchMock
-      .mockImplementationOnce(async () => chatPromise)
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    fetchMock.mockImplementationOnce(async () => chatPromise);
 
     await user.click(screen.getByRole('button', { name: /advisor/i }));
     await user.click(screen.getByRole('tab', { name: /grill me/i }));
     await user.type(screen.getByPlaceholderText(/share your reasoning/i), 'I want the elite quarterback ceiling.');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+    expect(fetchMock).toHaveBeenCalledWith(
       '/drafts/draft-advisor-123/advisor/chat',
       expect.objectContaining({
         method: 'POST',
@@ -269,7 +278,7 @@ describe('advisor panel UI', () => {
       }),
     );
     expect(screen.getByText(/i want the elite quarterback ceiling\./i)).toBeInTheDocument();
-    expect(screen.getByText(/advisor is thinking/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/advisor is thinking/i)).toBeInTheDocument();
 
     resolveChat?.(
       new Response(
@@ -295,17 +304,8 @@ describe('advisor panel UI', () => {
       });
     });
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      '/drafts/draft-advisor-123/advisor/chat',
-      expect.objectContaining({
-        method: 'DELETE',
-      }),
-    );
-    expect(screen.queryByText(/i want the elite quarterback ceiling\./i)).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/what does that cost you at rb and wr over the next two turns\?/i),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(/i want the elite quarterback ceiling\./i)).toBeInTheDocument();
+    expect(screen.getByText(/what does that cost you at rb and wr over the next two turns\?/i)).toBeInTheDocument();
   });
 
   // @spec DFF-UI-085

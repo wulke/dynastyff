@@ -82,16 +82,16 @@ The system shall compute `dynasty_value` for each pick value `(year, round)` as 
 
 ## Partial Failure
 
-**DFF-ETL-050** `[ ]` → #6
+**DFF-ETL-050** `[x]` → #6
 When a scraper throws an unrecoverable error, the system shall log a warning in the format: `[ETL] WARN: {source} scraper failed — {message}. Excluding from this run.` and continue with remaining scrapers.
 
-**DFF-ETL-051** `[ ]` → #6
+**DFF-ETL-051** `[x]` → #6
 When at least one scraper succeeds, the system shall proceed with normalization, aggregation, and upsert using the available data.
 
-**DFF-ETL-052** `[ ]` → #6
+**DFF-ETL-052** `[x]` → #6
 When all scrapers fail, the system shall exit with a non-zero exit code and perform no database writes.
 
-**DFF-ETL-053** `[ ]` → #6
+**DFF-ETL-053** `[x]` → #6
 When upserting a player whose per-source column would come from a failed scraper, the system shall leave that column's existing value unchanged (not overwrite with NULL).
 
 ---
@@ -105,7 +105,7 @@ When a player already exists in `players` (matched by name and position), the sy
 When a player does not exist in `players`, the system shall insert a new row with a generated UUID and all available attributes.
 
 **DFF-ETL-062** `[x]` → #4
-The system shall set `value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, and `value_rosteraudit` to NULL for any source that did not provide a value for a given player (either due to scraper failure or failed player matching).
+When inserting a new player row, the system shall set `value_ktc`, `value_fantasycalc`, `value_dynastydaddy`, and `value_rosteraudit` to NULL for any source that did not provide a value for that player.
 
 ---
 

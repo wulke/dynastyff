@@ -109,6 +109,7 @@ type RosterPlayerRow = {
   sleeperPlayerId: string;
   playersId: string | null;
   slotType: 'starter' | 'bench' | 'ir' | 'taxi';
+  devyName: string | null;
 };
 
 type TradeOfferRow = {
@@ -237,6 +238,33 @@ function classifySlot(
   return 'bench';
 }
 
+// @spec DFF-DVC-001 — devy claims are commissioner-set nicknames (p_nick_<playerId>) on
+// taxi placeholders naming the college player each placeholder represents.
+// @spec DFF-DVC-002 — nicknames off the taxi squad (or empty) never become claims.
+function extractDevyName(
+  sleeperPlayerId: string,
+  slotType: RosterPlayerRow['slotType'],
+  roster: SleeperRosterPayload,
+): string | null {
+  if (slotType !== 'taxi') {
+    return null;
+  }
+
+  const metadata =
+    roster.metadata && typeof roster.metadata === 'object' && !Array.isArray(roster.metadata)
+      ? (roster.metadata as Record<string, unknown>)
+      : {};
+  const raw = metadata[`p_nick_${sleeperPlayerId}`];
+
+  if (typeof raw !== 'string') {
+    return null;
+  }
+
+  const trimmed = raw.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function extractTeamRow(
   roster: SleeperRosterPayload,
   usersByUserId: Map<string, { displayName: string | null; teamName: string | null }>,
@@ -346,8 +374,8 @@ function persistLeagueState(
     sqlite.prepare('DELETE FROM sleeper_rosters WHERE league_id = ?').run(connection.league_id);
 
     const insertRosterPlayer = sqlite.prepare(
-      `INSERT INTO sleeper_rosters (id, league_id, roster_id, sleeper_player_id, players_id, slot_type, synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sleeper_rosters (id, league_id, roster_id, sleeper_player_id, players_id, slot_type, devy_name, synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
     for (const row of rosterPlayers) {
@@ -358,6 +386,7 @@ function persistLeagueState(
         row.sleeperPlayerId,
         row.playersId,
         row.slotType,
+        row.devyName,
         syncedAt,
       );
     }
@@ -535,12 +564,15 @@ async function syncLeague(
     }
 
     for (const sleeperPlayerId of playerIds) {
+      const slotType = classifySlot(sleeperPlayerId, roster);
+
       rosterPlayers.push({
         id: randomUUID(),
         rosterId: team.rosterId,
         sleeperPlayerId,
         playersId: matchSleeperPlayer(sleeperPlayerId, registry, syncedAt),
-        slotType: classifySlot(sleeperPlayerId, roster),
+        slotType,
+        devyName: extractDevyName(sleeperPlayerId, slotType, roster),
       });
     }
   }

@@ -492,6 +492,9 @@ export const sleeperRosters = sqliteTable(
     sleeperPlayerId: text('sleeper_player_id').notNull(),
     playersId: text('players_id').references(() => players.id, { onDelete: 'set null' }),
     slotType: text('slot_type').notNull(),
+    // @spec DFF-DVC-001 — devy claim: college player represented by a taxi placeholder
+    // (Sleeper roster metadata p_nick_<playerId>). NULL for every non-claim row.
+    devyName: text('devy_name'),
     syncedAt: text('synced_at').notNull(),
   },
   (table) => [

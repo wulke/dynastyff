@@ -112,6 +112,7 @@ function postAddRoster(
     dynastyValue: add.dynastyValue,
     slotType: nextSlotType(roster, add.position, context.league.rosterPositions),
     matched: true,
+    devyName: null,
   });
 
   return roster;

@@ -11,6 +11,7 @@ import type { Request, RequestHandler, Response } from 'express';
 
 import { createDraftErrorHandler } from '../src/server/app.js';
 import {
+  createSeasonDevyClaimsRoute,
   createSeasonOverviewRoute,
   createSeasonTradeAnalyzeRoute,
   createSeasonTradeRecommendationsRoute,
@@ -509,6 +510,169 @@ test('POST /waivers/analyze rejects fabricated pairs', async () => {
 
       assert.equal(statusCode, expected.statusCode, `expected ${expected.statusCode} for ${JSON.stringify(expected.body)}`);
     }
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVC-005
+test('season overview carries devy claim names with board matches on taxi rows', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      { name: 'Jadan Baugh', position: 'RB', school: 'Florida Gators', draftYear: 2027, value: 6364 },
+      { name: "Trey'Dez Green", position: 'WR', school: 'LSU Tigers', draftYear: 2027, value: 4900 },
+    ],
+    devyClaims: [
+      {
+        rosterId: 1,
+        sleeperPlayerId: 's-devy-1',
+        devyName: 'Jadan Baugh',
+        placeholderName: 'Kyler Baugh',
+        placeholderPosition: 'DL',
+      },
+    ],
+  });
+
+  try {
+    const route = createSeasonOverviewRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as { roster: Array<{ name: string; slotType: string; devyName: string | null; devyMatch: Record<string, unknown> | null }> };
+
+    assert.equal(statusCode, 200);
+    const claim = body.roster.find((entry) => entry.devyName === 'Jadan Baugh');
+    assert.ok(claim, 'expected a roster entry with devyName Jadan Baugh');
+    assert.equal(claim.slotType, 'taxi');
+    assert.deepEqual(claim.devyMatch, {
+      matched: true,
+      position: 'RB',
+      school: 'Florida Gators',
+      draftYear: 2027,
+      dynastyValue: 6364,
+    });
+
+    // Non-claim rows carry no devy data.
+    const regular = body.roster.find((entry) => entry.name === 'Josh Allen');
+    assert.ok(regular);
+    assert.equal(regular.devyName, null);
+    assert.equal(regular.devyMatch, null);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVC-003
+// @spec DFF-DVC-004
+// @spec DFF-DVC-006
+// @spec DFF-DVC-007
+test('devy claims route returns league claims, unmatched claims, and the unclaimed board', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      { name: 'Jadan Baugh', position: 'RB', school: 'Florida Gators', draftYear: 2027, value: 6364 },
+      { name: 'Kewan Lacy', position: 'RB', school: 'Ole Miss Rebels', draftYear: 2027, value: 6651 },
+      { name: "Trey'Dez Green", position: 'WR', school: 'LSU Tigers', draftYear: 2027, value: 4900 },
+    ],
+    devyClaims: [
+      {
+        rosterId: 1,
+        sleeperPlayerId: 's-devy-1',
+        devyName: 'Jadan Baugh',
+        placeholderName: 'Kyler Baugh',
+        placeholderPosition: 'DL',
+      },
+      {
+        rosterId: 2,
+        sleeperPlayerId: 's-devy-2',
+        devyName: 'Tristen Keys',
+        placeholderName: 'Kavon Frazier',
+        placeholderPosition: 'DB',
+      },
+    ],
+  });
+
+  try {
+    const route = createSeasonDevyClaimsRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as {
+      season: string;
+      claims: Array<{ rosterId: number; teamName: string; devyName: string; devyMatch: Record<string, unknown> }>;
+      available: Array<{ name: string; dynastyValue: number }>;
+    };
+
+    assert.equal(statusCode, 200);
+    assert.equal(body.season, '2026');
+    assert.equal(body.claims.length, 2);
+
+    const baugh = body.claims.find((claim) => claim.devyName === 'Jadan Baugh');
+    assert.ok(baugh);
+    assert.equal(baugh.rosterId, 1);
+    assert.equal(baugh.teamName, 'Trev Squad');
+    assert.equal(baugh.devyMatch.matched, true);
+
+    // A claim absent from the devy board is returned unmatched, not dropped.
+    const keys = body.claims.find((claim) => claim.devyName === 'Tristen Keys');
+    assert.ok(keys);
+    assert.deepEqual(keys.devyMatch, {
+      matched: false,
+      position: null,
+      school: null,
+      draftYear: null,
+      dynastyValue: null,
+    });
+
+    // Claimed names are excluded from the available board; value-ranked.
+    assert.equal(body.available.some((row) => row.name === 'Jadan Baugh'), false);
+    assert.deepEqual(
+      body.available.map((row) => row.name),
+      ['Kewan Lacy', "Trey'Dez Green"],
+    );
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVC-003
+test('devy claim matching normalizes quote variants via aliases of the name itself', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      { name: "Trey'Dez Green", position: 'WR', school: 'LSU Tigers', draftYear: 2027, value: 4900 },
+    ],
+    devyClaims: [
+      {
+        rosterId: 1,
+        sleeperPlayerId: 's-devy-1',
+        devyName: 'Trey’Dez Green',
+        placeholderName: 'Mike Green',
+        placeholderPosition: 'DL',
+      },
+    ],
+  });
+
+  try {
+    const route = createSeasonDevyClaimsRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as { claims: Array<{ devyMatch: { matched: boolean; dynastyValue: number | null } }> };
+
+    assert.equal(statusCode, 200);
+    assert.equal(body.claims.length, 1);
+    assert.equal(body.claims[0].devyMatch.matched, true);
+    assert.equal(body.claims[0].devyMatch.dynastyValue, 4900);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVC-007
+test('devy claims route degrades to empty lists for a league without claims', async () => {
+  const fixture = createSeasonFixture();
+
+  try {
+    const route = createSeasonDevyClaimsRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as { claims: unknown[]; available: unknown[] };
+
+    assert.equal(statusCode, 200);
+    assert.deepEqual(body.claims, []);
+    assert.deepEqual(body.available, []);
   } finally {
     fixture.cleanup();
   }

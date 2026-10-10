@@ -597,6 +597,62 @@ test('sleeper_rosters rows are replaced, not accumulated, across syncs', async (
   }
 });
 
+// @spec DFF-DVC-001
+// @spec DFF-DVC-002
+test('taxi nicknames persist as devy claims; non-taxi and empty nicknames do not', async () => {
+  const fixture = createFixture();
+  const logger = createLogger();
+
+  {
+    const db = openDb(fixture);
+    try {
+      seedConnection(db, '111111111111111111', 'Gridiron Guild');
+    } finally {
+      db.close();
+    }
+  }
+
+  const routes = createHappyPathRoutes();
+  routes['/league/111111111111111111/rosters'] = () =>
+    rostersPayload().map((roster, index) =>
+      index === 0
+        ? {
+            ...roster,
+            players: ['p1', 'p2', 'p3', 'p4', 'p5'],
+            taxi: ['p4', 'p5'],
+            metadata: {
+              p_nick_p4: 'Jadan Baugh',
+              p_nick_p1: 'Nick Inniss', // starter — ignored
+              p_nick_p3: 'Nick Reserve', // reserve — ignored
+              p_nick_p5: '   ', // whitespace only — null
+            },
+          }
+        : roster,
+    );
+  const fetchImpl = createFakeSleeperFetch(routes);
+
+  try {
+    await runSleeperSync(syncOptions(fixture, fetchImpl, logger));
+
+    const db = openDb(fixture);
+    try {
+      const rows = db
+        .prepare('SELECT sleeper_player_id, devy_name FROM sleeper_rosters WHERE league_id = ?')
+        .all('111111111111111111') as Array<{ sleeper_player_id: string; devy_name: string | null }>;
+      const devyByPlayer = new Map(rows.map((row) => [row.sleeper_player_id, row.devy_name]));
+
+      assert.equal(devyByPlayer.get('p4'), 'Jadan Baugh');
+      assert.equal(devyByPlayer.get('p1'), null);
+      assert.equal(devyByPlayer.get('p3'), null);
+      assert.equal(devyByPlayer.get('p5'), null);
+    } finally {
+      db.close();
+    }
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 // @spec DFF-SLS-060
 // @spec DFF-SLS-062
 test('a failed league is skipped, recorded, and its existing data is left unchanged', async () => {

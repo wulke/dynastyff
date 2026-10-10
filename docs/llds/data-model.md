@@ -54,6 +54,15 @@ Populated by the ETL pipeline. Read-only during drafts.
 | adp | REAL | Dynasty startup ADP |
 | updated_at | TEXT (ISO8601) | Last ETL refresh timestamp |
 
+### `devy_player_notes`
+Per-player devy scouting notes authored in the UI (`docs/llds/devy-rankings-view.md`, specs `DFF-DVR-009/011/012/013`). Keyed by the stable `devy_players.id` (the devy ETL upserts on `(name, position)` without regenerating ids, so notes survive board refreshes). No FK: a note whose board row disappears is simply ignored by the UI. Recreated empty by `db:init` — non-destructive migration of user-authored notes is #217's scope.
+
+| Column | Type | Notes |
+|---|---|---|
+| player_id | TEXT | Primary key; `devy_players.id` |
+| note | TEXT | Note body (trimmed, non-empty) |
+| updated_at | TEXT (ISO8601) | Last write timestamp |
+
 ### `drafts`
 One row per mock draft session.
 

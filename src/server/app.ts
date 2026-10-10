@@ -58,7 +58,11 @@ import {
   TradeOfferSubmissionValidationError,
 } from './config.js';
 import { mapSleeperLeagueSettings } from './sleeper-config-import.js';
-import { createSeasonDevyClaimsRoute, createSeasonOverviewRoute, createSeasonTradeAnalyzeRoute, createSeasonTradeRecommendationsRoute, createSeasonTradesPendingRoute, createSeasonWaiverAnalyzeRoute, createSeasonWaiversRoute } from './season-routes.js';
+import {
+  createDevyNotePutRoute,
+  createDevyNotesListRoute,
+} from './devy-notes.js';
+import { createSeasonDevyClaimsRoute, createSeasonDevyOwnershipRoute, createSeasonOverviewRoute, createSeasonTradeAnalyzeRoute, createSeasonTradeRecommendationsRoute, createSeasonTradesPendingRoute, createSeasonWaiverAnalyzeRoute, createSeasonWaiversRoute } from './season-routes.js';
 import {
   createSleeperConnectionsCreateRoute,
   createSleeperConnectionsDeleteRoute,
@@ -133,6 +137,8 @@ export function createDraftApp({
   app.get('/season/:league_id/overview', createSeasonOverviewRoute({ databasePath }));
   // @spec DFF-DVC-006
   app.get('/season/:league_id/devy/claims', createSeasonDevyClaimsRoute({ databasePath }));
+  // @spec DFF-DVR-001
+  app.get('/season/:league_id/devy/ownership', createSeasonDevyOwnershipRoute({ databasePath }));
   app.get('/season/:league_id/trades/pending', createSeasonTradesPendingRoute({ databasePath }));
   app.get('/season/:league_id/trades/recommendations', createSeasonTradeRecommendationsRoute({ databasePath }));
   app.get('/season/:league_id/waivers', createSeasonWaiversRoute({ databasePath }));
@@ -141,6 +147,10 @@ export function createDraftApp({
   app.get('/league-imports/sleeper/:leagueId', createSleeperLeagueImportRoute());
   app.get('/configs', createLeagueConfigsListRoute({ databasePath }));
   app.get('/devy-players', createDevyPlayersListRoute({ databasePath }));
+  // @spec DFF-DVR-012
+  app.get('/devy-notes', createDevyNotesListRoute({ databasePath }));
+  // @spec DFF-DVR-009
+  app.put('/devy-notes/:player_id', createDevyNotePutRoute({ databasePath }));
   app.post('/configs', createLeagueConfigsCreateRoute({ databasePath }));
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath, botChain }));

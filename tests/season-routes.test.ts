@@ -15,6 +15,7 @@ import type { Request, RequestHandler, Response } from 'express';
 import { createDraftErrorHandler } from '../src/server/app.js';
 import {
   createSeasonDevyClaimsRoute,
+  createSeasonDevyOwnershipRoute,
   createSeasonOverviewRoute,
   createSeasonTradeAnalyzeRoute,
   createSeasonTradeRecommendationsRoute,
@@ -805,6 +806,100 @@ test('two teams claiming the same devy name both surface and the name leaves the
       [1, 2],
     );
     assert.equal(body.available.length, 0);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVR-001
+// @spec DFF-DVR-003
+test('devy ownership route maps claimed board rows to team names by player id', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      { name: 'Jadan Baugh', position: 'RB', school: 'Florida Gators', draftYear: 2027, value: 6364 },
+      { name: 'Kewan Lacy', position: 'RB', school: 'Ole Miss Rebels', draftYear: 2027, value: 6651 },
+    ],
+    devyClaims: [
+      {
+        rosterId: 1,
+        sleeperPlayerId: 's-devy-1',
+        devyName: 'Jadan Baugh',
+        placeholderName: 'Kyler Baugh',
+        placeholderPosition: 'DL',
+      },
+      {
+        rosterId: 2,
+        sleeperPlayerId: 's-devy-2',
+        devyName: 'Tristen Keys',
+        placeholderName: 'Kavon Frazier',
+        placeholderPosition: 'DB',
+      },
+    ],
+  });
+
+  try {
+    const route = createSeasonDevyOwnershipRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as { ownership: Record<string, string> };
+
+    assert.equal(statusCode, 200);
+    // Only board-matched claims appear; 'Tristen Keys' is not on the board.
+    assert.deepEqual(body.ownership, { 'devy-1': 'Trev Squad' });
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVR-001
+// @spec DFF-DVR-002
+test('devy ownership route resolves quote variants and breaks team ties deterministically', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      { name: "Trey'Dez Green", position: 'WR', school: 'LSU Tigers', draftYear: 2027, value: 4900 },
+    ],
+    devyClaims: [
+      {
+        rosterId: 2,
+        sleeperPlayerId: 's-devy-1',
+        devyName: 'Trey’Dez Green', // curly-quote variant of the board name
+        placeholderName: 'Mike Green',
+        placeholderPosition: 'DL',
+      },
+      {
+        rosterId: 1,
+        sleeperPlayerId: 's-devy-2',
+        devyName: 'TreyDez Green', // stripped-quote variant, claimed by two teams
+        placeholderName: 'Ace Green',
+        placeholderPosition: 'DL',
+      },
+    ],
+  });
+
+  try {
+    const route = createSeasonDevyOwnershipRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as { ownership: Record<string, string> };
+
+    assert.equal(statusCode, 200);
+    // 'Rival Squad' < 'Trev Squad' lexicographically.
+    assert.deepEqual(body.ownership, { 'devy-1': 'Rival Squad' });
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVR-003
+test('devy ownership route returns an empty mapping for a league without claims and 404 for unknown leagues', async () => {
+  const fixture = createSeasonFixture();
+
+  try {
+    const route = createSeasonDevyOwnershipRoute({ databasePath: fixture.dbPath });
+    const empty = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    assert.equal(empty.statusCode, 200);
+    assert.deepEqual((empty.json as { ownership: Record<string, string> }).ownership, {});
+
+    const unknown = await invokeRoute({ route, params: { league_id: 'other' } });
+    assert.equal(unknown.statusCode, 404);
   } finally {
     fixture.cleanup();
   }

@@ -77,6 +77,7 @@ test('db:init creates all tables defined by the data-model LLD', () => {
       .map((row) => (row as { name: string }).name);
 
     assert.deepEqual(tableNames, [
+      'devy_player_notes',
       'devy_players',
       'draft_order',
       'drafts',

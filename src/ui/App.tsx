@@ -40,7 +40,7 @@
 // @spec DFF-UI-186
 // @spec DFF-UI-191
 // @spec DFF-UI-192
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useState, useEffect, useRef, type ReactNode } from 'react';
 import {
   HttpDraftContextProvider,
   useDraftContext,
@@ -540,6 +540,10 @@ export function DraftApp() {
   // @spec DFF-DEVY-041
   const [showDevy, setShowDevy] = useState(false);
   const [httpDevyPlayers, setHttpDevyPlayers] = useState<DevyPlayer[]>([]);
+  // @spec DFF-DVR-001 — devy player id -> owning Sleeper team name; null = unknown.
+  const [devyOwnership, setDevOwnership] = useState<Record<string, string> | null>(null);
+  // @spec DFF-DVR-012 — devy player id -> saved note text.
+  const [devyNotes, setDevyNotes] = useState<Record<string, string>>({});
   // @spec DFF-SM-001
   const [showMyTeam, setShowMyTeam] = useState(false);
   const showErrorRef = useRef(showError);
@@ -562,6 +566,75 @@ export function DraftApp() {
       if (Array.isArray(rows)) setHttpDevyPlayers(rows as DevyPlayer[]);
     }).catch(() => setHttpDevyPlayers([]));
   }, [showDevy, snapshot]);
+
+  // @spec DFF-DVR-012 — notes load whenever the devy view opens.
+  useEffect(() => {
+    if (!showDevy) return;
+    void fetch('/devy-notes').then((response) => response.ok ? response.json() : { notes: {} }).then((payload: { notes?: Record<string, { note: string }> }) => {
+      const notes: Record<string, string> = {};
+      for (const [playerId, entry] of Object.entries(payload.notes ?? {})) {
+        notes[playerId] = entry.note;
+      }
+      setDevyNotes(notes);
+    }).catch(() => setDevyNotes({}));
+  }, [showDevy]);
+
+  // @spec DFF-DVR-001 — ownership resolves against the first connected Sleeper league
+  // (the user's single devy league). Any failure degrades to unknown, never a false "Unowned".
+  useEffect(() => {
+    if (!showDevy) return;
+
+    void (async () => {
+      try {
+        const connectionsResponse = await fetch('/sleeper/connections');
+        const connections = connectionsResponse.ok ? await connectionsResponse.json() as Array<{ leagueId?: string }> : [];
+
+        if (!Array.isArray(connections) || connections.length === 0 || !connections[0].leagueId) {
+          setDevOwnership(null);
+          return;
+        }
+
+        const ownershipResponse = await fetch(`/season/${encodeURIComponent(connections[0].leagueId)}/devy/ownership`);
+
+        if (!ownershipResponse.ok) {
+          setDevOwnership(null);
+          return;
+        }
+
+        const payload = await ownershipResponse.json() as { ownership?: Record<string, string> };
+        setDevOwnership(payload.ownership ?? null);
+      } catch {
+        setDevOwnership(null);
+      }
+    })();
+  }, [showDevy]);
+
+  // @spec DFF-DVR-009
+  // @spec DFF-DVR-011
+  const handleSaveDevyNote = useCallback(async (playerId: string, note: string) => {
+    const response = await fetch(`/devy-notes/${encodeURIComponent(playerId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Saving the note failed.');
+    }
+
+    const payload = await response.json() as { note: string };
+    setDevyNotes((current) => {
+      const next = { ...current };
+
+      if (payload.note === '') {
+        delete next[playerId];
+      } else {
+        next[playerId] = payload.note;
+      }
+
+      return next;
+    });
+  }, []);
 
   // @spec DFF-UI-182
   // @spec DFF-UI-185
@@ -926,7 +999,9 @@ export function DraftApp() {
         {/* @spec DFF-SM-001 */}
         {showMyTeam ? <MyTeamSection /> : null}
         {/* @spec DFF-UI-116 */}
-        {!showMyTeam && showDevy ? <DevyView players={snapshot?.devyPlayers ?? httpDevyPlayers} /> : null}
+        {/* @spec DFF-DVR-004 */}
+        {/* @spec DFF-DVR-008 */}
+        {!showMyTeam && showDevy ? <DevyView players={snapshot?.devyPlayers ?? httpDevyPlayers} ownership={devyOwnership} notes={devyNotes} onSaveNote={handleSaveDevyNote} /> : null}
         {!showMyTeam && !showDevy && showDraftsListLoading ? <DraftsListLoadingState /> : null}
 
         {/* @spec DFF-UI-110 */}

@@ -8,7 +8,7 @@ import Database from 'better-sqlite3';
 import { createDatabase } from '../src/db/client.js';
 import { migrateDatabase } from '../src/db/migrate.js';
 
-function createPreDevyFixture(): { tempDir: string; dbPath: string } {
+function createPreDevyFixture(options?: { includesDevyName?: boolean }): { tempDir: string; dbPath: string } {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-db-migrate-'));
   const dbPath = path.join(tempDir, 'legacy.sqlite');
   const sqlite = new Database(dbPath);
@@ -21,7 +21,7 @@ function createPreDevyFixture(): { tempDir: string; dbPath: string } {
         roster_id INTEGER NOT NULL,
         sleeper_player_id TEXT NOT NULL,
         players_id TEXT,
-        slot_type TEXT NOT NULL,
+        slot_type TEXT NOT NULL,${options?.includesDevyName ? '\n        devy_name TEXT,' : ''}
         synced_at TEXT NOT NULL
       );
       CREATE TABLE pick_values (
@@ -91,6 +91,30 @@ test('db:migrate upgrades a pre-devy database without losing Sleeper, pick-value
     assert.doesNotThrow(() => migrateDatabase(dbPath));
     const currentDatabase = createDatabase(dbPath);
     currentDatabase.close();
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-097
+// @spec DFF-DATA-098
+test('db:migrate baselines an already-pushed devy schema without replaying the devy migration', () => {
+  const { tempDir, dbPath } = createPreDevyFixture({ includesDevyName: true });
+
+  try {
+    assert.doesNotThrow(() => migrateDatabase(dbPath));
+
+    const currentDatabase = createDatabase(dbPath);
+    try {
+      assert.deepEqual(
+        currentDatabase.prepare('SELECT sleeper_player_id, devy_name FROM sleeper_rosters').all(),
+        [{ sleeper_player_id: 'sleeper-1', devy_name: null }],
+      );
+    } finally {
+      currentDatabase.close();
+    }
+
+    assert.doesNotThrow(() => migrateDatabase(dbPath));
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

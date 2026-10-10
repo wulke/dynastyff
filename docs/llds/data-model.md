@@ -28,6 +28,7 @@ All database entry points validate that the recorded schema version is current b
 - Existing database with Sleeper rows, pick values, and ETL history -> migration adds `devy_name` and preserves every existing row.
 - Existing database already at the target version -> `db:migrate` is idempotent and changes no application data.
 - Database opened before its pending migration runs -> client fails before application SQL with `Run npm run db:migrate`.
+- Partial or pre-Sleeper database fixture with neither a migration ledger nor `sleeper_rosters` -> the schema guard defers to the owning command so it can report its specific initialization or ETL guidance; supported legacy upgrades always include `sleeper_rosters`.
 - Fresh database -> `db:init` produces the current schema and migration ledger, so normal startup succeeds immediately.
 
 ## Schema

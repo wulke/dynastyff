@@ -12,9 +12,11 @@ import { resolveDatabasePath } from './path.js';
 
 const migrationsTable = '__drizzle_migrations';
 const legacySchemaTimestamp = 1779470704872;
+const legacyDevySchemaTimestamp = 1791660080858;
 const databaseDirectory = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(databaseDirectory, '../../drizzle');
 const migrationJournalPath = path.join(migrationsFolder, 'meta', '_journal.json');
+let cachedCurrentMigrationTimestamp: number | undefined;
 
 type MigrationJournal = {
   entries: Array<{ when: number }>;
@@ -36,6 +38,13 @@ function tableExists(sqlite: Database.Database, tableName: string): boolean {
 }
 
 // @spec DFF-DATA-097
+function columnExists(sqlite: Database.Database, tableName: string, columnName: string): boolean {
+  return (sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>).some(
+    (column) => column.name === columnName,
+  );
+}
+
+// @spec DFF-DATA-097
 function createMigrationLedger(sqlite: Database.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS ${migrationsTable} (
@@ -48,13 +57,18 @@ function createMigrationLedger(sqlite: Database.Database): void {
 
 // @spec DFF-DATA-097
 function currentMigrationTimestamp(): number {
+  if (cachedCurrentMigrationTimestamp !== undefined) {
+    return cachedCurrentMigrationTimestamp;
+  }
+
   const journal = JSON.parse(fs.readFileSync(migrationJournalPath, 'utf8')) as MigrationJournal;
   const latestTimestamp = Math.max(...journal.entries.map((entry) => entry.when));
   if (!Number.isFinite(latestTimestamp)) {
     throw new DatabaseSchemaError('No database migrations are configured.');
   }
 
-  return latestTimestamp;
+  cachedCurrentMigrationTimestamp = latestTimestamp;
+  return cachedCurrentMigrationTimestamp;
 }
 
 // @spec DFF-DATA-097
@@ -70,9 +84,9 @@ function latestMigrationTimestamp(sqlite: Database.Database): number | undefined
 }
 
 // @spec DFF-DATA-097
-function baselineLegacyDatabase(sqlite: Database.Database): void {
+function baselineLegacyDatabase(sqlite: Database.Database): boolean {
   if (latestMigrationTimestamp(sqlite) !== undefined) {
-    return;
+    return false;
   }
 
   if (!tableExists(sqlite, 'sleeper_rosters')) {
@@ -82,9 +96,13 @@ function baselineLegacyDatabase(sqlite: Database.Database): void {
   }
 
   createMigrationLedger(sqlite);
+  const baselineTimestamp = columnExists(sqlite, 'sleeper_rosters', 'devy_name')
+    ? legacyDevySchemaTimestamp
+    : legacySchemaTimestamp;
   sqlite
     .prepare(`INSERT INTO ${migrationsTable} (hash, created_at) VALUES (?, ?)`)
-    .run('legacy-schema-baseline', legacySchemaTimestamp);
+    .run('legacy-schema-baseline', baselineTimestamp);
+  return true;
 }
 
 // @spec DFF-DATA-100
@@ -113,8 +131,15 @@ export function migrateDatabase(databasePath: string): string {
   sqlite.pragma('foreign_keys = ON');
 
   try {
-    baselineLegacyDatabase(sqlite);
-    migrate(drizzle(sqlite), { migrationsFolder });
+    const insertedLegacyBaseline = baselineLegacyDatabase(sqlite);
+    try {
+      migrate(drizzle(sqlite), { migrationsFolder });
+    } catch (error) {
+      if (insertedLegacyBaseline) {
+        sqlite.prepare(`DELETE FROM ${migrationsTable} WHERE hash = ?`).run('legacy-schema-baseline');
+      }
+      throw error;
+    }
   } finally {
     sqlite.close();
   }
@@ -125,6 +150,7 @@ export function migrateDatabase(databasePath: string): string {
 // @spec DFF-DATA-099
 export function assertDatabaseSchemaCurrent(sqlite: Database.Database): void {
   const latestAppliedMigration = latestMigrationTimestamp(sqlite);
+  // Partial-schema fixtures retain their component-specific diagnostics; a real legacy database has sleeper_rosters.
   if (latestAppliedMigration === undefined && !tableExists(sqlite, 'sleeper_rosters')) {
     return;
   }

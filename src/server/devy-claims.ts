@@ -31,6 +31,7 @@ export type DevyAvailableView = {
 };
 
 type DevyBoardRow = {
+  id: string;
   name: string;
   position: string;
   school: string | null;
@@ -46,6 +47,8 @@ const noMatch: DevyMatch = {
   dynastyValue: null,
 };
 
+export type DevyOwnershipClaim = { devyName: string; teamName: string };
+
 export type DevyBoardMatcher = {
   /** Resolve a devy claim name against the local KTC devy board. */
   match: (devyName: string) => DevyMatch;
@@ -53,6 +56,10 @@ export type DevyBoardMatcher = {
   availableExcluding: (claimedNames: ReadonlySet<string>) => DevyAvailableView[];
   /** Alias-resolved normalized names for the given devy claim names, for exclusion checks. */
   claimedNorms: (devyNames: Iterable<string>) => Set<string>;
+  /** devy_players.id -> owning team name for every board row claimed in the league.
+   * Claims matching no board row are skipped; duplicate claims resolve to the
+   * lexicographically first team name. */
+  resolveOwnership: (claims: Iterable<DevyOwnershipClaim>) => Record<string, string>;
 };
 
 // Devy claim names come from free-text commissioner nicknames, so normalize beyond the
@@ -92,7 +99,7 @@ export function createDevyBoardMatcher(
 
   try {
     const board = sqlite
-      .prepare('SELECT name, position, school, draft_year, value_superflex FROM devy_players')
+      .prepare('SELECT id, name, position, school, draft_year, value_superflex FROM devy_players')
       .all() as DevyBoardRow[];
 
     // Key the board through resolveNorm so a board row stored under a non-canonical
@@ -117,6 +124,26 @@ export function createDevyBoardMatcher(
 
       claimedNorms: (devyNames: Iterable<string>) =>
         new Set(Array.from(devyNames, resolveNorm)),
+
+      resolveOwnership: (claims: Iterable<DevyOwnershipClaim>) => {
+        const ownership: Record<string, string> = {};
+
+        for (const claim of claims) {
+          const row = boardByNorm.get(resolveNorm(claim.devyName));
+
+          if (!row) {
+            continue;
+          }
+
+          const current = ownership[row.id];
+
+          if (current === undefined || claim.teamName.localeCompare(current) < 0) {
+            ownership[row.id] = claim.teamName;
+          }
+        }
+
+        return ownership;
+      },
 
       availableExcluding: (claimedNames: ReadonlySet<string>) =>
         board

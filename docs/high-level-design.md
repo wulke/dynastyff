@@ -257,3 +257,20 @@ Make devy claims — college players stashed on Sleeper taxi squads via commissi
 Sleeper sync (`GET /league/{id}/rosters`) → `sleeper_rosters.devy_name` (taxi rows only) → Season API: roster overview entries carry `devyName` plus devy-board match metadata (position, school, draft year, value); new `GET /season/:league_id/devy/claims` returns the league-wide claims board (claims grouped by team + unclaimed board ranked by value). UI: Roster Overview renders devy claim names as the primary label on taxi rows; a Devy Claims panel in the My Team section shows every team's claims and the available board for upcoming draft classes.
 
 Leagues without taxi nicknames have no `devy_name` values; the panel hides itself and roster rows are unchanged.
+
+# Devy Rankings View Decision
+
+## Goal
+
+Upgrade the existing global Devy view into a dedicated devy rankings page (modeled on KTC's devy-rankings board) that shows, for every devy player, which Sleeper team owns them — or that they are unowned — and lets the user keep per-player scouting notes.
+
+## Strategy
+
+- **Options (ownership indicator):** (a) client-side join of the devy board against the claims endpoint by raw name; (b) a server-resolved ownership endpoint keyed by devy player id; (c) fold ownership into the existing claims response.
+- **Decision:** (b). Devy claim names are free-text commissioner nicknames; normalizing them (quote stripping, alias families) already lives in the server-side board matcher, so the join must happen server-side. `GET /season/:league_id/devy/ownership` returns `Record<devyPlayerId, teamName>` resolved with the same matcher the claims route uses. The UI selects the first connected Sleeper league — the user runs exactly one devy league, so no league picker is added.
+- **Options (notes storage):** (a) local SQLite table; (b) a JSON file next to `player-aliases.json`.
+- **Decision:** (a). Notes are UI-authored state, and the server already owns all SQLite persistence; keying rows by `devy_players.id` is stable because the devy ETL upserts on `(name, position)` without reinserting ids. Notes are global (not league-scoped): a scouting note is knowledge about a player, not roster state. The table ships as additive migration `drizzle/0003_wise_famine.sql`, so existing local DBs upgrade losslessly via `npm run db:migrate` (the non-destructive path introduced with the devy-claims `devy_name` migration).
+
+## Architecture
+
+DevyView (existing global view) gains an **Owner** column (team-name badge, muted "Unowned", or "—" when no league is connected) and a per-row **notes** icon that opens a notes modal (view/edit/delete, per `DESIGN.md` modal treatment). `App.tsx` fetches ownership (connections → first league → season ownership route) and notes, and passes both plus a save handler into `DevyView`, keeping the view presentational. New server routes: `GET /season/:league_id/devy/ownership` (season-routes) and `GET /devy-notes` + `PUT /devy-notes/:player_id` (new devy-notes module); new `devy_player_notes` table. The static build does not mount DevyView and is unchanged.

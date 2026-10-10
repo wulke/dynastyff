@@ -173,6 +173,43 @@ export function createSeasonDevyClaimsRoute({ databasePath, aliasesPath }: Seaso
   };
 }
 
+// @spec DFF-DVR-001 — devy player id -> owning team name for the rankings view.
+// @spec DFF-DVR-003 — unknown/never-synced leagues 404 via the shared context handler;
+// synced leagues without claims return an empty mapping.
+export function createSeasonDevyOwnershipRoute({ databasePath, aliasesPath }: SeasonRouteOptions = {}): RequestHandler {
+  return (request, response) => {
+    const leagueId = leagueIdFrom(request);
+
+    if (!leagueId) {
+      response.status(400).json({ error: 'A league ID is required.' });
+      return;
+    }
+
+    try {
+      const context = assembleLeagueContext(databasePath, leagueId);
+      const matcher = devyMatcherFor(databasePath, aliasesPath);
+
+      const claims: { devyName: string; teamName: string }[] = [];
+
+      for (const team of context.allRosters) {
+        const teamName = team.teamName ?? team.displayName;
+
+        for (const entry of team.players) {
+          if (entry.slotType === 'taxi' && entry.devyName !== null) {
+            claims.push({ devyName: entry.devyName, teamName });
+          }
+        }
+      }
+
+      response.status(200).json({ ownership: matcher.resolveOwnership(claims) });
+    } catch (error) {
+      if (!handleContextError(error, response)) {
+        throw error;
+      }
+    }
+  };
+}
+
 function numericRecord(raw: unknown): Record<string, number> | null {
   if (raw === undefined || raw === null) {
     return {};

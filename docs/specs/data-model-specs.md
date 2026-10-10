@@ -181,6 +181,9 @@ If an application database entry point detects pending schema migrations, then t
 **DFF-DATA-107** `[x]` → #217
 The system shall reserve `npm run db:init` for an explicitly destructive fresh-database initialization and shall document that it deletes the selected local database.
 
+**DFF-DATA-114** `[x]` → #222
+When `db:migrate` upgrades a database from the pre-devy-notes schema, the system shall create `devy_player_notes` (migration `drizzle/0003_wise_famine.sql`) while preserving every existing row in all tables.
+
 ---
 
 ## Season Management Additions

@@ -22,6 +22,7 @@ All database entry points validate that the recorded schema version is current b
 2. `db:migrate` opens an existing database, creates the migration ledger if needed, baselines known legacy schema without changing application data, and applies pending ordered migrations transactionally.
 3. A database client checks the ledger before returning a connection. If migrations are pending, it closes the connection and throws an actionable upgrade error.
 4. The devy-claim migration adds nullable `sleeper_rosters.devy_name`; prior Sleeper roster rows remain intact and read as `NULL` for that field.
+5. The devy-notes migration (`drizzle/0003_wise_famine.sql`) creates `devy_player_notes`; existing rows in every other table are untouched (`docs/llds/devy-rankings-view.md`).
 
 ### Edge Case Probe
 
@@ -53,6 +54,15 @@ Populated by the ETL pipeline. Read-only during drafts.
 | value_rosteraudit | INTEGER | Raw RosterAudit value normalized to 0–9999; NULL if source failed |
 | adp | REAL | Dynasty startup ADP |
 | updated_at | TEXT (ISO8601) | Last ETL refresh timestamp |
+
+### `devy_player_notes`
+Per-player devy scouting notes authored in the UI (`docs/llds/devy-rankings-view.md`, specs `DFF-DVR-009/011/012/013`). Keyed by the stable `devy_players.id` (the devy ETL upserts on `(name, position)` without regenerating ids, so notes survive board refreshes). No FK: a note whose board row disappears is simply ignored by the UI. Recreated empty by `db:init` — non-destructive migration of user-authored notes is #217's scope.
+
+| Column | Type | Notes |
+|---|---|---|
+| player_id | TEXT | Primary key; `devy_players.id` |
+| note | TEXT | Note body (trimmed, non-empty) |
+| updated_at | TEXT (ISO8601) | Last write timestamp |
 
 ### `drafts`
 One row per mock draft session.

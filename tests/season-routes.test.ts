@@ -7,6 +7,9 @@
 // @spec DFF-SM-083
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { Request, RequestHandler, Response } from 'express';
 
 import { createDraftErrorHandler } from '../src/server/app.js';
@@ -631,7 +634,7 @@ test('devy claims route returns league claims, unmatched claims, and the unclaim
 });
 
 // @spec DFF-DVC-003
-test('devy claim matching normalizes quote variants via aliases of the name itself', async () => {
+test('devy claim matching normalizes quote variants in claim and board names', async () => {
   const fixture = createSeasonFixture({
     devyPlayers: [
       { name: "Trey'Dez Green", position: 'WR', school: 'LSU Tigers', draftYear: 2027, value: 4900 },
@@ -673,6 +676,135 @@ test('devy claims route degrades to empty lists for a league without claims', as
     assert.equal(statusCode, 200);
     assert.deepEqual(body.claims, []);
     assert.deepEqual(body.available, []);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVC-003 — the board itself can store a non-canonical alias; the claim on the
+// canonical name must still match, and the claimed name must still be excluded from
+// available. Uses a temporary aliases file instead of the repo-wide one.
+test('devy claim matching resolves through alias families in both directions', async () => {
+  const aliasDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-aliases-'));
+  const aliasesPath = path.join(aliasDir, 'aliases.json');
+  fs.writeFileSync(
+    aliasesPath,
+    JSON.stringify({ aliases: [{ canonical: 'Ryan Williams', variants: ['Ray Ray Williams'] }] }),
+  );
+
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      // The board stores the NON-canonical variant.
+      { name: 'Ray Ray Williams', position: 'WR', school: 'Alabama Crimson Tide', draftYear: 2027, value: 5000 },
+    ],
+    devyClaims: [
+      {
+        rosterId: 1,
+        sleeperPlayerId: 's-devy-1',
+        devyName: 'Ryan Williams',
+        placeholderName: 'C.J. Williams',
+        placeholderPosition: 'WR',
+      },
+    ],
+  });
+
+  try {
+    const route = createSeasonDevyClaimsRoute({ databasePath: fixture.dbPath, aliasesPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as {
+      claims: Array<{ devyMatch: { matched: boolean; dynastyValue: number | null } }>;
+      available: Array<{ name: string }>;
+    };
+
+    assert.equal(statusCode, 200);
+    assert.equal(body.claims.length, 1);
+    assert.equal(body.claims[0].devyMatch.matched, true);
+    assert.equal(body.claims[0].devyMatch.dynastyValue, 5000);
+
+    // The claimed variant is excluded from available even though the claim used the canonical name.
+    assert.equal(body.available.some((row) => row.name === 'Ray Ray Williams'), false);
+  } finally {
+    fixture.cleanup();
+    fs.rmSync(aliasDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DVC-004
+test('season overview leaves claims unmatched without crashing on an empty devy board', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [],
+    devyClaims: [
+      {
+        rosterId: 1,
+        sleeperPlayerId: 's-devy-1',
+        devyName: 'Jadan Baugh',
+        placeholderName: 'Kyler Baugh',
+        placeholderPosition: 'DL',
+      },
+    ],
+  });
+
+  try {
+    const route = createSeasonOverviewRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as {
+      roster: Array<{ devyName: string | null; devyMatch: Record<string, unknown> | null }>;
+    };
+
+    assert.equal(statusCode, 200);
+    const claim = body.roster.find((entry) => entry.devyName === 'Jadan Baugh');
+    assert.ok(claim);
+    assert.deepEqual(claim.devyMatch, {
+      matched: false,
+      position: null,
+      school: null,
+      draftYear: null,
+      dynastyValue: null,
+    });
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVC-006
+test('two teams claiming the same devy name both surface and the name leaves the available board', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      { name: 'Jadan Baugh', position: 'RB', school: 'Florida Gators', draftYear: 2027, value: 6364 },
+    ],
+    devyClaims: [
+      {
+        rosterId: 1,
+        sleeperPlayerId: 's-devy-1',
+        devyName: 'Jadan Baugh',
+        placeholderName: 'Kyler Baugh',
+        placeholderPosition: 'DL',
+      },
+      {
+        rosterId: 2,
+        sleeperPlayerId: 's-devy-2',
+        devyName: 'Jadan Baugh',
+        placeholderName: 'Eric Wilson',
+        placeholderPosition: 'LB',
+      },
+    ],
+  });
+
+  try {
+    const route = createSeasonDevyClaimsRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as {
+      claims: Array<{ rosterId: number; devyName: string }>;
+      available: Array<{ name: string }>;
+    };
+
+    assert.equal(statusCode, 200);
+    assert.equal(body.claims.length, 2);
+    assert.deepEqual(
+      body.claims.map((claim) => claim.rosterId).sort(),
+      [1, 2],
+    );
+    assert.equal(body.available.length, 0);
   } finally {
     fixture.cleanup();
   }

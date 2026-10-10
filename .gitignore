@@ -15,3 +15,5 @@ dist/
 coverage/
 data/cache/
 data/sleeper-players-cache.json
+data/analysis/
+node_modules

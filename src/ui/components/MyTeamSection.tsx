@@ -33,6 +33,7 @@ type LeagueSummary = {
 
 // @spec DFF-SM-019
 type SeasonRosterEntry = {
+  sleeperPlayerId: string;
   name: string;
   position: string;
   age: number | null;
@@ -97,8 +98,15 @@ function positionRank(position: string): number {
   return index === -1 ? positionOrder.length : index;
 }
 
+// @spec DFF-SM-089 — rows sort by position order (QB, RB, WR, TE, other), best value first.
+// Devy claims sort on their board match (real position + devy value), not the placeholder's.
 function compareRosterEntries(a: SeasonRosterEntry, b: SeasonRosterEntry): number {
-  return positionRank(a.position) - positionRank(b.position) || b.dynastyValue - a.dynastyValue;
+  const aPosition = a.devyMatch?.position ?? a.position;
+  const bPosition = b.devyMatch?.position ?? b.position;
+  const aValue = a.devyMatch?.dynastyValue ?? a.dynastyValue;
+  const bValue = b.devyMatch?.dynastyValue ?? b.dynastyValue;
+
+  return positionRank(aPosition) - positionRank(bPosition) || bValue - aValue;
 }
 
 // @spec DFF-SM-019
@@ -181,7 +189,7 @@ function RosterOverviewView({
               const value = isDevy ? entry.devyMatch?.dynastyValue ?? '—' : entry.dynastyValue;
 
               return (
-                <div key={`${slot}-${entry.devyName ?? entry.name}`} className="flex items-center gap-3 border-b border-default px-3 py-1 text-sm last:border-b-0 hover:bg-surface-hover">
+                <div key={`${slot}-${entry.sleeperPlayerId ?? entry.devyName ?? entry.name}`} className="flex items-center gap-3 border-b border-default px-3 py-1 text-sm last:border-b-0 hover:bg-surface-hover">
                   <span className={`w-8 font-condensed text-sm font-bold ${positionTextTokens[labelPosition ?? ''] ?? 'text-primary'}`}>{positionLabel}</span>
                   <span className="min-w-0 flex-1 truncate font-medium text-primary">
                     {isDevy ? (
@@ -755,6 +763,13 @@ export function MyTeamSection() {
     }
   }, [connections, selectedLeagueId]);
 
+  // Switching leagues drops the previous league's devy claims immediately (the panel's
+  // draft-year filter state resets with it via the panel key).
+  const leagueClaimsKey = selectedLeagueId ?? 'none';
+  useEffect(() => {
+    setDevyClaims(null);
+  }, [leagueClaimsKey]);
+
   useEffect(() => {
     if (selectedLeagueId === null) {
       return;
@@ -1105,7 +1120,9 @@ export function MyTeamSection() {
       )}
 
       {/* @spec DFF-DVC-009 — hidden entirely for leagues without devy claims (DFF-DVC-010). */}
-      {devyClaims !== null && devyClaims.claims.length > 0 ? <DevyClaimsPanel data={devyClaims} /> : null}
+      {devyClaims !== null && devyClaims.claims.length > 0 ? (
+        <DevyClaimsPanel key={leagueClaimsKey} data={devyClaims} />
+      ) : null}
 
       {pendingTrades.length > 0 ? (
         <PendingOffersPanel

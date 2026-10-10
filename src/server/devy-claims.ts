@@ -51,7 +51,7 @@ export type DevyBoardMatcher = {
   match: (devyName: string) => DevyMatch;
   /** Board rows whose normalized name is not in `claimedNames`, ranked by value. */
   availableExcluding: (claimedNames: ReadonlySet<string>) => DevyAvailableView[];
-  /** All board rows ranked by value (name included normalized for exclusion checks). */
+  /** Alias-resolved normalized names for the given devy claim names, for exclusion checks. */
   claimedNorms: (devyNames: Iterable<string>) => Set<string>;
 };
 
@@ -82,6 +82,12 @@ export function createDevyBoardMatcher(
     }
   }
 
+  const resolveNorm = (devyName: string): string => {
+    const normalized = normalizeDevyName(devyName);
+
+    return canonicalByNorm.get(normalized) ?? normalized;
+  };
+
   const sqlite = new Database(resolveDatabasePath(databasePath), { readonly: true, fileMustExist: true });
 
   try {
@@ -89,15 +95,11 @@ export function createDevyBoardMatcher(
       .prepare('SELECT name, position, school, draft_year, value_superflex FROM devy_players')
       .all() as DevyBoardRow[];
 
+    // Key the board through resolveNorm so a board row stored under a non-canonical
+    // alias still matches the canonical claim name (and vice versa).
     const boardByNorm = new Map<string, DevyBoardRow>(
-      board.map((row) => [normalizeDevyName(row.name), row]),
+      board.map((row) => [resolveNorm(row.name), row]),
     );
-
-    const resolveNorm = (devyName: string): string => {
-      const normalized = normalizeDevyName(devyName);
-
-      return canonicalByNorm.get(normalized) ?? normalized;
-    };
 
     const rowToMatch = (row: DevyBoardRow | undefined): DevyMatch =>
       row
@@ -118,7 +120,7 @@ export function createDevyBoardMatcher(
 
       availableExcluding: (claimedNames: ReadonlySet<string>) =>
         board
-          .filter((row) => !claimedNames.has(normalizeDevyName(row.name)))
+          .filter((row) => !claimedNames.has(resolveNorm(row.name)))
           .sort((left, right) => right.value_superflex - left.value_superflex)
           .map((row) => ({
             name: row.name,

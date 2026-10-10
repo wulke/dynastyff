@@ -14,7 +14,7 @@ In devy-style Sleeper leagues ("I Love College"), taxi squads hold NFL placehold
 devy_name TEXT  -- NULL unless the row is a taxi slot whose roster metadata carried a p_nick_ nickname
 ```
 
-Defined in `src/db/schema.ts` (`sleeperRosters`); applied via migration `drizzle/0002_add_sleeper_roster_devy_name.sql` (`npm run db:migrate` upgrades existing databases; `npm run db:init` builds fresh ones already current). No new tables.
+Defined in `src/db/schema.ts` (`sleeperRosters`). The migration itself (`drizzle/0002_add_sleeper_roster_devy_name.sql`, journal entry and snapshot) is owned by the non-destructive-migrations feature (PR #219) — this PR intentionally does not ship a second copy, so the two PRs merge cleanly in either order. On this branch the column comes up via `npm run db:init` (drizzle push, per the existing fresh-DB convention); once #219 lands, existing databases upgrade non-destructively via `npm run db:migrate`. No new tables.
 
 A devy claim is a `sleeper_rosters` row with `slot_type = 'taxi' AND devy_name IS NOT NULL`.
 
@@ -73,5 +73,5 @@ Claim names are matched to `devy_players` by normalized name (reuse `normalizePl
 - **Two managers claim the same devy name** → both rows surface independently (Sleeper is the source of truth); `available` excludes the name once claimed by anyone.
 - **`etl:devy` never run / empty `devy_players`** → all claims `matched: false`, `available` empty; panel still lists claims.
 - **League with no claims (no taxi nicknames anywhere)** → route returns empty `claims`; UI hides the panel; Roster Overview unchanged.
-- **Existing DBs created before this feature** → schema comes up fresh on `npm run db:init` + `npm run etl`; sync re-populates `devy_name` on the next run.
+- **Existing DBs created before this feature** → schema comes up via `npm run db:init` + `npm run etl` on this branch; after #219 lands, `npm run db:migrate` upgrades in place (non-destructive). Sync re-populates `devy_name` on the next run.
 - **Placeholder players already in `players` table** (e.g. a devy league whose taxi placeholders are real rookies with values) → roster entry keeps its NFL-derived fields; `devyName` is additive and never overwrites matched-player data.

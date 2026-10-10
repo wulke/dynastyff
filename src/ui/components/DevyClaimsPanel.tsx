@@ -1,6 +1,8 @@
 // @spec DFF-DVC-009
 // @spec DFF-DVC-010 — rendered only when the league has at least one devy claim.
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+
+import { getPositionBadgeClass } from './positionBadge.js';
 
 export type DevyMatchView = {
   matched: boolean;
@@ -34,17 +36,35 @@ export type DevyClaimsView = {
 
 type YearFilter = 'all' | number;
 
-const positionTextTokens: Record<string, string> = {
-  QB: 'text-pos-qb',
-  RB: 'text-pos-rb',
-  WR: 'text-pos-wr',
-  TE: 'text-pos-te',
-};
+const filterChipClasses = (active: boolean) =>
+  `rounded px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide transition ${
+    active
+      ? 'border border-accent text-accent'
+      : 'border border-default text-muted hover:border-strong hover:text-primary'
+  }`;
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active} className={filterChipClasses(active)}>
+      {children}
+    </button>
+  );
+}
 
 function PositionTag({ position }: { position: string | null }) {
   return (
     <span
-      className={`w-8 shrink-0 font-condensed text-sm font-bold ${positionTextTokens[position ?? ''] ?? 'text-primary'}`}
+      className={`w-8 shrink-0 font-condensed text-sm font-bold ${
+        position === null ? 'text-primary' : getPositionBadgeClass(position)
+      }`}
     >
       {position ?? '—'}
     </span>
@@ -82,32 +102,13 @@ export function DevyClaimsPanel({ data }: { data: DevyClaimsView }) {
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-default px-3 py-2">
         <h2 className="font-condensed text-lg font-semibold text-primary">Devy Claims</h2>
         <div className="flex items-center gap-1" role="group" aria-label="Draft year filter">
-          <button
-            type="button"
-            onClick={() => setYearFilter('all')}
-            aria-pressed={yearFilter === 'all'}
-            className={`rounded px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide transition ${
-              yearFilter === 'all'
-                ? 'border border-accent text-accent'
-                : 'border border-default text-muted hover:border-strong hover:text-primary'
-            }`}
-          >
+          <FilterChip active={yearFilter === 'all'} onClick={() => setYearFilter('all')}>
             All
-          </button>
+          </FilterChip>
           {years.map((year) => (
-            <button
-              key={year}
-              type="button"
-              onClick={() => setYearFilter(year)}
-              aria-pressed={yearFilter === year}
-              className={`rounded px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide transition ${
-                yearFilter === year
-                  ? 'border border-accent text-accent'
-                  : 'border border-default text-muted hover:border-strong hover:text-primary'
-              }`}
-            >
+            <FilterChip key={year} active={yearFilter === year} onClick={() => setYearFilter(year)}>
               {year}
-            </button>
+            </FilterChip>
           ))}
         </div>
       </div>

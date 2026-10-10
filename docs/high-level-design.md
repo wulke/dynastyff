@@ -238,3 +238,21 @@ Let a user begin a startup mock draft from a public Sleeper league's relevant se
 `ConfigScreen` → `GET /league-imports/sleeper/:leagueId` → Sleeper public `GET /v1/league/:leagueId` → normalized prefill (`scoringFormat`, `tePremiumTier`, roster slots, `teamCount`) → existing config form.
 
 The import endpoint does not return or apply Sleeper `draft_rounds`; the form's existing roster-slot total continues to suggest `rounds`. Failed imports surface a clear form error and leave the current manual values usable.
+
+# Devy Claims Decision
+
+## Goal
+
+Make devy claims — college players stashed on Sleeper taxi squads via commissioner-set player nicknames — visible in the app wherever teams are viewed, so the user can see who in the league has claimed which devy player and which devy players remain available for upcoming rookie drafts.
+
+## Strategy
+
+- **Options:** (a) a separate analysis script only (current `scripts/devy-claims.mjs`); (b) persist claims during Sleeper sync and surface them in Season Management UI; (c) scrape the Sleeper web app from the browser at view time.
+- **Decision:** (b). Sleeper encodes a devy claim as a taxi-squad player whose roster `metadata` carries a `p_nick_<playerId>` nickname naming the college player it represents. The sync already persists taxi slots in `sleeper_rosters`; it simply drops `roster.metadata`. Persisting the nickname as a nullable `devy_name` column on the same row keeps the claim 1:1 with its roster slot and requires no new table or join path.
+- **Rationale:** claims are roster state, so they belong to the roster sync, not a side script. Matching a claim name to the `devy_players` KTC board is derived data (the board refreshes daily via `etl:devy`), so matching happens at read time and degrades gracefully (claim shows without value data) when there is no match.
+
+## Architecture
+
+Sleeper sync (`GET /league/{id}/rosters`) → `sleeper_rosters.devy_name` (taxi rows only) → Season API: roster overview entries carry `devyName` plus devy-board match metadata (position, school, draft year, value); new `GET /season/:league_id/devy/claims` returns the league-wide claims board (claims grouped by team + unclaimed board ranked by value). UI: Roster Overview renders devy claim names as the primary label on taxi rows; a Devy Claims panel in the My Team section shows every team's claims and the available board for upcoming draft classes.
+
+Leagues without taxi nicknames have no `devy_name` values; the panel hides itself and roster rows are unchanged.

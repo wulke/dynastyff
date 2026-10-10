@@ -13,3 +13,5 @@ data/dynastyff.sqlite-wal
 data/dynastyff.db
 dist/
 coverage/
+data/cache/
+data/sleeper-players-cache.json

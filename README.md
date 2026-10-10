@@ -99,6 +99,7 @@ A weekly GitHub Actions workflow (`.github/workflows/scheduled-refresh.yml`) run
 | `npm run db:init` | Initialize the local SQLite schema |
 | `npm run etl` | Scrape and normalize player/pick values |
 | `npm run etl:devy` | Scrape and normalize KTC devy player values |
+| `node scripts/devy-claims.mjs` | Extract devy claims from Sleeper taxi-squad nicknames (roster `p_nick_` metadata) and regenerate `data/analysis/devy-ownership.csv` + `devy-available.csv`; also prints trade context (records, open taxi slots, trading block, future-pick trades) |
 | `npm run sync:sleeper` | Sync all connected Sleeper leagues without the scraper pipeline |
 | `npm run export:snapshot` | Refresh `data/snapshot.json` for the static build |
 | `npm run etl:sanity-check` | Gate a refreshed snapshot against player/pick-count floors |

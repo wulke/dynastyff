@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "npm run build:server && npm run build:ui",
     "build:server": "tsc -p tsconfig.json",
@@ -10,6 +13,7 @@
     "dev:static": "vite --config src/ui-static/vite.config.ts",
     "build:ui": "vite build --config src/ui/vite.config.ts",
     "db:init": "node --import tsx src/db/init.ts",
+    "db:migrate": "node --import tsx src/db/migrate.ts",
     "dev": "vite --config src/ui/vite.config.ts",
     "etl": "node --import tsx src/etl/index.ts",
     "etl:devy": "node --import tsx src/etl/devy-index.ts",

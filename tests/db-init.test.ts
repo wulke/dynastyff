@@ -70,7 +70,9 @@ function withDatabase(run: (db: Database.Database, dbPath: string) => void): voi
 test('db:init creates all tables defined by the data-model LLD', () => {
   withDatabase((db) => {
     const tableNames = db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations' ORDER BY name",
+      )
       .all()
       .map((row) => (row as { name: string }).name);
 

@@ -164,3 +164,19 @@ The system shall restrict `trades.status` to the values: `accepted`, `declined`,
 
 **DFF-DATA-082** `[x]`
 The system shall record declined and force-declined trades in `trades` with the appropriate status; only accepted trades trigger asset transfers.
+
+---
+
+## Schema Lifecycle
+
+**DFF-DATA-097** `[ ]` → #217
+When an existing local database is behind the current schema, the system shall provide `npm run db:migrate` to apply ordered schema migrations without deleting application data.
+
+**DFF-DATA-098** `[ ]` → #217
+When `db:migrate` upgrades a database from the pre-devy-claim schema, the system shall add nullable `sleeper_rosters.devy_name` while preserving its Sleeper roster rows, `pick_values` rows, and ETL history rows.
+
+**DFF-DATA-099** `[ ]` → #217
+If an application database entry point detects pending schema migrations, then the system shall fail before application queries with an error that directs the user to run `npm run db:migrate`.
+
+**DFF-DATA-100** `[ ]` → #217
+The system shall reserve `npm run db:init` for an explicitly destructive fresh-database initialization and shall document that it deletes the selected local database.

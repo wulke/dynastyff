@@ -85,6 +85,18 @@ const positionTextTokens: Record<string, string> = {
 
 const slotOrder: SeasonRosterEntry['slotType'][] = ['starter', 'bench', 'taxi', 'ir'];
 
+const positionOrder = ['QB', 'RB', 'WR', 'TE'];
+
+function positionRank(position: string): number {
+  const index = positionOrder.indexOf(position);
+
+  return index === -1 ? positionOrder.length : index;
+}
+
+function compareRosterEntries(a: SeasonRosterEntry, b: SeasonRosterEntry): number {
+  return positionRank(a.position) - positionRank(b.position) || b.dynastyValue - a.dynastyValue;
+}
+
 // @spec DFF-SM-019
 // @spec DFF-SM-026
 // @spec DFF-SM-081
@@ -155,6 +167,7 @@ function RosterOverviewView({
         {slotOrder.flatMap((slot) =>
           overview.roster
             .filter((entry) => entry.slotType === slot)
+            .sort(compareRosterEntries)
             .map((entry) => (
               <div key={`${slot}-${entry.name}`} className="flex items-center gap-3 border-b border-default px-3 py-1 text-sm last:border-b-0 hover:bg-surface-hover">
                 <span className={`w-8 font-condensed text-sm font-bold ${positionTextTokens[entry.position] ?? 'text-primary'}`}>{entry.position}</span>

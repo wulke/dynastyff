@@ -164,3 +164,29 @@ The system shall restrict `trades.status` to the values: `accepted`, `declined`,
 
 **DFF-DATA-082** `[x]`
 The system shall record declined and force-declined trades in `trades` with the appropriate status; only accepted trades trigger asset transfers.
+
+---
+
+## Season Management Additions
+
+**DFF-DATA-100** `[ ]`
+The `players` table shall include a nullable integer column `redraft_value`.
+
+**DFF-DATA-101** `[ ]`
+The `sleeper_teams` table shall include integer columns `total_moves` and `waiver_budget_used`, defaulting to 0, populated by Sleeper Sync from roster settings.
+
+**DFF-DATA-102** `[ ]`
+The system shall store a per-league acceptance band in `league_trade_settings (league_id, acceptance_band, updated_at)`, with `acceptance_band` defaulting to 0.10.
+
+**DFF-DATA-103** `[ ]`
+The system shall store the user's untouchable assets in `trade_untouchables (league_id, asset_kind, asset_id, created_at)`, with `asset_kind` constrained to `player` or `pick`, and primary key `(league_id, asset_kind, asset_id)`.
+
+**DFF-DATA-104** `[ ]`
+The system shall store Trade Curator results in `trade_curation_cache (cache_key, league_id, scope, payload, created_at)`, keyed by `cache_key`.
+
+**DFF-DATA-105** `[ ]`
+The `player_value_snapshots.source` constraint shall permit `fantasycalc_redraft`.
+
+**DFF-DATA-106** `[ ]`
+Every schema addition in DFF-DATA-100–105 shall ship as a non-destructive migration that preserves existing data.
+

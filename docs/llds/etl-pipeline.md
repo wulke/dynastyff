@@ -135,6 +135,17 @@ normalized = round((raw - min) / (max - min) * 9999)
 - Player and pick value normalization both use the same per-source min-max path.
 - If a source returns only one player or pick value (degenerate case), that entry is assigned value 9999 and a warning is logged.
 
+## Redraft Values
+
+The Acceptance Model in `docs/llds/season-management.md` values assets per team as a dynasty/redraft blend, so the ETL also captures a **redraft** value per player.
+
+- **Source:** FantasyCalc only. The scraper reads each entry's `redraftValue` from the existing `values/current?isDynasty=true…` response (no extra request). If the field is absent, it falls back to a second request with `isDynasty=false`. A recorded fixture must confirm the field name before implementation.
+- **Normalization:** redraft values are min-max normalized 0–9999 **among FantasyCalc redraft values** (their own scale, like a separate source). They are stored on the matched player as `players.redraft_value`.
+- **Missing:** players with no FantasyCalc match keep `redraft_value = NULL`. Consumers fall back to dynasty value.
+- **Not aggregated:** there is one redraft source, so no cross-source mean.
+- **Snapshots:** the redraft raw value is recorded in `player_value_snapshots` with `source = 'fantasycalc_redraft'` so history works. The `source` check constraint gains that value.
+- **League settings:** the FantasyCalc URL currently hardcodes `numQbs=2&ppr=1&numTeams=12`. Per-league value settings (team count, QB format) are out of scope for this revision and noted as an open question.
+
 ## Aggregation
 
 Player aggregation is implemented as the rounded mean of the non-NULL normalized source columns:

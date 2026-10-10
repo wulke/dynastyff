@@ -53,6 +53,7 @@ export type SleeperRosterPayload = {
   taxi?: unknown;
   reserve?: unknown;
   settings?: unknown;
+  metadata?: unknown;
 };
 
 export type SleeperUserEntryPayload = {

@@ -41,8 +41,16 @@ function stubFetch(handler: (url: string, init?: RequestInit) => { status?: numb
 
 const emptyConnections = { status: 200, body: [] };
 
-function overviewEntry(name: string, position: string, age: number | null, value: number, slotType: string, matched = true) {
-  return { name, position, age, dynastyValue: value, slotType, matched };
+function overviewEntry(
+  name: string,
+  position: string,
+  age: number | null,
+  value: number,
+  slotType: string,
+  matched = true,
+  devy?: { devyName: string; devyMatch: Record<string, unknown> | null },
+) {
+  return { name, position, age, dynastyValue: value, slotType, matched, devyName: null, devyMatch: null, ...devy };
 }
 
 function overviewFixture(overrides: Record<string, unknown> = {}) {
@@ -302,6 +310,125 @@ test('connected state lands on the roster overview and manages connections behin
   expect(
     calls.some((call) => call.url === '/sleeper/connections/c1' && call.init?.method === 'DELETE'),
   ).toBe(true);
+});
+
+// @spec DFF-DVC-008
+// @spec DFF-DVC-009
+test('devy claims render as primary taxi labels and the claims panel lists teams and available players', async () => {
+  const user = userEvent.setup();
+
+  stubFetch((url) => {
+    if (url === '/sleeper/connections') {
+      return {
+        body: [
+          {
+            id: 'c1',
+            leagueId: '111',
+            leagueName: 'I Love College',
+            season: '2026',
+            rosterId: 3,
+            lastSyncedAt: '2026-10-10T10:00:00.000Z',
+          },
+        ],
+      };
+    }
+
+    if (url === '/sleeper/sync/status') {
+      return { body: [] };
+    }
+
+    if (url === '/season/111/overview') {
+      return {
+        body: overviewFixture({
+          roster: [
+            overviewEntry('Jadan Baugh', 'RB', 27, 6364, 'starter'),
+            overviewEntry('Kyler Baugh', 'DL', 24, 0, 'taxi', false, {
+              devyName: 'Jadan Baugh',
+              devyMatch: { matched: true, position: 'RB', school: 'Florida Gators', draftYear: 2027, dynastyValue: 6364 },
+            }),
+            overviewEntry('Trey Benson', 'RB', 23, 1100, 'taxi'),
+          ],
+        }),
+      };
+    }
+
+    if (url === '/season/111/devy/claims') {
+      return {
+        body: {
+          season: '2026',
+          claims: [
+            { rosterId: 1, teamName: 'Trev Squad', devyName: 'Jadan Baugh', devyMatch: { matched: true, position: 'RB', school: 'Florida Gators', draftYear: 2027, dynastyValue: 6364 } },
+            { rosterId: 2, teamName: 'Rival Squad', devyName: 'Tristen Keys', devyMatch: { matched: false, position: null, school: null, draftYear: null, dynastyValue: null } },
+          ],
+          available: [
+            { name: 'Kewan Lacy', position: 'RB', school: 'Ole Miss Rebels', draftYear: 2027, dynastyValue: 6651 },
+            { name: 'JK Sagapolutele', position: 'QB', school: 'California Golden Bears', draftYear: 2028, dynastyValue: 2778 },
+          ],
+          lastSyncedAt: '2026-10-10T10:00:00.000Z',
+        },
+      };
+    }
+
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  // Taxi claim renders the college player as the primary label with the placeholder secondary.
+  expect(await screen.findByText(/via Kyler Baugh/i)).toBeInTheDocument();
+  expect(screen.getByText('devy')).toBeInTheDocument();
+
+  // Panel lists all teams' claims, including unmatched ones.
+  expect(await screen.findByText('Devy Claims')).toBeInTheDocument();
+  expect(screen.getByText('Trev Squad')).toBeInTheDocument();
+  expect(screen.getByText('Rival Squad')).toBeInTheDocument();
+  expect(screen.getByText('Tristen Keys')).toBeInTheDocument();
+
+  // Year filter defaults to the next draft class (season + 1 = 2027): the 2028 name is hidden.
+  expect(screen.queryByText('JK Sagapolutele')).not.toBeInTheDocument();
+  expect(screen.getByText('Kewan Lacy')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'All' }));
+  expect(await screen.findByText('JK Sagapolutele')).toBeInTheDocument();
+});
+
+// @spec DFF-DVC-010
+test('leagues without devy claims do not render the devy claims panel', async () => {
+  stubFetch((url) => {
+    if (url === '/sleeper/connections') {
+      return {
+        body: [
+          {
+            id: 'c1',
+            leagueId: '111',
+            leagueName: 'Gridiron Guild',
+            season: '2026',
+            rosterId: 1,
+            lastSyncedAt: '2026-09-27T10:00:00.000Z',
+          },
+        ],
+      };
+    }
+
+    if (url === '/sleeper/sync/status') {
+      return { body: [] };
+    }
+
+    if (url === '/season/111/overview') {
+      return { body: overviewFixture() };
+    }
+
+    if (url === '/season/111/devy/claims') {
+      return { body: { season: '2026', claims: [], available: [], lastSyncedAt: null } };
+    }
+
+    return { status: 404, body: { error: 'not found' } };
+  });
+
+  render(<MyTeamSection />);
+
+  expect(await screen.findByText('Roster Overview')).toBeInTheDocument();
+  expect(screen.queryByText('Devy Claims')).not.toBeInTheDocument();
 });
 
 // @spec DFF-SM-004

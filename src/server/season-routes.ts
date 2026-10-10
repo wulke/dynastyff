@@ -10,6 +10,8 @@
 // @spec DFF-SM-083
 import type { RequestHandler, Response } from 'express';
 
+import path from 'node:path';
+
 import { assembleLeagueContext, LeagueContextError, type SleeperTradeOfferRecord } from '../season/context.js';
 import { evaluateRoster } from '../season/rosterEvaluator.js';
 import { recommendTrades } from '../season/tradeRecommender.js';
@@ -23,10 +25,13 @@ import {
   type WaiverPair,
 } from '../season/waiverScorer.js';
 import type { PlayerWithValue, RosterEntry } from '../season/context.js';
+import { createDevyBoardMatcher, type DevyClaimView } from './devy-claims.js';
 
 export type SeasonRouteOptions = {
   databasePath?: string;
   now?: () => Date;
+  /** Overrides the alias families file used for devy claim matching (tests). */
+  aliasesPath?: string;
 };
 
 export type SeasonAdvisorRouteOptions = SeasonRouteOptions & {
@@ -61,7 +66,15 @@ function involvesUser(
 
 // @spec DFF-SM-010
 // @spec DFF-SM-018 — pure algorithm output; no Claude invocation.
-export function createSeasonOverviewRoute({ databasePath, now = () => new Date() }: SeasonRouteOptions = {}): RequestHandler {
+
+function devyMatcherFor(databasePath: string | undefined, aliasesPath?: string) {
+  return createDevyBoardMatcher(
+    databasePath,
+    aliasesPath ?? path.resolve(process.cwd(), 'player-aliases.json'),
+  );
+}
+
+export function createSeasonOverviewRoute({ databasePath, now = () => new Date(), aliasesPath }: SeasonRouteOptions = {}): RequestHandler {
   return (request, response) => {
     const leagueId = leagueIdFrom(request);
 
@@ -74,6 +87,21 @@ export function createSeasonOverviewRoute({ databasePath, now = () => new Date()
       const context = assembleLeagueContext(databasePath, leagueId);
       const overview = evaluateRoster(context);
 
+      // @spec DFF-DVC-005 — every entry carries devyName plus its devy-board match
+      // (null for non-claim rows). Matching happens at read time so `etl:devy` refreshes
+      // are reflected without re-syncing the league. The matcher (a second DB handle plus
+      // the aliases file) is only opened when at least one claim needs a match.
+      const hasClaims = overview.roster.some((entry) => entry.devyName !== null);
+      const roster = hasClaims
+        ? overview.roster.map((entry) => ({
+            ...entry,
+            devyMatch:
+              entry.devyName === null
+                ? null
+                : devyMatcherFor(databasePath, aliasesPath).match(entry.devyName),
+          }))
+        : overview.roster.map((entry) => ({ ...entry, devyMatch: null }));
+
       // @spec DFF-SM-081 — flag stale data when the last sync is older than 1 hour.
       const lastSyncedMs = Date.parse(context.lastSyncedAt ?? '');
       const staleSince =
@@ -81,7 +109,62 @@ export function createSeasonOverviewRoute({ databasePath, now = () => new Date()
           ? null
           : context.lastSyncedAt;
 
-      response.status(200).json({ ...overview, staleSince, lastSyncedAt: context.lastSyncedAt });
+      response.status(200).json({ ...overview, roster, staleSince, lastSyncedAt: context.lastSyncedAt });
+    } catch (error) {
+      if (!handleContextError(error, response)) {
+        throw error;
+      }
+    }
+  };
+}
+
+// @spec DFF-DVC-006 — league-wide claims board + unclaimed devy players.
+// @spec DFF-DVC-007 — leagues without synced rosters degrade to empty lists.
+export function createSeasonDevyClaimsRoute({ databasePath, aliasesPath }: SeasonRouteOptions = {}): RequestHandler {
+  return (request, response) => {
+    const leagueId = leagueIdFrom(request);
+
+    if (!leagueId) {
+      response.status(400).json({ error: 'A league ID is required.' });
+      return;
+    }
+
+    try {
+      const context = assembleLeagueContext(databasePath, leagueId);
+      const matcher = devyMatcherFor(databasePath, aliasesPath);
+
+      const claims: DevyClaimView[] = [];
+
+      for (const team of context.allRosters) {
+        const teamName = team.teamName ?? team.displayName;
+
+        for (const entry of team.players) {
+          if (entry.slotType === 'taxi' && entry.devyName !== null) {
+            claims.push({
+              rosterId: team.rosterId,
+              teamName,
+              devyName: entry.devyName,
+              devyMatch: matcher.match(entry.devyName),
+            });
+          }
+        }
+      }
+
+      claims.sort(
+        (left, right) =>
+          left.teamName.localeCompare(right.teamName) ||
+          (right.devyMatch.dynastyValue ?? -1) - (left.devyMatch.dynastyValue ?? -1) ||
+          left.devyName.localeCompare(right.devyName),
+      );
+
+      const available = matcher.availableExcluding(matcher.claimedNorms(claims.map((c) => c.devyName)));
+
+      response.status(200).json({
+        season: context.league.season,
+        claims,
+        available,
+        lastSyncedAt: context.lastSyncedAt,
+      });
     } catch (error) {
       if (!handleContextError(error, response)) {
         throw error;

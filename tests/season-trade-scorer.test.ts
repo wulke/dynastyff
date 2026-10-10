@@ -30,6 +30,7 @@ function entry(
     dynastyValue,
     slotType,
     matched: true,
+    devyName: null,
   };
 }
 

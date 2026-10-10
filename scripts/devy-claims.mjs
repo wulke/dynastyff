@@ -21,8 +21,16 @@ import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
 
-const LEAGUE_ID = process.env.DEVY_LEAGUE_ID ?? '1390910606512492544';
-const ME_USER_ID = process.env.DEVY_ME_USER_ID ?? '1259281023254937600';
+// This repo is public: never hard-code a league or user ID. Export both before running:
+//   DEVY_LEAGUE_ID=<sleeper league id> DEVY_ME_USER_ID=<your sleeper user id> node scripts/devy-claims.mjs
+const LEAGUE_ID = process.env.DEVY_LEAGUE_ID;
+const ME_USER_ID = process.env.DEVY_ME_USER_ID;
+
+if (!LEAGUE_ID || !ME_USER_ID) {
+  console.error('DEVY_LEAGUE_ID and DEVY_ME_USER_ID are required (Sleeper IDs).');
+  process.exit(1);
+}
+
 const API = 'https://api.sleeper.app/v1';
 const DB_PATH = path.resolve('data/dynastyff.sqlite');
 const OUT_DIR = path.resolve('data/analysis');

@@ -14,7 +14,7 @@ In devy-style Sleeper leagues ("I Love College"), taxi squads hold NFL placehold
 devy_name TEXT  -- NULL unless the row is a taxi slot whose roster metadata carried a p_nick_ nickname
 ```
 
-Defined in `src/db/schema.ts` (`sleeperRosters`); applied via `npm run db:init` (schema push recreates the local DB, per existing convention). No new tables.
+Defined in `src/db/schema.ts` (`sleeperRosters`). The migration itself (`drizzle/0002_add_sleeper_roster_devy_name.sql`, journal entry and snapshot) is owned by the non-destructive-migrations feature (PR #219) — this PR intentionally does not ship a second copy, so the two PRs merge cleanly in either order. On this branch the column comes up via `npm run db:init` (drizzle push, per the existing fresh-DB convention); once #219 lands, existing databases upgrade non-destructively via `npm run db:migrate`. No new tables.
 
 A devy claim is a `sleeper_rosters` row with `slot_type = 'taxi' AND devy_name IS NOT NULL`.
 
@@ -30,7 +30,7 @@ type DevyMatch = {
 };
 ```
 
-Claim names are matched to `devy_players` by normalized name (reuse `normalizePlayerName` from `src/etl/player-matching.ts` plus `player-aliases.json` alias families). Matching happens at request time so board refreshes (`npm run etl:devy`) are reflected without re-sync; unmatched claims still display their name.
+Claim names are matched to `devy_players` by normalized name (reuse `normalizePlayerName` from `src/etl/player-matching.ts` plus `player-aliases.json` alias families, with quote variants (' ’ ‘ `) stripped — commissioner nicknames are free text). Matching happens at request time so board refreshes (`npm run etl:devy`) are reflected without re-sync; unmatched claims still display their name. Roster-overview entries carry `devyName` plus a nested `devyMatch` (null for non-claim rows) so the devy fields never collide with the placeholder player's own fields.
 
 ## Logic Flow
 
@@ -47,16 +47,17 @@ Claim names are matched to `devy_players` by normalized name (reuse `normalizePl
 - **New route `GET /season/:league_id/devy/claims`:**
   ```json
   {
+    "season": "2026",
     "claims": [{ "rosterId": 3, "teamName": "wulke", "devyName": "Jadan Baugh",
-                 "position": "RB", "school": "Florida Gators", "draftYear": 2027,
-                 "dynastyValue": 6364, "matched": true }],
+                 "devyMatch": { "matched": true, "position": "RB", "school": "Florida Gators",
+                                 "draftYear": 2027, "dynastyValue": 6364 } }],
     "available": [{ "name": "Kewan Lacy", "position": "RB", "school": "Ole Miss Rebels",
                     "draftYear": 2027, "dynastyValue": 6651 }],
     "lastSyncedAt": "2026-10-10T…"
   }
   ```
-  - `claims`: every `sleeper_rosters` row with `slot_type='taxi' AND devy_name IS NOT NULL`, joined to `sleeper_teams` for team names, sorted by team name then value/name.
-  - `available`: `devy_players` rows whose normalized name is not in the claimed set, sorted by `value_superflex` desc. Returned in full (board is ~100 rows); the UI filters by draft year.
+  - `claims`: every `sleeper_rosters` row with `slot_type='taxi' AND devy_name IS NOT NULL`, joined to `sleeper_teams` for team names, sorted by team name then value/name. `devyMatch` carries the read-time board match (`matched: false` + nulls when the name is not on the board).
+  - `available`: `devy_players` rows whose normalized name is not in the claimed set, sorted by `value_superflex` desc. Returned in full (board is ~100 rows); the UI filters by draft year, defaulting to `season + 1`.
   - Unknown league → 404; league with no synced rosters → empty arrays, not an error.
 
 ### UI (`src/ui/components/MyTeamSection.tsx`)
@@ -72,5 +73,5 @@ Claim names are matched to `devy_players` by normalized name (reuse `normalizePl
 - **Two managers claim the same devy name** → both rows surface independently (Sleeper is the source of truth); `available` excludes the name once claimed by anyone.
 - **`etl:devy` never run / empty `devy_players`** → all claims `matched: false`, `available` empty; panel still lists claims.
 - **League with no claims (no taxi nicknames anywhere)** → route returns empty `claims`; UI hides the panel; Roster Overview unchanged.
-- **Existing DBs created before this feature** → schema comes up fresh on `npm run db:init` + `npm run etl`; sync re-populates `devy_name` on the next run.
+- **Existing DBs created before this feature** → schema comes up via `npm run db:init` + `npm run etl` on this branch; after #219 lands, `npm run db:migrate` upgrades in place (non-destructive). Sync re-populates `devy_name` on the next run.
 - **Placeholder players already in `players` table** (e.g. a devy league whose taxi placeholders are real rookies with values) → roster entry keeps its NFL-derived fields; `devyName` is additive and never overwrites matched-player data.

@@ -140,19 +140,19 @@ Sub-pick normalization shall be applied source-agnostically: any scraper that re
 
 ## Redraft Values
 
-**DFF-ETL-100** `[ ]`
+**DFF-ETL-100** `[ ]` → #227
 The FantasyCalc scraper shall capture each player's redraft value from the FantasyCalc values response, falling back to a separate `isDynasty=false` request when the dynasty response lacks a redraft field.
 
-**DFF-ETL-101** `[ ]`
+**DFF-ETL-101** `[ ]` → #227
 The system shall normalize FantasyCalc redraft values 0–9999 using min-max scaling over the FantasyCalc redraft values of that run, and store the result as `players.redraft_value` on the matched player.
 
-**DFF-ETL-102** `[ ]`
+**DFF-ETL-102** `[ ]` → #227
 When a player has no FantasyCalc redraft value in a run, the system shall set that player's `redraft_value` to NULL.
 
-**DFF-ETL-103** `[ ]`
+**DFF-ETL-103** `[ ]` → #227
 The system shall record each raw FantasyCalc redraft value in `player_value_snapshots` with source `fantasycalc_redraft`.
 
-**DFF-ETL-104** `[ ]`
+**DFF-ETL-104** `[ ]` → #227
 Redraft values shall not be included in the `dynasty_value` aggregation.
 
 ---

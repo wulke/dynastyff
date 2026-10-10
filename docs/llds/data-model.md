@@ -46,6 +46,7 @@ Populated by the ETL pipeline. Read-only during drafts.
 | is_rookie | INTEGER (bool) | 1 if current-year rookie |
 | dynasty_value | INTEGER | Aggregated dynasty value (0–9999); average of normalized per-source values |
 | dynasty_value_tep / dynasty_value_tepp / dynasty_value_teppp | INTEGER | KTC TE-premium-adjusted dynasty values for TE+, TE++, and TE+++; NULL when KTC did not supply the tier |
+| redraft_value | INTEGER NULL | FantasyCalc redraft value, normalized 0–9999 among FantasyCalc redraft values; NULL when unmatched (see ETL Pipeline LLD: Redraft Values) |
 | value_ktc | INTEGER | Raw KTC value normalized to 0–9999; NULL if source failed |
 | value_fantasycalc | INTEGER | Raw FantasyCalc value normalized to 0–9999; NULL if source failed |
 | value_dynastydaddy | INTEGER | Raw DynastyDaddy value normalized to 0–9999; NULL if source failed |
@@ -186,6 +187,17 @@ One row per executed (or declined) trade. Assets are recorded as JSON arrays for
   { "type": "future_pick", "year": 2026, "round": 1 }
 ]
 ```
+
+### Season Management additions
+
+These tables and columns support the Acceptance Model and Trade Curator (`docs/llds/season-management.md`). They depend on the non-destructive migration path from bug #217: each one ships as a Drizzle migration, not a `db:init` reset.
+
+| Table / column | Purpose |
+|---|---|
+| `sleeper_teams.total_moves INTEGER NOT NULL DEFAULT 0`, `sleeper_teams.waiver_budget_used INTEGER NOT NULL DEFAULT 0` | Manager activity, from Sleeper `roster.settings` |
+| `league_trade_settings (league_id TEXT PK, acceptance_band REAL NOT NULL DEFAULT 0.10, updated_at TEXT)` | Per-league acceptance gate band |
+| `trade_untouchables (league_id TEXT, asset_kind TEXT CHECK in ('player','pick'), asset_id TEXT, created_at TEXT, PK(league_id, asset_kind, asset_id))` | The user's untouchable assets. `asset_id` is a Sleeper player id, or `season:round:origin_roster_id` for picks |
+| `trade_curation_cache (cache_key TEXT PK, league_id TEXT, scope TEXT, payload TEXT JSON, created_at TEXT)` | Cached Trade Curator results. `cache_key` = hash of (league_id, scope, last_synced_at, values_updated_at, untouchables_hash) |
 
 ## Decisions
 

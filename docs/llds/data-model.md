@@ -10,9 +10,9 @@ Drives specs: `docs/specs/data-model-specs.md`
 
 `npm run db:init` is an explicit destructive fresh-database operation. It removes the target SQLite file and creates the current schema; it is not an upgrade command.
 
-`npm run db:migrate` is the non-destructive upgrade operation. It applies each ordered migration once and records its identifier in the database. A legacy database created before migration tracking is baselined at its known pre-migration schema version, then receives only later migrations. The baseline operation must never delete or recreate application tables.
+`npm run db:migrate` is the non-destructive upgrade operation. It applies each ordered migration once and records its identifier in the database. The legacy baseline applies only to a database at the `feature/devy-claims` schema immediately before the `devy_name` migration; it assumes the existing `sleeper_*`, player-value, draft, and history schema was previously created with `drizzle-kit push`. The baseline operation must never delete or recreate application tables.
 
-Every schema change has a corresponding ordered migration. Migration SQL is additive or otherwise preserves existing rows; a migration that cannot preserve a changed shape must fail with a clear recovery path rather than silently dropping data.
+From this migration forward, every schema change has a corresponding ordered migration. Migration SQL is additive or otherwise preserves existing rows; a migration that cannot preserve a changed shape must fail with a clear recovery path rather than silently dropping data. CI verifies that the schema has no uncommitted Drizzle migration diff.
 
 All database entry points validate that the recorded schema version is current before performing application work. A database that is behind fails fast with an error naming `npm run db:migrate`; it must not defer failure to an arbitrary SQL query.
 

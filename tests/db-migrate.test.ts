@@ -89,6 +89,25 @@ test('db:migrate upgrades a pre-devy database without losing Sleeper, pick-value
     }
 
     assert.doesNotThrow(() => migrateDatabase(dbPath));
+    const currentDatabase = createDatabase(dbPath);
+    currentDatabase.close();
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-099
+// @spec DFF-DATA-100
+test('a missing database fails fast with the fresh-database command without creating a file', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-db-missing-'));
+  const dbPath = path.join(tempDir, 'missing.sqlite');
+
+  try {
+    assert.throws(
+      () => createDatabase(dbPath),
+      /Database schema is not initialized\. Run `npm run db:init` to create a fresh database\./,
+    );
+    assert.equal(fs.existsSync(dbPath), false);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

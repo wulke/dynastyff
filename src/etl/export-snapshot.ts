@@ -7,7 +7,7 @@ import path from 'node:path';
 import type Database from 'better-sqlite3';
 
 import { createDatabase } from '../db/client.js';
-import { resolveDatabasePath } from '../db/init.js';
+import { resolveDatabasePath } from '../db/path.js';
 
 export type SnapshotPlayer = {
   id: string;

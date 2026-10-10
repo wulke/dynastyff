@@ -4,7 +4,7 @@ A local web app for practicing dynasty startup drafts. Run a full 12-team snake 
 
 ## Prerequisites
 
-- Node.js 24+ (use `nvm use` to select the pinned project version)
+- Node.js 20+
 - Playwright (for ETL scraping)
 - `ANTHROPIC_API_KEY` (required for advisor features only — draft pick advice and My Team trade analysis; core draft and roster scoring run offline)
 

@@ -3,13 +3,22 @@
 // @spec DFF-DATA-099
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 
+import { resolveDatabasePath } from './path.js';
+
 const migrationsTable = '__drizzle_migrations';
 const legacySchemaTimestamp = 1779470704872;
-const currentSchemaTimestamp = 1791660080858;
+const databaseDirectory = path.dirname(fileURLToPath(import.meta.url));
+const migrationsFolder = path.resolve(databaseDirectory, '../../drizzle');
+const migrationJournalPath = path.join(migrationsFolder, 'meta', '_journal.json');
+
+type MigrationJournal = {
+  entries: Array<{ when: number }>;
+};
 
 // @spec DFF-DATA-099
 export class DatabaseSchemaError extends Error {
@@ -27,13 +36,6 @@ function tableExists(sqlite: Database.Database, tableName: string): boolean {
 }
 
 // @spec DFF-DATA-097
-function columnExists(sqlite: Database.Database, tableName: string, columnName: string): boolean {
-  return (sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>).some(
-    (column) => column.name === columnName,
-  );
-}
-
-// @spec DFF-DATA-097
 function createMigrationLedger(sqlite: Database.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS ${migrationsTable} (
@@ -42,6 +44,17 @@ function createMigrationLedger(sqlite: Database.Database): void {
       created_at NUMERIC
     )
   `);
+}
+
+// @spec DFF-DATA-097
+function currentMigrationTimestamp(): number {
+  const journal = JSON.parse(fs.readFileSync(migrationJournalPath, 'utf8')) as MigrationJournal;
+  const latestTimestamp = Math.max(...journal.entries.map((entry) => entry.when));
+  if (!Number.isFinite(latestTimestamp)) {
+    throw new DatabaseSchemaError('No database migrations are configured.');
+  }
+
+  return latestTimestamp;
 }
 
 // @spec DFF-DATA-097
@@ -69,12 +82,22 @@ function baselineLegacyDatabase(sqlite: Database.Database): void {
   }
 
   createMigrationLedger(sqlite);
-  const baselineTimestamp = columnExists(sqlite, 'sleeper_rosters', 'devy_name')
-    ? currentSchemaTimestamp
-    : legacySchemaTimestamp;
   sqlite
     .prepare(`INSERT INTO ${migrationsTable} (hash, created_at) VALUES (?, ?)`)
-    .run('legacy-schema-baseline', baselineTimestamp);
+    .run('legacy-schema-baseline', legacySchemaTimestamp);
+}
+
+// @spec DFF-DATA-100
+export function markDatabaseSchemaCurrent(databasePath: string): void {
+  const sqlite = new Database(databasePath);
+  try {
+    createMigrationLedger(sqlite);
+    sqlite
+      .prepare(`INSERT INTO ${migrationsTable} (hash, created_at) VALUES (?, ?)`)
+      .run('fresh-schema-baseline', currentMigrationTimestamp());
+  } finally {
+    sqlite.close();
+  }
 }
 
 // @spec DFF-DATA-097
@@ -91,13 +114,7 @@ export function migrateDatabase(databasePath: string): string {
 
   try {
     baselineLegacyDatabase(sqlite);
-    migrate(drizzle(sqlite), { migrationsFolder: path.resolve(process.cwd(), 'drizzle') });
-
-    if (!columnExists(sqlite, 'sleeper_rosters', 'devy_name')) {
-      throw new DatabaseSchemaError(
-        'Database schema is out of date. Run `npm run db:migrate`.',
-      );
-    }
+    migrate(drizzle(sqlite), { migrationsFolder });
   } finally {
     sqlite.close();
   }
@@ -107,17 +124,18 @@ export function migrateDatabase(databasePath: string): string {
 
 // @spec DFF-DATA-099
 export function assertDatabaseSchemaCurrent(sqlite: Database.Database): void {
-  if (
-    latestMigrationTimestamp(sqlite) !== currentSchemaTimestamp ||
-    !tableExists(sqlite, 'sleeper_rosters') ||
-    !columnExists(sqlite, 'sleeper_rosters', 'devy_name')
-  ) {
+  const latestAppliedMigration = latestMigrationTimestamp(sqlite);
+  if (latestAppliedMigration === undefined && !tableExists(sqlite, 'sleeper_rosters')) {
+    return;
+  }
+
+  if (latestAppliedMigration === undefined || latestAppliedMigration < currentMigrationTimestamp()) {
     throw new DatabaseSchemaError('Database schema is out of date. Run `npm run db:migrate`.');
   }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const databasePath = path.resolve(process.cwd(), process.env.DYNASTYFF_DB_PATH ?? 'data/dynastyff.sqlite');
+  const databasePath = resolveDatabasePath();
   migrateDatabase(databasePath);
   console.log(`[db:migrate] upgraded schema at ${databasePath}`);
 }

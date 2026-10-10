@@ -27,16 +27,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 
-import { migrateDatabase } from './migrate.js';
+import { markDatabaseSchemaCurrent } from './migrate.js';
+import { resolveDatabasePath } from './path.js';
 
-export const defaultDatabasePath = path.resolve(process.cwd(), 'data', 'dynastyff.sqlite');
-
-// @spec DFF-DATA-001
-// @spec DFF-DATA-010
-// @spec DFF-DATA-020
-export function resolveDatabasePath(inputPath = process.env.DYNASTYFF_DB_PATH): string {
-  return inputPath ? path.resolve(process.cwd(), inputPath) : defaultDatabasePath;
-}
+export { defaultDatabasePath, resolveDatabasePath } from './path.js';
 
 // @spec DFF-DATA-001
 // @spec DFF-DATA-002
@@ -82,7 +76,7 @@ export function initializeDatabase(databasePath = resolveDatabasePath()): string
     },
   );
 
-  migrateDatabase(databasePath);
+  markDatabaseSchemaCurrent(databasePath);
 
   const sqlite = new Database(databasePath);
 

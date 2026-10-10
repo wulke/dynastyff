@@ -5,7 +5,7 @@
 import Database from 'better-sqlite3';
 import type { Request, RequestHandler, Response } from 'express';
 
-import { resolveDatabasePath } from '../db/init.js';
+import { createDatabase } from '../db/client.js';
 
 type NoteRow = { player_id: string; note: string; updated_at: string };
 
@@ -15,8 +15,10 @@ export type DevyNotesRouteOptions = {
   now?: () => string;
 };
 
+// Opens through the schema-guarded client (DFF-DATA-099) so a database with
+// pending migrations fails with the actionable `npm run db:migrate` error.
 function openDatabase(databasePath: string | undefined): Database.Database {
-  return new Database(resolveDatabasePath(databasePath), { fileMustExist: true });
+  return createDatabase(databasePath);
 }
 
 // @spec DFF-DVR-012 — every stored devy note, keyed by player id.

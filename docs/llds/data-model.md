@@ -22,6 +22,7 @@ All database entry points validate that the recorded schema version is current b
 2. `db:migrate` opens an existing database, creates the migration ledger if needed, baselines known legacy schema without changing application data, and applies pending ordered migrations transactionally.
 3. A database client checks the ledger before returning a connection. If migrations are pending, it closes the connection and throws an actionable upgrade error.
 4. The devy-claim migration adds nullable `sleeper_rosters.devy_name`; prior Sleeper roster rows remain intact and read as `NULL` for that field.
+5. The devy-notes migration (`drizzle/0003_wise_famine.sql`) creates `devy_player_notes`; existing rows in every other table are untouched (`docs/llds/devy-rankings-view.md`).
 
 ### Edge Case Probe
 

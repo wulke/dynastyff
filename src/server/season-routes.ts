@@ -176,7 +176,7 @@ export function createSeasonDevyClaimsRoute({ databasePath, aliasesPath }: Seaso
 // @spec DFF-DVR-001 — devy player id -> owning team name for the rankings view.
 // @spec DFF-DVR-003 — unknown/never-synced leagues 404 via the shared context handler;
 // synced leagues without claims return an empty mapping.
-export function createSeasonDevyOwnershipRoute({ databasePath }: SeasonRouteOptions = {}): RequestHandler {
+export function createSeasonDevyOwnershipRoute({ databasePath, aliasesPath }: SeasonRouteOptions = {}): RequestHandler {
   return (request, response) => {
     const leagueId = leagueIdFrom(request);
 
@@ -187,7 +187,7 @@ export function createSeasonDevyOwnershipRoute({ databasePath }: SeasonRouteOpti
 
     try {
       const context = assembleLeagueContext(databasePath, leagueId);
-      const matcher = devyMatcherFor(databasePath);
+      const matcher = devyMatcherFor(databasePath, aliasesPath);
 
       const claims: { devyName: string; teamName: string }[] = [];
 

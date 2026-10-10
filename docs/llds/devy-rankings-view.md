@@ -24,7 +24,7 @@ export const devyPlayerNotes = sqliteTable('devy_player_notes', {
 
 - Keyed by `devy_players.id`, which is stable across `etl:devy` runs (the upsert conflicts on `(name, position)` and never regenerates ids), so notes survive board refreshes.
 - No FK to `devy_players`: notes outliving a board row are harmless (the UI only ever looks up ids present in the board), and the devy ETL never deletes rows today.
-- Applied via the existing `npm run db:init` convention (recreates the local DB). The destructive-migration concern is #217's scope, not this feature's.
+- Shipped as additive migration `drizzle/0003_wise_famine.sql` per the schema-lifecycle rules in `docs/llds/data-model.md`: existing local DBs gain the table via `npm run db:migrate` without touching any existing row, so user-authored notes survive upgrades. (`npm run db:init` remains a deliberate destructive fresh start.)
 
 ### Ownership — no schema change
 
@@ -95,7 +95,7 @@ New optional props (all default to "feature off", so the static/snapshot path an
 - **Claim name that matches no board row** (deep stash off-board) → contributes nothing to the ownership map; it remains visible in the claims panel, not the rankings view.
 - **`ownership` fetch fails / no connected leagues / league never synced** → `ownership` stays `null`; every row shows `—` (unknown), never a false "Unowned".
 - **Notes for a player id no longer on the board** → row lingers in `devy_player_notes`, ignored by the UI; harmless because the devy ETL never prunes rows today.
-- **`npm run db:init` after a schema change** → notes table is recreated empty; user-authored notes are lost (accepted local-DB convention; non-destructive path tracked at #217).
+- **`npm run db:init`** → explicitly destructive fresh start; notes are lost (accepted convention — `db:migrate`, not `db:init`, is the upgrade path, and migration `0003` carries the notes table to existing DBs losslessly).
 - **PUT with non-string / missing `note`** → `400`; UI keeps the modal open with its local draft.
 - **PUT with whitespace-only note** → treated as delete; icon highlight clears.
 - **Snapshot-fed DevyView (static build path)** → new props absent; the Owner and notes columns render only when the corresponding props are provided, so the snapshot path stays pixel-identical to today.

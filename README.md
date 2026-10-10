@@ -14,7 +14,10 @@ A local web app for practicing dynasty startup drafts. Run a full 12-team snake 
 # Install dependencies
 npm install
 
-# Initialize the local SQLite schema (recreates the local DB file)
+# Upgrade an existing local SQLite database without deleting its data
+npm run db:migrate
+
+# Initialize a fresh local SQLite schema (destructive: deletes the local DB file)
 npm run db:init
 
 # Install Playwright browsers
@@ -96,7 +99,8 @@ A weekly GitHub Actions workflow (`.github/workflows/scheduled-refresh.yml`) run
 | Command | Purpose |
 |---|---|
 | **Setup** | |
-| `npm run db:init` | Initialize the local SQLite schema |
+| `npm run db:migrate` | Upgrade an existing local SQLite schema without deleting synced data, ETL history, or drafts |
+| `npm run db:init` | **Destructively** delete and recreate the local SQLite schema; use only for a fresh database |
 | `npm run etl` | Scrape and normalize player/pick values |
 | `npm run etl:devy` | Scrape and normalize KTC devy player values |
 | `node scripts/devy-claims.mjs` | Extract devy claims from Sleeper taxi-squad nicknames (roster `p_nick_` metadata) and regenerate `data/analysis/devy-ownership.csv` + `devy-available.csv`; also prints trade context (records, open taxi slots, trading block, future-pick trades) |

@@ -25,5 +25,8 @@ jobs:
 
       - run: npm ci
 
+      - name: Check database migration drift
+        run: npm run db:check
+
       - name: Run tests with coverage
         run: npm run test:coverage

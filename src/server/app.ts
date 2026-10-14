@@ -13,6 +13,7 @@
 import express, {
   type ErrorRequestHandler,
   type Express,
+  type NextFunction,
   type Request,
   type RequestHandler,
   type Response,
@@ -58,7 +59,11 @@ import {
   TradeOfferSubmissionValidationError,
 } from './config.js';
 import { mapSleeperLeagueSettings } from './sleeper-config-import.js';
-import { createSeasonOverviewRoute, createSeasonTradeAnalyzeRoute, createSeasonTradeRecommendationsRoute, createSeasonTradesPendingRoute, createSeasonWaiverAnalyzeRoute, createSeasonWaiversRoute } from './season-routes.js';
+import {
+  createDevyNotePutRoute,
+  createDevyNotesListRoute,
+} from './devy-notes.js';
+import { createSeasonDevyClaimsRoute, createSeasonDevyOwnershipRoute, createSeasonOverviewRoute, createSeasonTradeAnalyzeRoute, createSeasonTradeRecommendationsRoute, createSeasonTradesPendingRoute, createSeasonWaiverAnalyzeRoute, createSeasonWaiversRoute } from './season-routes.js';
 import {
   createSleeperConnectionsCreateRoute,
   createSleeperConnectionsDeleteRoute,
@@ -131,6 +136,10 @@ export function createDraftApp({
   // @spec DFF-SLS-021
   app.get('/sleeper/sync/status', createSleeperSyncStatusRoute({ databasePath }));
   app.get('/season/:league_id/overview', createSeasonOverviewRoute({ databasePath }));
+  // @spec DFF-DVC-006
+  app.get('/season/:league_id/devy/claims', createSeasonDevyClaimsRoute({ databasePath }));
+  // @spec DFF-DVR-001
+  app.get('/season/:league_id/devy/ownership', createSeasonDevyOwnershipRoute({ databasePath }));
   app.get('/season/:league_id/trades/pending', createSeasonTradesPendingRoute({ databasePath }));
   app.get('/season/:league_id/trades/recommendations', createSeasonTradeRecommendationsRoute({ databasePath }));
   app.get('/season/:league_id/waivers', createSeasonWaiversRoute({ databasePath }));
@@ -139,6 +148,10 @@ export function createDraftApp({
   app.get('/league-imports/sleeper/:leagueId', createSleeperLeagueImportRoute());
   app.get('/configs', createLeagueConfigsListRoute({ databasePath }));
   app.get('/devy-players', createDevyPlayersListRoute({ databasePath }));
+  // @spec DFF-DVR-012
+  app.get('/devy-notes', createDevyNotesListRoute({ databasePath }));
+  // @spec DFF-DVR-009
+  app.put('/devy-notes/:player_id', createDevyNotePutRoute({ databasePath }));
   app.post('/configs', createLeagueConfigsCreateRoute({ databasePath }));
   app.get('/drafts', createDraftHistoryRoute({ databasePath }));
   app.post('/drafts', createDraftRoute({ databasePath, botChain }));
@@ -156,11 +169,26 @@ export function createDraftApp({
   return app;
 }
 
+// @spec DFF-DATA-099
+function openRouteDatabase(
+  databasePath: string,
+  next: NextFunction,
+): ReturnType<typeof createDrizzleDb> | undefined {
+  try {
+    return createDrizzleDb(databasePath);
+  } catch (error) {
+    next(error);
+    return undefined;
+  }
+}
+
 // @spec DFF-DEVY-040
 // @spec DFF-DEVY-041
 export function createDevyPlayersListRoute({ databasePath }: { databasePath: string }): RequestHandler {
   return (_request, response, next) => {
-    const { db, sqlite } = createDrizzleDb(databasePath);
+    const connection = openRouteDatabase(databasePath, next);
+    if (!connection) return;
+    const { db, sqlite } = connection;
     try {
       response.status(200).json(db.select({
         id: devyPlayers.id, name: devyPlayers.name, position: devyPlayers.position, school: devyPlayers.school,
@@ -204,7 +232,13 @@ export function createLeagueConfigsListRoute({
   databasePath,
 }: SavedLeagueConfigRouteOptions): RequestHandler {
   return (_request, response, next) => {
-    const { db, sqlite } = createDrizzleDb(databasePath);
+    const connection = openRouteDatabase(databasePath, next);
+
+    if (!connection) {
+      return;
+    }
+
+    const { db, sqlite } = connection;
 
     try {
       const rows = db
@@ -229,7 +263,13 @@ export function createLeagueConfigsCreateRoute({
   now = () => new Date().toISOString(),
 }: SavedLeagueConfigRouteOptions): RequestHandler {
   return (request, response, next) => {
-    const { db, sqlite } = createDrizzleDb(databasePath);
+    const connection = openRouteDatabase(databasePath, next);
+
+    if (!connection) {
+      return;
+    }
+
+    const { db, sqlite } = connection;
 
     try {
       const config = parseSavedLeagueConfig(request.body);

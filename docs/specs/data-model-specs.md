@@ -167,26 +167,45 @@ The system shall record declined and force-declined trades in `trades` with the 
 
 ---
 
+## Schema Lifecycle
+
+**DFF-DATA-097** `[x]` → #217
+When an existing local database is behind the current schema, the system shall provide `npm run db:migrate` to apply ordered schema migrations without deleting application data.
+
+**DFF-DATA-098** `[x]` → #217
+When `db:migrate` upgrades a database from the pre-devy-claim schema, the system shall add nullable `sleeper_rosters.devy_name` while preserving its Sleeper roster rows, `pick_values` rows, and ETL history rows.
+
+**DFF-DATA-099** `[x]` → #217
+If an application database entry point detects pending schema migrations, then the system shall fail before application queries with an error that directs the user to run `npm run db:migrate`.
+
+**DFF-DATA-107** `[x]` → #217
+The system shall reserve `npm run db:init` for an explicitly destructive fresh-database initialization and shall document that it deletes the selected local database.
+
+**DFF-DATA-114** `[x]` → #222
+When `db:migrate` upgrades a database from the pre-devy-notes schema, the system shall create `devy_player_notes` (migration `drizzle/0003_wise_famine.sql`) while preserving every existing row in all tables.
+
+---
+
 ## Season Management Additions
 
-**DFF-DATA-100** `[ ]`
+**DFF-DATA-107** `[ ]`
 The `players` table shall include a nullable integer column `redraft_value`.
 
-**DFF-DATA-101** `[ ]`
+**DFF-DATA-108** `[ ]`
 The `sleeper_teams` table shall include integer columns `total_moves` and `waiver_budget_used`, defaulting to 0, populated by Sleeper Sync from roster settings.
 
-**DFF-DATA-102** `[ ]`
+**DFF-DATA-109** `[ ]`
 The system shall store a per-league acceptance band in `league_trade_settings (league_id, acceptance_band, updated_at)`, with `acceptance_band` defaulting to 0.10.
 
-**DFF-DATA-103** `[ ]`
+**DFF-DATA-110** `[ ]`
 The system shall store the user's untouchable assets in `trade_untouchables (league_id, asset_kind, asset_id, created_at)`, with `asset_kind` constrained to `player` or `pick`, and primary key `(league_id, asset_kind, asset_id)`.
 
-**DFF-DATA-104** `[ ]`
+**DFF-DATA-111** `[ ]`
 The system shall store Trade Curator results in `trade_curation_cache (cache_key, league_id, scope, payload, created_at)`, keyed by `cache_key`.
 
-**DFF-DATA-105** `[ ]`
+**DFF-DATA-112** `[ ]`
 The `player_value_snapshots.source` constraint shall permit `fantasycalc_redraft`.
 
-**DFF-DATA-106** `[ ]`
-Every schema addition in DFF-DATA-100–105 shall ship as a non-destructive migration that preserves existing data.
+**DFF-DATA-113** `[ ]`
+Every schema addition in DFF-DATA-107–113 shall ship as a non-destructive migration that preserves existing data.
 

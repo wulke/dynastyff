@@ -45,6 +45,7 @@ type RosterSeed = {
   sleeperPlayerId: string;
   playersId: string | null;
   slotType: string;
+  devyName?: string | null;
 };
 
 const fixtureRosters: RosterSeed[] = [
@@ -62,8 +63,31 @@ const fixtureRosters: RosterSeed[] = [
   { id: 'r-4-1', rosterId: 4, sleeperPlayerId: 's-p4-te', playersId: 'p4-te', slotType: 'starter' },
 ];
 
-export function createSeasonFixture(options: { teamCount?: number; withConnection?: boolean } = {}): SeasonFixture {
-  const { teamCount = 4, withConnection = true } = options;
+export type DevyPlayerSeed = {
+  name: string;
+  position: string;
+  school: string;
+  draftYear: number;
+  value: number;
+};
+
+export type DevyClaimSeed = {
+  rosterId: number;
+  sleeperPlayerId: string;
+  devyName: string;
+  placeholderName: string;
+  placeholderPosition: string;
+};
+
+export function createSeasonFixture(
+  options: {
+    teamCount?: number;
+    withConnection?: boolean;
+    devyPlayers?: DevyPlayerSeed[];
+    devyClaims?: DevyClaimSeed[];
+  } = {},
+): SeasonFixture {
+  const { teamCount = 4, withConnection = true, devyPlayers = [], devyClaims = [] } = options;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-season-'));
   const dbPath = path.join(tempDir, 'test.sqlite');
   initializeDatabase(dbPath);
@@ -121,7 +145,7 @@ export function createSeasonFixture(options: { teamCount?: number; withConnectio
   }
 
   const insertRoster = db.prepare(
-    'INSERT INTO sleeper_rosters (id, league_id, roster_id, sleeper_player_id, players_id, slot_type, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO sleeper_rosters (id, league_id, roster_id, sleeper_player_id, players_id, slot_type, devy_name, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
   );
   for (const entry of fixtureRosters.filter((row) => row.rosterId <= teamCount)) {
     insertRoster.run(
@@ -131,9 +155,37 @@ export function createSeasonFixture(options: { teamCount?: number; withConnectio
       entry.sleeperPlayerId,
       entry.playersId,
       entry.slotType,
+      entry.devyName ?? null,
       seasonSyncedAt,
     );
   }
+
+  // @spec DFF-DVC-001 — optional devy claims: taxi placeholders named by commissioner nicknames.
+  const insertDevyClaim = db.prepare(
+    'INSERT INTO sleeper_rosters (id, league_id, roster_id, sleeper_player_id, players_id, slot_type, devy_name, synced_at) VALUES (?, ?, ?, ?, NULL, ?, ?, ?)',
+  );
+  const insertPlaceholderMap = db.prepare(
+    'INSERT INTO sleeper_player_map (sleeper_player_id, players_id, sleeper_name, sleeper_position, matched_at) VALUES (?, NULL, ?, ?, ?)',
+  );
+  devyClaims.forEach((claim, index) => {
+    insertDevyClaim.run(
+      `r-devy-${index + 1}`,
+      seasonLeagueId,
+      claim.rosterId,
+      claim.sleeperPlayerId,
+      'taxi',
+      claim.devyName,
+      seasonSyncedAt,
+    );
+    insertPlaceholderMap.run(claim.sleeperPlayerId, claim.placeholderName, claim.placeholderPosition, seasonSyncedAt);
+  });
+
+  const insertDevyPlayer = db.prepare(
+    'INSERT INTO devy_players (id, name, position, school, draft_year, value_superflex, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+  devyPlayers.forEach((player, index) => {
+    insertDevyPlayer.run(`devy-${index + 1}`, player.name, player.position, player.school, player.draftYear, player.value, seasonSyncedAt);
+  });
 
   if (withConnection) {
     db.prepare(

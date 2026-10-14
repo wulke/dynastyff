@@ -5,6 +5,8 @@
 // @spec DFF-SM-002
 import { useCallback, useEffect, useState } from 'react';
 
+import { DevyClaimsPanel, type DevyClaimsView, type DevyMatchView } from './DevyClaimsPanel.js';
+
 type SleeperConnection = {
   id: string;
   leagueId: string;
@@ -31,12 +33,15 @@ type LeagueSummary = {
 
 // @spec DFF-SM-019
 type SeasonRosterEntry = {
+  sleeperPlayerId: string;
   name: string;
   position: string;
   age: number | null;
   dynastyValue: number;
   slotType: 'starter' | 'bench' | 'ir' | 'taxi';
   matched: boolean;
+  devyName: string | null;
+  devyMatch: DevyMatchView | null;
 };
 
 type SeasonPositionEval = {
@@ -84,6 +89,25 @@ const positionTextTokens: Record<string, string> = {
 };
 
 const slotOrder: SeasonRosterEntry['slotType'][] = ['starter', 'bench', 'taxi', 'ir'];
+
+const positionOrder = ['QB', 'RB', 'WR', 'TE'];
+
+function positionRank(position: string): number {
+  const index = positionOrder.indexOf(position);
+
+  return index === -1 ? positionOrder.length : index;
+}
+
+// @spec DFF-SM-089 — rows sort by position order (QB, RB, WR, TE, other), best value first.
+// Devy claims sort on their board match (real position + devy value), not the placeholder's.
+function compareRosterEntries(a: SeasonRosterEntry, b: SeasonRosterEntry): number {
+  const aPosition = a.devyMatch?.position ?? a.position;
+  const bPosition = b.devyMatch?.position ?? b.position;
+  const aValue = a.devyMatch?.dynastyValue ?? a.dynastyValue;
+  const bValue = b.devyMatch?.dynastyValue ?? b.dynastyValue;
+
+  return positionRank(aPosition) - positionRank(bPosition) || bValue - aValue;
+}
 
 // @spec DFF-SM-019
 // @spec DFF-SM-026
@@ -155,18 +179,39 @@ function RosterOverviewView({
         {slotOrder.flatMap((slot) =>
           overview.roster
             .filter((entry) => entry.slotType === slot)
-            .map((entry) => (
-              <div key={`${slot}-${entry.name}`} className="flex items-center gap-3 border-b border-default px-3 py-1 text-sm last:border-b-0 hover:bg-surface-hover">
-                <span className={`w-8 font-condensed text-sm font-bold ${positionTextTokens[entry.position] ?? 'text-primary'}`}>{entry.position}</span>
-                <span className="min-w-0 flex-1 truncate font-medium text-primary">{entry.name}</span>
-                {!entry.matched ? (
-                  <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">unmatched</span>
-                ) : null}
-                <span className="font-condensed text-xs tabular-nums text-secondary">{entry.age !== null ? `${entry.age}y` : '—'}</span>
-                <span className="font-condensed text-xs tabular-nums text-secondary">{entry.dynastyValue}</span>
-                <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">{entry.slotType}</span>
-              </div>
-            )),
+            .sort(compareRosterEntries)
+            .map((entry) => {
+              // @spec DFF-DVC-008 — devy claims render the college player as the primary
+              // label with the placeholder NFL player as muted secondary text.
+              const isDevy = entry.devyName != null && entry.devyName !== '';
+              const labelPosition = isDevy ? entry.devyMatch?.position ?? null : entry.position;
+              const positionLabel = labelPosition ?? (isDevy ? 'DEV' : entry.position);
+              const value = isDevy ? entry.devyMatch?.dynastyValue ?? '—' : entry.dynastyValue;
+
+              return (
+                <div key={`${slot}-${entry.sleeperPlayerId ?? entry.devyName ?? entry.name}`} className="flex items-center gap-3 border-b border-default px-3 py-1 text-sm last:border-b-0 hover:bg-surface-hover">
+                  <span className={`w-8 font-condensed text-sm font-bold ${positionTextTokens[labelPosition ?? ''] ?? 'text-primary'}`}>{positionLabel}</span>
+                  <span className="min-w-0 flex-1 truncate font-medium text-primary">
+                    {isDevy ? (
+                      <>
+                        {entry.devyName}
+                        <span className="ml-2 text-xs font-normal text-muted">via {entry.name}</span>
+                      </>
+                    ) : (
+                      entry.name
+                    )}
+                  </span>
+                  {isDevy ? (
+                    <span className="shrink-0 rounded border border-accent px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-accent">devy</span>
+                  ) : !entry.matched ? (
+                    <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">unmatched</span>
+                  ) : null}
+                  {isDevy ? null : <span className="font-condensed text-xs tabular-nums text-secondary">{entry.age !== null ? `${entry.age}y` : '—'}</span>}
+                  <span className="font-condensed text-xs tabular-nums text-secondary">{value}</span>
+                  <span className="rounded border border-default px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">{entry.slotType}</span>
+                </div>
+              );
+            }),
         )}
       </div>
     </>
@@ -677,6 +722,7 @@ export function MyTeamSection() {
   const [analyses, setAnalyses] = useState<Record<string, TradeAnalysis>>({});
   const [recommendations, setRecommendations] = useState<RecommendationsView | null>(null);
   const [waivers, setWaivers] = useState<WaiversView | null>(null);
+  const [devyClaims, setDevyClaims] = useState<DevyClaimsView | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -708,6 +754,7 @@ export function MyTeamSection() {
       setSelectedLeagueId(null);
       setOverview(null);
       setOverviewError(null);
+      setDevyClaims(null);
       return;
     }
 
@@ -715,6 +762,13 @@ export function MyTeamSection() {
       setSelectedLeagueId(connections[0].leagueId);
     }
   }, [connections, selectedLeagueId]);
+
+  // Switching leagues drops the previous league's devy claims immediately (the panel's
+  // draft-year filter state resets with it via the panel key).
+  const leagueClaimsKey = selectedLeagueId ?? 'none';
+  useEffect(() => {
+    setDevyClaims(null);
+  }, [leagueClaimsKey]);
 
   useEffect(() => {
     if (selectedLeagueId === null) {
@@ -777,6 +831,21 @@ export function MyTeamSection() {
       } catch {
         if (!cancelled) {
           setWaivers(null);
+        }
+      }
+
+      // @spec DFF-DVC-006 — league-wide devy claims board for the selected league.
+      try {
+        const payload = (await requestJson(
+          `/season/${encodeURIComponent(selectedLeagueId)}/devy/claims`,
+        )) as DevyClaimsView;
+
+        if (!cancelled) {
+          setDevyClaims(payload);
+        }
+      } catch {
+        if (!cancelled) {
+          setDevyClaims(null);
         }
       }
     };
@@ -1049,6 +1118,11 @@ export function MyTeamSection() {
       ) : (
         <p className="text-xs text-muted">Loading roster overview…</p>
       )}
+
+      {/* @spec DFF-DVC-009 — hidden entirely for leagues without devy claims (DFF-DVC-010). */}
+      {devyClaims !== null && devyClaims.claims.length > 0 ? (
+        <DevyClaimsPanel key={leagueClaimsKey} data={devyClaims} />
+      ) : null}
 
       {pendingTrades.length > 0 ? (
         <PendingOffersPanel

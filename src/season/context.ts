@@ -17,6 +17,8 @@ export type RosterEntry = {
   dynastyValue: number;
   slotType: RosterSlotType;
   matched: boolean;
+  // @spec DFF-DVC-001 — college player represented by this taxi placeholder, or null.
+  devyName: string | null;
 };
 
 export type TeamRoster = {
@@ -101,6 +103,7 @@ type SleeperRosterRow = {
   sleeper_player_id: string;
   players_id: string | null;
   slot_type: string;
+  devy_name: string | null;
 };
 
 type PlayerRow = {
@@ -158,7 +161,7 @@ function loadRosterEntries(sqlite: Database.Database, leagueId: string): Map<num
 
   const rosterRows = sqlite
     .prepare(
-      'SELECT roster_id, sleeper_player_id, players_id, slot_type FROM sleeper_rosters WHERE league_id = ? ORDER BY roster_id, slot_type, sleeper_player_id',
+      'SELECT roster_id, sleeper_player_id, players_id, slot_type, devy_name FROM sleeper_rosters WHERE league_id = ? ORDER BY roster_id, slot_type, sleeper_player_id',
     )
     .all(leagueId) as SleeperRosterRow[];
 
@@ -188,6 +191,7 @@ function loadRosterEntries(sqlite: Database.Database, leagueId: string): Map<num
         dynastyValue: player.dynasty_value,
         slotType: toSlotType(row.slot_type),
         matched: true,
+        devyName: row.devy_name,
       };
       pushEntry(entries, row.roster_id, entry);
       continue;
@@ -204,6 +208,7 @@ function loadRosterEntries(sqlite: Database.Database, leagueId: string): Map<num
       dynastyValue: 0,
       slotType: toSlotType(row.slot_type),
       matched: false,
+      devyName: row.devy_name,
     };
     pushEntry(entries, row.roster_id, entry);
   }

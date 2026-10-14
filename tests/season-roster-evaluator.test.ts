@@ -25,6 +25,7 @@ function entry(position: string, value: number, age: number | null, slotType: Ro
     dynastyValue: value,
     slotType,
     matched: true,
+    devyName: null,
   };
 }
 

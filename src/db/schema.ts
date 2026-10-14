@@ -109,6 +109,17 @@ export const devyPlayers = sqliteTable(
   ],
 );
 
+// @spec DFF-DVR-009 — per-player devy scouting note, keyed by the stable devy_players.id
+// (the devy ETL upserts on (name, position) and never regenerates ids, so notes survive
+// board refreshes). No FK: notes outliving a pruned board row are simply ignored by the UI.
+// Schema change ships as additive migration drizzle/0003_wise_famine.sql, so existing
+// local DBs upgrade via `npm run db:migrate` without losing notes.
+export const devyPlayerNotes = sqliteTable('devy_player_notes', {
+  playerId: text('player_id').primaryKey(),
+  note: text('note').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 // @spec DFF-SPKV-043
 export const drafts = sqliteTable(
   'drafts',
@@ -492,6 +503,9 @@ export const sleeperRosters = sqliteTable(
     sleeperPlayerId: text('sleeper_player_id').notNull(),
     playersId: text('players_id').references(() => players.id, { onDelete: 'set null' }),
     slotType: text('slot_type').notNull(),
+    // @spec DFF-DVC-001 — devy claim: college player represented by a taxi placeholder
+    // (Sleeper roster metadata p_nick_<playerId>). NULL for every non-claim row.
+    devyName: text('devy_name'),
     syncedAt: text('synced_at').notNull(),
   },
   (table) => [

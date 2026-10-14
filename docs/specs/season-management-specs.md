@@ -417,3 +417,9 @@ When scoring a trade, the system shall attribute assets to the user by direction
 
 **DFF-SM-088** `[x]` *superseded by DFF-SM-131, DFF-SM-136–DFF-SM-138, DFF-SM-142*
 ~~Trade candidate asset selection shall be deterministic: the outbound asset for surplus-based candidates shall be the user's most valuable non-starter (bench or taxi, IR excluded) at the surplus position; the inbound asset for a player swap shall be the counterparty's non-starter at the target position with the dynasty value closest to the outbound asset; the inbound asset for a pick acquisition shall be the counterparty's most valuable owned future pick; and a value sell shall ship the user's most valuable player aged 30 or older at a position the counterparty grades C or below. Hypothetical candidates shall carry synthetic transaction IDs that cannot collide with Sleeper transaction IDs.~~
+
+**DFF-SM-088** `[x]`
+Trade candidate asset selection shall be deterministic: the outbound asset for surplus-based candidates shall be the user's most valuable non-starter (bench or taxi, IR excluded) at the surplus position; the inbound asset for a player swap shall be the counterparty's non-starter at the target position with the dynasty value closest to the outbound asset; the inbound asset for a pick acquisition shall be the counterparty's most valuable owned future pick; and a value sell shall ship the user's most valuable player aged 30 or older at a position the counterparty grades C or below. Hypothetical candidates shall carry synthetic transaction IDs that cannot collide with Sleeper transaction IDs.
+
+**DFF-SM-089** `[x]`
+The Roster Overview roster list shall order rows by position group (QB, RB, WR, TE, then other) and, within a group, by descending dynasty value; devy claim rows shall sort by their devy-board match position and devy value rather than the placeholder player's.

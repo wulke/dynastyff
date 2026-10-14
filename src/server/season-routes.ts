@@ -64,9 +64,6 @@ function involvesUser(
   return offer.proposerRosterId === userRosterId || offer.responderRosterIds.includes(userRosterId);
 }
 
-// @spec DFF-SM-010
-// @spec DFF-SM-018 — pure algorithm output; no Claude invocation.
-
 function devyMatcherFor(databasePath: string | undefined, aliasesPath?: string) {
   return createDevyBoardMatcher(
     databasePath,
@@ -74,6 +71,8 @@ function devyMatcherFor(databasePath: string | undefined, aliasesPath?: string) 
   );
 }
 
+// @spec DFF-SM-010
+// @spec DFF-SM-018 — pure algorithm output; no Claude invocation.
 export function createSeasonOverviewRoute({ databasePath, now = () => new Date(), aliasesPath }: SeasonRouteOptions = {}): RequestHandler {
   return (request, response) => {
     const leagueId = leagueIdFrom(request);
@@ -91,16 +90,14 @@ export function createSeasonOverviewRoute({ databasePath, now = () => new Date()
       // (null for non-claim rows). Matching happens at read time so `etl:devy` refreshes
       // are reflected without re-syncing the league. The matcher (a second DB handle plus
       // the aliases file) is only opened when at least one claim needs a match.
-      const hasClaims = overview.roster.some((entry) => entry.devyName !== null);
-      const roster = hasClaims
-        ? overview.roster.map((entry) => ({
-            ...entry,
-            devyMatch:
-              entry.devyName === null
-                ? null
-                : devyMatcherFor(databasePath, aliasesPath).match(entry.devyName),
-          }))
-        : overview.roster.map((entry) => ({ ...entry, devyMatch: null }));
+      // @spec DFF-DVC-011 — built at most once per request.
+      const matcher = overview.roster.some((entry) => entry.devyName !== null)
+        ? devyMatcherFor(databasePath, aliasesPath)
+        : null;
+      const roster = overview.roster.map((entry) => ({
+        ...entry,
+        devyMatch: matcher && entry.devyName !== null ? matcher.match(entry.devyName) : null,
+      }));
 
       // @spec DFF-SM-081 — flag stale data when the last sync is older than 1 hour.
       const lastSyncedMs = Date.parse(context.lastSyncedAt ?? '');
@@ -119,7 +116,9 @@ export function createSeasonOverviewRoute({ databasePath, now = () => new Date()
 }
 
 // @spec DFF-DVC-006 — league-wide claims board + unclaimed devy players.
-// @spec DFF-DVC-007 — leagues without synced rosters degrade to empty lists.
+// @spec DFF-DVC-007 — leagues without claims return empty claims + the full board;
+// unassemblable leagues get the shared context error.
+// @spec DFF-DVC-012 — claims carry the placeholder's sleeperPlayerId as a unique key.
 export function createSeasonDevyClaimsRoute({ databasePath, aliasesPath }: SeasonRouteOptions = {}): RequestHandler {
   return (request, response) => {
     const leagueId = leagueIdFrom(request);
@@ -142,6 +141,7 @@ export function createSeasonDevyClaimsRoute({ databasePath, aliasesPath }: Seaso
           if (entry.slotType === 'taxi' && entry.devyName !== null) {
             claims.push({
               rosterId: team.rosterId,
+              sleeperPlayerId: entry.sleeperPlayerId,
               teamName,
               devyName: entry.devyName,
               devyMatch: matcher.match(entry.devyName),

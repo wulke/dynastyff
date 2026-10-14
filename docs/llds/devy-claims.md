@@ -43,12 +43,12 @@ Claim names are matched to `devy_players` by normalized name (reuse `normalizePl
 
 ### Season API (`src/server/season-routes.ts`, helper `src/server/devy-claims.ts`)
 
-- **Roster overview:** each roster entry gains `devyName: string | null` and, when `devyName` is present and matches the board, the `DevyMatch` fields. Placeholder (NFL) fields remain untouched.
+- **Roster overview:** each roster entry gains `devyName: string | null` and, when `devyName` is present and matches the board, the `DevyMatch` fields. Placeholder (NFL) fields remain untouched. The overview builds the board matcher (a read-only DB handle plus the aliases file) at most once per request, and only when the roster has at least one claim.
 - **New route `GET /season/:league_id/devy/claims`:**
   ```json
   {
     "season": "2026",
-    "claims": [{ "rosterId": 3, "teamName": "wulke", "devyName": "Jadan Baugh",
+    "claims": [{ "rosterId": 3, "sleeperPlayerId": "12345", "teamName": "wulke", "devyName": "Jadan Baugh",
                  "devyMatch": { "matched": true, "position": "RB", "school": "Florida Gators",
                                  "draftYear": 2027, "dynastyValue": 6364 } }],
     "available": [{ "name": "Kewan Lacy", "position": "RB", "school": "Ole Miss Rebels",
@@ -56,9 +56,9 @@ Claim names are matched to `devy_players` by normalized name (reuse `normalizePl
     "lastSyncedAt": "2026-10-10T…"
   }
   ```
-  - `claims`: every `sleeper_rosters` row with `slot_type='taxi' AND devy_name IS NOT NULL`, joined to `sleeper_teams` for team names, sorted by team name then value/name. `devyMatch` carries the read-time board match (`matched: false` + nulls when the name is not on the board).
+  - `claims`: `sleeperPlayerId` is the taxi placeholder's id — the unique key for a claim, since free-text nicknames can repeat on one roster. Every `sleeper_rosters` row with `slot_type='taxi' AND devy_name IS NOT NULL`, joined to `sleeper_teams` for team names, sorted by team name then value/name. `devyMatch` carries the read-time board match (`matched: false` + nulls when the name is not on the board).
   - `available`: `devy_players` rows whose normalized name is not in the claimed set, sorted by `value_superflex` desc. Returned in full (board is ~100 rows); the UI filters by draft year, defaulting to `season + 1`.
-  - Unknown league → 404; league with no synced rosters → empty arrays, not an error.
+  - Unknown, unconnected, or insufficiently synced league → the shared season-route context error (`handleContextError`, e.g. 404 for an unsynced league). A synced league with no claims → empty `claims`, full board in `available`.
 
 ### UI (`src/ui/components/MyTeamSection.tsx`)
 

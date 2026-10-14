@@ -7,6 +7,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 
+import { DevyClaimsPanel } from '../src/ui/components/DevyClaimsPanel.js';
 import { MyTeamSection } from '../src/ui/components/MyTeamSection.js';
 
 afterEach(() => {
@@ -357,8 +358,8 @@ test('devy claims render as primary taxi labels and the claims panel lists teams
         body: {
           season: '2026',
           claims: [
-            { rosterId: 1, teamName: 'Trev Squad', devyName: 'Jadan Baugh', devyMatch: { matched: true, position: 'RB', school: 'Florida Gators', draftYear: 2027, dynastyValue: 6364 } },
-            { rosterId: 2, teamName: 'Rival Squad', devyName: 'Tristen Keys', devyMatch: { matched: false, position: null, school: null, draftYear: null, dynastyValue: null } },
+            { rosterId: 1, sleeperPlayerId: 's-devy-1', teamName: 'Trev Squad', devyName: 'Jadan Baugh', devyMatch: { matched: true, position: 'RB', school: 'Florida Gators', draftYear: 2027, dynastyValue: 6364 } },
+            { rosterId: 2, sleeperPlayerId: 's-devy-2', teamName: 'Rival Squad', devyName: 'Tristen Keys', devyMatch: { matched: false, position: null, school: null, draftYear: null, dynastyValue: null } },
           ],
           available: [
             { name: 'Kewan Lacy', position: 'RB', school: 'Ole Miss Rebels', draftYear: 2027, dynastyValue: 6651 },
@@ -390,6 +391,33 @@ test('devy claims render as primary taxi labels and the claims panel lists teams
 
   await user.click(screen.getByRole('button', { name: 'All' }));
   expect(await screen.findByText('JK Sagapolutele')).toBeInTheDocument();
+});
+
+// @spec DFF-DVC-012
+test('devy claims panel renders repeated claim names on one roster as distinct rows', () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const match = { matched: false, position: null, school: null, draftYear: null, dynastyValue: null };
+
+  try {
+    render(
+      <DevyClaimsPanel
+        data={{
+          season: '2026',
+          claims: [
+            { rosterId: 1, sleeperPlayerId: 's-devy-1', teamName: 'Trev Squad', devyName: 'Tristen Keys', devyMatch: match },
+            { rosterId: 1, sleeperPlayerId: 's-devy-2', teamName: 'Trev Squad', devyName: 'Tristen Keys', devyMatch: match },
+          ],
+          available: [],
+          lastSyncedAt: null,
+        }}
+      />,
+    );
+
+    expect(screen.getAllByText('Tristen Keys')).toHaveLength(2);
+    expect(consoleError.mock.calls.some((call) => String(call[0]).includes('same key'))).toBe(false);
+  } finally {
+    consoleError.mockRestore();
+  }
 });
 
 // @spec DFF-DVC-010

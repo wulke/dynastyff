@@ -11,6 +11,7 @@
 // @spec DFF-DVR-010
 // @spec DFF-DVR-011
 // @spec DFF-DVR-014
+// @spec DFF-DVR-015
 import { useMemo, useState } from 'react';
 
 import { getPositionBadgeClass } from './positionBadge.js';
@@ -43,10 +44,12 @@ function NotesIcon() {
 // @spec DFF-DVR-008 — per DESIGN.md: surface-raised panel, rounded-lg, blurred backdrop.
 // @spec DFF-DVR-009 — Save persists via onSaveNote.
 // @spec DFF-DVR-011 — Delete saves an empty note; Cancel discards the draft.
-function NotesModal({ player, savedNote, saving, onClose, onSave }: {
+// @spec DFF-DVR-015 — a failed save keeps the modal open with an inline error.
+function NotesModal({ player, savedNote, saving, error, onClose, onSave }: {
   player: DevyPlayer;
   savedNote: string | undefined;
   saving: boolean;
+  error: string | null;
   onClose: () => void;
   onSave: (note: string) => void;
 }) {
@@ -63,6 +66,7 @@ function NotesModal({ player, savedNote, saving, onClose, onSave }: {
       <label className="block text-xs text-muted">Note
         <textarea aria-label="Note" value={draft} onChange={(event) => setDraft(event.target.value)} rows={5} className="mt-1 w-full rounded border border-default bg-app p-2 text-sm text-primary outline-none focus:border-accent" />
       </label>
+      {error ? <p role="alert" className="mt-2 text-xs text-negative">{error}</p> : null}
       <div className="mt-3 flex justify-end gap-2">
         {savedNote ? <button type="button" disabled={saving} onClick={() => onSave('')} className="rounded border border-negative px-3 py-2 text-sm font-semibold text-negative hover:bg-surface-hover disabled:opacity-50">Delete</button> : null}
         <button type="button" onClick={onClose} className="rounded border border-default px-3 py-2 text-sm font-semibold text-secondary hover:border-strong">Cancel</button>
@@ -90,6 +94,7 @@ export function DevyView({ players, ownership, notes, onSaveNote }: DevyViewProp
   const [valueFormat, setValueFormat] = useState<ValueFormat>('superflex');
   const [notesPlayer, setNotesPlayer] = useState<DevyPlayer | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const showOwnership = ownership !== undefined;
   const showNotes = onSaveNote !== undefined;
   const draftYears = useMemo(() => [...new Set(players.map((player) => player.draftYear))].sort((a, b) => a - b), [players]);
@@ -110,13 +115,22 @@ export function DevyView({ players, ownership, notes, onSaveNote }: DevyViewProp
     }
 
     setSaving(true);
+    setSaveError(null);
 
     try {
       await onSaveNote(notesPlayer.id, note);
       setNotesPlayer(null);
+    } catch {
+      // @spec DFF-DVR-015
+      setSaveError('Saving the note failed. Try again.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const closeNotes = () => {
+    setNotesPlayer(null);
+    setSaveError(null);
   };
 
   const gridClass = showOwnership && showNotes
@@ -172,6 +186,6 @@ export function DevyView({ players, ownership, notes, onSaveNote }: DevyViewProp
         })}
       </div>}
     </div>
-    {notesPlayer && onSaveNote ? <NotesModal player={notesPlayer} savedNote={notes?.[notesPlayer.id]} saving={saving} onClose={() => setNotesPlayer(null)} onSave={handleSave} /> : null}
+    {notesPlayer && onSaveNote ? <NotesModal player={notesPlayer} savedNote={notes?.[notesPlayer.id]} saving={saving} error={saveError} onClose={closeNotes} onSave={handleSave} /> : null}
   </section>;
 }

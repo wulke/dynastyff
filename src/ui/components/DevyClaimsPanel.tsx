@@ -1,5 +1,6 @@
 // @spec DFF-DVC-009
 // @spec DFF-DVC-010 — rendered only when the league has at least one devy claim.
+// @spec DFF-DVC-012
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { getPositionBadgeClass } from './positionBadge.js';
@@ -14,6 +15,7 @@ export type DevyMatchView = {
 
 export type DevyClaimRow = {
   rosterId: number;
+  sleeperPlayerId: string;
   teamName: string;
   devyName: string;
   devyMatch: DevyMatchView;
@@ -120,7 +122,7 @@ export function DevyClaimsPanel({ data }: { data: DevyClaimsView }) {
       </div>
       {data.claims.map((claim) => (
         <div
-          key={`${claim.rosterId}-${claim.devyName}`}
+          key={claim.sleeperPlayerId}
           className="flex items-center gap-3 border-b border-default px-3 py-1 text-sm last:border-b-0 hover:bg-surface-hover"
         >
           <span className="w-24 shrink-0 truncate text-xs font-semibold text-secondary">{claim.teamName}</span>

@@ -122,3 +122,21 @@ test('DevyView closes the notes modal on cancel without saving', async () => {
   expect(onSaveNote).not.toHaveBeenCalled();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
+
+// @spec DFF-DVR-015
+test('DevyView keeps the notes modal open with an inline error when saving fails', async () => {
+  const user = userEvent.setup();
+  const onSaveNote = vi.fn(async () => {
+    throw new Error('network down');
+  });
+  render(<DevyView players={players} onSaveNote={onSaveNote} />);
+
+  await user.click(screen.getByRole('button', { name: /notes: alpha qb/i }));
+  await user.type(screen.getByRole('textbox', { name: /note/i }), 'keep this draft');
+  await user.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(/saving the note failed/i);
+  expect(screen.getByRole('dialog', { name: /notes: alpha qb/i })).toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: /note/i })).toHaveValue('keep this draft');
+  expect(screen.getByRole('button', { name: /save/i })).toBeEnabled();
+});

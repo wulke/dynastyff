@@ -87,7 +87,7 @@ New optional props (all default to "feature off", so the static/snapshot path an
 
 - **Owner column** appended to the grid: `ownership` unknown → muted `—`; known → team-name badge (`rounded border border-default bg-surface-hover px-1 py-0.5 text-xs text-secondary`) or muted `Unowned`.
 - **Notes icon**: per-row icon button (inline SVG pencil, `aria-label="Notes: <name>"`), `text-accent` when a note exists, `text-muted hover:text-secondary` otherwise; right-most grid column.
-- **Notes modal** (component state: `notesPlayerId`, `draft`, `saving`): per `DESIGN.md` — overlay `fixed inset-0 bg-black/60 backdrop-blur-sm`, panel `bg-surface-raised border border-strong rounded-lg p-4 shadow-lg w-full max-w-md`, header with player name + DEVY badge, `aria-modal` dialog semantics, textarea prefilled from the saved note, footer **Save** (accent; disabled while saving) / **Delete** (negative, only when a saved note exists) / **Cancel**. Backdrop click closes and discards the draft. Save/Delete call `onSaveNote` and close on resolution; if `onSaveNote` is absent the modal is not reachable.
+- **Notes modal** (component state: `notesPlayerId`, `draft`, `saving`): per `DESIGN.md` — overlay `fixed inset-0 bg-black/60 backdrop-blur-sm`, panel `bg-surface-raised border border-strong rounded-lg p-4 shadow-lg w-full max-w-md`, header with player name + DEVY badge, `aria-modal` dialog semantics, textarea prefilled from the saved note, footer **Save** (accent; disabled while saving) / **Delete** (negative, only when a saved note exists) / **Cancel**. Backdrop click closes and discards the draft. Save/Delete call `onSaveNote` and close on resolution; on rejection the modal stays open with the draft intact and shows an inline `role="alert"` error (`text-negative`), cleared on the next save attempt. If `onSaveNote` is absent the modal is not reachable.
 
 ## Edge Case Probe
 
@@ -96,7 +96,7 @@ New optional props (all default to "feature off", so the static/snapshot path an
 - **`ownership` fetch fails / no connected leagues / league never synced** → `ownership` stays `null`; every row shows `—` (unknown), never a false "Unowned".
 - **Notes for a player id no longer on the board** → row lingers in `devy_player_notes`, ignored by the UI; harmless because the devy ETL never prunes rows today.
 - **`npm run db:init`** → explicitly destructive fresh start; notes are lost (accepted convention — `db:migrate`, not `db:init`, is the upgrade path, and migration `0003` carries the notes table to existing DBs losslessly).
-- **PUT with non-string / missing `note`** → `400`; UI keeps the modal open with its local draft.
+- **PUT with non-string / missing `note`, or any failed save** → `400`/network error; UI keeps the modal open with its local draft and an inline error.
 - **PUT with whitespace-only note** → treated as delete; icon highlight clears.
 - **Snapshot-fed DevyView (static build path)** → new props absent; the Owner and notes columns render only when the corresponding props are provided, so the snapshot path stays pixel-identical to today.
 - **Board refresh (`etl:devy`) between note save and view** → ids stable via `(name, position)` upsert; note stays attached.

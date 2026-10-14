@@ -2,9 +2,10 @@
 // @spec DFF-DVC-004
 // @spec DFF-DVC-006
 // @spec DFF-DVC-007
+// @spec DFF-DVC-012
 import Database from 'better-sqlite3';
 
-import { resolveDatabasePath } from '../db/init.js';
+import { resolveDatabasePath } from '../db/path.js';
 import { loadAliasFamilies, normalizePlayerName, type AliasFamily } from '../etl/player-matching.js';
 
 export type DevyMatch = {
@@ -17,6 +18,8 @@ export type DevyMatch = {
 
 export type DevyClaimView = {
   rosterId: number;
+  // @spec DFF-DVC-012 — taxi placeholder id; unique per claim even when names repeat.
+  sleeperPlayerId: string;
   teamName: string;
   devyName: string;
   devyMatch: DevyMatch;

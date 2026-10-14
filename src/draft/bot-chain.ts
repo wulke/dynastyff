@@ -10,6 +10,7 @@
 // @spec DFF-ENGINE-040
 // @spec DFF-ENGINE-041
 // @spec DFF-ENGINE-042
+// @spec DFF-ENGINE-043b
 // @spec DFF-ENGINE-039
 // @spec DFF-ENGINE-039b
 import { randomUUID } from 'node:crypto';
@@ -626,8 +627,13 @@ export function createBotChainCoordinator({
                     ? 'accepted'
                     : 'declined';
 
+                  // @spec DFF-ENGINE-043b
                   queueMicrotask(() => {
-                    coordinator.resolvePendingTrade(draftId, status);
+                    try {
+                      coordinator.resolvePendingTrade(draftId, status);
+                    } catch {
+                      // The pending trade's rejection already fails the chain, which logs the error.
+                    }
                   });
                 }
               : undefined,

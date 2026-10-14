@@ -21,6 +21,10 @@ export default defineConfig({
       '/season': {
         target: resolveApiBaseUrl(),
       },
+      // @spec DFF-DEVY-046
+      '/devy-players': {
+        target: resolveApiBaseUrl(),
+      },
       // @spec DFF-DVR-012
       '/devy-notes': {
         target: resolveApiBaseUrl(),

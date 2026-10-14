@@ -110,6 +110,9 @@ function userRoutes(): Record<string, () => unknown> {
       { league_id: '111', name: 'Dynasty A', season: '2026', total_rosters: 12, status: 'in_season', settings: { type: 'dynasty' } },
       { league_id: '222', name: 'Redraft B', season: '2026', total_rosters: 10, status: 'in_season', settings: { type: 'redraft' } },
       { league_id: '333', name: 'Legacy C', season: '2026', total_rosters: 14, status: 'in_season' },
+      { league_id: '444', name: 'Numeric Dynasty D', season: '2026', total_rosters: 10, status: 'in_season', settings: { type: 2 } },
+      { league_id: '555', name: 'Numeric Redraft E', season: '2026', total_rosters: 8, status: 'pre_draft', settings: { type: 0 } },
+      { league_id: '666', name: 'Numeric Keeper F', season: '2026', total_rosters: 12, status: 'in_season', settings: { type: 1 } },
     ],
   };
 }
@@ -130,7 +133,7 @@ test('GET /sleeper/user/:username resolves the user and lists dynasty leagues fo
     assert.equal(payload.userId, 'u1');
     assert.deepEqual(
       payload.leagues.map((league) => league.leagueId),
-      ['111', '333'],
+      ['111', '333', '444'],
     );
   } finally {
     fixture.cleanup();

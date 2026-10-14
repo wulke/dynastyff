@@ -67,6 +67,8 @@ Notes:
 ## UI
 
 - `AppHeader` (`src/ui/App.tsx:109`) gains a "Devy" link/button next to the existing theme switcher, always visible (global, not draft-scoped).
+- "Devy" and "My Team" are mutually exclusive top-level views: opening one closes the other, and clicking the active one closes it, returning to the draft workflow. (Two independent toggles let My Team silently mask the Devy view.)
+- The HTTP-backed UI fetches `GET /devy-players`; the Vite dev server must proxy that path to the API alongside `/drafts`, `/configs`, `/sleeper`, `/season`, and `/devy-notes`.
 - New top-level view `DevyView` (new file, e.g. `src/ui/DevyView.tsx`), reached via a top-level view-state branch in `App.tsx` alongside the existing draft-setup/draft-board states — not part of the `DRAFT_TABS`/draft-room state machine, since it's a standalone reference view independent of any in-progress draft.
 - Filters: position pills (QB/RB/WR/TE, reusing existing pill components/`positionBadge.ts` conventions from `DESIGN.md`), draft-year pills (populated from distinct `draftYear` values present in the loaded data), school free-text search (client-side substring filter).
 - Table: ranked, sorted by `valueSuperflex` descending by default; a toggle switches sort/display to `valueOneQb`. Each row carries a "DEVY" badge (new token-based badge, not a `pos-*` badge — those are reserved for position) to prevent confusion with NFL dynasty-value tables mid-draft, plus a banner at the top of the view stating this is devy/college data.

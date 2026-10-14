@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.14"
+  },
   "scripts": {
     "build": "npm run build:server && npm run build:ui",
     "build:server": "tsc -p tsconfig.json",
@@ -31,7 +34,7 @@
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
     "@types/express": "^5.0.6",
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "playwright": "^1.60.0",

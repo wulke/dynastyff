@@ -59,15 +59,21 @@ function requireFiniteNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+// Sleeper league types: 0 = redraft, 1 = keeper, 2 = dynasty.
+const SLEEPER_DYNASTY_LEAGUE_TYPE = 2;
+
+// @spec DFF-SLS-010
 function isDynastyLeague(league: SleeperLeaguePayload): boolean {
   const settings =
     league.settings && typeof league.settings === 'object' && !Array.isArray(league.settings)
       ? (league.settings as Record<string, unknown>)
       : {};
 
-  const type = requireString(settings.type);
+  if (settings.type === undefined || settings.type === null) {
+    return true;
+  }
 
-  return type === null || type === 'dynasty';
+  return settings.type === SLEEPER_DYNASTY_LEAGUE_TYPE || settings.type === 'dynasty';
 }
 
 // @spec DFF-SLS-010

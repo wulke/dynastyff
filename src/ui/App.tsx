@@ -993,7 +993,11 @@ export function DraftApp() {
 
   return (
     <>
-      <AppHeader onDevyClick={() => setShowDevy((current) => !current)} onMyTeamClick={() => setShowMyTeam((current) => !current)} />
+      {/* @spec DFF-DEVY-047 — Devy and My Team are mutually exclusive top-level views. */}
+      <AppHeader
+        onDevyClick={() => { setShowDevy((current) => !current); setShowMyTeam(false); }}
+        onMyTeamClick={() => { setShowMyTeam((current) => !current); setShowDevy(false); }}
+      />
       <main className="bg-app-gradient px-4 py-6 text-primary" style={{ minHeight: 'calc(100vh - 2.5rem)' }}>
       <div className="mx-auto flex max-w-7xl items-start justify-center" style={{ minHeight: 'calc(100vh - 2.5rem - 3rem)' }}>
         {/* @spec DFF-SM-001 */}
@@ -1001,7 +1005,7 @@ export function DraftApp() {
         {/* @spec DFF-UI-116 */}
         {/* @spec DFF-DVR-004 */}
         {/* @spec DFF-DVR-008 */}
-        {!showMyTeam && showDevy ? <DevyView players={snapshot?.devyPlayers ?? httpDevyPlayers} ownership={devyOwnership} notes={devyNotes} onSaveNote={handleSaveDevyNote} /> : null}
+        {showDevy ? <DevyView players={snapshot?.devyPlayers ?? httpDevyPlayers} ownership={devyOwnership} notes={devyNotes} onSaveNote={handleSaveDevyNote} /> : null}
         {!showMyTeam && !showDevy && showDraftsListLoading ? <DraftsListLoadingState /> : null}
 
         {/* @spec DFF-UI-110 */}

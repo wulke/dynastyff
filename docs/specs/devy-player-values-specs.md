@@ -69,6 +69,12 @@ Devy player value history/trend tracking across runs is deferred — out of scop
 **DFF-DEVY-045** `[x]` → #201
 `DevyView` shall render an empty state, not an error, when `data/snapshot.json`'s `devyPlayers` array is missing or empty.
 
+**DFF-DEVY-046** `[x]`
+The Vite dev server shall proxy `/devy-players` requests to the backend API server, so the HTTP-backed `DevyView` loads devy data in local development.
+
+**DFF-DEVY-047** `[x]`
+The `AppHeader` "Devy" and "My Team" buttons shall switch between mutually exclusive top-level views: activating "Devy" shall show `DevyView` and close the My Team section, activating "My Team" shall show the My Team section and close `DevyView`, and activating the button of the view already shown shall close it.
+
 ## Reconciliation (tracked separately)
 
 **DFF-DEVY-050** `[D]`

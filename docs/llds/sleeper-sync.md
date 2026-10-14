@@ -145,7 +145,7 @@ The Express server exposes endpoints for the My Team connection flow and on-dema
 
 ## Connection UI (Minimal)
 
-The My Team section ships first as a connection surface for Sleeper Sync. The user connects a league either by Sleeper username (`GET /sleeper/user/:username` lists that user's leagues for the current season, filtered to dynasty where the league payload declares a type) or by entering a league ID directly (`GET /sleeper/league/:league_id` preview). Both paths require the username — it binds the connection's `user_id` and `roster_id`. Once connected, the section lists connected leagues with name, season, and last sync status, plus a manual refresh button (`POST /sleeper/sync`). The Roster Overview landing view and refresh-refetch behavior arrive with Season Management (`docs/llds/season-management.md`).
+The My Team section ships first as a connection surface for Sleeper Sync. The user connects a league either by Sleeper username (`GET /sleeper/user/:username` lists that user's leagues for the current season, filtered to dynasty where the league payload declares a type — Sleeper sends `settings.type` as a number: `0` redraft, `1` keeper, `2` dynasty) or by entering a league ID directly (`GET /sleeper/league/:league_id` preview). Both paths require the username — it binds the connection's `user_id` and `roster_id`. Once connected, the section lists connected leagues with name, season, and last sync status, plus a manual refresh button (`POST /sleeper/sync`). The Roster Overview landing view and refresh-refetch behavior arrive with Season Management (`docs/llds/season-management.md`).
 
 ## Decisions
 

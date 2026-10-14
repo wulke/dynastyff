@@ -112,6 +112,13 @@ test('build:static fails with guidance when data/snapshot.json is missing', () =
 
 // @spec DFF-STATIC-004
 test('the built static bundle excludes advisor sdk imports, advisor endpoints, and api-key config', () => {
+  const buildResult = spawnSync('npm', ['run', 'build:static'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+
+  assert.equal(buildResult.status, 0, buildResult.stderr);
+
   const assetsDir = path.resolve(process.cwd(), 'dist/static/assets');
   const bundleContents = fs
     .readdirSync(assetsDir)

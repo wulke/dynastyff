@@ -54,6 +54,7 @@ import { AvailablePlayersPanel } from './components/AvailablePlayersPanel.js';
 import { TeamRosterPanel } from './components/TeamRosterPanel.js';
 import { DraftGradeSummaryView } from './components/DraftGradeSummaryView.js';
 import { HistoryView } from './components/HistoryView.js';
+import { AdvisorPanel } from './components/AdvisorPanel.js';
 import { TradeModal, type TradeComposerState } from './components/TradeModal.js';
 import { DevyView } from './components/DevyView.js';
 import { MyTeamSection } from './components/MyTeamSection.js';
@@ -532,6 +533,8 @@ export function DraftApp() {
   const [selectedSavedConfigId, setSelectedSavedConfigId] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [activeDraftTab, setActiveDraftTab] = useState<DraftTabId>('board');
+  // @spec DFF-UI-040
+  const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
   // @spec DFF-UI-185
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [dismissedTradeId, setDismissedTradeId] = useState<string | null>(null);
@@ -769,6 +772,7 @@ export function DraftApp() {
     setComposerTradeId(null);
     setActiveDraftTab('board');
     setSelectedPlayerId(null);
+    setIsAdvisorOpen(false);
 
     try {
       await startDraft(safeConfig);
@@ -1060,7 +1064,7 @@ export function DraftApp() {
         {/* @spec DFF-UI-191 */}
         {/* @spec DFF-UI-192 */}
         {!showMyTeam && !showDevy && !showDraftsListLoading && view === 'drafting' && draftState ? (
-          <div className="flex w-full flex-col gap-4">
+          <div className="relative flex w-full flex-col gap-4">
             <DraftStatusBar draftState={draftState} />
             <DraftTabStrip
               activeTab={activeDraftTab}
@@ -1079,6 +1083,8 @@ export function DraftApp() {
                   draftState={draftState}
                   isInteractionBlocked={isDraftInteractionBlocked}
                   onTeamHeaderClick={handleOpenTradeComposer}
+                  isAdvisorOpen={isAdvisorOpen}
+                  onToggleAdvisor={() => setIsAdvisorOpen((current) => !current)}
                 />
               </div>
               <div
@@ -1134,6 +1140,7 @@ export function DraftApp() {
               onSubmitComposer={handleSubmitTradeComposer}
               onCloseComposer={handleCloseTradeComposer}
             />
+            {draftState.draftId ? <AdvisorPanel draftId={draftState.draftId} isOpen={isAdvisorOpen} onClose={() => setIsAdvisorOpen(false)} /> : null}
           </div>
         ) : null}
 

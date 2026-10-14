@@ -64,6 +64,8 @@ function buildDraftState(
     status: engineState.status,
     isHydrating: false,
     currentPickNumber: engineState.status === 'completed' ? null : engineState.picks.length + 1,
+    advisorResetVersion: 0,
+    yourTurnVersion: 0,
     rosterConfig: engineState.config.rosterConfig,
     teams: engineState.teams,
     draftOrder: engineState.draftOrder,

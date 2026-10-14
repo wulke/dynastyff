@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { Request, RequestHandler, Response } from 'express';
 
+import { createDraftErrorHandler } from '../src/server/app.js';
 import { createDevyNotePutRoute, createDevyNotesListRoute } from '../src/server/devy-notes.js';
 import { initializeDatabase } from '../src/db/init.js';
 
@@ -22,8 +23,10 @@ async function invokeRoute({
   body?: unknown;
 }): Promise<{ statusCode: number; json: unknown }> {
   const request = { params, body } as Request;
+  const errorHandler = createDraftErrorHandler();
   let statusCode = 200;
   let responseBody: unknown;
+  let forwardedError: unknown;
   const response = {
     status(code: number) {
       statusCode = code;
@@ -33,9 +36,21 @@ async function invokeRoute({
       responseBody = payload;
       return this;
     },
+    end() {
+      return this;
+    },
   } as unknown as Response;
 
-  await route(request, response, () => {});
+  await Promise.resolve(
+    route(request, response, (error?: unknown) => {
+      forwardedError = error;
+    }),
+  );
+
+  if (forwardedError !== undefined) {
+    errorHandler(forwardedError, request, response, () => undefined);
+  }
+
   return { statusCode, json: responseBody };
 }
 
@@ -149,5 +164,39 @@ test('notes put route rejects non-string notes and blank player ids with 400', a
     assert.equal(missingId.statusCode, 400);
   } finally {
     fixture.cleanup();
+  }
+});
+
+// @spec DFF-DATA-099
+// @spec DFF-DVR-016
+test('notes list route forwards a database-open error to next() when the schema is not initialized', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-devy-notes-uninitialized-'));
+  const dbPath = path.join(tempDir, 'missing.sqlite');
+
+  try {
+    const route = createDevyNotesListRoute({ databasePath: dbPath });
+    const { statusCode, json } = await invokeRoute({ route });
+
+    assert.equal(statusCode, 500);
+    assert.deepEqual(json, { error: 'Internal server error.' });
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-099
+// @spec DFF-DVR-016
+test('notes put route forwards a database-open error to next() when the schema is not initialized', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-devy-notes-uninitialized-'));
+  const dbPath = path.join(tempDir, 'missing.sqlite');
+
+  try {
+    const route = createDevyNotePutRoute({ databasePath: dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { player_id: 'devy-1' }, body: { note: 'x' } });
+
+    assert.equal(statusCode, 500);
+    assert.deepEqual(json, { error: 'Internal server error.' });
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });

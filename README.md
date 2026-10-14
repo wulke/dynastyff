@@ -4,7 +4,7 @@ A local web app for practicing dynasty startup drafts. Run a full 12-team snake 
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22.14+ (`.nvmrc` pins Node 22 — run `nvm use`; `better-sqlite3` 13 needs N-API 10)
 - Playwright (for ETL scraping)
 - `ANTHROPIC_API_KEY` (required for advisor features only — draft pick advice and My Team trade analysis; core draft and roster scoring run offline)
 
@@ -41,7 +41,7 @@ npm run serve
 npm run dev
 ```
 
-The Vite dev server proxies `/drafts`, `/configs`, `/sleeper`, and `/season` requests to `http://localhost:3001`, so both commands should be running for draft creation, saved-config reads/writes, state/history reads, the live draft SSE stream, and My Team Sleeper connections/sync/roster overview.
+The Vite dev server proxies `/drafts`, `/configs`, `/sleeper`, `/season`, `/league-imports`, `/devy-players`, and `/devy-notes` requests to `http://localhost:3001`, so both commands should be running for draft creation, saved-config reads/writes, state/history reads, the live draft SSE stream, My Team Sleeper connections/sync/roster overview, and the Devy view.
 
 Open the Vite URL shown in the terminal to begin.
 
@@ -75,7 +75,7 @@ Bot decision-making (bounded need-bias pick scoring, trade evaluation, archetype
 
 ## ETL
 
-`npm run etl` scrapes NFL player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables; it then syncs all connected Sleeper leagues as its final step (skipped silently when none are connected — a failed Sleeper sync never fails the ETL run). `npm run sync:sleeper` runs the Sleeper sync in isolation. `npm run etl:devy` independently scrapes KTC's devy board into `devy_players`; it does not mix college values into NFL rankings. Run both before `npm run export:snapshot` to include devy data in the static build. The global **Devy** link opens a browsable college-values view with position, draft-year, and school filters. For a connected Sleeper league it also resolves each player's devy ownership (taxi `devy_name` claims): claimed players show the owning team's name, unclaimed ones an explicit **Unowned** marker (unknown shows `—` when no league is connected). A notes icon on every row opens a per-player scouting-note modal — notes persist in the local `devy_player_notes` table and are keyed by the player's stable board id, so they survive `etl:devy` refreshes.
+`npm run etl` scrapes NFL player and pick values from KTC, FantasyCalc, and RosterAudit, normalizes them, and writes the local `players` and `pick_values` tables; it then syncs all connected Sleeper leagues as its final step (skipped silently when none are connected — a failed Sleeper sync never fails the ETL run). `npm run sync:sleeper` runs the Sleeper sync in isolation. `npm run etl:devy` independently scrapes KTC's devy board into `devy_players`; it does not mix college values into NFL rankings. Run both before `npm run export:snapshot` to include devy data in the static build. The global **Devy** link opens a browsable college-values view (it and **My Team** are mutually exclusive — opening one closes the other) with position, draft-year, and school filters. For a connected Sleeper league it also resolves each player's devy ownership (taxi `devy_name` claims): claimed players show the owning team's name, unclaimed ones an explicit **Unowned** marker (unknown shows `—` when no league is connected). A notes icon on every row opens a per-player scouting-note modal — notes persist in the local `devy_player_notes` table and are keyed by the player's stable board id, so they survive `etl:devy` refreshes.
 
 Full scraper, normalization, and matching behavior is documented in [`docs/llds/etl-pipeline.md`](docs/llds/etl-pipeline.md). Sleeper sync behavior (connection flow, week-sweeping trade transactions, player matching, partial failures) is documented in [`docs/llds/sleeper-sync.md`](docs/llds/sleeper-sync.md).
 

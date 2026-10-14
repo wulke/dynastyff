@@ -3216,6 +3216,16 @@ test('Vite dev server proxies /configs requests to the backend server', () => {
   assert.equal(proxyConfig.target, resolveApiBaseUrl());
 });
 
+// @spec DFF-DEVY-046
+test('Vite dev server proxies /devy-players requests to the backend server', () => {
+  const serverConfig = viteConfig.server;
+  const proxyConfig = serverConfig?.proxy?.['/devy-players'];
+
+  assert.ok(serverConfig);
+  assert.ok(proxyConfig && typeof proxyConfig !== 'string');
+  assert.equal(proxyConfig.target, resolveApiBaseUrl());
+});
+
 // @spec DFF-TEP-002
 test('parseCreateDraftConfig maps an independent TE-premium tier into the service draft config shape', () => {
   const config = parseCreateDraftConfig(

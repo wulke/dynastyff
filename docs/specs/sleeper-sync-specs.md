@@ -25,7 +25,7 @@ Failure of the Sleeper sync step shall not fail the overall ETL run; the system 
 ## League Connection
 
 **DFF-SLS-010** `[x]`
-The system shall expose `GET /sleeper/user/:username` which resolves a Sleeper username to a Sleeper user ID and returns the list of dynasty leagues for the current NFL season.
+The system shall expose `GET /sleeper/user/:username` which resolves a Sleeper username to a Sleeper user ID and returns the list of dynasty leagues for the current NFL season. A league counts as dynasty when its `settings.type` is Sleeper's numeric dynasty code `2` (or the string `'dynasty'`), or when `settings.type` is absent; redraft (`0`) and keeper (`1`) leagues are excluded.
 
 **DFF-SLS-011** `[x]`
 The system shall expose `GET /sleeper/league/:league_id` which returns league metadata for a given Sleeper league ID, allowing the user to preview a league before connecting.

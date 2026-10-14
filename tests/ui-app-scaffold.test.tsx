@@ -257,6 +257,26 @@ async function renderAppToConfig() {
 }
 
 describe('UI app scaffold', () => {
+  // @spec DFF-DEVY-047
+  test('switches between the Devy and My Team views from the header without one masking the other', async () => {
+    const user = userEvent.setup();
+    await renderAppToConfig();
+
+    await user.click(screen.getByRole('button', { name: 'My Team' }));
+    expect(await screen.findByRole('heading', { name: /league connection/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Devy' }));
+    expect(screen.getByRole('heading', { name: /college devy values/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /league connection/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'My Team' }));
+    expect(await screen.findByRole('heading', { name: /league connection/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /college devy values/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'My Team' }));
+    expect(await screen.findByRole('heading', { name: /config screen/i })).toBeInTheDocument();
+  });
+
   // @spec DFF-UI-185
   test('preserves selected players across every draft tab and clears them through Cancel or Draft', async () => {
     const user = userEvent.setup();

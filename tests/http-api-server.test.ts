@@ -3067,6 +3067,21 @@ test('GET /configs returns 500 when the league_configs table is unavailable', as
 });
 
 // @spec DFF-DATA-096
+// @spec DFF-DATA-099
+test('POST /configs returns 500 when the database schema is not initialized', async () => {
+  const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-uninitialized-');
+
+  try {
+    const response = await invokeConfigsCreateRoute(databasePath, createSavedConfigRequestBody());
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.json, { error: 'Internal server error.' });
+  } finally {
+    fs.rmSync(path.dirname(databasePath), { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-DATA-096
 // @spec DFF-TEP-002
 test('POST /configs persists a saved config and returns the created record', async () => {
   const databasePath = createTempDatabasePath('dynastyff-http-api-configs-create-');

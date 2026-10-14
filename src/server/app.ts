@@ -13,6 +13,7 @@
 import express, {
   type ErrorRequestHandler,
   type Express,
+  type NextFunction,
   type Request,
   type RequestHandler,
   type Response,
@@ -168,11 +169,26 @@ export function createDraftApp({
   return app;
 }
 
+// @spec DFF-DATA-099
+function openRouteDatabase(
+  databasePath: string,
+  next: NextFunction,
+): ReturnType<typeof createDrizzleDb> | undefined {
+  try {
+    return createDrizzleDb(databasePath);
+  } catch (error) {
+    next(error);
+    return undefined;
+  }
+}
+
 // @spec DFF-DEVY-040
 // @spec DFF-DEVY-041
 export function createDevyPlayersListRoute({ databasePath }: { databasePath: string }): RequestHandler {
   return (_request, response, next) => {
-    const { db, sqlite } = createDrizzleDb(databasePath);
+    const connection = openRouteDatabase(databasePath, next);
+    if (!connection) return;
+    const { db, sqlite } = connection;
     try {
       response.status(200).json(db.select({
         id: devyPlayers.id, name: devyPlayers.name, position: devyPlayers.position, school: devyPlayers.school,
@@ -216,7 +232,13 @@ export function createLeagueConfigsListRoute({
   databasePath,
 }: SavedLeagueConfigRouteOptions): RequestHandler {
   return (_request, response, next) => {
-    const { db, sqlite } = createDrizzleDb(databasePath);
+    const connection = openRouteDatabase(databasePath, next);
+
+    if (!connection) {
+      return;
+    }
+
+    const { db, sqlite } = connection;
 
     try {
       const rows = db
@@ -241,7 +263,13 @@ export function createLeagueConfigsCreateRoute({
   now = () => new Date().toISOString(),
 }: SavedLeagueConfigRouteOptions): RequestHandler {
   return (request, response, next) => {
-    const { db, sqlite } = createDrizzleDb(databasePath);
+    const connection = openRouteDatabase(databasePath, next);
+
+    if (!connection) {
+      return;
+    }
+
+    const { db, sqlite } = connection;
 
     try {
       const config = parseSavedLeagueConfig(request.body);

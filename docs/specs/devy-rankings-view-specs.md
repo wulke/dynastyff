@@ -17,3 +17,4 @@
 | DFF-DVR-013 | WHEN a note save request carries a non-string note or blank player id THE API SHALL reject it with a 400 response | [x] → #222 |
 | DFF-DVR-014 | WHEN the notes modal save is activated IF no save handler is wired THE UI SHALL NOT render the notes button (feature off for snapshot-fed views) | [x] → #222 |
 | DFF-DVR-015 | WHEN saving a note from the modal fails THE UI SHALL keep the modal open with the draft intact and display an inline error message | [x] |
+| DFF-DVR-016 | WHEN a notes request cannot open the database (missing or outdated schema) THE notes routes SHALL forward the error to the error middleware rather than throwing from the handler | [x] → #244 |

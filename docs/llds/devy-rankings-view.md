@@ -98,5 +98,6 @@ New optional props (all default to "feature off", so the static/snapshot path an
 - **`npm run db:init`** → explicitly destructive fresh start; notes are lost (accepted convention — `db:migrate`, not `db:init`, is the upgrade path, and migration `0003` carries the notes table to existing DBs losslessly).
 - **PUT with non-string / missing `note`, or any failed save** → `400`/network error; UI keeps the modal open with its local draft and an inline error.
 - **PUT with whitespace-only note** → treated as delete; icon highlight clears.
+- **Notes request against a missing or outdated database schema** → the schema-guarded open fails; both notes routes forward it via `next(error)` so the shared error middleware returns a 500, rather than the error escaping the handler (DFF-DVR-016, mirroring #241).
 - **Snapshot-fed DevyView (static build path)** → new props absent; the Owner and notes columns render only when the corresponding props are provided, so the snapshot path stays pixel-identical to today.
 - **Board refresh (`etl:devy`) between note save and view** → ids stable via `(name, position)` upsert; note stays attached.

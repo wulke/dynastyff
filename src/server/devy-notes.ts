@@ -2,8 +2,9 @@
 // @spec DFF-DVR-011
 // @spec DFF-DVR-012
 // @spec DFF-DVR-013
+// @spec DFF-DVR-016
 import Database from 'better-sqlite3';
-import type { Request, RequestHandler, Response } from 'express';
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
 import { createDatabase } from '../db/client.js';
 
@@ -17,14 +18,27 @@ export type DevyNotesRouteOptions = {
 
 // Opens through the schema-guarded client (DFF-DATA-099) so a database with
 // pending migrations fails with the actionable `npm run db:migrate` error.
-function openDatabase(databasePath: string | undefined): Database.Database {
-  return createDatabase(databasePath);
+// A schema/open failure is forwarded to `next(error)` rather than escaping the
+// handler (mirrors the route contract fixed for the sibling routes in #241).
+// @spec DFF-DATA-099
+// @spec DFF-DVR-016
+function openRouteDatabase(databasePath: string | undefined, next: NextFunction): Database.Database | undefined {
+  try {
+    return createDatabase(databasePath);
+  } catch (error) {
+    next(error);
+    return undefined;
+  }
 }
 
 // @spec DFF-DVR-012 — every stored devy note, keyed by player id.
 export function createDevyNotesListRoute({ databasePath }: DevyNotesRouteOptions = {}): RequestHandler {
-  return (_request, response) => {
-    const sqlite = openDatabase(databasePath);
+  return (_request, response, next) => {
+    const sqlite = openRouteDatabase(databasePath, next);
+
+    if (!sqlite) {
+      return;
+    }
 
     try {
       const rows = sqlite.prepare('SELECT player_id, note, updated_at FROM devy_player_notes').all() as NoteRow[];
@@ -45,7 +59,7 @@ export function createDevyNotesListRoute({ databasePath }: DevyNotesRouteOptions
 // @spec DFF-DVR-011 — trimmed-empty notes delete the stored row (idempotent).
 // @spec DFF-DVR-013 — non-string notes and blank player ids are rejected with 400.
 export function createDevyNotePutRoute({ databasePath, now }: DevyNotesRouteOptions = {}): RequestHandler {
-  return (request: Request, response: Response) => {
+  return (request: Request, response: Response, next: NextFunction) => {
     const params = (request.params ?? {}) as { player_id?: string };
     const playerId = typeof params.player_id === 'string' ? params.player_id.trim() : '';
     const body = request.body as { note?: unknown } | undefined;
@@ -57,7 +71,11 @@ export function createDevyNotePutRoute({ databasePath, now }: DevyNotesRouteOpti
     }
 
     const trimmed = note.trim();
-    const sqlite = openDatabase(databasePath);
+    const sqlite = openRouteDatabase(databasePath, next);
+
+    if (!sqlite) {
+      return;
+    }
 
     try {
       if (trimmed === '') {

@@ -5,7 +5,7 @@
 // @spec DFF-SM-043
 // @spec DFF-SM-081
 // @spec DFF-SM-083
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -564,10 +564,45 @@ test('season overview carries devy claim names with board matches on taxi rows',
   }
 });
 
+// @spec DFF-DVC-011
+test('season overview loads the devy board matcher once for a roster with several claims', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      { name: 'Jadan Baugh', position: 'RB', school: 'Florida Gators', draftYear: 2027, value: 6364 },
+      { name: 'Kewan Lacy', position: 'RB', school: 'Ole Miss Rebels', draftYear: 2027, value: 6651 },
+    ],
+    devyClaims: [
+      { rosterId: 1, sleeperPlayerId: 's-devy-1', devyName: 'Jadan Baugh', placeholderName: 'Kyler Baugh', placeholderPosition: 'DL' },
+      { rosterId: 1, sleeperPlayerId: 's-devy-2', devyName: 'Kewan Lacy', placeholderName: 'Kavon Frazier', placeholderPosition: 'DB' },
+    ],
+  });
+  const aliasesPath = path.join(os.tmpdir(), `dff-aliases-${process.pid}-${Date.now()}.json`);
+  fs.writeFileSync(aliasesPath, '[]');
+  const readFileSync = mock.method(fs, 'readFileSync');
+
+  try {
+    const route = createSeasonOverviewRoute({ databasePath: fixture.dbPath, aliasesPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
+    const body = json as { roster: Array<{ devyName: string | null; devyMatch: { matched: boolean } | null }> };
+
+    assert.equal(statusCode, 200);
+    const claims = body.roster.filter((entry) => entry.devyName !== null);
+    assert.equal(claims.length, 2);
+    assert.ok(claims.every((entry) => entry.devyMatch?.matched));
+
+    const aliasReads = readFileSync.mock.calls.filter((call) => call.arguments[0] === aliasesPath);
+    assert.equal(aliasReads.length, 1);
+  } finally {
+    readFileSync.mock.restore();
+    fs.rmSync(aliasesPath, { force: true });
+    fixture.cleanup();
+  }
+});
+
 // @spec DFF-DVC-003
 // @spec DFF-DVC-004
 // @spec DFF-DVC-006
-// @spec DFF-DVC-007
+// @spec DFF-DVC-012
 test('devy claims route returns league claims, unmatched claims, and the unclaimed board', async () => {
   const fixture = createSeasonFixture({
     devyPlayers: [
@@ -598,7 +633,7 @@ test('devy claims route returns league claims, unmatched claims, and the unclaim
     const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
     const body = json as {
       season: string;
-      claims: Array<{ rosterId: number; teamName: string; devyName: string; devyMatch: Record<string, unknown> }>;
+      claims: Array<{ rosterId: number; sleeperPlayerId: string; teamName: string; devyName: string; devyMatch: Record<string, unknown> }>;
       available: Array<{ name: string; dynastyValue: number }>;
     };
 
@@ -609,6 +644,7 @@ test('devy claims route returns league claims, unmatched claims, and the unclaim
     const baugh = body.claims.find((claim) => claim.devyName === 'Jadan Baugh');
     assert.ok(baugh);
     assert.equal(baugh.rosterId, 1);
+    assert.equal(baugh.sleeperPlayerId, 's-devy-1');
     assert.equal(baugh.teamName, 'Trev Squad');
     assert.equal(baugh.devyMatch.matched, true);
 
@@ -666,17 +702,40 @@ test('devy claim matching normalizes quote variants in claim and board names', a
 });
 
 // @spec DFF-DVC-007
-test('devy claims route degrades to empty lists for a league without claims', async () => {
-  const fixture = createSeasonFixture();
+test('devy claims route returns no claims and the full board for a synced league without claims', async () => {
+  const fixture = createSeasonFixture({
+    devyPlayers: [
+      { name: 'Jadan Baugh', position: 'RB', school: 'Florida Gators', draftYear: 2027, value: 6364 },
+      { name: 'Kewan Lacy', position: 'RB', school: 'Ole Miss Rebels', draftYear: 2027, value: 6651 },
+    ],
+  });
 
   try {
     const route = createSeasonDevyClaimsRoute({ databasePath: fixture.dbPath });
     const { statusCode, json } = await invokeRoute({ route, params: { league_id: seasonLeagueId } });
-    const body = json as { claims: unknown[]; available: unknown[] };
+    const body = json as { claims: unknown[]; available: Array<{ name: string }> };
 
     assert.equal(statusCode, 200);
     assert.deepEqual(body.claims, []);
-    assert.deepEqual(body.available, []);
+    assert.deepEqual(
+      body.available.map((row) => row.name),
+      ['Kewan Lacy', 'Jadan Baugh'],
+    );
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-DVC-007
+test('devy claims route returns the shared context error for an unsynced league', async () => {
+  const fixture = createSeasonFixture();
+
+  try {
+    const route = createSeasonDevyClaimsRoute({ databasePath: fixture.dbPath });
+    const { statusCode, json } = await invokeRoute({ route, params: { league_id: 'unknown-league' } });
+
+    assert.equal(statusCode, 404);
+    assert.equal((json as { code: string }).code, 'NOT_FOUND');
   } finally {
     fixture.cleanup();
   }

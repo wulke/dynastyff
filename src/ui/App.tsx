@@ -1005,7 +1005,7 @@ export function DraftApp() {
         {/* @spec DFF-UI-116 */}
         {/* @spec DFF-DVR-004 */}
         {/* @spec DFF-DVR-008 */}
-        {!showMyTeam && showDevy ? <DevyView players={snapshot?.devyPlayers ?? httpDevyPlayers} ownership={devyOwnership} notes={devyNotes} onSaveNote={handleSaveDevyNote} /> : null}
+        {showDevy ? <DevyView players={snapshot?.devyPlayers ?? httpDevyPlayers} ownership={devyOwnership} notes={devyNotes} onSaveNote={handleSaveDevyNote} /> : null}
         {!showMyTeam && !showDevy && showDraftsListLoading ? <DraftsListLoadingState /> : null}
 
         {/* @spec DFF-UI-110 */}

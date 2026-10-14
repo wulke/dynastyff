@@ -275,6 +275,13 @@ describe('UI app scaffold', () => {
 
     await user.click(screen.getByRole('button', { name: 'My Team' }));
     expect(await screen.findByRole('heading', { name: /config screen/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Devy' }));
+    expect(screen.getByRole('heading', { name: /college devy values/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Devy' }));
+    expect(await screen.findByRole('heading', { name: /config screen/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /college devy values/i })).not.toBeInTheDocument();
   });
 
   // @spec DFF-UI-185

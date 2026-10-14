@@ -138,6 +138,9 @@ When a POST /drafts/:id/trade-response is received with status `force_declined`,
 **DFF-ENGINE-043** `[x]` → #10
 If a POST /drafts/:id/trade-response is received when no trade is pending, the system shall return a 409 error and shall not modify draft state.
 
+**DFF-ENGINE-043b** `[x]` → #239
+If persisting a bot-initiated trade that the receiving bot resolves automatically fails, the system shall log the failure, clear the pending trade, and stop the bot chain for that draft without raising an unhandled exception.
+
 ---
 
 ## Pick Slot Swap

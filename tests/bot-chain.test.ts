@@ -41,6 +41,16 @@ function withDatabase(
   });
 }
 
+function createSequentialIdGenerator(prefix: string): () => string {
+  let generated = 0;
+
+  return () => {
+    const suffix = generated === 0 ? '' : `-${generated}`;
+    generated += 1;
+    return `${prefix}${suffix}`;
+  };
+}
+
 function seedPlayer(
   db: Database.Database,
   playerId: string,
@@ -622,6 +632,93 @@ test('createBotChainCoordinator clears the pending trade when accepted trade per
   });
 });
 
+// @spec DFF-ENGINE-043b
+test('createBotChainCoordinator stops the chain without an uncaught exception when an auto-resolved bot trade fails to persist', async (t) => {
+  await withDatabase(async (db, databasePath) => {
+    seedPlayer(db, 'player-1', 'Player One', 6000);
+    seedPlayer(db, 'player-2', 'Player Two', 5900);
+
+    const draftId = createDraft({
+      databasePath,
+      config: {
+        teamCount: 3,
+        rounds: 1,
+        scoringFormat: 'ppr',
+        userPickPosition: 3,
+        futurePickYears: 1,
+        futurePickRounds: 1,
+        rosterConfig: {
+          QB: 1,
+          RB: 2,
+          WR: 3,
+          TE: 1,
+          FLEX: 1,
+          SF: 1,
+          bench: 6,
+        },
+      },
+      now: () => '2026-05-18T20:00:00.000Z',
+      random: () => 0,
+    });
+
+    const teams = db
+      .prepare('SELECT id, is_user FROM teams WHERE draft_id = ? ORDER BY pick_position')
+      .all(draftId) as Array<{ id: string; is_user: number }>;
+    const [initiatingTeam, receivingTeam] = teams.filter((team) => team.is_user === 0);
+
+    db.prepare(
+      `INSERT INTO trades (
+        id, draft_id, pick_number, round, initiating_team_id, receiving_team_id, assets_sent, assets_received, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'trade-duplicate',
+      draftId,
+      1,
+      1,
+      initiatingTeam!.id,
+      receivingTeam!.id,
+      '[]',
+      '[]',
+      'declined',
+      '2026-05-18T20:01:00.000Z',
+    );
+
+    const loggedErrors: unknown[] = [];
+    t.mock.method(console, 'error', (...args: unknown[]) => {
+      loggedErrors.push(args);
+    });
+
+    const botChain = createBotChainCoordinator({
+      databasePath,
+      now: () => '2026-05-18T20:05:00.000Z',
+      sleep: async () => undefined,
+      decideBotAction: ({ slot }) => ({
+        type: 'trade',
+        tradeId: 'trade-duplicate',
+        initiatingTeamId: slot.teamId,
+        receivingTeamId: receivingTeam!.id,
+        assetsSent: [],
+        assetsReceived: [],
+        isBotToBot: true,
+        autoEvaluateByReceivingBot: true,
+      }),
+    });
+
+    botChain.trigger(draftId);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await botChain.waitForIdle(draftId);
+
+    assert.equal(loggedErrors.length, 1);
+    assert.match(String(loggedErrors[0]), /UNIQUE constraint failed: trades\.id/);
+    assert.equal(botChain.resolvePendingTrade(draftId, 'accepted'), false);
+
+    const tradeCount = db.prepare('SELECT COUNT(*) AS count FROM trades WHERE draft_id = ?').get(draftId) as {
+      count: number;
+    };
+    assert.equal(tradeCount.count, 1);
+  });
+});
+
 // @spec DFF-ENGINE-034
 test('createBotChainCoordinator can persist a user trade offer when an older sequence-style trade id already exists', async () => {
   await withDatabase(async (db, databasePath) => {
@@ -793,7 +890,7 @@ test('createBotChainCoordinator evaluates received startup pick slots with the c
       databasePath,
       now: () => '2026-05-18T20:05:00.000Z',
       sleep: async () => undefined,
-      idGenerator: () => 'trade-user-offer-conservative',
+      idGenerator: createSequentialIdGenerator('trade-user-offer-conservative'),
     });
 
     const tradeId = botChain.submitUserTradeOffer({
@@ -813,6 +910,8 @@ test('createBotChainCoordinator evaluates received startup pick slots with the c
       .get(tradeId) as { status: string } | undefined;
 
     assert.deepEqual(persistedTrade, { status: 'declined' });
+
+    await botChain.waitForIdle(draftId);
   });
 });
 
@@ -918,7 +1017,7 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
       archetypeConfig,
       now: () => '2026-05-18T20:05:00.000Z',
       sleep: async () => undefined,
-      idGenerator: () => 'trade-user-offer-config-threshold',
+      idGenerator: createSequentialIdGenerator('trade-user-offer-config-threshold'),
     });
 
     const tradeId = botChain.submitUserTradeOffer({
@@ -937,6 +1036,8 @@ test('createBotChainCoordinator uses the injected archetype config when evaluati
       .get(tradeId) as { status: string } | undefined;
 
     assert.deepEqual(persistedTrade, { status: 'accepted' });
+
+    await botChain.waitForIdle(draftId);
   });
 });
 

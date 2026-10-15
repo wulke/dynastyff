@@ -14,7 +14,10 @@ function formatDynastyValue(value: number): string {
 
 // @spec DFF-UI-175
 function sumTradeAssets(assets: unknown[], draftState: DraftState, derivedPickValues: Map<number, number>): number {
-  return assets.reduce((total, asset) => total + (getTradeAssetDynastyValue(asset, draftState, { derivedPickValues }) ?? 0), 0);
+  return assets.reduce<number>(
+    (total, asset) => total + (getTradeAssetDynastyValue(asset, draftState, { derivedPickValues }) ?? 0),
+    0,
+  );
 }
 
 // @spec DFF-UI-173

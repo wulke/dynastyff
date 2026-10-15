@@ -555,6 +555,7 @@ test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', asy
         status: 'accepted',
         assetsSent: [{ type: 'player', player_id: 'player-1' }],
         assetsReceived: [{ type: 'pick', year: 2027, round: 1 }],
+        createdAt: '2026-05-18T20:00:00.000Z',
       });
 
       const tradeResolved = await readStreamEvent(stream);
@@ -564,6 +565,7 @@ test('GET /drafts/:id/stream emits trade_offered and trade_resolved events', asy
         status: 'accepted',
         assets_sent: [{ type: 'player', player_id: 'player-1' }],
         assets_received: [{ type: 'pick', year: 2027, round: 1 }],
+        created_at: '2026-05-18T20:00:00.000Z',
       });
     } finally {
       stream.close();
@@ -1596,13 +1598,14 @@ test('POST /drafts/:id/trade-offer emits trade events and defers the next bot pi
       );
 
       assert.equal(offerResponse.statusCode, 202);
-      assert.match(offerResponse.jsonBody.tradeId, /^[0-9a-f-]{36}$/);
-      assert.deepEqual(offerResponse.jsonBody, {
+      const offerBody = offerResponse.jsonBody as { ok: boolean; tradeId: string };
+      assert.match(offerBody.tradeId, /^[0-9a-f-]{36}$/);
+      assert.deepEqual(offerBody, {
         ok: true,
-        tradeId: offerResponse.jsonBody.tradeId,
+        tradeId: offerBody.tradeId,
       });
 
-      const userTradeId = offerResponse.jsonBody.tradeId;
+      const userTradeId = offerBody.tradeId;
 
       releaseSleep?.();
       await botChain.waitForIdle(draftId);

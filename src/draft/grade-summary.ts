@@ -184,7 +184,9 @@ function calculateValueOverExpectedAdp(
   const teamPicks = input.picks.filter((pick) => pick.teamId === teamId);
   const playersWithAdp = teamPicks
     .map((pick) => ({ pick, player: input.playerCatalog[pick.playerId] }))
-    .filter((entry) => entry.player && typeof entry.player.adp === 'number');
+    .filter((entry): entry is typeof entry & { player: NonNullable<typeof entry.player> & { adp: number } } => (
+      entry.player !== undefined && typeof entry.player.adp === 'number'
+    ));
   const missingAdpCount = teamPicks.length - playersWithAdp.length;
   const warnings: GradeWarning[] = missingAdpCount > 0 ? ['missing_adp'] : [];
 
@@ -206,11 +208,11 @@ function calculateValueOverExpectedAdp(
   const totalPicks = Math.max(input.draftOrder.length, 1);
   const equalWeight = 1 / playersWithAdp.length;
   const weightedScore = playersWithAdp.reduce((sum, entry) => {
-    const slotDelta = entry.player!.adp - entry.pick.pickNumber;
+    const slotDelta = entry.player.adp - entry.pick.pickNumber;
     const normalizedDelta = clamp(slotDelta / totalPicks, -1, 1);
     const pickScore = 50 + (normalizedDelta * 50);
     const weight = totalDraftedDynastyValue > 0
-      ? Math.max(entry.player!.dynastyValue, 0) / totalDraftedDynastyValue
+      ? Math.max(entry.player.dynastyValue, 0) / totalDraftedDynastyValue
       : equalWeight;
     return sum + (pickScore * weight);
   }, 0);

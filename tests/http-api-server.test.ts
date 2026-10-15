@@ -424,6 +424,7 @@ async function invokeTradeResponseRoute(
         trigger: () => undefined,
         waitForIdle: async () => undefined,
         resolvePendingTrade: () => false,
+        submitUserTradeOffer: () => 'trade-user-offer-default',
       },
     }),
     body,

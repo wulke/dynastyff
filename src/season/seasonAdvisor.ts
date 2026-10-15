@@ -4,7 +4,8 @@
 // @spec DFF-SM-043
 // @spec DFF-SM-044
 // @spec DFF-SM-072
-// @spec DFF-SM-086
+// @spec DFF-SM-164
+// @spec DFF-SM-165
 import type { LeagueContext, SleeperTradeOfferRecord } from './context.js';
 import type { TradeScore } from './tradeScorer.js';
 import type { WaiverPair } from './waiverScorer.js';
@@ -25,7 +26,7 @@ export type SeasonAdvisor = {
   explainWaiver: (context: LeagueContext, pair: WaiverPair) => Promise<AdvisorResult>;
 };
 
-const defaultModel = 'claude-sonnet-4-6';
+const defaultModel = 'claude-sonnet-5-5';
 const defaultEndpoint = 'https://api.anthropic.com/v1/messages';
 const responseFormat = `**Verdict:** Win / Loss / Neutral
 
@@ -178,7 +179,8 @@ function extractText(payload: unknown): string | null {
 }
 
 // @spec DFF-SM-043 — any failure yields `claudeUnavailable` so the raw score is always usable.
-// @spec DFF-SM-086 — narratives are never persisted; each call recomputes.
+// @spec DFF-SM-164 — narratives are never persisted; each call recomputes.
+// @spec DFF-SM-165 — trade and waiver analysis use Claude Sonnet 5.5.
 export function createSeasonAdvisor({
   apiKey = process.env.ANTHROPIC_API_KEY,
   fetchImpl = fetch as AdvisorFetch,
@@ -191,6 +193,8 @@ export function createSeasonAdvisor({
   endpoint?: string;
 } = {}): SeasonAdvisor {
   // @spec DFF-SM-043 — any failure yields `claudeUnavailable` so the raw score is always usable.
+  // @spec DFF-SM-164 — no narrative cache; every invocation makes a fresh request.
+  // @spec DFF-SM-165 — `model` defaults to Claude Sonnet 5.5 for both analyze flows.
   async function requestNarrative(systemText: string, userText: string): Promise<AdvisorResult> {
     if (!apiKey) {
       return { narrative: null, claudeUnavailable: true };

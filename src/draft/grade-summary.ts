@@ -88,6 +88,12 @@ export type DraftGradeSummaryInput = {
   }>;
 };
 
+type PlayerWithAdp = DraftGradeSummaryInput['playerCatalog'][string] & { adp: number };
+type TeamPickWithAdp = {
+  pick: DraftGradeSummaryInput['picks'][number];
+  player: PlayerWithAdp;
+};
+
 const POSITION_KEYS = ['QB', 'RB', 'WR', 'TE'] as const;
 type PositionKey = (typeof POSITION_KEYS)[number];
 
@@ -184,7 +190,7 @@ function calculateValueOverExpectedAdp(
   const teamPicks = input.picks.filter((pick) => pick.teamId === teamId);
   const playersWithAdp = teamPicks
     .map((pick) => ({ pick, player: input.playerCatalog[pick.playerId] }))
-    .filter((entry): entry is typeof entry & { player: NonNullable<typeof entry.player> & { adp: number } } => (
+    .filter((entry): entry is TeamPickWithAdp => (
       entry.player !== undefined && typeof entry.player.adp === 'number'
     ));
   const missingAdpCount = teamPicks.length - playersWithAdp.length;

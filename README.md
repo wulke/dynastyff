@@ -117,6 +117,7 @@ A weekly GitHub Actions workflow (`.github/workflows/scheduled-refresh.yml`) run
 | `npm run test:server:slow` | Run the isolated full-draft bot characterization test |
 | `npm run test:ui` | Run UI tests |
 | `npm run test:coverage` | Run tests with coverage thresholds |
+| `npm run typecheck` | Verify TypeScript types without emitting build files |
 | **Build** | |
 | `npm run build` | Build the TypeScript backend and the Vite UI bundle |
 | `npm run build:static` | Build the browser-only GitHub Pages bundle into `dist/static/` |

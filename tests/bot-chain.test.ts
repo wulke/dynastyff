@@ -1160,7 +1160,7 @@ test('createBotChainCoordinator declines user trade offers that request receivin
       const tradeId = botChain.submitUserTradeOffer({
         draftId,
         targetTeamId: botTeamId,
-        offeredAssets: scenario.offeredAssets,
+        offeredAssets: [...scenario.offeredAssets],
         requestedAssets: [{ type: 'player', player_id: scenario.requestedPlayerId }],
       });
 

@@ -26,7 +26,7 @@ async function invokeSleeperLeagueImportRoute(
     },
   } as Response;
 
-  await route({ params: { leagueId } } as Request, response, () => undefined);
+  await route({ params: { leagueId } } as unknown as Request, response, () => undefined);
 
   return { statusCode, json };
 }

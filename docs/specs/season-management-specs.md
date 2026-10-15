@@ -358,10 +358,10 @@ The system shall cache curation results in `trade_curation_cache` under a key de
 **DFF-SM-163** `[ ]`
 When a cached curation exists for the current key, the system shall return it without invoking Claude; when any key input changes, the system shall compute a fresh curation.
 
-**DFF-SM-164** `[ ]`
+**DFF-SM-164** `[x]`
 The system shall recompute Claude reasoning on each trade or waiver analyze request, and shall not persist analyze narratives between requests.
 
-**DFF-SM-165** `[ ]`
+**DFF-SM-165** `[x]`
 The trade and waiver analyze endpoints shall use `claude-sonnet-5-5`.
 
 ---

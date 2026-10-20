@@ -190,7 +190,7 @@ test('POST /season/:league_id/trades/analyze returns a fresh narrative on every 
   const advisor: SeasonAdvisor = {
     explainTrade: async () => {
       calls += 1;
-      return { narrative: 'fresh narrative', claudeUnavailable: false };
+      return { narrative: `narrative ${calls}`, claudeUnavailable: false };
     },
     explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
   };
@@ -219,9 +219,9 @@ test('POST /season/:league_id/trades/analyze returns a fresh narrative on every 
 
     assert.equal(payload.transactionId, '555');
     assert.ok(['win', 'loss', 'neutral'].includes(payload.score.verdict));
-    assert.equal(payload.narrative, 'fresh narrative');
+    assert.equal(payload.narrative, 'narrative 1');
     assert.equal(payload.claudeUnavailable, false);
-    assert.equal((second.json as { narrative: string | null }).narrative, 'fresh narrative');
+    assert.equal((second.json as { narrative: string | null }).narrative, 'narrative 2');
     assert.equal(calls, 2);
   } finally {
     fixture.cleanup();
@@ -465,7 +465,7 @@ test('POST /waivers/analyze re-derives the pair and returns a fresh Claude narra
     explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
     explainWaiver: async (_context, pair) => {
       seen.push(pair);
-      return { narrative: 'fresh narrative', claudeUnavailable: false };
+      return { narrative: `narrative ${seen.length}`, claudeUnavailable: false };
     },
   };
   const route = createSeasonWaiverAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
@@ -496,9 +496,9 @@ test('POST /waivers/analyze re-derives the pair and returns a fresh Claude narra
     assert.equal(payload.add.id, 'p-fa2');
     assert.equal(payload.drop, null);
     assert.ok(payload.valueDelta > 0);
-    assert.equal(payload.narrative, 'fresh narrative');
+    assert.equal(payload.narrative, 'narrative 1');
     assert.equal(payload.claudeUnavailable, false);
-    assert.equal((second.json as { narrative: string | null }).narrative, 'fresh narrative');
+    assert.equal((second.json as { narrative: string | null }).narrative, 'narrative 2');
 
     const pair = seen[0] as { add: { id: string } };
     assert.equal(pair.add.id, 'p-fa2');

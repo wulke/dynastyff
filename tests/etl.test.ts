@@ -347,6 +347,59 @@ test('normalizePickValues assigns 9999 when all pick values share the same raw v
   ]);
 });
 
+// @spec DFF-ETL-031
+test('runEtl normalizes a future first with each source player context instead of a pick-only pool', async () => {
+  const { db, dbPath, cleanup } = createTempDatabase();
+  const playersFor = (minimum: number, maximum: number): RawPlayer[] => [
+    {
+      name: 'Low Value QB',
+      position: 'QB',
+      nflTeam: 'BUF',
+      age: 24,
+      isRookie: false,
+      rawValue: minimum,
+      adp: 100,
+    },
+    {
+      name: 'Top Value QB',
+      position: 'QB',
+      nflTeam: 'KC',
+      age: 23,
+      isRookie: false,
+      rawValue: maximum,
+      adp: 1,
+    },
+  ];
+
+  try {
+    const exitCode = await runEtl({
+      databasePath: dbPath,
+      scrapeKtc: async () => makeKtcResult(playersFor(453, 9999), [{ year: 2027, round: 1, rawValue: 5951 }]),
+      scrapeFantasycalc: async () => ({
+        source: 'fantasycalc',
+        players: playersFor(3, 10839),
+        pickValues: [{ year: 2027, round: 1, rawValue: 3059 }],
+      }),
+      scrapeRosteraudit: async () => ({
+        source: 'rosteraudit',
+        players: playersFor(3, 10000),
+        pickValues: [{ year: 2027, round: 1, rawValue: 3277 }],
+      }),
+      now: () => '2026-10-20T12:00:00.000Z',
+    });
+
+    const first = db
+      .prepare('SELECT dynasty_value FROM pick_values WHERE year = 2027 AND round = 1 AND pick_in_round = 0')
+      .get() as { dynasty_value: number };
+
+    assert.equal(exitCode, 0);
+    assert.equal(first.dynasty_value, 3951);
+    assert.ok(first.dynasty_value < 9999);
+  } finally {
+    cleanup();
+  }
+});
+
 // @spec DFF-ETL-090
 test('parsePickAssetName returns year, round, and optional tier for supported pick names', () => {
   assert.deepEqual(parsePickAssetName('2027 Early 1st'), {

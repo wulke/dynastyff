@@ -55,6 +55,7 @@ function fixtureScore() {
 // @spec DFF-SM-042
 // @spec DFF-SM-044
 // @spec DFF-SM-072
+// @spec DFF-SM-165
 test('explainTrade sends the cached context prefix and formatted signal prompt to Claude', async () => {
   const { fixture, context, score } = fixtureScore();
   const fetchImpl = stubAdvisorFetch(() => ({
@@ -89,7 +90,7 @@ test('explainTrade sends the cached context prefix and formatted signal prompt t
     };
 
     // @spec DFF-SM-044 — the static league context is a cacheable prefix.
-    assert.equal(body.model, 'claude-sonnet-4-6');
+    assert.equal(body.model, 'claude-sonnet-5-5');
     assert.equal(body.system[0].cache_control?.type, 'ephemeral');
 
     // @spec DFF-SM-072 — user roster, counterparty roster, and medians only.
@@ -102,6 +103,22 @@ test('explainTrade sends the cached context prefix and formatted signal prompt t
     assert.match(body.messages[0].content, /Non-obvious consideration/);
     // @spec DFF-SM-042
     assert.match(body.messages[0].content, /dynasty value/);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+// @spec DFF-SM-164
+test('explainTrade recomputes its Claude narrative on every request', async () => {
+  const { fixture, context, score } = fixtureScore();
+  const fetchImpl = stubAdvisorFetch(() => ({ body: { content: [{ type: 'text', text: 'fresh narrative' }] } }));
+  const advisor = createSeasonAdvisor({ apiKey: 'test-key', fetchImpl });
+
+  try {
+    await advisor.explainTrade(context, score);
+    await advisor.explainTrade(context, score);
+
+    assert.equal(fetchImpl.requests.length, 2);
   } finally {
     fixture.cleanup();
   }
@@ -256,6 +273,7 @@ test('explainTrade strips prompt-shaping characters from client-influenced strin
 
 // @spec DFF-SM-061
 // @spec DFF-SM-067
+// @spec DFF-SM-165
 test('explainWaiver uses the shared context prefix and the trade response format', async () => {
   const { fixture, context } = fixtureScore();
   const fetchImpl = stubAdvisorFetch(() => ({
@@ -274,10 +292,12 @@ test('explainWaiver uses the shared context prefix and the trade response format
     assert.equal(result.claudeUnavailable, false);
 
     const body = JSON.parse(String(fetchImpl.requests[0].init?.body)) as {
+      model: string;
       system: { text: string }[];
       messages: { content: string }[];
     };
 
+    assert.equal(body.model, 'claude-sonnet-5-5');
     // No counterparty roster exists on waivers.
     assert.ok(body.system[0].text.includes('(none — waiver wire addition)'));
     assert.ok(body.messages[0].content.includes('Waiver wire add/drop:'));

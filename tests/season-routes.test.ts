@@ -183,23 +183,34 @@ test('GET /season/:league_id/trades/pending returns only offers involving the us
 });
 
 // @spec DFF-SM-031
-test('POST /season/:league_id/trades/analyze returns the score plus reasoning', async () => {
+// @spec DFF-SM-164
+test('POST /season/:league_id/trades/analyze returns a fresh narrative on every request', async () => {
   const fixture = createSeasonFixture();
+  let calls = 0;
   const advisor: SeasonAdvisor = {
-    explainTrade: async () => ({ narrative: '**Verdict:** Neutral', claudeUnavailable: false }),
+    explainTrade: async () => {
+      calls += 1;
+      return { narrative: `narrative ${calls}`, claudeUnavailable: false };
+    },
     explainWaiver: async () => ({ narrative: null, claudeUnavailable: true }),
   };
   const route = createSeasonTradeAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
 
   try {
-    const { statusCode, json } = await invokeRoute({
+    const first = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { transaction_id: 555 },
+    });
+    const second = await invokeRoute({
       route,
       params: { league_id: seasonLeagueId },
       body: { transaction_id: 555 },
     });
 
-    assert.equal(statusCode, 200);
-    const payload = json as {
+    assert.equal(first.statusCode, 200);
+    assert.equal(second.statusCode, 200);
+    const payload = first.json as {
       transactionId: string;
       score: { verdict: string; compositeScore: number };
       narrative: string | null;
@@ -208,8 +219,10 @@ test('POST /season/:league_id/trades/analyze returns the score plus reasoning', 
 
     assert.equal(payload.transactionId, '555');
     assert.ok(['win', 'loss', 'neutral'].includes(payload.score.verdict));
-    assert.equal(payload.narrative, '**Verdict:** Neutral');
+    assert.equal(payload.narrative, 'narrative 1');
     assert.equal(payload.claudeUnavailable, false);
+    assert.equal((second.json as { narrative: string | null }).narrative, 'narrative 2');
+    assert.equal(calls, 2);
   } finally {
     fixture.cleanup();
   }
@@ -444,27 +457,34 @@ test('GET /season/:league_id/waivers returns ranked no-drop pairs for the fixtur
 
 // @spec DFF-SM-061
 // @spec DFF-SM-067
-test('POST /waivers/analyze re-derives the pair server-side and returns Claude reasoning', async () => {
+// @spec DFF-SM-164
+test('POST /waivers/analyze re-derives the pair and returns a fresh Claude narrative on every request', async () => {
   const fixture = createSeasonFixture();
   const seen: unknown[] = [];
   const advisor: SeasonAdvisor = {
     explainTrade: async () => ({ narrative: null, claudeUnavailable: true }),
     explainWaiver: async (_context, pair) => {
       seen.push(pair);
-      return { narrative: '**Verdict:** Win', claudeUnavailable: false };
+      return { narrative: `narrative ${seen.length}`, claudeUnavailable: false };
     },
   };
   const route = createSeasonWaiverAnalyzeRoute({ databasePath: fixture.dbPath, advisor });
 
   try {
-    const { statusCode, json } = await invokeRoute({
+    const first = await invokeRoute({
+      route,
+      params: { league_id: seasonLeagueId },
+      body: { add_player_id: 'p-fa2' },
+    });
+    const second = await invokeRoute({
       route,
       params: { league_id: seasonLeagueId },
       body: { add_player_id: 'p-fa2' },
     });
 
-    assert.equal(statusCode, 200);
-    const payload = json as {
+    assert.equal(first.statusCode, 200);
+    assert.equal(second.statusCode, 200);
+    const payload = first.json as {
       add: { id: string; name: string };
       drop: unknown;
       valueDelta: number;
@@ -476,11 +496,13 @@ test('POST /waivers/analyze re-derives the pair server-side and returns Claude r
     assert.equal(payload.add.id, 'p-fa2');
     assert.equal(payload.drop, null);
     assert.ok(payload.valueDelta > 0);
-    assert.equal(payload.narrative, '**Verdict:** Win');
+    assert.equal(payload.narrative, 'narrative 1');
     assert.equal(payload.claudeUnavailable, false);
+    assert.equal((second.json as { narrative: string | null }).narrative, 'narrative 2');
 
     const pair = seen[0] as { add: { id: string } };
     assert.equal(pair.add.id, 'p-fa2');
+    assert.equal(seen.length, 2);
   } finally {
     fixture.cleanup();
   }

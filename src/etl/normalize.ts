@@ -86,9 +86,11 @@ export function normalizeRawValue(rawValue: number, context: NormalizationContex
     return 9999;
   }
 
-  return Math.round(
+  const normalizedValue = Math.round(
     ((rawValue - context.minRawValue) / (context.maxRawValue - context.minRawValue)) * 9999,
   );
+
+  return Math.min(9999, Math.max(0, normalizedValue));
 }
 
 function normalizeValues<T extends { rawValue: number }>(
@@ -119,10 +121,12 @@ export function normalizePlayers(
 }
 
 // @spec DFF-ETL-031
-// @spec DFF-ETL-032
 export function normalizePickValues(
   pickValues: readonly RawPickValue[],
-  options?: NormalizeOptions,
+  playerContext: NormalizationContext,
 ): NormalizedPickValue[] {
-  return normalizeValues(pickValues, options);
+  return pickValues.map((pickValue) => ({
+    ...pickValue,
+    normalizedValue: normalizeRawValue(pickValue.rawValue, playerContext),
+  }));
 }

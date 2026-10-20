@@ -35,7 +35,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 import { initializeDatabase } from '../src/db/init.js';
-import { normalizePickValues, normalizePlayers } from '../src/etl/normalize.js';
+import { createNormalizationContext, normalizePickValues, normalizePlayers } from '../src/etl/normalize.js';
 import { runEtl, runScrapers } from '../src/etl/index.js';
 import { scrapeDynastyDaddy } from '../src/etl/scraper/dynastydaddy.js';
 import { scrapeFantasyCalc } from '../src/etl/scraper/fantasycalc.js';
@@ -288,7 +288,7 @@ test('normalizePickValues min-max scales pick values to 0..9999', () => {
       { year: 2027, round: 1, rawValue: 100 },
       { year: 2027, round: 2, rawValue: 200 },
       { year: 2028, round: 1, rawValue: 300 },
-    ]).map((pickValue) => ({
+    ], createNormalizationContext([{ rawValue: 100 }, { rawValue: 300 }])!).map((pickValue) => ({
       year: pickValue.year,
       round: pickValue.round,
       normalizedValue: pickValue.normalizedValue,
@@ -301,50 +301,18 @@ test('normalizePickValues min-max scales pick values to 0..9999', () => {
   );
 });
 
-// @spec DFF-ETL-032
-test('normalizePickValues warns and assigns 9999 when a source returns exactly one pick value', () => {
-  const warnings: string[] = [];
-
-  const [pickValue] = normalizePickValues(
-    [{ year: 2027, round: 1, rawValue: 100 }],
-    {
-      source: 'fantasycalc',
-      valueType: 'pick value',
-      warn: (message) => {
-        warnings.push(message);
-      },
-    },
-  );
-
-  assert.equal(pickValue.normalizedValue, 9999);
-  assert.deepEqual(warnings, [
-    '[ETL] WARN: fantasycalc returned exactly one pick value; assigning normalized value 9999.',
-  ]);
-});
-
-// @spec DFF-ETL-032
-test('normalizePickValues assigns 9999 when all pick values share the same raw value', () => {
-  const warnings: string[] = [];
-
+// @spec DFF-ETL-031
+test('normalizePickValues uses its source player context even when pick values are uniform', () => {
   assert.deepEqual(
     normalizePickValues(
       [
         { year: 2027, round: 1, rawValue: 777 },
         { year: 2028, round: 2, rawValue: 777 },
       ],
-      {
-        source: 'rosteraudit',
-        valueType: 'pick value',
-        warn: (message) => {
-          warnings.push(message);
-        },
-      },
+      createNormalizationContext([{ rawValue: 0 }, { rawValue: 9999 }])!,
     ).map((pickValue) => pickValue.normalizedValue),
-    [9999, 9999],
+    [777, 777],
   );
-  assert.deepEqual(warnings, [
-    '[ETL] WARN: rosteraudit returned 2 pick value rows with the same raw value; assigning normalized value 9999.',
-  ]);
 });
 
 // @spec DFF-ETL-031
@@ -1287,7 +1255,9 @@ test('runEtl logs a warning and continues when one scraper fails', async () => {
       },
       scrapeRosteraudit: async () => ({
         source: 'rosteraudit',
-        players: [],
+        players: [{
+          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 12.5,
+        }],
         pickValues: [{ year: 2028, round: 1, rawValue: 200 }],
       }),
       now: () => '2026-05-28T10:00:00.000Z',
@@ -1509,7 +1479,9 @@ test('runEtl aggregates pick values across sources and updates existing round-le
         ),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
-        players: [],
+        players: [{
+          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 10,
+        }],
         pickValues: [
           { year: 2027, round: 1, rawValue: 100 },
           { year: 2028, round: 1, rawValue: 300 },
@@ -1517,7 +1489,9 @@ test('runEtl aggregates pick values across sources and updates existing round-le
       }),
       scrapeRosteraudit: async () => ({
         source: 'rosteraudit',
-        players: [],
+        players: [{
+          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 10,
+        }],
         pickValues: [
           { year: 2027, round: 1, rawValue: 600 },
           { year: 2029, round: 1, rawValue: 200 },
@@ -1568,7 +1542,7 @@ test('runEtl aggregates pick values across sources and updates existing round-le
         year: 2027,
         round: 1,
         pick_in_round: 0,
-        dynasty_value: 6666,
+        dynasty_value: 9999,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
       {
@@ -1584,7 +1558,7 @@ test('runEtl aggregates pick values across sources and updates existing round-le
         year: 2029,
         round: 1,
         pick_in_round: 0,
-        dynasty_value: 0,
+        dynasty_value: 9999,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
     ]);
@@ -1633,7 +1607,9 @@ test('runEtl stores startup pick slot rows separately from round-level future pi
         ),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
-        players: [],
+        players: [{
+          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 10,
+        }],
         pickValues: [
           { year: 2027, round: 1, rawValue: 100 },
           { year: 2026, round: 1, pickInRound: 4, rawValue: 200 },
@@ -1686,7 +1662,7 @@ test('runEtl stores startup pick slot rows separately from round-level future pi
     assert.equal(exitCode, 0);
     assert.deepEqual(rows, [
       { year: 2026, round: 1, pick_in_round: 4, dynasty_value: 9999 },
-      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 0 },
+      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 9999 },
     ]);
     assert.deepEqual(snapshots, [
       { year: 2026, round: 1, pick_in_round: 4, source: 'fantasycalc', raw_value: 200 },
@@ -1729,7 +1705,9 @@ test('runEtl warns and continues when no startup pick values are written for the
         ),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
-        players: [],
+        players: [{
+          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 10,
+        }],
         pickValues: [{ year: 2028, round: 1, rawValue: 100 }],
       }),
       scrapeRosteraudit: async () => ({

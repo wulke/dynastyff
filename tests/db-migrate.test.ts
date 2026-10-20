@@ -6,6 +6,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 import { createDatabase } from '../src/db/client.js';
+import { initializeDatabase } from '../src/db/init.js';
 import { migrateDatabase } from '../src/db/migrate.js';
 
 function createPreDevyFixture(options?: { includesDevyName?: boolean }): { tempDir: string; dbPath: string } {
@@ -143,6 +144,62 @@ test('database entry points fail fast with the schema upgrade command', () => {
 
   try {
     assert.throws(() => createDatabase(dbPath), /Database schema is out of date\. Run `npm run db:migrate`\./);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// @spec DFF-ETL-031
+test('db:migrate recomputes current pick values from the latest run player normalization context', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-db-pick-scale-'));
+  const dbPath = path.join(tempDir, 'picks.sqlite');
+  initializeDatabase(dbPath);
+  const sqlite = new Database(dbPath);
+
+  try {
+    sqlite.prepare(
+      'INSERT INTO etl_runs (id, started_at, completed_at, sources_attempted, sources_succeeded) VALUES (?, ?, ?, ?, ?)',
+    ).run('run-1', '2026-10-20T12:00:00.000Z', '2026-10-20T12:01:00.000Z', '["ktc"]', '["ktc"]');
+    sqlite.prepare(
+      `INSERT INTO players (
+        id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run('player-low', 'Low QB', 'QB', 'BUF', 24, 0, 0, '2026-10-20T12:00:00.000Z');
+    sqlite.prepare(
+      `INSERT INTO players (
+        id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run('player-high', 'High QB', 'QB', 'KC', 23, 0, 9999, '2026-10-20T12:00:00.000Z');
+    sqlite.prepare(
+      'INSERT INTO player_value_snapshots (id, run_id, player_id, source, raw_value) VALUES (?, ?, ?, ?, ?)',
+    ).run('snapshot-low', 'run-1', 'player-low', 'ktc', 453);
+    sqlite.prepare(
+      'INSERT INTO player_value_snapshots (id, run_id, player_id, source, raw_value) VALUES (?, ?, ?, ?, ?)',
+    ).run('snapshot-high', 'run-1', 'player-high', 'ktc', 9999);
+    sqlite.prepare(
+      `INSERT INTO pick_values (id, year, round, pick_in_round, dynasty_value, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('pick-2027-1', 2027, 1, 0, 9999, '2026-10-20T12:00:00.000Z');
+    sqlite.prepare(
+      `INSERT INTO pick_value_snapshots (id, run_id, year, round, pick_in_round, source, raw_value)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run('pick-snapshot', 'run-1', 2027, 1, 0, 'ktc', 5951);
+    sqlite.prepare('UPDATE __drizzle_migrations SET created_at = ?').run(1791662190205);
+  } finally {
+    sqlite.close();
+  }
+
+  try {
+    migrateDatabase(dbPath);
+    const migrated = new Database(dbPath);
+    try {
+      assert.deepEqual(
+        migrated.prepare('SELECT dynasty_value FROM pick_values WHERE id = ?').get('pick-2027-1'),
+        { dynasty_value: 5759 },
+      );
+    } finally {
+      migrated.close();
+    }
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

@@ -135,6 +135,7 @@ normalized = round((raw - min) / (max - min) * 9999)
 - Player and pick value normalization share the source's player-derived min-max context. This preserves each source's published player-to-pick relationship; future and startup picks are not normalized against a pick-only pool.
 - The normalized result is clamped to 0–9999, because a pick may lie outside the source's observed player range.
 - If a source returns only one player or all player values are equal, that player context assigns 9999 and logs a warning. The number or spread of pick rows never creates a separate fallback context.
+- The schema migration recomputes each existing `pick_values` row from raw snapshots in its latest completed ETL run and that run's source player contexts. `pick_value_snapshots` are not chart inputs, so their raw history remains unchanged.
 
 ## Redraft Values
 

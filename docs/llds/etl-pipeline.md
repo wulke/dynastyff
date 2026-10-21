@@ -75,7 +75,7 @@ DynastyDaddy remains implemented as a scraper module, but it is temporarily excl
 2. KTC and FantasyCalc parse asset names like `2027 Early 1st` with the ETL pick regex, returning `{ year, round, tier? }` from the shared parser, then average any tier variants for the same `(year, round)` into a single row and emit current-state `pickValues` keyed by `(year, round, pick_in_round = 0)`.
 3. `runEtl()` inserts an `etl_runs` row only after the scraper phase confirms that at least one active scraper succeeded; the row records the active attempted sources (`ktc`, `fantasycalc`, `rosteraudit`) and starts with `completed_at = NULL`.
 4. Each successful source is processed in its own database transaction:
-   - normalize that source's player and pick values
+   - derive that source's player normalization context, then normalize its players and picks with that shared context
    - write raw `player_value_snapshots` and `pick_value_snapshots`
    - update the current-state `players` table
    - recompute the current-state `pick_values` row for each touched `(year, round, pick_in_round)` from the current run's raw pick snapshots using that run's per-source normalization contexts
@@ -132,8 +132,11 @@ Each source is normalized independently using min-max scaling:
 normalized = round((raw - min) / (max - min) * 9999)
 ```
 
-- Player and pick value normalization both use the same per-source min-max path.
-- If a source returns only one player or pick value (degenerate case), that entry is assigned value 9999 and a warning is logged.
+- Player and pick value normalization share the source's player-derived min-max context. This preserves each source's published player-to-pick relationship; future and startup picks are not normalized against a pick-only pool.
+- The normalized result is clamped to 0–9999, because a pick may lie outside the source's observed player range.
+- If a source returns only one player or all player values are equal, that player context assigns 9999 and logs a warning. The number or spread of pick rows never creates a separate fallback context.
+- If a source returns pick rows without player rows, ETL logs a warning and excludes those picks because it cannot establish their shared scale.
+- The one-time schema migration recomputes each existing `pick_values` row from raw snapshots in its latest completed ETL run. Historical non-KTC snapshots omit unmatched player rows, so this backfill is approximate for those sources; the next `npm run etl` uses the complete scraped player context and corrects the current values. `pick_value_snapshots` are not chart inputs, so their raw history remains unchanged.
 
 ## Redraft Values
 
@@ -190,7 +193,7 @@ All writes use Drizzle ORM against the shared SQLite database.
 - On match: recompute `dynasty_value` as the rounded mean of all normalized current-run source values for that `(year, round, pick_in_round)`, then update `updated_at`.
 - On miss: insert a new row with a generated UUID, the aggregated `dynasty_value`, and `updated_at`.
 - Startup pick values (parsed from `"Startup R.PP"` names) are assigned `year = current calendar year` at ETL run time and stored in the canonical 12-team reference frame (i.e. `round` and `pick_in_round` reflect a 12-team league exactly as published by the source).
-- Startup and future pick rows are normalized in the same per-source min-max pool; all pick rows for a source are scaled together on 0–9999 in a single pass.
+- Startup and future pick rows are normalized with the source's player-derived min-max context, then clamped to 0–9999. They therefore remain directly comparable with players and with each other within that source.
 
 ## File Layout
 

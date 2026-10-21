@@ -13,10 +13,68 @@ import { resolveDatabasePath } from './path.js';
 const migrationsTable = '__drizzle_migrations';
 const legacySchemaTimestamp = 1779470704872;
 const legacyDevySchemaTimestamp = 1791660080858;
+// @spec DFF-ETL-031
+const pickValueScaleMigrationTimestamp = 1792500000000;
 const databaseDirectory = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(databaseDirectory, '../../drizzle');
 const migrationJournalPath = path.join(migrationsFolder, 'meta', '_journal.json');
 let cachedCurrentMigrationTimestamp: number | undefined;
+
+// @spec DFF-ETL-031
+const pickValueScaleBackfillSql = `
+  WITH latest_pick_runs AS (
+    SELECT snapshot_runs.year, snapshot_runs.round, snapshot_runs.pick_in_round, snapshot_runs.run_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY snapshot_runs.year, snapshot_runs.round, snapshot_runs.pick_in_round
+        ORDER BY snapshot_runs.completed_at DESC, snapshot_runs.started_at DESC, snapshot_runs.run_id DESC
+      ) AS run_rank
+    FROM (
+      SELECT DISTINCT snapshots.year, snapshots.round, snapshots.pick_in_round, snapshots.run_id,
+        runs.completed_at, runs.started_at
+      FROM pick_value_snapshots AS snapshots
+      INNER JOIN etl_runs AS runs ON runs.id = snapshots.run_id
+      WHERE runs.completed_at IS NOT NULL
+    ) AS snapshot_runs
+  ), player_contexts AS (
+    SELECT run_id, source, MIN(raw_value) AS min_raw_value, MAX(raw_value) AS max_raw_value
+    FROM player_value_snapshots
+    GROUP BY run_id, source
+  ), normalized_picks AS (
+    SELECT snapshots.year, snapshots.round, snapshots.pick_in_round,
+      CASE
+        WHEN contexts.min_raw_value = contexts.max_raw_value THEN 9999
+        ELSE MIN(9999, MAX(0, ROUND(
+          (snapshots.raw_value - contexts.min_raw_value) * 9999.0 /
+          (contexts.max_raw_value - contexts.min_raw_value)
+        )))
+      END AS normalized_value
+    FROM pick_value_snapshots AS snapshots
+    INNER JOIN latest_pick_runs AS latest
+      ON latest.run_id = snapshots.run_id
+      AND latest.year = snapshots.year
+      AND latest.round = snapshots.round
+      AND latest.pick_in_round = snapshots.pick_in_round
+      AND latest.run_rank = 1
+    INNER JOIN player_contexts AS contexts
+      ON contexts.run_id = snapshots.run_id
+      AND contexts.source = snapshots.source
+  )
+  UPDATE pick_values
+  SET dynasty_value = (
+    SELECT CAST(ROUND(AVG(normalized_value)) AS INTEGER)
+    FROM normalized_picks
+    WHERE normalized_picks.year = pick_values.year
+      AND normalized_picks.round = pick_values.round
+      AND normalized_picks.pick_in_round = pick_values.pick_in_round
+  )
+  WHERE EXISTS (
+    SELECT 1
+    FROM normalized_picks
+    WHERE normalized_picks.year = pick_values.year
+      AND normalized_picks.round = pick_values.round
+      AND normalized_picks.pick_in_round = pick_values.pick_in_round
+  );
+`;
 
 type MigrationJournal = {
   entries: Array<{ when: number }>;
@@ -53,6 +111,15 @@ function createMigrationLedger(sqlite: Database.Database): void {
       created_at NUMERIC
     )
   `);
+}
+
+// @spec DFF-ETL-031
+function backfillPickValuesOnPlayerScale(sqlite: Database.Database): void {
+  if (!tableExists(sqlite, 'pick_values') || !tableExists(sqlite, 'pick_value_snapshots') || !tableExists(sqlite, 'player_value_snapshots')) {
+    return;
+  }
+
+  sqlite.exec(pickValueScaleBackfillSql);
 }
 
 // @spec DFF-DATA-097
@@ -132,6 +199,7 @@ export function migrateDatabase(databasePath: string): string {
 
   try {
     const insertedLegacyBaseline = baselineLegacyDatabase(sqlite);
+    const shouldBackfillPickValues = (latestMigrationTimestamp(sqlite) ?? 0) < pickValueScaleMigrationTimestamp;
     try {
       migrate(drizzle(sqlite), { migrationsFolder });
     } catch (error) {
@@ -139,6 +207,10 @@ export function migrateDatabase(databasePath: string): string {
         sqlite.prepare(`DELETE FROM ${migrationsTable} WHERE hash = ?`).run('legacy-schema-baseline');
       }
       throw error;
+    }
+
+    if (shouldBackfillPickValues) {
+      backfillPickValuesOnPlayerScale(sqlite);
     }
   } finally {
     sqlite.close();

@@ -416,7 +416,7 @@ function buildPickValueNormalizationContexts(
   result: ScraperResult,
   contexts: Map<EtlSource, NormalizationContext>,
 ): void {
-  const context = createNormalizationContext(result.pickValues);
+  const context = createNormalizationContext(result.players);
 
   if (context) {
     contexts.set(result.source, context);
@@ -528,11 +528,15 @@ function writeSourceData(
         }
       : undefined,
   }));
-  const normalizedPickValues = normalizePickValues(result.pickValues, {
-    source: result.source,
-    valueType: 'pick value',
-    warn: (message) => console.warn(message),
-  });
+  const pickValueNormalizationContext = normalizationContexts.get(result.source);
+  if (!pickValueNormalizationContext && result.pickValues.length > 0) {
+    console.warn(
+      `[ETL] WARN: ${result.source} returned ${result.pickValues.length} pick values but no players; skipping picks.`,
+    );
+  }
+  const normalizedPickValues = pickValueNormalizationContext
+    ? normalizePickValues(result.pickValues, pickValueNormalizationContext)
+    : [];
 
   const transaction = sqlite.transaction(() => {
     for (const player of playersWithPremiumValues) {

@@ -47,7 +47,7 @@ The static snapshot export shall include only `pick_values` rows where `pick_in_
 ## ETL — Normalization & Aggregation
 
 **DFF-SPKV-020** `[x]` → #70
-The system shall normalize startup pick values in the same per-source min-max pool as future pick values. All pick rows — future and startup — for a given source shall be scaled together on the 0–9999 range in a single normalization pass.
+The system shall normalize startup pick values with the same per-source player min-max context as future pick values. All pick rows — future and startup — for a given source shall share the source's player scale and be clamped to 0–9999.
 
 **DFF-SPKV-021** `[x]` → #70
 The system shall aggregate `dynasty_value` for each `(year, round, pick_in_round)` entry as the rounded mean of all non-NULL normalized per-source values for that exact key, consistent with the existing future pick aggregation logic.

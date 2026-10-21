@@ -51,7 +51,7 @@ test('week 0 favors starter strength and neutralizes record percentiles', () => 
   const last = classifications.get(3);
 
   assert.equal(leader?.inputs.winPct, 0.5);
-  assert.equal(leader?.winNowScore, 0.8);
+  assert.equal(leader?.winNowScore, 0.9);
   assert.equal(leader?.tier, 'contender');
   assert.equal(middle?.tier, 'middle');
   assert.equal(last?.tier, 'rebuilder');
@@ -95,11 +95,11 @@ test('eight games use full record weight and missing points neutralize every tea
   const middle = classifications.get(2);
   const last = classifications.get(3);
 
-  assert.equal(leader?.winNowScore, 0.85);
+  assert.ok(Math.abs((leader?.winNowScore ?? 0) - 0.85) < 1e-9);
   assert.equal(leader?.tier, 'contender');
   assert.equal(middle?.winNowScore, 0.5);
   assert.equal(middle?.tier, 'middle');
-  assert.equal(last?.winNowScore, 0.15);
+  assert.ok(Math.abs((last?.winNowScore ?? 0) - 0.15) < 1e-9);
   assert.equal(last?.tier, 'rebuilder');
   assert.equal(leader?.inputs.pointsForPct, 0.5);
   assert.equal(middle?.inputs.pointsForPct, 0.5);

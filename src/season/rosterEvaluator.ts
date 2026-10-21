@@ -5,14 +5,22 @@
 // @spec DFF-SM-015
 // @spec DFF-SM-016
 // @spec DFF-SM-017
-// @spec DFF-SM-025
+// @spec DFF-SM-100
+// @spec DFF-SM-101
+// @spec DFF-SM-102
+// @spec DFF-SM-103
+// @spec DFF-SM-104
 // @spec DFF-SM-084
 import { leagueMedianPositionalValue, type LeagueContext, type RosterEntry, type TeamRoster } from './context.js';
+import { classifyTeams, type TeamTier } from './teamClassifier.js';
 
 export type LetterGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
 export type TeamContext = {
-  classification: 'contender' | 'rebuilder';
+  classification: TeamTier;
+  tier: TeamTier;
+  winNowScore: number;
+  inputs: { strengthPct: number; pointsForPct: number; winPct: number; gamesPlayed: number };
   winPct: number;
   rank: number;
   teamCount: number;
@@ -122,7 +130,11 @@ function percentileRank(userValue: number, allValues: number[]): number {
   return (100 * teamsBelow) / (allValues.length - 1);
 }
 
-// @spec DFF-SM-025 — top half of standings by win pct → contender, else rebuilder.
+// @spec DFF-SM-100
+// @spec DFF-SM-101
+// @spec DFF-SM-102
+// @spec DFF-SM-103
+// @spec DFF-SM-104
 export function classifyTeamContext(userTeam: TeamRoster, allRosters: TeamRoster[]): TeamContext {
   const games = userTeam.wins + userTeam.losses + userTeam.ties;
   const winPct = games === 0 ? 0.5 : (userTeam.wins + 0.5 * userTeam.ties) / games;
@@ -136,9 +148,17 @@ export function classifyTeamContext(userTeam: TeamRoster, allRosters: TeamRoster
     .sort((a, b) => b.winPct - a.winPct || a.rosterId - b.rosterId);
 
   const rank = standings.findIndex((team) => team.rosterId === userTeam.rosterId);
+  const classification = classifyTeams(allRosters).get(userTeam.rosterId);
+
+  if (!classification) {
+    throw new Error(`Team ${userTeam.rosterId} missing from its classification pool.`);
+  }
 
   return {
-    classification: rank < Math.ceil(standings.length / 2) ? 'contender' : 'rebuilder',
+    classification: classification.tier,
+    tier: classification.tier,
+    winNowScore: classification.winNowScore,
+    inputs: classification.inputs,
     winPct,
     rank: rank >= 0 ? rank + 1 : standings.length,
     teamCount: standings.length,

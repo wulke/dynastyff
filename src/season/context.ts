@@ -28,6 +28,8 @@ export type TeamRoster = {
   wins: number;
   losses: number;
   ties: number;
+  // @spec DFF-SM-180 — synced Sleeper points_for, nullable when Sleeper has not supplied it.
+  pointsFor?: number | null;
   players: RosterEntry[];
 };
 
@@ -416,7 +418,7 @@ export function assembleLeagueContext(
 
   const teamRows = sqlite
     .prepare(
-      'SELECT roster_id, display_name, team_name, wins, losses, ties FROM sleeper_teams WHERE league_id = ? ORDER BY roster_id',
+      'SELECT roster_id, display_name, team_name, wins, losses, ties, points_for FROM sleeper_teams WHERE league_id = ? ORDER BY roster_id',
     )
     .all(leagueId) as {
     roster_id: number;
@@ -425,6 +427,7 @@ export function assembleLeagueContext(
     wins: number;
     losses: number;
     ties: number;
+    points_for: number | null;
   }[];
 
   // @spec DFF-SM-083 — fewer than 4 teams with data is insufficient for evaluation.
@@ -444,6 +447,8 @@ export function assembleLeagueContext(
     wins: team.wins,
     losses: team.losses,
     ties: team.ties,
+    // @spec DFF-SM-180
+    pointsFor: team.points_for,
     players: rosterEntries.get(team.roster_id) ?? [],
   }));
 

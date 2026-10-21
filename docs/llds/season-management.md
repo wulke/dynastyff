@@ -122,7 +122,7 @@ An overall team grade is the weighted average of position composites (weighted b
 type RosterOverview = {
   overallGrade: LetterGrade;
   overallPercentile: number;
-  teamContext: TeamContext;       // record, contender/rebuilder classification
+  teamContext: TeamContext;       // win-now tier classification and inputs
   positions: {
     [position: string]: {
       grade: LetterGrade;

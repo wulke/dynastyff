@@ -70,6 +70,18 @@ function makeKtcResult(players: RawPlayer[], pickValues: ScraperResult['pickValu
   };
 }
 
+// @spec DFF-ETL-031
+function makeSourcePlayers(minimum: number, maximum: number): RawPlayer[] {
+  return [
+    {
+      name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: minimum, adp: 10,
+    },
+    {
+      name: 'Bravo RB', position: 'RB', nflTeam: 'ATL', age: 22, isRookie: false, rawValue: maximum, adp: 20,
+    },
+  ];
+}
+
 test('package.json exposes npm run etl as a standalone entry point', () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf8'),
@@ -1221,6 +1233,7 @@ test('runEtl inserts KTC players with normalized dynasty values', async () => {
 
 // @spec DFF-ETL-050
 // @spec DFF-ETL-051
+// @spec DFF-ETL-031
 // @spec DFF-ETL-041
 // @spec DFF-ETL-070
 // @spec DFF-ETL-071
@@ -1255,9 +1268,7 @@ test('runEtl logs a warning and continues when one scraper fails', async () => {
       },
       scrapeRosteraudit: async () => ({
         source: 'rosteraudit',
-        players: [{
-          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 12.5,
-        }],
+        players: [],
         pickValues: [{ year: 2028, round: 1, rawValue: 200 }],
       }),
       now: () => '2026-05-28T10:00:00.000Z',
@@ -1291,12 +1302,14 @@ test('runEtl logs a warning and continues when one scraper fails', async () => {
     });
     assert.deepEqual(pickValues, [
       { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 9999 },
-      { year: 2028, round: 1, pick_in_round: 0, dynasty_value: 9999 },
     ]);
     assert.ok(
       warnings.includes(
         '[ETL] WARN: fantasycalc scraper failed — fantasycalc exploded. Excluding from this run.',
       ),
+    );
+    assert.ok(
+      warnings.includes('[ETL] WARN: rosteraudit returned 1 pick values but no players; skipping picks.'),
     );
   } finally {
     console.warn = originalWarn;
@@ -1464,24 +1477,12 @@ test('runEtl aggregates pick values across sources and updates existing round-le
       databasePath: dbPath,
       scrapeKtc: async () =>
         makeKtcResult(
-          [
-            {
-              name: 'Alpha QB',
-              position: 'QB',
-              nflTeam: 'BUF',
-              age: 24,
-              isRookie: false,
-              rawValue: 100,
-              adp: 10,
-            },
-          ],
+          makeSourcePlayers(100, 900),
           [{ year: 2027, round: 1, rawValue: 500 }],
         ),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
-        players: [{
-          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 10,
-        }],
+        players: makeSourcePlayers(100, 1100),
         pickValues: [
           { year: 2027, round: 1, rawValue: 100 },
           { year: 2028, round: 1, rawValue: 300 },
@@ -1489,9 +1490,7 @@ test('runEtl aggregates pick values across sources and updates existing round-le
       }),
       scrapeRosteraudit: async () => ({
         source: 'rosteraudit',
-        players: [{
-          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 10,
-        }],
+        players: makeSourcePlayers(100, 1100),
         pickValues: [
           { year: 2027, round: 1, rawValue: 600 },
           { year: 2029, round: 1, rawValue: 200 },
@@ -1542,7 +1541,7 @@ test('runEtl aggregates pick values across sources and updates existing round-le
         year: 2027,
         round: 1,
         pick_in_round: 0,
-        dynasty_value: 9999,
+        dynasty_value: 3333,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
       {
@@ -1550,7 +1549,7 @@ test('runEtl aggregates pick values across sources and updates existing round-le
         year: 2028,
         round: 1,
         pick_in_round: 0,
-        dynasty_value: 9999,
+        dynasty_value: 2000,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
       {
@@ -1558,7 +1557,7 @@ test('runEtl aggregates pick values across sources and updates existing round-le
         year: 2029,
         round: 1,
         pick_in_round: 0,
-        dynasty_value: 9999,
+        dynasty_value: 1000,
         updated_at: '2026-05-20T07:00:00.000Z',
       },
     ]);
@@ -1589,17 +1588,7 @@ test('runEtl stores startup pick slot rows separately from round-level future pi
       databasePath: dbPath,
       scrapeKtc: async () =>
         makeKtcResult(
-          [
-            {
-              name: 'Alpha QB',
-              position: 'QB',
-              nflTeam: 'BUF',
-              age: 24,
-              isRookie: false,
-              rawValue: 100,
-              adp: 10,
-            },
-          ],
+          makeSourcePlayers(100, 900),
           [
             { year: 2027, round: 1, rawValue: 500 },
             { year: 2026, round: 1, pickInRound: 4, rawValue: 800 },
@@ -1607,9 +1596,7 @@ test('runEtl stores startup pick slot rows separately from round-level future pi
         ),
       scrapeFantasycalc: async () => ({
         source: 'fantasycalc',
-        players: [{
-          name: 'Alpha QB', position: 'QB', nflTeam: 'BUF', age: 24, isRookie: false, rawValue: 100, adp: 10,
-        }],
+        players: makeSourcePlayers(100, 1100),
         pickValues: [
           { year: 2027, round: 1, rawValue: 100 },
           { year: 2026, round: 1, pickInRound: 4, rawValue: 200 },
@@ -1661,8 +1648,8 @@ test('runEtl stores startup pick slot rows separately from round-level future pi
 
     assert.equal(exitCode, 0);
     assert.deepEqual(rows, [
-      { year: 2026, round: 1, pick_in_round: 4, dynasty_value: 9999 },
-      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 9999 },
+      { year: 2026, round: 1, pick_in_round: 4, dynasty_value: 4875 },
+      { year: 2027, round: 1, pick_in_round: 0, dynasty_value: 2500 },
     ]);
     assert.deepEqual(snapshots, [
       { year: 2026, round: 1, pick_in_round: 4, source: 'fantasycalc', raw_value: 200 },

@@ -13,6 +13,8 @@ import { resolveDatabasePath } from './path.js';
 const migrationsTable = '__drizzle_migrations';
 const legacySchemaTimestamp = 1779470704872;
 const legacyDevySchemaTimestamp = 1791660080858;
+// @spec DFF-ETL-031
+const pickValueScaleMigrationTimestamp = 1792500000000;
 const databaseDirectory = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(databaseDirectory, '../../drizzle');
 const migrationJournalPath = path.join(migrationsFolder, 'meta', '_journal.json');
@@ -197,14 +199,18 @@ export function migrateDatabase(databasePath: string): string {
 
   try {
     const insertedLegacyBaseline = baselineLegacyDatabase(sqlite);
+    const shouldBackfillPickValues = (latestMigrationTimestamp(sqlite) ?? 0) < pickValueScaleMigrationTimestamp;
     try {
       migrate(drizzle(sqlite), { migrationsFolder });
-      backfillPickValuesOnPlayerScale(sqlite);
     } catch (error) {
       if (insertedLegacyBaseline) {
         sqlite.prepare(`DELETE FROM ${migrationsTable} WHERE hash = ?`).run('legacy-schema-baseline');
       }
       throw error;
+    }
+
+    if (shouldBackfillPickValues) {
+      backfillPickValuesOnPlayerScale(sqlite);
     }
   } finally {
     sqlite.close();

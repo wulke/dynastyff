@@ -150,7 +150,7 @@ test('database entry points fail fast with the schema upgrade command', () => {
 });
 
 // @spec DFF-ETL-031
-test('db:migrate recomputes current pick values from the latest run player normalization context', () => {
+test('db:migrate backfills once without overwriting a later non-KTC ETL correction', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dynastyff-db-pick-scale-'));
   const dbPath = path.join(tempDir, 'picks.sqlite');
   initializeDatabase(dbPath);
@@ -159,7 +159,7 @@ test('db:migrate recomputes current pick values from the latest run player norma
   try {
     sqlite.prepare(
       'INSERT INTO etl_runs (id, started_at, completed_at, sources_attempted, sources_succeeded) VALUES (?, ?, ?, ?, ?)',
-    ).run('run-1', '2026-10-20T12:00:00.000Z', '2026-10-20T12:01:00.000Z', '["ktc"]', '["ktc"]');
+    ).run('run-1', '2026-10-20T12:00:00.000Z', '2026-10-20T12:01:00.000Z', '["fantasycalc"]', '["fantasycalc"]');
     sqlite.prepare(
       `INSERT INTO players (
         id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
@@ -170,12 +170,19 @@ test('db:migrate recomputes current pick values from the latest run player norma
         id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run('player-high', 'High QB', 'QB', 'KC', 23, 0, 9999, '2026-10-20T12:00:00.000Z');
+    // This player represents a FantasyCalc row that did not match a canonical player, so its raw
+    // source value was not retained in player_value_snapshots for historical backfill.
+    sqlite.prepare(
+      `INSERT INTO players (
+        id, name, position, nfl_team, age, is_rookie, dynasty_value, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run('player-unmatched', 'Unmatched RB', 'RB', 'ATL', 22, 0, 0, '2026-10-20T12:00:00.000Z');
     sqlite.prepare(
       'INSERT INTO player_value_snapshots (id, run_id, player_id, source, raw_value) VALUES (?, ?, ?, ?, ?)',
-    ).run('snapshot-low', 'run-1', 'player-low', 'ktc', 453);
+    ).run('snapshot-low', 'run-1', 'player-low', 'fantasycalc', 453);
     sqlite.prepare(
       'INSERT INTO player_value_snapshots (id, run_id, player_id, source, raw_value) VALUES (?, ?, ?, ?, ?)',
-    ).run('snapshot-high', 'run-1', 'player-high', 'ktc', 9999);
+    ).run('snapshot-high', 'run-1', 'player-high', 'fantasycalc', 9999);
     sqlite.prepare(
       `INSERT INTO pick_values (id, year, round, pick_in_round, dynasty_value, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -183,7 +190,7 @@ test('db:migrate recomputes current pick values from the latest run player norma
     sqlite.prepare(
       `INSERT INTO pick_value_snapshots (id, run_id, year, round, pick_in_round, source, raw_value)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run('pick-snapshot', 'run-1', 2027, 1, 0, 'ktc', 5951);
+    ).run('pick-snapshot', 'run-1', 2027, 1, 0, 'fantasycalc', 5951);
     sqlite.prepare('UPDATE __drizzle_migrations SET created_at = ?').run(1791662190205);
   } finally {
     sqlite.close();
@@ -197,8 +204,21 @@ test('db:migrate recomputes current pick values from the latest run player norma
         migrated.prepare('SELECT dynasty_value FROM pick_values WHERE id = ?').get('pick-2027-1'),
         { dynasty_value: 5759 },
       );
+      // A subsequent ETL has the complete FantasyCalc player context and corrects the approximate backfill.
+      migrated.prepare('UPDATE pick_values SET dynasty_value = ? WHERE id = ?').run(7777, 'pick-2027-1');
     } finally {
       migrated.close();
+    }
+
+    migrateDatabase(dbPath);
+    const migratedTwice = new Database(dbPath);
+    try {
+      assert.deepEqual(
+        migratedTwice.prepare('SELECT dynasty_value FROM pick_values WHERE id = ?').get('pick-2027-1'),
+        { dynasty_value: 7777 },
+      );
+    } finally {
+      migratedTwice.close();
     }
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });

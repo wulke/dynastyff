@@ -529,6 +529,11 @@ function writeSourceData(
       : undefined,
   }));
   const pickValueNormalizationContext = normalizationContexts.get(result.source);
+  if (!pickValueNormalizationContext && result.pickValues.length > 0) {
+    console.warn(
+      `[ETL] WARN: ${result.source} returned ${result.pickValues.length} pick values but no players; skipping picks.`,
+    );
+  }
   const normalizedPickValues = pickValueNormalizationContext
     ? normalizePickValues(result.pickValues, pickValueNormalizationContext)
     : [];

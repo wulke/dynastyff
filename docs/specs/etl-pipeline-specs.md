@@ -63,7 +63,7 @@ The system shall use the following source priority order for canonical player na
 The system shall normalize each source's raw player values independently to the range 0–9999 using min-max scaling: `round((raw - min) / (max - min) * 9999)`.
 
 **DFF-ETL-031** `[x]` → #5
-The system shall normalize each source's raw pick values using that source's raw player-value min-max context and the formula `round((raw - playerMin) / (playerMax - playerMin) * 9999)`, clamped to 0–9999, so pick and player values share one source scale.
+The system shall normalize each source's raw pick values using that source's raw player-value min-max context and the formula `round((raw - playerMin) / (playerMax - playerMin) * 9999)`, clamped to 0–9999, so pick and player values share one source scale. When a source returns pick values but no player values, the system shall warn and exclude those picks because it cannot establish the shared scale.
 
 **DFF-ETL-032** `[x]` → #5
 When a source returns only one player value or all of its player values are equal (degenerate player context), the system shall assign entries normalized with that context a value of 9999 and log a warning. Pick-row count and uniformity shall not create a separate fallback context.

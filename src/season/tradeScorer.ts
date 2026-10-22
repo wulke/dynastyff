@@ -413,7 +413,7 @@ function compositeScore(
   }
 
   const context_ = classifyTeamContext(userTeam, context.allRosters);
-  const contender = context_.classification === 'contender';
+  const contender = context_.tier === 'contender';
 
   const valueMultiplier = contender ? 0.8 : 1.2;
   const ageMultiplier = contender ? 1.0 : 1.4;

@@ -54,10 +54,11 @@ type SeasonPositionEval = {
   starters: SeasonRosterEntry[];
 };
 
+// @spec DFF-SM-105
 type SeasonOverview = {
   overallGrade: string;
   overallPercentile: number;
-  teamContext: { classification: 'contender' | 'rebuilder'; winPct: number; rank: number; teamCount: number };
+  teamContext: { classification: 'contender' | 'middle' | 'rebuilder'; tier?: 'contender' | 'middle' | 'rebuilder' };
   positions: Record<string, SeasonPositionEval>;
   roster: SeasonRosterEntry[];
   staleSince: string | null;
@@ -110,7 +111,7 @@ function compareRosterEntries(a: SeasonRosterEntry, b: SeasonRosterEntry): numbe
 }
 
 // @spec DFF-SM-019
-// @spec DFF-SM-026
+// @spec DFF-SM-105
 // @spec DFF-SM-081
 // @spec DFF-SM-084
 function RosterOverviewView({
@@ -133,8 +134,11 @@ function RosterOverviewView({
             {overview.overallGrade}
           </span>
           <span className="font-condensed text-lg tabular-nums text-secondary">PCTL {Math.round(overview.overallPercentile)}</span>
-          <span className="rounded border border-info px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-info">
-            {overview.teamContext.classification}
+          <span
+            aria-label={`Team tier ${overview.teamContext.tier ?? overview.teamContext.classification}`}
+            className={`rounded border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${tierBadgeTokens[overview.teamContext.tier ?? overview.teamContext.classification]}`}
+          >
+            {overview.teamContext.tier ?? overview.teamContext.classification}
           </span>
         </div>
         <button
@@ -254,6 +258,13 @@ type RecommendationsView = {
   groups: Record<string, { label: string; candidates: RecommendationCandidate[] }>;
 };
 
+// @spec DFF-SM-105
+const tierBadgeTokens: Record<'contender' | 'middle' | 'rebuilder', string> = {
+  contender: 'border-positive text-positive',
+  middle: 'border-info text-info',
+  rebuilder: 'border-negative text-negative',
+};
+
 // @spec DFF-SM-068
 type WaiverPairView = {
   add: { id: string; name: string; position: string; dynastyValue: number };
@@ -346,21 +357,27 @@ function PendingOffersPanel({
 
 // @spec DFF-SM-054
 // @spec DFF-SM-057
+// @spec DFF-SM-105
 function RecommendationsPanel({
   recommendations,
   analyses,
   onAnalyze,
+  tier,
 }: {
   recommendations: RecommendationsView;
   analyses: Record<string, TradeAnalysis>;
   onAnalyze: (key: string, body: Record<string, unknown>) => void;
+  tier: 'contender' | 'middle' | 'rebuilder';
 }) {
   const groups = Object.entries(recommendations.groups).filter(([, group]) => group.candidates.length > 0);
 
   return (
     <div className="mt-3 rounded-md border border-default bg-surface">
-      <div className="border-b border-default px-3 py-2">
+      <div className="flex items-center justify-between border-b border-default px-3 py-2">
         <h2 className="font-condensed text-lg font-semibold text-primary">Trade Recommendations</h2>
+        <span aria-label={`Team tier ${tier}`} className={`rounded border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${tierBadgeTokens[tier]}`}>
+          {tier}
+        </span>
       </div>
       {groups.length === 0 ? (
         <p className="px-3 py-2 text-xs text-muted">No trade candidates right now.</p>
@@ -1137,6 +1154,7 @@ export function MyTeamSection() {
           recommendations={recommendations}
           analyses={analyses}
           onAnalyze={(key, body) => void analyzeTrade(key, body, 'trades')}
+          tier={overview?.teamContext.tier ?? overview?.teamContext.classification ?? 'middle'}
         />
       ) : null}
 

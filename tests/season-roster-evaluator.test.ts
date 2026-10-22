@@ -187,8 +187,9 @@ test('overall grade weights positions by roster slot count', () => {
   assert.equal(equalWeights.overallGrade, 'B');
 });
 
-// @spec DFF-SM-025
-test('team context classifies top half as contender and bottom half as rebuilder', () => {
+// @spec DFF-SM-100
+// @spec DFF-SM-103
+test('team context exposes contender and rebuilder tiers at the score extremes', () => {
   const rosters = balancedLeague();
   rosters[0].wins = 10;
   rosters[0].losses = 2;
@@ -208,8 +209,9 @@ test('team context classifies top half as contender and bottom half as rebuilder
   assert.equal(overview.teamContext.classification, 'contender');
 });
 
-// @spec DFF-SM-025
-test('odd team counts split at the ceiling of half', () => {
+// @spec DFF-SM-100
+// @spec DFF-SM-103
+test('team context uses score thresholds instead of splitting an odd league by rank', () => {
   const rosters = balancedLeague().slice(0, 5);
   rosters[0].wins = 10;
   rosters[0].losses = 2;
@@ -222,10 +224,11 @@ test('odd team counts split at the ceiling of half', () => {
   rosters[4].wins = 2;
   rosters[4].losses = 10;
 
-  // 5 teams: ceil(5/2) = 3 → ranks 1-3 are contenders, ranks 4-5 rebuilders.
+  // Identical strength and unavailable points center the baseline at 0.3; records move the
+  // middle team to 0.5 and the fourth-place team to the 0.4 rebuilder threshold.
   const rank3 = classifyTeamContext(rosters[2], rosters);
   assert.equal(rank3.rank, 3);
-  assert.equal(rank3.classification, 'contender');
+  assert.equal(rank3.classification, 'middle');
 
   const rank4 = classifyTeamContext(rosters[3], rosters);
   assert.equal(rank4.rank, 4);

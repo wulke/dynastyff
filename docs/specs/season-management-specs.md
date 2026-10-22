@@ -195,22 +195,22 @@ The full player pool shall not be sent to Claude. The Claude context shall inclu
 
 *Map: [Realistic, counterparty-aware trades](https://github.com/wulke/dynastyff/issues/210). Decision: [acceptance model](https://github.com/wulke/dynastyff/issues/214).*
 
-**DFF-SM-100** `[ ]`
+**DFF-SM-100** `[x]` → #225
 The system shall classify every team in a connected league, including the user's, into exactly one tier: `contender`, `middle`, or `rebuilder`.
 
-**DFF-SM-101** `[ ]`
+**DFF-SM-101** `[x]` → #225
 The system shall compute each team's `winNowScore` as `w_strength·strengthPct + w_points·pointsForPct + w_record·winPct`, where each input is the team's league percentile (0–1) of summed starter dynasty value, `points_for`, and win percentage (ties counted as half a win), respectively.
 
-**DFF-SM-102** `[ ]`
+**DFF-SM-102** `[x]` → #225
 The system shall set the classifier weights from season progress `p = min(gamesPlayed / 8, 1)` as `w_strength = 0.6 − 0.3p`, `w_points = 0.2 + 0.1p`, `w_record = 0.2 + 0.2p`, where `gamesPlayed` is the league's maximum `wins + losses + ties`.
 
-**DFF-SM-103** `[ ]`
+**DFF-SM-103** `[x]` → #225
 The system shall assign `contender` when `winNowScore ≥ 0.6`, `rebuilder` when `winNowScore ≤ 0.4`, and `middle` otherwise.
 
-**DFF-SM-104** `[ ]`
+**DFF-SM-104** `[x]` → #225
 When no games have been played, or when `points_for` is unavailable, the system shall use a percentile of 0.5 for every team for the missing input.
 
-**DFF-SM-105** `[ ]`
+**DFF-SM-105** `[x]` → #225
 The UI shall display the user's tier (contender / middle / rebuilder) as a badge on the Roster Overview and on the Trade Recommendations header.
 
 **DFF-SM-106** `[ ]`
@@ -384,7 +384,7 @@ The UI shall let the user toggle untouchable status on roster rows and owned pic
 
 ## Context Assembly (acceptance additions)
 
-**DFF-SM-180** `[ ]`
+**DFF-SM-180** `[x]` → #225
 `LeagueContext` shall additionally include, for every team, `points_for`, `total_moves`, and `waiver_budget_used`; each rostered player's `redraft_value`; this season's completed trades; the user's untouchables; and the league's acceptance band.
 
 ---

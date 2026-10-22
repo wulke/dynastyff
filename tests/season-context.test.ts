@@ -1,4 +1,5 @@
 // @spec DFF-SM-070
+// @spec DFF-SM-180
 // @spec DFF-SM-071
 // @spec DFF-SM-080
 // @spec DFF-SM-083
@@ -22,6 +23,7 @@ test('assembleLeagueContext assembles league, rosters, free agents, offers, and 
 
     assert.equal(context.userRosterId, 1);
     assert.equal(context.allRosters.length, 4);
+    assert.equal(context.allRosters[0]?.pointsFor, 1500.5);
 
     const userTeam = context.allRosters.find((team) => team.rosterId === 1);
     assert.ok(userTeam);

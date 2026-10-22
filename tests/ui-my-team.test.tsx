@@ -675,6 +675,7 @@ function recommendationsFixture() {
 
 // @spec DFF-SM-057
 // @spec DFF-SM-056
+// @spec DFF-SM-105
 test('trade recommendations render as a grouped accordion and analyze posts the hypothetical offer', async () => {
   const user = userEvent.setup();
   const connections = [
@@ -702,6 +703,7 @@ test('trade recommendations render as a grouped accordion and analyze posts the 
   render(<MyTeamSection />);
 
   expect(await screen.findByText('Trade Recommendations')).toBeInTheDocument();
+  expect(screen.getAllByLabelText('Team tier contender')).toHaveLength(2);
   expect(screen.getByText('RB targets')).toBeInTheDocument();
   expect(screen.getByText('Rival Squad')).toBeInTheDocument();
 

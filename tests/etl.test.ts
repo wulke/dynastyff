@@ -1023,10 +1023,13 @@ test('extractKtcRowsFromPage extracts KTC TE-premium value tiers', async () => {
           team: 'KC',
           age: 25,
           rookie: false,
-          superflexValues: { value: 5000, startupAdp: 42 },
-          tep: { value: 6000 },
-          tepp: { value: 7000 },
-          teppp: { value: 8000 },
+          superflexValues: {
+            value: 5000,
+            startupAdp: 42,
+            tep: { value: 6000 },
+            tepp: { value: 7000 },
+            teppp: { value: 8000 },
+          },
         },
       ];
       return pageFunction() as T;

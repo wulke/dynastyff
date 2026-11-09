@@ -135,10 +135,10 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
         superflexValues?: {
           value?: number;
           startupAdp?: number | null;
+          tep?: { value?: number };
+          tepp?: { value?: number };
+          teppp?: { value?: number };
         };
-        tep?: { value?: number };
-        tepp?: { value?: number };
-        teppp?: { value?: number };
       }>;
     }).playersArray;
 
@@ -161,14 +161,14 @@ export async function extractKtcRowsFromPage(page: Pick<Page, 'evaluate'>): Prom
                 age: typeof player.age === 'number' ? player.age : null,
                 isRookie: Boolean(player.rookie),
                 rawValue: player.superflexValues.value,
-                ...((typeof player.tep?.value === 'number' ||
-                  typeof player.tepp?.value === 'number' ||
-                  typeof player.teppp?.value === 'number')
+                ...((typeof player.superflexValues.tep?.value === 'number' ||
+                  typeof player.superflexValues.tepp?.value === 'number' ||
+                  typeof player.superflexValues.teppp?.value === 'number')
                   ? {
                       tePremiumValues: {
-                        tep: typeof player.tep?.value === 'number' ? player.tep.value : null,
-                        tepp: typeof player.tepp?.value === 'number' ? player.tepp.value : null,
-                        teppp: typeof player.teppp?.value === 'number' ? player.teppp.value : null,
+                        tep: typeof player.superflexValues.tep?.value === 'number' ? player.superflexValues.tep.value : null,
+                        tepp: typeof player.superflexValues.tepp?.value === 'number' ? player.superflexValues.tepp.value : null,
+                        teppp: typeof player.superflexValues.teppp?.value === 'number' ? player.superflexValues.teppp.value : null,
                       },
                     }
                   : {}),
